@@ -2,6 +2,28 @@
 
 Guide for AI coding agents working on the GroktoCrawl codebase.
 
+## Experimental fork scope
+
+This repository is `magnus919/groktocrawl-x`, an experimental fork, not a replacement
+for [mainline GroktoCrawl](https://github.com/groktopus/groktocrawl). Follow the
+[experiment plan](docs/experiments/research-architecture.md). Target issues and PRs
+at this repository unless the user explicitly requests an upstream contribution.
+
+Inherited ADRs describe the starting implementation, not a veto on the experiment.
+The research architecture may be replaced through new MADR records under
+`docs/adr/`. For each affected decision, record retained, extended, partially
+superseded, or superseded scope. Keep accepted ADR bodies immutable; update their
+status/successor links and the index only when a replacement is accepted in this
+fork. Keep proposed behavior separate from implemented behavior. An ADR decision
+in this repository has no effect on the status of the upstream record.
+
+Retain contribution and engineering standards: Conventional Commits with DCO
+sign-off, typed async Python, relevant tests, public API/CLI/documentation parity,
+webhook contracts for async endpoints, and review/check gates. Architecture changes
+must update affected tests and guides rather than disabling their checks. GitHub
+settings, runner access, review credentials, and publishing permissions are not
+inherited with Git history; verify them before claiming CI or release readiness.
+
 ## Project Overview
 
 GroktoCrawl is a self-hosted, MIT-licensed alternative to Firecrawl. It implements the Firecrawl v2 API surface as a set of Python FastAPI services running in Docker.

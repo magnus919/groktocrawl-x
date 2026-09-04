@@ -1,4 +1,16 @@
-# Contributing to GroktoCrawl
+# Contributing to GroktoCrawl X
+
+> This is an experimental fork, not a replacement for mainline. File experiment
+> issues and PRs in [magnus919/groktocrawl-x](https://github.com/magnus919/groktocrawl-x).
+> Use the [experiment plan](docs/experiments/research-architecture.md) for this
+> fork's priorities. The [upstream roadmap](https://github.com/groktopus/groktocrawl/blob/main/docs/roadmap.md)
+> is historical context here, not the experiment backlog.
+>
+> The engineering and review standards below remain the baseline. Architecture is
+> intentionally open to replacement through new ADRs. Proposed replacements do
+> not change runtime guarantees until implementation, tests, and operator docs
+> ship. Fork repository settings must be configured explicitly; the inherited
+> descriptions of protected `main` do not establish that those settings exist here.
 
 Thanks for your interest! GroktoCrawl is MIT-licensed and contributions of all kinds are welcome.
 
