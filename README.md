@@ -1,4 +1,12 @@
-# GroktoCrawl
+# GroktoCrawl X — experimental fork
+
+> [!IMPORTANT]
+> **This is `magnus919/groktocrawl-x`, an experimental fork. It is not a replacement for mainline GroktoCrawl.**
+> Mainline development continues at [groktopus/groktocrawl](https://github.com/groktopus/groktocrawl).
+> This experiment explores a new research architecture: explicit orchestration, a portable claims-and-evidence model (Knowledge IR), verified artifact rendering, and durable workflows.
+> These capabilities are planned, not implemented by this documentation change. Start with the [experiment plan](docs/experiments/research-architecture.md) and [proposed fork charter ADR](docs/adr/0067-establish-an-independent-research-architecture-experiment.md).
+>
+> The repository preserves upstream Git history but is hosted as a separate GitHub repository. The inherited documentation below describes the starting implementation; it does not promise compatibility for future experiments. No upstream releases, images, or support channels represent this fork.
 
 GroktoCrawl is a self-hosted, MIT-licensed web data platform compatible with the Firecrawl v2 API surface. It combines scraping, crawl and map jobs, search, structured extraction, browser automation, monitors, semantic retrieval, an autonomous research agent, and an MCP server in one Docker deployment.
 
@@ -109,5 +117,9 @@ Self-hosted CI is hardened against untrusted fork PRs: workflow edits on fork PR
 Core Firecrawl-compatible workflows and GroktoCrawl extensions are actively developed. Review the [roadmap](docs/roadmap.md) for Now / Next / Later priorities, the [changelog](CHANGELOG.md), [ADRs](docs/adr/README.md), and [issues](https://github.com/groktopus/groktocrawl/issues) for change history and planned work. Bugs and feature ideas are filed through the [contribution intake](CONTRIBUTING.md#contribution-intake-and-triage) route.
 
 ## Development policy
+
+The policy below is the inherited standard. Fork-specific CI and ruleset setup is
+tracked in [experiment W0](docs/experiments/research-architecture.md); those settings
+are not inherited with Git history.
 
 Merges to `main` require the **Code Quality Gate** and **Runtime Gate** checks to pass and at least one approving review for non-automation changes (stale approvals are dismissed and open review conversations block merge). `dependabot[bot]` skips the review requirement only — it must still pass the required checks; the sole maintainer can merge their own PRs without an approving review (review bypass only — required checks still bind); release-please PRs require a human approving review. See [ADR-0046](docs/adr/0046-enforce-qa-checks-and-review-policy-on-main.md) for the full policy and [Emergency Branch Protection Bypass](docs/runbooks/emergency-branch-protection-bypass.md) for the audited emergency exception path.
