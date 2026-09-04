@@ -143,6 +143,25 @@ implementation around an unreviewed ADR.
   search/LLM twins, fixture site, and benchmark evidence conventions. Record known
   test limitations instead of interpreting fixture success as real-model quality.
 
+### W0 setup record: hosted validation enabled
+
+On 2026-09-04 the maintainer authorized hosted CI validation. Repository Actions
+are enabled with the following workflow split, verified through the GitHub API:
+
+- **Enabled:** AGENTS.md Validation, Architecture CI, CLI Coverage, Code Quality,
+  Documentation Surface, Fast Tests, pip-audit, Scraper Scale-Out, and Session
+  storage contract. These workflows use GitHub-hosted runners. The scale-out and
+  session workflows use local fixture services, not the upstream self-hosted runner.
+- **Disabled:** Docker Build & Publish, Grounded Answer Eval (Nightly/Manual), Droid
+  Auto Review, Droid Tag, Trusted Live Calibration, and Release Please. This keeps
+  upstream publishing, self-hosted jobs, paid review, and live-provider calls off.
+
+Enabling a workflow is not evidence that its checks pass. Check the current PR's
+runs for results. `Runtime Gate` is inside the disabled Docker workflow and remains
+unavailable until it is separated or a fork-specific runtime lane is configured.
+Ruleset configuration and release readiness remain open W0 items. Hosted validation
+authorization does not authorize enabling the disabled workflows or merging the PR.
+
 ### W2: claims and evidence before prose
 
 - Minimum IR: schema/revision IDs; atomic claim text and kind; source snapshot ID,
