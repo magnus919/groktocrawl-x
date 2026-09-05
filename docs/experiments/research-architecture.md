@@ -439,3 +439,21 @@ Issue #16 remains open for verification records, conflict/insufficiency fixtures
 all three audited render layers and negative publication controls. Passing structural
 checks cannot authorize an answer; in particular, an exact quote can coexist with
 an unsupported claim. Remaining W1 comparative preflight gates still apply.
+
+The next internal slice, `agent.experimental.verification`, records explicit fixture
+verdicts (`pass`, `fail`, `indeterminate`) separately from claim assessments. Each
+record binds the full structural context, selected evidence, subject, policy and
+fixture-verifier identity to a versioned input digest. The set validator compares
+against caller-established context, so rehashing substituted scope/revision/policy
+or verifier data cannot silently make an old record apply to a different input.
+
+`fixture-verification-input/1` hashes a domain-prefixed, sorted compact UTF-8 JSON
+serialization of the typed input. It is neither JCS nor the similarly named
+`fixture-verifier-input/1` digest in the original design example. It is a local
+prototype contract only. Only `fixture_expectation` identities are accepted; these
+records are deliberately hand-authored test data, not authenticated human approvals,
+model judgments or a semantic verifier. A digest binds bytes, not truth.
+
+No append-only persistence or public schema is shipped. Multiple recorded verdicts
+can be retained without choosing the latest pass; resolving applicable checks,
+conflict/coverage handling and audited render publication remain issue #16 work.
