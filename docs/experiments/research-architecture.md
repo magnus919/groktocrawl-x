@@ -634,3 +634,40 @@ approval. Source metadata is recorded rather than authenticated. Full Knowledge 
 revision/assessment semantics, independent semantic evaluation, public transports,
 persistence and comparative evidence remain unfinished. This slice does not select
 storage, a graph runtime or recovery infrastructure, or authorize external calls.
+
+
+## W2 in-memory fixture revision history
+
+Issue #29 adds `agent.experimental.revisions`: `fixture-revision/1` wraps an
+immutable fixture research payload with UTC creation time, direct parent identity
+and typed introduction declarations. `fixture-history/1` validates a supplied
+linear root-to-head chain of at most 20 revisions. Each revision requires an
+objective; creation time cannot precede its recorded inputs or its parent. Scope
+and research identity stay fixed and revision IDs cannot recur.
+
+A registry spanning the supplied history compares complete typed records for
+snapshots, evidence, claims, relationships, verification, questions and conflicts.
+Any previously used ID must retain its kind and exact record, including after
+removal and later reintroduction. This prototype is deliberately conservative:
+changes to assessment, source metadata or reference IDs also require new identity.
+Every new identity must be declared exactly once, either as an explicit novel
+introduction (`predecessor_id: null`) or a replacement of an earlier entity of the
+same kind. New root identities have no predecessor. The validator cannot infer
+semantic equivalence or discover that a caller falsely labelled a replacement as
+novel; the declarations record that distinction for review.
+
+`append_revision` returns a new validated chain while preserving the supplied
+prefix. Old verification records remain in their original revisions. A new checked
+revision/input needs a new verification identity; old records cannot be inserted
+into the current verification set. `validate_latest_publication` uses only the last
+revision's research payload with the existing gate. Passing historical audits or
+verdicts cannot substitute for current applicable records.
+
+Tests exercise corrected evidence with predecessor links, unchanged and reassigned
+identities after removal, re-verification, invalid parent/chronology/scope, cross-kind
+aliases, incomplete introductions, forged model copies and stale publication or
+verification attempts. This is deterministic fixture contract validation, not a
+persistence implementation, authenticated or complete history, semantic matching,
+portable export format, retention promise or complete `knowledge-ir/1`. A caller
+must establish the trusted history prefix; validating a separately supplied chain
+cannot prove omitted or rewritten history does not exist elsewhere.
