@@ -30,6 +30,21 @@ class Record(BaseModel):
     )
 
 
+class SourceDate(Record):
+    """A recorded source date and its provenance, not an authenticated assertion."""
+
+    value: datetime
+    provenance: Text
+
+    @field_validator("value")
+    @classmethod
+    def utc_timestamp(cls, value: datetime) -> datetime:
+        offset = value.utcoffset()
+        if offset is None or offset.total_seconds() != 0:
+            raise ValueError("source date must have an explicit UTC offset")
+        return value
+
+
 class Snapshot(Record):
     snapshot_id: Identity
     canonical_url: Annotated[str, Field(pattern=r"^https?://[^\s/]+(?:/[^\s]*)?$")]
@@ -39,6 +54,9 @@ class Snapshot(Record):
     text: Text
     digest: Digest
     lineage_id: Identity | None = None
+    origin_id: Identity | None = None
+    published_at: SourceDate | None = None
+    effective_at: SourceDate | None = None
 
     @field_validator("retrieved_at")
     @classmethod
@@ -69,6 +87,7 @@ class Claim(Record):
     text: Text
     kind: Literal["source_statement", "observation", "inference"]
     qualifiers: tuple[Text, ...] = Field(min_length=1, max_length=100)
+    temporal_scope: Literal["current", "historical"] = "current"
     assessment: Literal[
         "unassessed", "supported", "contested", "insufficient", "refuted"
     ] = "unassessed"
@@ -91,10 +110,20 @@ class KnowledgeStructure(Record):
     scope_id: Identity
     research_id: Identity
     revision_id: Identity
+    as_of: datetime | None = None
     snapshots: tuple[Snapshot, ...] = Field(max_length=100)
     evidence: tuple[Evidence, ...] = Field(max_length=1000)
     claims: tuple[Claim, ...] = Field(max_length=1000)
     relationships: tuple[Relationship, ...] = Field(max_length=2000)
+
+    @field_validator("as_of")
+    @classmethod
+    def utc_as_of(cls, value: datetime | None) -> datetime | None:
+        if value is not None:
+            offset = value.utcoffset()
+            if offset is None or offset.total_seconds() != 0:
+                raise ValueError("as_of must have an explicit UTC offset")
+        return value
 
     @model_validator(mode="after")
     def structural_integrity(self) -> Self:

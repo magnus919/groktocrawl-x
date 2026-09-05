@@ -6,7 +6,7 @@ append-only storage and render audit are deliberately not simulated by this form
 
 import json
 from datetime import datetime
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
@@ -19,6 +19,28 @@ class FixtureVerifier(Record):
     version: Identity
 
 
+class FreshnessBasis(Record):
+    snapshot_id: Identity
+    basis: Literal["published_at", "effective_at", "historical_snapshot", "unknown"]
+    max_age_seconds: Annotated[int, Field(strict=True, ge=0, le=315_576_000)]
+    reason: Text
+
+
+class FreshnessContext(Record):
+    policy_version: Identity
+    evaluated_at: datetime
+    as_of: datetime
+    sources: tuple[FreshnessBasis, ...] = Field(min_length=1, max_length=100)
+
+    @field_validator("evaluated_at", "as_of")
+    @classmethod
+    def utc_timestamp(cls, value: datetime) -> datetime:
+        offset = value.utcoffset()
+        if offset is None or offset.total_seconds() != 0:
+            raise ValueError("freshness times must have explicit UTC offsets")
+        return value
+
+
 class VerificationInput(Record):
     """Full structural context prevents a quote-only verdict from hiding context."""
 
@@ -29,6 +51,7 @@ class VerificationInput(Record):
     policy_version: Identity
     verifier: FixtureVerifier
     evidence_ids: tuple[Identity, ...] = Field(max_length=1000)
+    freshness: FreshnessContext | None = None
 
     @model_validator(mode="after")
     def local_references(self) -> Self:
@@ -39,7 +62,55 @@ class VerificationInput(Record):
             raise ValueError("verification evidence references must be unique")
         if not set(self.evidence_ids) <= available:
             raise ValueError("verification references unavailable evidence")
+        if self.check_type == "freshness":
+            context = self.freshness
+            if context is None:
+                raise ValueError("freshness check requires typed context")
+            if context.policy_version != self.policy_version:
+                raise ValueError("freshness policy differs from verification policy")
+            if context.as_of != self.structure.as_of:
+                raise ValueError("freshness as-of differs from research constraint")
+            if context.evaluated_at < context.as_of:
+                raise ValueError("freshness cannot evaluate a future as-of constraint")
+            snapshots = {
+                item.snapshot_id
+                for item in self.structure.evidence
+                if item.evidence_id in self.evidence_ids
+            }
+            references = [item.snapshot_id for item in context.sources]
+            if len(set(references)) != len(references) or set(references) != snapshots:
+                raise ValueError(
+                    "freshness must cover exactly the referenced snapshots"
+                )
+        elif self.freshness is not None:
+            raise ValueError("freshness context only belongs on freshness checks")
         return self
+
+    def freshness_allows_pass(self) -> bool:
+        """Necessary temporal constraints only; never establishes semantic truth."""
+        if self.freshness is None:
+            return True
+        snapshots = {item.snapshot_id: item for item in self.structure.snapshots}
+        claim = next(c for c in self.structure.claims if c.claim_id == self.subject_id)
+        for source in self.freshness.sources:
+            snapshot = snapshots[source.snapshot_id]
+            if snapshot.retrieved_at > self.freshness.evaluated_at:
+                return False
+            if source.basis == "unknown":
+                return False
+            if source.basis == "historical_snapshot":
+                if claim.temporal_scope != "historical":
+                    return False
+                date = snapshot.retrieved_at
+            else:
+                recorded = getattr(snapshot, source.basis)
+                if recorded is None:
+                    return False
+                date = recorded.value
+            age = (self.freshness.as_of - date).total_seconds()
+            if not 0 <= age <= source.max_age_seconds:
+                return False
+        return True
 
     def input_digest(self) -> str:
         """Prototype-specific JSON digest; NOT JCS or a whole-IR interchange hash."""
@@ -74,6 +145,11 @@ class FixtureVerification(Record):
     def exact_input(self) -> Self:
         if self.checked_input_digest != self.checked_input.input_digest():
             raise ValueError("verification input digest mismatch")
+        context = self.checked_input.freshness
+        if context is not None and context.evaluated_at != self.checked_at:
+            raise ValueError("freshness evaluated time differs from checked time")
+        if self.verdict == "pass" and not self.checked_input.freshness_allows_pass():
+            raise ValueError("freshness basis cannot authorize a passing verdict")
         return self
 
 
