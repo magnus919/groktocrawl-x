@@ -129,3 +129,7 @@ admission, backup restore/deletion-inventory quarantine, measured capacity and
 adversarial failure coverage remain required by the
 [lifecycle matrix](research-storage-lifecycle.md). No W3 completion, restart-safe
 job execution, human calibration or pgvector/Qdrant adoption follows from these tests.
+
+A [bounded source restore rehearsal](research-source-restore.md) now exercises a
+schema-1 logical dump/restore and post-backup deletion reconciliation in required
+CI. It does not complete the full artifact or production recovery gates above.

@@ -91,3 +91,6 @@ operation receipts. Then expand real-database coverage against the
 [lifecycle matrix](research-storage-lifecycle.md). Full W3 acceptance and a pilot
 still require the remaining lifecycle, concurrency and isolated restore evidence.
 pgvector remains a consolidation candidate; Qdrant removal is a separate gate.
+
+The required job also runs the [source restore rehearsal](research-source-restore.md)
+against a second, quarantined database in the isolated cluster.

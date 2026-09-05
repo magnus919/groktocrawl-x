@@ -807,6 +807,39 @@ jobs:
           docker compose run --rm storage-probe cleanup
       - name: Exercise retained-source application adapter
         run: docker compose run --build --rm storage-adapter
+      - name: Rehearse backup restore and post-backup deletion
+        run: |
+          set -eu
+          umask 077
+          restore_dir=$(mktemp -d)
+          docker compose run --rm -T storage-adapter restore-seed
+          started=$SECONDS
+          docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$restore_dir/backup.sql"
+          dump_seconds=$((SECONDS - started))
+          docker compose run --rm -T storage-adapter restore-delete > "$restore_dir/deletions.json"
+          docker compose exec -T research-postgres createdb -U research_owner research_restore_probe
+          started=$SECONDS
+          docker compose exec -T research-postgres psql -X -U research_owner -d research_restore_probe --set=ON_ERROR_STOP=1 --single-transaction < "$restore_dir/backup.sql"
+          restore_seconds=$((SECONDS - started))
+          # A successful SQL restore remains quarantined without current deletions.
+          if docker compose run --rm -T -e PGDATABASE=research_restore_probe storage-adapter restore-verify < /dev/null; then
+            echo 'Restore incorrectly accepted missing deletion history' >&2
+            exit 1
+          fi
+          printf '%s' '{"schema_version":"fixture-deletion-inventory/1","deleted":[]}' > "$restore_dir/incomplete.json"
+          if docker compose run --rm -T -e PGDATABASE=research_restore_probe storage-adapter restore-verify < "$restore_dir/incomplete.json"; then
+            echo 'Restore incorrectly accepted incomplete deletion history' >&2
+            exit 1
+          fi
+          docker compose run --rm -T -e PGDATABASE=research_restore_probe storage-adapter restore-verify < "$restore_dir/deletions.json" > restore-result.json
+          echo "Dump seconds: $dump_seconds; restore seconds: $restore_seconds; backup bytes: $(wc -c < "$restore_dir/backup.sql")" >> "$GITHUB_STEP_SUMMARY"
+          cat restore-result.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload bounded restore result
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-storage-restore-result
+          path: restore-result.json
+          if-no-files-found: error
       - name: Stop isolated project while preserving volume
         if: always()
         run: docker compose down --timeout 30
