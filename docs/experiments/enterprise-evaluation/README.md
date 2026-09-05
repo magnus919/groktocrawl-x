@@ -198,3 +198,11 @@ declared runtime contract scenarios, independently of question/trial counts; six
 execute every applicable scenario; missing results fail the gate. The synthetic
 question corpus separately reports adverse/abstention counts over its 42 questions.
 Neither ratio establishes runtime coverage or a zero-risk guarantee.
+
+## Human calibration input packet
+
+The [12-case worksheet](calibration/worksheet.md) supplies exact source context,
+authored candidate answers and blank review fields. Its [manifest](calibration/manifest.json)
+pins selection and input bytes. Human labels must be collected separately before
+any comparison with Hermes outcome labels. These are authored calibration probes,
+not real arm outputs or an independently curated held-out benchmark.
