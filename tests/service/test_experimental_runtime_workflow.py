@@ -106,3 +106,15 @@ def test_runtime_gate_fails_closed(
 def test_runtime_configuration_changes_require_both_test_lanes(path):
     assert requires_full_runtime([path])
     assert requires_twin_contracts([path])
+
+
+def test_targeted_session_contracts_use_reachable_compose_fixture():
+    steps = WORKFLOW["jobs"]["integration-tests"]["steps"]
+    step = next(
+        item
+        for item in steps
+        if item.get("name") == "Run targeted source-backed agent contracts"
+    )
+    assert "TEST_SITE_BASE_URL=http://test-site:8000" in step["run"]
+    assert "test_session_search_zero_results_val_ses_085" in step["run"]
+    assert "test_cross_concurrent_session_isolation_val_cross_018" in step["run"]

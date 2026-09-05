@@ -465,6 +465,7 @@ jobs:
           docker compose exec -T agent-svc env \
             PYTHONPATH=/app/agent-svc:/app/scraper-svc:/app/llm-svc:/app/parse-svc:/app/portal-svc:/app/browser-svc:/app \
             QA_OUTCOME_PATH=/app/qa-outcomes-targeted.json \
+            TEST_SITE_BASE_URL=http://test-site:8000 \
             python3 -m pytest /app/tests/integration/test_stack.py \
               -k 'test_cross_endpoint_compact_citations_resolvable or test_cross_plan_agent_structured_output_val_cross_005 or test_session_search_zero_results_val_ses_085 or test_cross_concurrent_session_isolation_val_cross_018' \
               --no-cov -o 'addopts=' -p no:cacheprovider -q

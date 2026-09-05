@@ -66,3 +66,8 @@ then have a local image ID, a checkout-build declaration and the matching commit
 SHA. The inherited live-search configuration still requires its registry digest.
 Qdrant continues to require its registry digest in both modes. A missing source
 record fails the evidence check rather than being relabeled as a published image.
+
+The search fixture query-marker addition is version `v3`. Evaluation cases pin
+that version and carry recomputed content hashes; their queries, scenarios, expected
+outcomes and canonical narrow/broad baselines remain unchanged. Run the complete
+Fast Tests suite when changing fixture versions to verify all consumers.
