@@ -39,6 +39,8 @@ from .publication import (
     fixture_json,
 )
 from .verification import (
+    AssessmentLink,
+    FixtureAssessment,
     FixtureVerification,
     FixtureVerificationSet,
     FixtureVerifier,
@@ -80,6 +82,14 @@ class VerificationRecipe(Record):
     reason: Text
 
 
+class AssessmentRecipe(Record):
+    assessment_id: Identity
+    subject_id: Identity
+    evidence_ids: tuple[Identity, ...] = Field(max_length=1000)
+    outcome: Literal["supported", "contested", "insufficient", "refuted"]
+    reason: Text
+
+
 class RenderRecipe(Record):
     audit_id: Identity
     artifact: FixtureArtifact
@@ -96,6 +106,8 @@ class FixturePlan(Record):
     relationships: tuple[Relationship, ...] = Field(max_length=2000)
     conflicts: tuple[Conflict, ...] = Field(max_length=100)
     verifications: tuple[VerificationRecipe, ...] = Field(max_length=3000)
+    assessments: tuple[AssessmentRecipe, ...] = Field(max_length=3000)
+    assessment_links: tuple[AssessmentLink, ...] = Field(max_length=1000)
     renders: tuple[RenderRecipe, ...] = Field(min_length=3, max_length=3)
     verifier: FixtureVerifier
     evaluated_at: datetime
@@ -114,6 +126,7 @@ class FixturePlan(Record):
             *(q.question_id for q in self.target.questions),
             *(c.conflict_id for c in self.conflicts),
             *(v.verification_id for v in self.verifications),
+            *(a.assessment_id for a in self.assessments),
             *(r.audit_id for r in self.renders),
             *(r.artifact.artifact_id for r in self.renders),
         ]
@@ -176,6 +189,27 @@ def _verify(plan: FixturePlan, structure: KnowledgeStructure) -> FixtureResearch
                 reason=recipe.reason,
             )
         )
+    assessments = []
+    for assessment in plan.assessments:
+        context = VerificationInput(
+            schema_version="fixture-verification-input/1",
+            structure=structure,
+            subject_id=assessment.subject_id,
+            check_type="assessment",
+            policy_version=plan.target.policy_version,
+            verifier=plan.verifier,
+            evidence_ids=assessment.evidence_ids,
+        )
+        assessments.append(
+            FixtureAssessment(
+                assessment_id=assessment.assessment_id,
+                checked_input=context,
+                checked_input_digest=context.input_digest(),
+                outcome=assessment.outcome,
+                checked_at=plan.evaluated_at,
+                reason=assessment.reason,
+            )
+        )
     return FixtureResearch(
         objective=plan.target.objective,
         verifications=FixtureVerificationSet(
@@ -184,6 +218,8 @@ def _verify(plan: FixturePlan, structure: KnowledgeStructure) -> FixtureResearch
             policy_version=plan.target.policy_version,
             verifier=plan.verifier,
             records=tuple(records),
+            assessments=tuple(assessments),
+            assessment_links=plan.assessment_links,
         ),
         questions=plan.target.questions,
         conflicts=plan.conflicts,

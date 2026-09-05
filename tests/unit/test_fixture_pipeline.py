@@ -54,6 +54,17 @@ def fixture_plan(raw, scenario="supported"):
             }
             for r in renders
         ],
+        assessments=[
+            {
+                "assessment_id": a.assessment_id,
+                "subject_id": a.checked_input.subject_id,
+                "evidence_ids": a.checked_input.evidence_ids,
+                "outcome": a.outcome,
+                "reason": a.reason,
+            }
+            for a in research.verifications.assessments
+        ],
+        assessment_links=research.verifications.assessment_links,
         verifier=research.verifications.verifier,
         evaluated_at="2026-09-05T00:00:00Z",
         artifact_set_id="set1",

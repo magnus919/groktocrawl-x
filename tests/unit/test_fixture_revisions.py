@@ -25,6 +25,7 @@ def entities(research):
         ("claim", "claim_id", structure.claims),
         ("relationship", "relationship_id", structure.relationships),
         ("verification", "verification_id", research.verifications.records),
+        ("assessment", "assessment_id", research.verifications.assessments),
         ("question", "question_id", research.questions),
         ("conflict", "conflict_id", research.conflicts),
     ]
@@ -39,6 +40,11 @@ def revision(research, identity="r1", prior=(), rename=None):
     for record in research.verifications.records:
         replacements[record.verification_id] = f"{record.verification_id}-{identity}"
 
+    for assessment in research.verifications.assessments:
+        replacements[assessment.assessment_id] = (
+            f"{assessment.assessment_id}-{identity}"
+        )
+
     def replace(value):
         if isinstance(value, dict):
             return {k: replace(v) for k, v in value.items()}
@@ -48,7 +54,7 @@ def revision(research, identity="r1", prior=(), rename=None):
 
     raw = replace(research.model_dump(mode="json"))
     raw["objective"] = "Inspect fixture evidence"
-    for record in raw["verifications"]["records"]:
+    for record in raw["verifications"]["records"] + raw["verifications"]["assessments"]:
         record["checked_input_digest"] = VerificationInput.model_validate(
             record["checked_input"]
         ).input_digest()
@@ -90,8 +96,11 @@ def test_reverification_preserves_entities_and_prior_verdicts(root):
         result.revisions[0].research.verifications.structure.claims
         == result.revisions[1].research.verifications.structure.claims
     )
-    assert len(second.introductions) == 3
-    assert {item.kind for item in second.introductions} == {"verification"}
+    assert len(second.introductions) == 4
+    assert {item.kind for item in second.introductions} == {
+        "verification",
+        "assessment",
+    }
     assert (
         validate_history(
             result.model_dump(mode="json"), scope_id="owner", research_id="research"
@@ -111,6 +120,7 @@ def test_existing_identity_cannot_change(root, change):
             *[
                 r["checked_input"]["structure"]
                 for r in raw["research"]["verifications"]["records"]
+                + raw["research"]["verifications"]["assessments"]
             ],
         ]:
             structure["claims"][0]["text"] = "Changed meaning"
@@ -120,6 +130,7 @@ def test_existing_identity_cannot_change(root, change):
             *[
                 r["checked_input"]["structure"]
                 for r in raw["research"]["verifications"]["records"]
+                + raw["research"]["verifications"]["assessments"]
             ],
         ]:
             structure["snapshots"][0]["origin_id"] = "other"
@@ -132,7 +143,10 @@ def test_existing_identity_cannot_change(root, change):
         raw["introductions"] = [
             i for i in raw["introductions"] if i["entity_id"] != introduced
         ]
-    for record in raw["research"]["verifications"]["records"]:
+    for record in (
+        raw["research"]["verifications"]["records"]
+        + raw["research"]["verifications"]["assessments"]
+    ):
         record["checked_input_digest"] = VerificationInput.model_validate(
             record["checked_input"]
         ).input_digest()
@@ -306,9 +320,16 @@ def test_verification_predecessors_and_history_bound(root):
     second = revision(root.research, "r2", (root,))
     raw = second.model_dump(mode="json")
     for declaration, previous in zip(
-        raw["introductions"], root.research.verifications.records, strict=True
+        raw["introductions"],
+        (
+            *root.research.verifications.records,
+            *root.research.verifications.assessments,
+        ),
+        strict=True,
     ):
-        declaration["predecessor_id"] = previous.verification_id
+        declaration["predecessor_id"] = (
+            getattr(previous, "verification_id", None) or previous.assessment_id
+        )
     assert (
         len(
             append_revision(

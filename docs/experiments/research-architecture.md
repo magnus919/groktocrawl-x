@@ -671,3 +671,27 @@ persistence implementation, authenticated or complete history, semantic matching
 portable export format, retention promise or complete `knowledge-ir/1`. A caller
 must establish the trusted history prefix; validating a separately supplied chain
 cannot prove omitted or rewritten history does not exist elsewhere.
+
+## W2 assessment provenance and readiness checkpoint
+
+Issue #31 adds explicit `FixtureAssessment` records and `AssessmentLink` mappings
+from claim IDs to record IDs in the verification envelope. Each assessment binds
+the full structural input, selected evidence, policy, fixture identity, UTC time,
+rationale and outcome. Every assessed claim needs matching applicable records;
+unassessed claims have no assessment links. Missing, duplicate, foreign, orphaned
+or status-mismatched records fail closed. An assessment is not a verification
+verdict and cannot satisfy support/freshness/conflict or render-audit gates.
+
+The local pipeline materializes only explicit fixture recipes. Assessment metadata
+flows through render input binding and dossiers, and the revision registry protects
+assessment identities and chronology alongside historical verification. The links
+live outside the structural claim records so re-verifying an unchanged claim does
+not force a claim identity change merely to carry new record IDs. This is an
+explicit prototype representation, not a silently finalized full IR schema.
+
+Existing assessed fixture payloads now require explicit provenance; old enums are
+not automatically certified. No persisted/public payload migration occurs. See the
+[W2 readiness checkpoint](research-w2-readiness.md) for requirement-level evidence,
+remaining contract limits and the workload/reviewer/threshold decisions needed for
+a meaningful next evaluation gate. W2 and independent semantic verification remain
+incomplete; proposed storage/runtime/recovery decisions are unchanged.
