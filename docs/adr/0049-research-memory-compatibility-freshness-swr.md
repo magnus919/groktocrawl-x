@@ -4,6 +4,10 @@
 - Deciders: GroktoCrawl maintainers
 - Date: 2026-08-15
 
+- Experimental successor status (2026-09-05): partially superseded in
+  `magnus919/groktocrawl-x` only. Experimental compatibility includes evidence/revision/verifier/freshness identities (ADR-0069); inherited cache behavior remains unchanged.
+- Successor records: [ADR-0069](0069-define-versioned-knowledge-and-verification.md).
+
 ## Context
 
 Research memory (ADR-0041) can substitute a complete synthesized answer for the live search, scrape, and LLM pipeline. Replay eligibility originally depended on semantic prompt similarity plus an optional user scope. That does not prove compatibility with response-affecting request constraints such as explicit URLs, output schema, model choice, research depth, image collection, citation style, or URL-constraint strictness.

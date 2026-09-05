@@ -1,11 +1,17 @@
 # Define Versioned Knowledge and Verification
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-04
 - Scope: experimental research Knowledge IR, independent of storage/runtime
 - Plan: D2 / W1; issue [#3](https://github.com/magnus919/groktocrawl-x/issues/3)
-- Supersedes: none while proposed; intended impact is listed below
+- Supersedes: experimental scope only, as classified in the inherited-impact table; inherited endpoints remain unchanged
+
+- Accepted: 2026-09-05 by Magnus Hedemark, following the W1 review packet.
+- Acceptance scope: foundation contracts for a bounded fixture-backed prototype;
+  implementation/evidence gates remain. No storage/runtime/recovery selection or
+  external-provider spending is authorized by this acceptance.
+- Acceptance record: [issue #15](https://github.com/magnus919/groktocrawl-x/issues/15).
 
 ## Context and Problem Statement
 
@@ -151,8 +157,8 @@ semantic similarity must not bypass source access or request constraints.
 | ADR-0050, 0059 | Extend | Request/pass reuse remains; immutable snapshots and IR identities have an independent lifecycle |
 | ADR-0064 | Partially supersede | One final synthesis becomes construction, verification and audited rendering; do not emit multiple unmarked answers |
 
-Existing ADR statuses remain unchanged while this record is proposed. Storage,
-recovery and client protocol successors are separate decisions.
+Predecessor metadata records scoped experimental successors. Storage and recovery
+selection remain separate decisions; ADR-0072 defines the accepted client direction.
 
 ## Consequences
 

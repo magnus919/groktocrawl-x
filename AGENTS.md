@@ -17,6 +17,11 @@ status/successor links and the index only when a replacement is accepted in this
 fork. Keep proposed behavior separate from implemented behavior. An ADR decision
 in this repository has no effect on the status of the upstream record.
 
+On 2026-09-05 Magnus accepted foundation ADRs 0067–0070 and 0072 for a bounded
+fixture-backed prototype. ADRs 0071, 0073 and 0074 remain proposed; no database,
+adopted runtime or recovery infrastructure is selected. Follow the acceptance
+record and remaining preflight/implementation gates. Provider spend remains zero.
+
 Retain contribution and engineering standards: Conventional Commits with DCO
 sign-off, typed async Python, relevant tests, public API/CLI/documentation parity,
 webhook contracts for async endpoints, and review/check gates. Architecture changes

@@ -1,11 +1,17 @@
 # Separate Research Execution, Knowledge, and Rendering
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-04
 - Scope: experimental research backend in `magnus919/groktocrawl-x`
 - Plan: D1 / W1; issue [#3](https://github.com/magnus919/groktocrawl-x/issues/3)
-- Supersedes: none while proposed; intended impact is listed below
+- Supersedes: experimental scope only, as classified in the inherited-impact table; inherited endpoints remain unchanged
+
+- Accepted: 2026-09-05 by Magnus Hedemark, following the W1 review packet.
+- Acceptance scope: foundation contracts for a bounded fixture-backed prototype;
+  implementation/evidence gates remain. No storage/runtime/recovery selection or
+  external-provider spending is authorized by this acceptance.
+- Acceptance record: [issue #15](https://github.com/magnus919/groktocrawl-x/issues/15).
 
 ## Context and Problem Statement
 

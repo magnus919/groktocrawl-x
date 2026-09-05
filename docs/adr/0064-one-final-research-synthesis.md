@@ -4,6 +4,10 @@
 - Deciders: GroktoCrawl maintainers
 - Date: 2026-09-04
 
+- Experimental successor status (2026-09-05): partially superseded in
+  `magnus919/groktocrawl-x` only. Experimental final output follows knowledge verification, render audit and publication (ADRs 0068/0069/0072); inherited synthesis behavior remains unchanged.
+- Successor records: [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md); [ADR-0069](0069-define-versioned-knowledge-and-verification.md); [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md).
+
 ## Context
 
 Gap analysis reads evidence and the original question, never the draft answer.

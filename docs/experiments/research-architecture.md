@@ -104,9 +104,9 @@ Temporal is an input to D5, not a constraint on its outcome.
 Following merged PR #2, [issue #3](https://github.com/magnus919/groktocrawl-x/issues/3)
 tracks the first W1 decision package:
 
-- D1: [ADR-0068 — execution, knowledge and rendering boundaries](../adr/0068-separate-research-execution-knowledge-and-rendering.md), proposed.
-- D2: [ADR-0069 — versioned Knowledge IR and verification](../adr/0069-define-versioned-knowledge-and-verification.md), proposed.
-- D7: [ADR-0070 — separate runtime and policy evaluation](../adr/0070-evaluate-research-policy-and-runtime-separately.md), proposed.
+- D1: [ADR-0068 — execution, knowledge and rendering boundaries](../adr/0068-separate-research-execution-knowledge-and-rendering.md), accepted 2026-09-05.
+- D2: [ADR-0069 — versioned Knowledge IR and verification](../adr/0069-define-versioned-knowledge-and-verification.md), accepted 2026-09-05.
+- D7: [ADR-0070 — separate runtime and policy evaluation](../adr/0070-evaluate-research-policy-and-runtime-separately.md), accepted 2026-09-05.
 - [Worked conflicting-source example](research-foundation-example.md), with immutable
   snapshot hashes, evidence locators, expected claims/verification, three renderings
   and failure variants. It is synthetic design evidence, not a runtime test result.
@@ -118,7 +118,7 @@ single authoritative PostgreSQL store for bounded evidence and metadata, subject
 to review and real-database validation. It also requires evaluating PostgreSQL +
 pgvector as a replacement for Qdrant, with retrieval parity, concurrent-load,
 footprint and reversible-cutover gates before retaining two permanent databases.
-D6 has a proposed client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
+D6 has an accepted client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
 [wire examples and confirmation scenarios](research-client-protocol.md). It recommends
 an explicit experimental route family, progress-only streaming before audited
@@ -129,11 +129,13 @@ with a shared [conformance/crash matrix](research-execution-confirmation.md), tr
 by [issue #11](https://github.com/magnus919/groktocrawl-x/issues/11). These frame the
 remaining choices: runtime and recovery infrastructure selection remain open until
 their evidence gates pass. All seven decision packages now have draft records;
-all drafted decisions remain proposed.
+ADRs 0067–0070 and 0072 were accepted by Magnus on 2026-09-05 for a bounded
+fixture-backed prototype. ADRs 0071, 0073 and 0074 remain proposed.
 The [W1 acceptance review](research-acceptance-review.md) and
 [draft preflight manifest](research-preflight.json) pin existing regression evidence
 and identify the decisions and baseline inputs still required.
-No inherited ADR is superseded by these drafts. W1 remains incomplete until its
+Inherited ADR metadata records only the accepted experimental successor scopes;
+inherited endpoint implementations remain unchanged. W1 remains incomplete until its
 required decisions and baseline evidence meet their gates; W2 has not started.
 
 ## Work breakdown and sequencing

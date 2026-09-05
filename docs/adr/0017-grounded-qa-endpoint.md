@@ -6,6 +6,10 @@
 
 Technical Story: GroktoCrawl needs a lightweight grounded Q&A endpoint that fills the gap between raw search results (`/v2/search`) and the deep autonomous research agent (`/v2/agent`). This is the most common primitive for AI agent tool use — ask a question, get a cited answer in one round-trip.
 
+- Experimental successor status (2026-09-05): partially superseded in
+  `magnus919/groktocrawl-x` only. Experimental research uses verified Knowledge IR and audited rendering (ADRs 0068/0069/0072); inherited /v2/answer remains unchanged.
+- Successor records: [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md); [ADR-0069](0069-define-versioned-knowledge-and-verification.md); [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md).
+
 ## Context and Problem Statement
 
 GroktoCrawl has two modes for answering questions:

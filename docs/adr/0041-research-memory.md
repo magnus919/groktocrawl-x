@@ -9,6 +9,10 @@ researched, the system should return the cached research artifact rather than re
 the full search → scrape → LLM pipeline. This saves credits, reduces latency, and provides
 persistent research archives across sessions.
 
+- Experimental successor status (2026-09-05): partially superseded in
+  `magnus919/groktocrawl-x` only. Experimental reuse requires verified IR/evidence identities (ADRs 0068/0069/0072); inherited semantic-cache behavior remains unchanged.
+- Successor records: [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md); [ADR-0069](0069-define-versioned-knowledge-and-verification.md); [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md).
+
 ## Context and Problem Statement
 
 Every `POST /v2/agent` call executes the full research pipeline: search, scrape, LLM synthesis.

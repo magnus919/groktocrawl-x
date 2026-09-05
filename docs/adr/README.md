@@ -50,14 +50,14 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0014 | [Binary Content Detection and Download](0014-binary-content-detection-and-download.md) | accepted |
 | 0015 | [Barrier Classification Phase 1](0015-barrier-classification.md) | accepted |
 | 0016 | [Extraction Quality Gates](0016-extraction-quality-gates.md) | accepted |
-| 0017 | [Grounded Q&A Endpoint](0017-grounded-qa-endpoint.md) | accepted |
+| 0017 | [Grounded Q&A Endpoint](0017-grounded-qa-endpoint.md) | accepted; experimental scope partially superseded (see record) |
 | 0018 | [Observability Infrastructure](0018-observability-infrastructure.md) | accepted |
 | 0019 | [Intelligent Scrape Cache](0019-intelligent-scrape-cache.md) | accepted |
 | 0020 | [Proxy Support with Guardrails](0020-proxy-support-with-guardrails.md) | accepted |
 | 0021 | [Web Portal](0021-web-portal.md) | accepted |
 | 0022 | [Agent SSE Streaming](0022-agent-sse-streaming.md) | accepted |
 | 0023 | [Search Type Spectrum — Fast and Rich](0023-search-type-spectrum-fast-and-rich.md) | proposed |
-| 0024 | [Artifact Pyramid CLI Output](0024-artifact-pyramid-cli-output.md) | proposed |
+| 0024 | [Artifact Pyramid CLI Output](0024-artifact-pyramid-cli-output.md) | proposed; experimental scope partially superseded (see record) |
 | 0025 | [Semantic Search Pipeline — Embedding-Based Retrieval](0025-semantic-search-pipeline.md) | proposed |
 | 0026 | [Phase 2 Semantic Search — Persistent Vector Index](0026-phase2-vector-index.md) | accepted |
 | 0027 | [Smarter Index Retention — Domain TTLs, Frequency Weighting, Access Boosting](0027-smarter-index-retention.md) | proposed |
@@ -73,8 +73,8 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0037 | [Split Semantic Service app.py into Focused Modules](0037-split-semantic-svc-app-modules.md) | proposed |
 | 0038 | [Crawl Engine — BFS Orchestrator with Shared Link Extraction](0038-crawl-engine.md) | accepted |
 | 0039 | [API-CLI Surface Must Ship Together](0039-api-cli-surface-ship-together.md) | accepted |
-| 0040 | [Session Protocol — Agent-Native Research Sessions](0040-session-protocol.md) | proposed |
-| 0041 | [Research Memory — Cross-Session Semantic Cache](0041-research-memory.md) | proposed |
+| 0040 | [Session Protocol — Agent-Native Research Sessions](0040-session-protocol.md) | proposed; experimental scope partially superseded (see record) |
+| 0041 | [Research Memory — Cross-Session Semantic Cache](0041-research-memory.md) | proposed; experimental scope partially superseded (see record) |
 | 0042 | [MCP Server Architecture](0042-mcp-server-architecture.md) | proposed |
 | 0043 | [Migration from SearXNG to SlopSearX](0043-migration-to-slopsearx.md) | accepted |
 | 0044 | [Autonomous CAPTCHA Recovery](0044-autonomous-captcha-recovery.md) | accepted |
@@ -82,7 +82,7 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0046 | [Enforce QA Checks and Review Policy on main](0046-enforce-qa-checks-and-review-policy-on-main.md) | accepted |
 | 0047 | [Defer Restart-Safe Execution with an Explicit Job-Durability Contract](0047-defer-restart-safe-execution.md) | accepted |
 | 0048 | [Stage-Level Latency and Capacity Telemetry](0048-stage-level-telemetry.md) | accepted |
-| 0049 | [Research Memory Compatibility Fingerprint, Freshness, and Stale-While-Revalidate](0049-research-memory-compatibility-freshness-swr.md) | accepted |
+| 0049 | [Research Memory Compatibility Fingerprint, Freshness, and Stale-While-Revalidate](0049-research-memory-compatibility-freshness-swr.md) | accepted; experimental scope partially superseded (see record) |
 | 0050 | [Request-Scoped Source Artifact and Lightweight-Only Scrape Contract](0050-source-artifact-and-lightweight-only-scrape.md) | accepted |
 | 0051 | [Global Admission Control and End-to-End Cancellation](0051-global-admission-control-and-cancellation.md) | accepted |
 | 0052 | [Concurrent Cache-Assisted Hybrid Retrieval Planner](0052-hybrid-retrieval-planner.md) | accepted |
@@ -96,15 +96,15 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0061 | [Scraper Scale-Out with Bounded Capacity and Atomic Origin Pacing](0061-scraper-scaleout-capacity.md) | accepted |
 | 0062 | [Opt-In Browser Process Pool with Isolated Contexts](0062-opt-in-browser-process-pool.md) | accepted |
 | 0063 | [Offload and Batch Session Persistence](0063-offload-and-batch-session-persistence.md) | accepted |
-| 0064 | [One Final Research Synthesis](0064-one-final-research-synthesis.md) | accepted |
+| 0064 | [One Final Research Synthesis](0064-one-final-research-synthesis.md) | accepted; experimental scope partially superseded (see record) |
 | 0065 | [Stream Discovery Acquisitions as Queries Complete](0065-stream-discovery-acquisitions.md) | accepted |
 | 0066 | [Opt In to Independent Session Steps](0066-opt-in-to-independent-session-steps.md) | accepted |
-| 0067 | [Establish an Independent Research Architecture Experiment](0067-establish-an-independent-research-architecture-experiment.md) | proposed |
-| 0068 | [Separate Research Execution, Knowledge, and Rendering](0068-separate-research-execution-knowledge-and-rendering.md) | proposed |
-| 0069 | [Define Versioned Knowledge and Verification](0069-define-versioned-knowledge-and-verification.md) | proposed |
-| 0070 | [Evaluate Research Policy and Runtime Separately](0070-evaluate-research-policy-and-runtime-separately.md) | proposed |
+| 0067 | [Establish an Independent Research Architecture Experiment](0067-establish-an-independent-research-architecture-experiment.md) | accepted |
+| 0068 | [Separate Research Execution, Knowledge, and Rendering](0068-separate-research-execution-knowledge-and-rendering.md) | accepted |
+| 0069 | [Define Versioned Knowledge and Verification](0069-define-versioned-knowledge-and-verification.md) | accepted |
+| 0070 | [Evaluate Research Policy and Runtime Separately](0070-evaluate-research-policy-and-runtime-separately.md) | accepted |
 | 0071 | [Store Research Evidence Independently of Sessions](0071-store-research-evidence-independently-of-sessions.md) | proposed |
-| 0072 | [Expose Verified Research Through an Experimental Protocol](0072-expose-verified-research-through-an-experimental-protocol.md) | proposed |
+| 0072 | [Expose Verified Research Through an Experimental Protocol](0072-expose-verified-research-through-an-experimental-protocol.md) | accepted |
 | 0073 | [Compare Research Runtimes Under One Policy](0073-compare-research-runtimes-under-one-policy.md) | proposed |
 | 0074 | [Define Research Recovery Before Selecting Infrastructure](0074-define-research-recovery-before-selecting-infrastructure.md) | proposed |
 

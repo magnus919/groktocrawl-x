@@ -7,6 +7,10 @@
 
 Technical Story: The groktocrawl CLI currently returns flat output — raw markdown (scrape), streaming prose (agent/answer), or flat JSON (search --json). There is no structured, progressive-disclosure output format suitable for consumption by downstream AI agents that need to navigate findings, dimensions, and source material independently.
 
+- Experimental successor status (2026-09-05): partially superseded in
+  `magnus919/groktocrawl-x` only. Experimental pyramid output downloads server-audited artifacts (ADRs 0068/0069/0072); inherited CLI transformation remains unchanged.
+- Successor records: [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md); [ADR-0069](0069-define-versioned-knowledge-and-verification.md); [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md).
+
 ## Context and Problem Statement
 
 GroktoCrawl CLI output currently serves two modes:
