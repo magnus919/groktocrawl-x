@@ -23,6 +23,8 @@ from tests.unit.test_knowledge_structure import payload  # noqa: F401
 def journey(raw, scenario):
     data = deepcopy(raw)
     data["claims"][0]["assessment"] = "supported"
+    data["claims"][0]["temporal_scope"] = "historical"
+    data["as_of"] = "2026-09-05T00:00:00Z"
     conflicts = []
     status = "answered"
     if scenario != "supported":
@@ -85,6 +87,22 @@ def journey(raw, scenario):
             structure=structure,
             subject_id="c1",
             check_type=check,
+            freshness={
+                "policy_version": "fixture/1",
+                "evaluated_at": "2026-09-05T00:00:00Z",
+                "as_of": "2026-09-05T00:00:00Z",
+                "sources": [
+                    {
+                        "snapshot_id": snapshot.snapshot_id,
+                        "basis": "historical_snapshot",
+                        "max_age_seconds": 86400,
+                        "reason": "Report captured evidence only; current price is not established",
+                    }
+                    for snapshot in structure.snapshots
+                ],
+            }
+            if check == "freshness"
+            else None,
             policy_version="fixture/1",
             verifier=verifier,
             evidence_ids=("e1", "e2") if scenario == "conflicting" else ("e1",),

@@ -136,7 +136,9 @@ The [W1 acceptance review](research-acceptance-review.md) and
 and identify the decisions and baseline inputs still required.
 Inherited ADR metadata records only the accepted experimental successor scopes;
 inherited endpoint implementations remain unchanged. W1 remains incomplete until its
-required decisions and baseline evidence meet their gates; W2 has not started.
+required decisions and baseline evidence meet their gates. The bounded W2 fixture
+prototype is underway under the explicitly accepted foundation contracts; the
+comparative preflight remains incomplete.
 
 ## Work breakdown and sequencing
 
@@ -548,3 +550,37 @@ uses caller-supplied fixture research and hand-authored judgments; it does not p
 live research, real semantic verification or independent quality evaluation. No
 public endpoint, persistence, lease, parallel execution, complete Knowledge IR
 interchange schema or adopted graph framework is added.
+
+
+## W2 source provenance and freshness context
+
+Issue #25 extends the internal fixture models with nullable publication/effective
+source dates, each carrying a recorded provenance description, and optional origin
+identity alongside known lineage. Unknown dates stay null. Neither retrieval time
+nor storage TTL substitutes for a source date. Different URLs do not imply
+independent sources: known lineage/origin is preserved in the dossier and no
+independent-corroboration score is computed from these fields.
+
+Freshness checks now require typed policy, evaluation time, the research as-of
+constraint and a basis for every referenced snapshot. Current claims can use a
+recorded publication/effective date within an explicit maximum age. Historical
+claims can instead refer to the captured snapshot; this is an explicit temporal
+scope, not a current-fact judgment. Unknown, future or over-age bases cannot carry
+a passing fixture verdict. Failing/indeterminate judgments remain representable.
+Every support citation must be covered by a passing freshness check before
+publication. The complete metadata participates in verification and render-audit
+input binding, so changing dates, lineage or freshness parameters invalidates old
+records. UTC offsets and matching evaluation/check times are required.
+
+These are necessary temporal constraints, not sufficient semantic verification:
+a fixture author can still supply incorrect dates, reasons or temporal labels.
+A publication date alone cannot establish that a real-world fact is current.
+Applicability, surrounding context and whether prose respects its temporal scope
+remain separately authored fixture support/audit judgments pending independent
+semantic evaluation. Historical uncertainty reports preserve unresolved coverage.
+
+The internal prototype formats gain required freshness context at the freshness
+check boundary; old freshness records must be reconstructed and audited. They are
+not persisted or exposed on a public wire. This does not declare complete
+`knowledge-ir/1`, a whole-IR interchange hash, source authentication, storage or
+retention behavior. No provider, database, runtime or recovery decision changes.

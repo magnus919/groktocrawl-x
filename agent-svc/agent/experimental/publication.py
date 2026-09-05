@@ -163,11 +163,24 @@ def _eligible_claims(research: FixtureResearch) -> set[str]:
             if r.checked_input.subject_id == claim.claim_id
         ]
         checks = {r.checked_input.check_type for r in records}
+        support_evidence = {
+            identity
+            for record in records
+            if record.checked_input.check_type == "semantic_support"
+            for identity in record.checked_input.evidence_ids
+        }
+        fresh_evidence = {
+            identity
+            for record in records
+            if record.checked_input.check_type == "freshness"
+            for identity in record.checked_input.evidence_ids
+        }
         if (
             claim.assessment == "supported"
             and claim.claim_id not in contested
             and checks == {"semantic_support", "freshness", "conflict_coverage"}
             and all(r.verdict == "pass" for r in records)
+            and support_evidence <= fresh_evidence
         ):
             eligible.add(claim.claim_id)
     return eligible
