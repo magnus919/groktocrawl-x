@@ -99,6 +99,22 @@ operator docs and tests in the implementation PR. Do not change upstream ADR sta
 In particular, the mainline preference for Valkey-native durability and deferral of
 Temporal is an input to D5, not a constraint on its outcome.
 
+## Architecture foundation draft status
+
+Following merged PR #2, [issue #3](https://github.com/magnus919/groktocrawl-x/issues/3)
+tracks the first W1 decision package:
+
+- D1: [ADR-0068 — execution, knowledge and rendering boundaries](../adr/0068-separate-research-execution-knowledge-and-rendering.md), proposed.
+- D2: [ADR-0069 — versioned Knowledge IR and verification](../adr/0069-define-versioned-knowledge-and-verification.md), proposed.
+- D7: [ADR-0070 — separate runtime and policy evaluation](../adr/0070-evaluate-research-policy-and-runtime-separately.md), proposed.
+- [Worked conflicting-source example](research-foundation-example.md), with immutable
+  snapshot hashes, evidence locators, expected claims/verification, three renderings
+  and failure variants. It is synthetic design evidence, not a runtime test result.
+
+D3 storage, D4 runtime selection, D5 durability and D6 client protocol remain open.
+No inherited ADR is superseded by these drafts. W1 remains incomplete until its
+required decisions and baseline evidence meet their gates; W2 has not started.
+
 ## Work breakdown and sequencing
 
 Magnus is accountable for all workstreams and decision gates. Each implementation

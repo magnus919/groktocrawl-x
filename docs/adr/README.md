@@ -30,7 +30,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043, 0044, 0045, 0046, 0047, 0048, 0049, 0050, 0051, 0052, 0053, 0054, 0055, 0056, 0057, and 0059–0066.
 
-**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0067.
+**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0067–0070.
 
 | ADR | Title | Status |
 |-----|-------|--------|
@@ -100,5 +100,8 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0065 | [Stream Discovery Acquisitions as Queries Complete](0065-stream-discovery-acquisitions.md) | accepted |
 | 0066 | [Opt In to Independent Session Steps](0066-opt-in-to-independent-session-steps.md) | accepted |
 | 0067 | [Establish an Independent Research Architecture Experiment](0067-establish-an-independent-research-architecture-experiment.md) | proposed |
+| 0068 | [Separate Research Execution, Knowledge, and Rendering](0068-separate-research-execution-knowledge-and-rendering.md) | proposed |
+| 0069 | [Define Versioned Knowledge and Verification](0069-define-versioned-knowledge-and-verification.md) | proposed |
+| 0070 | [Evaluate Research Policy and Runtime Separately](0070-evaluate-research-policy-and-runtime-separately.md) | proposed |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
