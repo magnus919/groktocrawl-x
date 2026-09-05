@@ -173,8 +173,11 @@ are enabled with the following workflow split, verified through the GitHub API:
   upstream publishing, self-hosted jobs, paid review, and live-provider calls off.
 
 Enabling a workflow is not evidence that its checks pass. Check the current PR's
-runs for results. `Runtime Gate` is inside the disabled Docker workflow and remains
-unavailable until it is separated or a fork-specific runtime lane is configured.
+runs for results. The inherited `Runtime Gate` is inside the disabled Docker
+workflow. Issue #7 adds an independent hosted Runtime CI workflow; see the
+[experimental runtime runbook](../runbooks/experimental-runtime-ci.md) for source
+builds, fixture routing and first-run verification. Do not claim that lane works
+until its hosted runtime run succeeds.
 Ruleset configuration and release readiness remain open W0 items. Hosted validation
 authorization does not authorize enabling the disabled workflows or merging the PR.
 

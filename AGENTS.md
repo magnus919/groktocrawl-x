@@ -24,6 +24,14 @@ must update affected tests and guides rather than disabling their checks. GitHub
 settings, runner access, review credentials, and publishing permissions are not
 inherited with Git history; verify them before claiming CI or release readiness.
 
+## Experimental CI
+
+Use the independent [Runtime CI workflow](.github/workflows/runtime.yml) and
+[runbook](docs/runbooks/experimental-runtime-ci.md) for this fork. It builds the
+checkout on GitHub-hosted runners without publishing images. Keep the inherited
+Docker Build & Publish workflow disabled; it still targets upstream infrastructure.
+Verify actual workflow runs and repository rulesets before claiming gate readiness.
+
 ## Project Overview
 
 GroktoCrawl is a self-hosted, MIT-licensed alternative to Firecrawl. It implements the Firecrawl v2 API surface as a set of Python FastAPI services running in Docker.

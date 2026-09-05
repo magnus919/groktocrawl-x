@@ -51,6 +51,8 @@ _TWIN_EXACT_PATHS = frozenset(
     {
         "docker-compose.yml",
         ".github/workflows/docker.yml",
+        ".github/workflows/runtime.yml",
+        "docker-compose.ci.yml",
         ".github/workflows/live-calibration.yml",
     }
 )

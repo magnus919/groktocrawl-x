@@ -1,0 +1,796 @@
+# Experimental fork validation. No image publication or self-hosted execution.
+name: Runtime CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Classify runtime changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      requires_full_runtime: ${{ steps.classify.outputs.requires_full_runtime }}
+      requires_twin_contracts: ${{ steps.classify.outputs.requires_twin_contracts }}
+      twin_test_selection: ${{ steps.classify.outputs.twin_test_selection }}
+      changed_paths_json: ${{ steps.classify.outputs.changed_paths_json }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA" > changed-paths.txt
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+            git diff --name-only "$base" "$HEAD_SHA" > changed-paths.txt
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-paths.txt
+          fi
+          echo "requires_full_runtime=$(python3 scripts/classify_ci_changes.py < changed-paths.txt)" >> "$GITHUB_OUTPUT"
+          echo "requires_twin_contracts=$(python3 scripts/classify_ci_changes.py --requires-twin-contracts < changed-paths.txt)" >> "$GITHUB_OUTPUT"
+          echo "twin_test_selection=$(python3 scripts/classify_ci_changes.py --twin-test-selection < changed-paths.txt)" >> "$GITHUB_OUTPUT"
+          python3 -c 'import json; print("changed_paths_json=" + json.dumps(open("changed-paths.txt").read().splitlines()))' >> "$GITHUB_OUTPUT"
+
+  twin-contracts:
+    name: Twin Contracts
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_twin_contracts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install locked twin dependencies
+        run: uv sync --locked --no-dev --group fast-tests
+      - name: Run hermetic twin contracts
+        id: twin_tests
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          ALL_PROXY: http://127.0.0.1:9
+          NO_PROXY: localhost,127.0.0.1,::1
+          TWIN_SOCKET_GUARD: "1"
+          TWIN_SELECTION: ${{ needs.changes.outputs.twin_test_selection }}
+          RUNTIME_SELECTION: ${{ needs.changes.outputs.requires_full_runtime }}
+          PYTHONPATH: .:agent-svc:scraper-svc:llm-svc:slopsearx-fixture
+          QA_OUTCOME_PATH: twin-out/qa-outcomes.json
+        run: |
+          mkdir -p twin-out
+          # Validate the checked-in scenario/version contract before replay/parity.
+          uv run --no-sync python -c "from llm_svc.app import SCHEMA_VERSION as LLM_SCHEMA; from slopsearx_fixture.app import SCHEMA_VERSION as SEARCH_SCHEMA; assert isinstance(LLM_SCHEMA, str) and isinstance(SEARCH_SCHEMA, str) and LLM_SCHEMA and SEARCH_SCHEMA"
+          case "$TWIN_SELECTION" in
+            search) tests="tests/service/test_slopsearx_fixture.py tests/service/test_searxng_client.py" ;;
+            llm) tests="tests/service/test_llm_fixture_contract.py tests/service/test_llm.py" ;;
+            all) tests="tests/service/test_llm_fixture_contract.py tests/service/test_slopsearx_fixture.py tests/service/test_research_adapter_parity.py tests/service/test_searxng_client.py" ;;
+            none) tests="" ;;
+            *) echo "unknown twin selection: $TWIN_SELECTION"; exit 1 ;;
+          esac
+          if [ -n "$tests" ]; then
+             uv run --no-sync python -m pytest $tests -q --no-cov -o addopts= --disable-socket --allow-hosts=127.0.0.1,localhost,::1 --junitxml=twin-out/twin-tests.xml
+          fi
+           uv run --no-sync python -m pytest tests/service/test_twin_contract.py tests/service/test_twin_network_isolation.py tests/service/test_workflow_contract.py -q --no-cov -o addopts= --disable-socket --allow-hosts=127.0.0.1,localhost,::1 --junitxml=twin-out/twin-contract-tests.xml
+      - name: Validate twin provenance
+        if: always()
+        env:
+          TWIN_SELECTION: ${{ needs.changes.outputs.twin_test_selection }}
+          RUNTIME_SELECTION: ${{ needs.changes.outputs.requires_full_runtime }}
+          TWIN_TEST_OUTCOME: ${{ steps.twin_tests.outcome }}
+          TWIN_RESULT: ${{ steps.twin_tests.outcome == 'success' && 'success' || 'failure' }}
+          TWIN_FAILURE_SOURCE: ${{ steps.twin_tests.outcome == 'success' && 'none' || 'twin' }}
+          TWIN_CHANGED_PATHS_JSON: ${{ needs.changes.outputs.changed_paths_json }}
+          TWIN_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TWIN_EXECUTION_MODE: hosted
+        run: |
+          uv run --no-sync python scripts/twin_provenance.py --output twin-out --changed-paths-json "$TWIN_CHANGED_PATHS_JSON"
+          uv run --no-sync python -m jsonschema -i twin-out/twin-evidence.json provenance/twin-evidence.schema.json
+      - name: Upload twin outcomes and provenance
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hosted-twin-contracts
+          path: twin-out/
+          if-no-files-found: error
+      - name: Fail after publishing twin evidence
+        if: always() && steps.twin_tests.outcome != 'success'
+        run: exit 1
+
+  integration-tests:
+    name: Integration Tests
+    needs: changes
+    if: >-
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
+      COMPOSE_PROJECT_NAME: groktocrawl-x-ci
+      COMPOSE_PARALLEL_LIMIT: "2"
+      AGENT_PORT: "18080"
+      SCRAPER_HOST_PORT: "18001"
+      SLOPSEARX_HOST_PORT: "18081"
+      PORTAL_HOST_PORT: "18082"
+      SEMANTIC_HOST_PORT: "18003"
+      LLM_HOST_PORT: "18011"
+      TEST_SITE_HOST_PORT: "18005"
+      TIER3_HOST_PORT: "18006"
+      SLOPSEARX_FIXTURE_HOST_PORT: "18083"
+      AGENT_FIXTURE_HOST_PORT: "18084"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install locked fast-test environment
+        run: uv sync --locked --no-dev --group fast-tests
+
+      - name: Set up .env
+        run: |
+          cp .env.sample .env
+          echo "TWIN_RUN_ID=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> .env
+          echo "LLM_BASE_URL=http://llm-svc:8011/v1?run_id=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> .env
+          echo "LLM_MODEL=fixture-model" >> .env
+          echo "CAPTCHA_VISION_BASE_URL=http://llm-svc:8011/v1" >> .env
+          echo "CAPTCHA_VISION_API_KEY=fixture-only" >> .env
+          echo "CAPTCHA_VISION_MODEL=fixture-model" >> .env
+          echo "SCRAPER_PRIVATE_URL_ALLOWLIST=test-site,tier3-fixture" >> .env
+          # Gutenberg digital twin (#581): point the gutenberg adapter's
+          # EPUB/plain-text downloads and Gutendex enrichment at the
+          # deterministic test-site fixture so the integration lane never
+          # depends on third-party uptime.
+          echo "ADAPTER_GUTENBERG_CACHE_BASE=http://test-site:8000" >> .env
+          echo "ADAPTER_GUTENDEX_API_BASE=http://test-site:8000" >> .env
+          echo "AGENT_SEARCH_RATE_LIMIT=1000/1s" >> .env
+          # mcp-svc DNS-rebinding allowlist: include the compose service name
+          # so the integration lane exercises a real non-loopback Host path.
+          echo "MCP_ALLOWED_HOSTS=localhost:*,127.0.0.1:*,[::1]:*,mcp-svc:*" >> .env
+          # slopsearx-mcp is an opt-in profile-gated companion; it is not run in
+          # the integration lane, so no token is needed here.
+
+      - name: Pull third-party dependency images
+        run: docker compose --profile indexing --profile fixture pull --ignore-buildable
+        timeout-minutes: 10
+
+      - name: Build all application and fixture images from checkout
+        run: docker compose --profile indexing --profile fixture build
+        timeout-minutes: 25
+
+      - name: Start the Docker stack
+        run: docker compose --profile indexing --profile fixture up -d --no-build --pull never
+        timeout-minutes: 10
+
+      - name: Wait for services to be healthy
+        run: |
+          # Quoted heredoc: bash passes the payload to python verbatim, so the
+          # dynamically allocated port is read from the environment instead of
+          # interpolated by the shell.
+          python3 - <<'PY'
+          import os
+          import time
+          import urllib.request
+
+          url = f"http://localhost:{os.environ['AGENT_PORT']}/health"
+          deadline = time.time() + 180
+          while time.time() < deadline:
+              try:
+                  r = urllib.request.urlopen(url, timeout=5)
+                  if r.status == 200:
+                      print('Stack healthy')
+                      break
+              except Exception:
+                  pass
+              time.sleep(3)
+          else:
+              raise RuntimeError('Timed out waiting for stack')
+          PY
+
+      - name: Wait for semantic-svc
+        run: |
+          # First check from host that the API is alive. Quoted heredoc: bash
+          # passes the payload to python verbatim, so the dynamically allocated
+          # port is read from the environment instead of interpolated by the
+          # shell.
+          python3 - <<'PY'
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          url = f"http://localhost:{os.environ['SEMANTIC_HOST_PORT']}/health"
+          deadline = time.time() + 300
+          while time.time() < deadline:
+              try:
+                  r = urllib.request.urlopen(url, timeout=5)
+                  data = r.read().decode()
+                  if r.status == 200 and '"ok"' in data:
+                      print('semantic-svc healthy on host')
+                      break
+              except urllib.error.HTTPError as e:
+                  print(f'  waiting ({e.code})...')
+              except Exception:
+                  pass
+              time.sleep(3)
+          else:
+              raise RuntimeError('Timed out waiting for semantic-svc on host')
+          PY
+          # Verify Qdrant is reachable from inside agent-svc (where tests run).
+          # Service-DNS URL stays literal: no host-port interpolation needed.
+          python3 - <<'PY'
+          import subprocess
+          import time
+
+          deadline = time.time() + 60
+          while time.time() < deadline:
+              r = subprocess.run(
+                  ['docker', 'compose', 'exec', '-T', 'agent-svc',
+                   'python3', '-c',
+                   'import urllib.request; u=urllib.request.urlopen("http://semantic-svc:8003/index/stats", timeout=5); print(u.status)'],
+                  capture_output=True, text=True, timeout=10
+              )
+              if r.returncode == 0 and '200' in r.stdout:
+                  print('Qdrant ready from agent-svc')
+                  break
+              print(f'  waiting from agent-svc (rc={r.returncode}): {r.stdout[:80]}')
+              time.sleep(5)
+          else:
+              raise RuntimeError('Timed out waiting for Qdrant from agent-svc')
+          PY
+
+      - name: Wait for tier3-fixture
+        run: |
+          # Quoted heredoc: bash passes the payload to python verbatim, so the
+          # dynamically allocated port is read from the environment instead of
+          # interpolated by the shell.
+          python3 - <<'PY'
+          import os
+          import time
+          import urllib.request
+
+          url = f"http://localhost:{os.environ['TIER3_HOST_PORT']}/health"
+          deadline = time.time() + 30
+          while time.time() < deadline:
+              try:
+                  r = urllib.request.urlopen(url, timeout=5)
+                  if r.status == 200:
+                      print('tier3-fixture healthy')
+                      break
+              except Exception:
+                  pass
+              time.sleep(2)
+          else:
+              raise RuntimeError('Timed out waiting for tier3-fixture')
+          PY
+
+      - name: Wait for test-site
+        run: |
+          # Quoted heredoc: bash passes the payload to python verbatim, so the
+          # dynamically allocated port is read from the environment instead of
+          # interpolated by the shell.
+          python3 - <<'PY'
+          import os
+          import time
+          import urllib.request
+
+          url = f"http://localhost:{os.environ['TEST_SITE_HOST_PORT']}/health"
+          deadline = time.time() + 60
+          while time.time() < deadline:
+              try:
+                  r = urllib.request.urlopen(url, timeout=5)
+                  if r.status == 200:
+                      print('test-site healthy')
+                      break
+              except Exception:
+                  pass
+              time.sleep(2)
+          else:
+              raise RuntimeError('Timed out waiting for test-site')
+          PY
+
+      - name: Wait for slopsearx-fixture
+        run: |
+          # Quoted heredoc: bash passes the payload to python verbatim, so the
+          # dynamically allocated port is read from the environment instead of
+          # interpolated by the shell.
+          python3 - <<'PY'
+          import os
+          import time
+          import urllib.request
+
+          url = f"http://localhost:{os.environ['SLOPSEARX_FIXTURE_HOST_PORT']}/health"
+          deadline = time.time() + 60
+          while time.time() < deadline:
+              try:
+                  r = urllib.request.urlopen(url, timeout=5)
+                  if r.status == 200:
+                      print('slopsearx-fixture healthy')
+                      break
+              except Exception:
+                  pass
+              time.sleep(2)
+          else:
+              raise RuntimeError('Timed out waiting for slopsearx-fixture')
+          PY
+
+      - name: Wait for agent-svc-fixture
+        run: |
+          # Quoted heredoc: bash passes the payload to python verbatim, so the
+          # dynamically allocated port is read from the environment instead of
+          # interpolated by the shell.
+          python3 - <<'PY'
+          import os
+          import time
+          import urllib.request
+
+          url = f"http://localhost:{os.environ['AGENT_FIXTURE_HOST_PORT']}/health"
+          deadline = time.time() + 120
+          while time.time() < deadline:
+              try:
+                  r = urllib.request.urlopen(url, timeout=5)
+                  if r.status == 200:
+                      print('agent-svc-fixture healthy')
+                      break
+              except Exception:
+                  pass
+              time.sleep(3)
+          else:
+              raise RuntimeError('Timed out waiting for agent-svc-fixture')
+          PY
+
+      - name: Reset isolated test state
+        run: |
+          docker compose exec -T valkey valkey-cli -n 0 FLUSHDB
+          docker compose exec -T valkey valkey-cli -n 1 FLUSHDB
+          # Quoted heredocs: bash passes each payload to python verbatim, so the
+          # dynamically allocated ports and the run id are read from the
+          # environment instead of interpolated by the shell.
+          run_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" python3 - <<'PY'
+          import os
+          import urllib.request
+
+          base_url = f"http://localhost:{os.environ['LLM_HOST_PORT']}/diagnostics/reset"
+          urllib.request.urlopen(
+              f"{base_url}?run_id={os.environ['run_id']}", data=b"", timeout=5
+          )
+          PY
+          run_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" python3 - <<'PY'
+          import os
+          import urllib.request
+
+          base_url = f"http://localhost:{os.environ['SLOPSEARX_FIXTURE_HOST_PORT']}/ledger/reset"
+          urllib.request.urlopen(
+              f"{base_url}?run_id={os.environ['run_id']}", data=b"", timeout=5
+          )
+          PY
+
+      - name: Copy test files and source directories
+        run: |
+          mkdir -p coverage
+          svc=$(docker compose ps -q agent-svc)
+          # Copy full tests/ directory and root Compose contract input
+          docker compose exec -T agent-svc mkdir -p /app/tests
+          docker cp tests/. "$svc":/app/tests/
+          docker cp docker-compose.yml "$svc":/app/docker-compose.yml
+          docker compose exec -T agent-svc mkdir -p /app/scripts
+          docker cp scripts/classify_ci_changes.py "$svc":/app/scripts/classify_ci_changes.py
+          docker cp scripts/coverage_gate.py "$svc":/app/scripts/coverage_gate.py
+          # Copy the stdlib benchmark harness so tests/service/test_benchmark_harness.py
+          # can import the benchmark helpers inside the container.
+          docker compose exec -T agent-svc mkdir -p /app/benchmarks
+          docker cp benchmarks/. "$svc":/app/benchmarks/
+          docker compose exec -T agent-svc mkdir -p /app/.github/workflows
+          docker cp .github/workflows/docker.yml "$svc":/app/.github/workflows/docker.yml
+          docker cp .github/workflows/. "$svc":/app/.github/workflows/
+          docker cp docker-compose.ci.yml "$svc":/app/docker-compose.ci.yml
+          # Refresh the baked agent package at the path Python imports from /app.
+          docker compose exec -T agent-svc mkdir -p /app/agent
+          docker cp agent-svc/agent/. "$svc":/app/agent/
+          # Copy the remaining service packages under their repository paths.
+          for pkg in scraper-svc/scraper parse-svc/parse_svc portal-svc/portal browser-svc/browser_svc llm-svc/llm_svc slopsearx-fixture/slopsearx_fixture common; do
+            docker compose exec -T agent-svc mkdir -p "/app/$pkg"
+            docker cp "$pkg/." "$svc:/app/$pkg/"
+          done
+          # Copy mcp-svc package + its tests under /app/mcp-svc
+          docker compose exec -T agent-svc mkdir -p /app/mcp-svc
+          docker cp mcp-svc/. "$svc:/app/mcp-svc/"
+
+      - name: Install critical test dependencies
+        run: docker compose exec -T agent-svc pip install pytest pytest-asyncio pytest-cov pytest-timeout jinja2 tabulate markdownify==1.2.3 readability-lxml==0.8.4.1 firecrawl-anydoc==0.2.4 pypdf -q
+
+      - name: Verify LLM fixture contract and agent routing
+        run: |
+          docker compose exec -T agent-svc python3 -c "
+          import os
+          assert os.environ['LLM_BASE_URL'].startswith('http://llm-svc:8011/v1?run_id='), os.environ.get('LLM_BASE_URL')
+          print('agent LLM routing verified')
+          "
+          docker compose exec -T agent-svc python3 -c "
+          import json, urllib.request
+          endpoint = 'http://llm-svc:8011/v1/chat/completions'
+          def chat(messages, response_format=None):
+              body = {'model': 'fixture-model', 'messages': messages}
+              if response_format:
+                  body['response_format'] = response_format
+              request = urllib.request.Request(endpoint, data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+              return json.load(urllib.request.urlopen(request, timeout=10))['choices'][0]['message']['content']
+          citation = chat([
+              {'role': 'system', 'content': 'Cite sources by their URL whenever you use information.'},
+              {'role': 'user', 'content': 'explain REST API authentication methods'},
+          ])
+          # The fixture emits the raw marker; the targeted integration test below
+          # verifies agent post-processing resolves it to [1](url).
+          assert '[1]' in citation, citation
+          schema = {'type': 'object', 'properties': {'comparison': {'type': 'object', 'properties': {'pros': {'type': 'array', 'items': {'type': 'string'}}}}}}
+          structured = chat([
+              {'role': 'system', 'content': 'MUST respond with valid JSON matching this schema:' + json.dumps(schema)},
+              {'role': 'user', 'content': 'compare'},
+          ], {'type': 'json_object'})
+          assert json.loads(structured) == {'comparison': {'pros': ['value', 'value']}}, structured
+          print('LLM fixture citation and schema contracts verified')
+          "
+
+      - name: Run targeted source-backed agent contracts
+        run: |
+          docker compose exec -T agent-svc env \
+            PYTHONPATH=/app/agent-svc:/app/scraper-svc:/app/llm-svc:/app/parse-svc:/app/portal-svc:/app/browser-svc:/app \
+            QA_OUTCOME_PATH=/app/qa-outcomes-targeted.json \
+            python3 -m pytest /app/tests/integration/test_stack.py \
+              -k 'test_cross_endpoint_compact_citations_resolvable or test_cross_plan_agent_structured_output_val_cross_005' \
+              --no-cov -o 'addopts=' -p no:cacheprovider -q
+        timeout-minutes: 5
+
+      - name: Run narrow grounded-answer eval (in-process + HTTP smoke)
+        # Bounded, hermetic pre-merge eval (issue #570): the narrow selection runs
+        # the real answer/research pipeline in-process against the deterministic
+        # twins (no live egress; endpoint-host allowlist enforced by the harness),
+        # then one default-scenario /v2/answer smoke runs over the real route on
+        # agent-svc-fixture. Gated by the runtime/twin classifier; all PR code runs on an ephemeral hosted runner.
+        if: >-
+          needs.changes.outputs.requires_twin_contracts == 'true' ||
+          needs.changes.outputs.requires_full_runtime == 'true'
+        env:
+          PYTHONPATH: agent-svc:scraper-svc:llm-svc:slopsearx-fixture:parse-svc:portal-svc:browser-svc:semantic-svc:.
+        run: |
+          uv run --no-sync python3 scripts/run_answer_evals.py --selection narrow \
+            --output-dir eval-out/narrow \
+            --http-smoke "http://127.0.0.1:${AGENT_FIXTURE_HOST_PORT}"
+        timeout-minutes: 5
+
+      - name: Upload answer-evals provenance
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: answer-evals-provenance
+          path: eval-out/
+          if-no-files-found: warn
+
+      - name: Critical journey smoke
+        run: |
+          docker compose exec -T agent-svc mkdir -p /app/coverage
+          set +e
+          docker compose exec -T agent-svc env \
+            QA_OUTCOME_PATH=/app/qa-outcomes-critical.json \
+            TWIN_RUN_ID=${{ github.run_id }}-${{ github.run_attempt }} \
+            AGENT_BASE_URL=http://agent-svc-fixture:8080 \
+            PYTHONPATH=/app/agent-svc:/app/scraper-svc:/app/llm-svc:/app/parse-svc:/app/portal-svc:/app/browser-svc:/app \
+            SCRAPER_BASE_URL=http://scraper-svc:8001 \
+            SEARCH_BASE_URL=http://slopsearx-fixture:8080 \
+            LLM_BASE_URL=http://llm-svc:8011/v1?run_id=${{ github.run_id }}-${{ github.run_attempt }} \
+            TEST_SITE_BASE_URL=http://test-site:8000 \
+            TIER3_FIXTURE_BASE_URL=http://tier3-fixture:8000 \
+            SEMANTIC_BASE_URL=http://semantic-svc:8003 \
+            python3 -m pytest /app/tests/integration/test_critical_journey.py -vv -rA -m 'not external' \
+              --cov=/app/agent \
+              --cov=/app/scraper-svc/scraper \
+              --cov=/app/parse-svc/parse_svc \
+              --cov=/app/portal-svc/portal \
+              --cov=/app/browser-svc/browser_svc \
+              --cov=/app/common \
+              --cov-report=xml:/app/coverage/critical.xml \
+              --cov-report=json:/app/coverage/critical.json \
+              --cov-report=term-missing \
+              --cov-fail-under=0
+          pytest_status=$?
+          svc=$(docker compose ps -q agent-svc)
+          docker cp "$svc:/app/qa-outcomes-critical.json" qa-outcomes-critical.json || true
+          docker cp "$svc:/app/qa-outcomes-critical.md" qa-outcomes-critical.md || true
+          docker cp "$svc:/app/coverage/." coverage/ || true
+          if [ "$pytest_status" -ne 0 ]; then
+            docker compose logs --tail 50 test-site scraper-svc || true
+          fi
+          exit "$pytest_status"
+        timeout-minutes: 20
+
+      - name: Run CAPTCHA runtime probe
+        run: docker compose exec -T scraper-svc python - < tests/integration/captcha_runtime_probe.py
+
+      - name: Run integration tests
+        run: |
+          docker compose exec -T agent-svc pip install pytest pytest-asyncio pytest-cov pytest-xdist pytest-timeout jinja2 tabulate markdownify==1.2.3 readability-lxml==0.8.4.1 firecrawl-anydoc==0.2.4 pypdf PyYAML -q
+          docker compose exec -T agent-svc mkdir -p /app/coverage
+          set +e
+          docker compose exec -T agent-svc env \
+            QA_OUTCOME_PATH=/app/qa-outcomes-integration.json \
+            PYTHONPATH=/app/agent-svc:/app/scraper-svc:/app/llm-svc:/app/parse-svc:/app/portal-svc:/app/browser-svc:/app \
+            SCRAPER_BASE_URL=http://scraper-svc:8001 \
+            SEARCH_BASE_URL=http://slopsearx:8080 \
+            LLM_BASE_URL=http://llm-svc:8011/v1?run_id=${{ github.run_id }}-${{ github.run_attempt }} \
+            TEST_SITE_BASE_URL=http://test-site:8000 \
+            TIER3_FIXTURE_BASE_URL=http://tier3-fixture:8000 \
+            SEMANTIC_BASE_URL=http://semantic-svc:8003 \
+            python3 -m pytest /app/tests/integration/ /app/tests/service/ --timeout=120 --ignore-glob='*observability*' --ignore=/app/tests/integration/test_critical_journey.py -m 'not external' \
+            --ignore=/app/tests/service/test_twin_contract.py \
+            --ignore=/app/tests/service/test_twin_network_isolation.py \
+            --ignore=/app/tests/service/test_workflow_contract.py \
+            --ignore=/app/tests/service/test_answer_evals.py \
+              --cov=/app/agent \
+              --cov=/app/scraper-svc/scraper \
+              --cov=/app/parse-svc/parse_svc \
+              --cov=/app/portal-svc/portal \
+              --cov=/app/browser-svc/browser_svc \
+              --cov=/app/common \
+              --cov-report=xml:/app/coverage/integration.xml \
+              --cov-report=json:/app/coverage/integration.json \
+              --cov-report=term-missing \
+              --cov-fail-under=0
+          pytest_status=$?
+          svc=$(docker compose ps -q agent-svc)
+          docker cp "$svc:/app/qa-outcomes-integration.json" qa-outcomes-integration.json || true
+          docker cp "$svc:/app/qa-outcomes-integration.md" qa-outcomes-integration.md || true
+          docker cp "$svc:/app/coverage/." coverage/ || true
+          exit "$pytest_status"
+        timeout-minutes: 20
+
+      - name: Run mcp-svc integration tests (Host-header / transport security)
+        run: |
+          docker compose exec -T agent-svc pip install pytest pytest-asyncio httpx -q
+          set +e
+          docker compose exec -T agent-svc env \
+            MCP_URL=http://mcp-svc:8002/mcp \
+            AGENT_URL=http://agent-svc:8080 \
+            MCP_TEST_ALLOWED_HOST=mcp-svc:8002 \
+            MCP_TEST_DISALLOWED_HOST=not-allowed.invalid:8002 \
+            python3 -m pytest /app/mcp-svc/tests/test_integration.py \
+              -k "TestHostHeaderTransportSecurity" -vv -rA -m 'not external'
+          pytest_status=$?
+          exit "$pytest_status"
+        timeout-minutes: 10
+
+      - name: Check changed-line coverage
+        id: coverage_gate
+        env:
+          COVERAGE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          COVERAGE_HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "$COVERAGE_BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "Changed-line coverage skipped: no prior commit exists for this ref."
+            exit 0
+          fi
+          python3 scripts/coverage_gate.py \
+            --coverage-json coverage/critical.json \
+            --coverage-json coverage/integration.json \
+            --base-sha "$COVERAGE_BASE_SHA" \
+            --head-sha "$COVERAGE_HEAD_SHA" \
+            --summary-path coverage/docker-risk-summary.md
+
+      - name: Publish integration outcome summary
+        if: always()
+        run: cat qa-outcomes-*.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Capture sanitized LLM fixture diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          allowed = {"request_id", "schema_version", "fixture_version", "scenario", "scenario_version", "run_id", "status", "classification", "model", "stream"}
+          try:
+              run_id = f"{os.environ.get('GITHUB_RUN_ID', 'local')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+              with urllib.request.urlopen(f"http://localhost:{os.environ['LLM_HOST_PORT']}/diagnostics?run_id={run_id}", timeout=5) as response:
+                  payload = json.load(response)
+              entries = [{key: value for key, value in entry.items() if key in allowed} for entry in payload.get("entries", [])]
+              output = {"schema_version": payload.get("schema_version"), "fixture_version": payload.get("fixture_version"), "entries": entries}
+          except Exception as exc:
+              output = {"error": "diagnostics unavailable", "classification": type(exc).__name__}
+          with open("llm-fixture-diagnostics.json", "w") as file:
+              json.dump(output, file, indent=2)
+          PY
+
+      - name: Capture sanitized search fixture ledger
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          run_id = f"{os.environ.get('GITHUB_RUN_ID', 'local')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+          try:
+              with urllib.request.urlopen(f"http://localhost:{os.environ['SLOPSEARX_FIXTURE_HOST_PORT']}/ledger?run_id={run_id}", timeout=5) as response:
+                  payload = json.load(response)
+              allowed = {"request_id", "scenario", "schema_version", "fixture_version", "status", "classification", "categories", "page", "result_count", "run_id"}
+              output = {"schema_version": payload.get("schema_version"), "fixture_version": payload.get("fixture_version"), "entries": [{key: value for key, value in entry.items() if key in allowed} for entry in payload.get("entries", [])]}
+          except Exception as exc:
+              output = {"error": "search ledger unavailable", "classification": type(exc).__name__}
+          with open("search-fixture-ledger.json", "w") as file:
+              json.dump(output, file, indent=2)
+          PY
+
+      - name: Write Compose twin evidence manifest
+        if: always()
+        env:
+          TWIN_SELECTION: ${{ needs.changes.outputs.twin_test_selection }}
+          RUNTIME_SELECTION: ${{ needs.changes.outputs.requires_full_runtime }}
+          TWIN_RESULT: ${{ job.status }}
+          TWIN_FAILURE_SOURCE: ${{ job.status == 'success' && 'none' || 'implementation' }}
+          TWIN_TEST_OUTCOME: ${{ job.status }}
+          TWIN_CHANGED_PATHS_JSON: ${{ needs.changes.outputs.changed_paths_json }}
+          TWIN_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TWIN_EXECUTION_MODE: compose
+          TWIN_REQUIRE_IMAGES: "1"
+          TWIN_RECORD_IMAGES: "1"
+          TWIN_BUILT_FROM_CHECKOUT: llm-svc,slopsearx-fixture,agent-svc-fixture,test-site,tier3-fixture
+          TWIN_TESTS: '["tests/integration/test_stack.py::test_cross_endpoint_compact_citations_resolvable","tests/integration/test_stack.py::test_cross_plan_agent_structured_output_val_cross_005","tests/integration/test_critical_journey.py","tests/integration/","tests/service/","tests/integration/test_twin_failure_injection.py","mcp-svc/tests/test_integration.py::TestHostHeaderTransportSecurity"]'
+          TWIN_EXCLUDED_TESTS: '["tests/service/test_twin_contract.py","tests/service/test_twin_network_isolation.py","tests/service/test_workflow_contract.py","tests/service/test_answer_evals.py"]'
+          TWIN_CHECKS: scenario-version-precheck,manifest-validation
+        run: |
+          uv run --no-sync python scripts/twin_provenance.py --output twin-compose-out --changed-paths-json "$TWIN_CHANGED_PATHS_JSON"
+          uv run --no-sync python -m jsonschema -i twin-compose-out/twin-evidence.json provenance/twin-evidence.schema.json
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          if [ -f coverage/docker-risk-summary.md ]; then
+            cat coverage/docker-risk-summary.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.coverage_gate.outcome }}" = "success" ] && { [ -f coverage/critical.json ] || [ -f coverage/integration.json ]; }; then
+            echo "Changed-line coverage comparison skipped: no prior commit exists for this ref." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.coverage_gate.outcome }}" = "skipped" ]; then
+            echo "Changed-line coverage comparison did not run because an earlier test step failed." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.coverage_gate.outcome }}" != "success" ]; then
+            echo "Changed-line coverage gate failed before writing its summary." >> "$GITHUB_STEP_SUMMARY"
+          elif [ ! -f coverage/critical.json ] && [ ! -f coverage/integration.json ]; then
+            echo "Changed-line coverage report unavailable; coverage JSON files are missing from the workspace." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload integration outcome reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-outcomes
+          path: qa-outcomes-*
+          if-no-files-found: warn
+
+      - name: Upload LLM fixture diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: llm-fixture-diagnostics
+          path: llm-fixture-diagnostics.json
+          if-no-files-found: warn
+
+      - name: Upload search fixture ledger and twin manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: search-fixture-ledger-and-twin-provenance
+          path: |
+            search-fixture-ledger.json
+            twin-compose-out/twin-evidence.json
+          if-no-files-found: warn
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-coverage
+          path: coverage/*
+          if-no-files-found: warn
+
+      - name: Collect diagnostics on failure
+        if: failure()
+        run: |
+          report="$GITHUB_WORKSPACE/integration-test-diagnostics.txt"
+          {
+            echo "Integration test failure diagnostics"
+            echo "Collected at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            echo "=== docker compose ps -a ==="
+            docker compose ps -a || true
+            echo
+            echo "=== listening TCP sockets ==="
+            ss -ltnp || netstat -tlnp || true
+            echo
+            echo "=== all containers with ports ==="
+            docker ps --format '{{.Names}}\t{{.Ports}}' || true
+            echo
+            echo "=== docker stats --no-stream ==="
+            docker stats --no-stream || true
+            echo
+            echo "=== host memory ==="
+            free -h || vm_stat || true
+            echo
+            echo "=== host filesystem ==="
+            df -h || true
+            echo
+            echo "=== project container state ==="
+            docker ps -aq --filter "name=groktocrawl" | while read -r container; do
+              docker inspect --format \
+                'Name={{.Name}} Status={{.State.Status}} ExitCode={{.State.ExitCode}} FinishedAt={{.State.FinishedAt}} Error={{.State.Error}} OOMKilled={{.State.OOMKilled}}' \
+                "$container" || true
+            done || true
+            echo
+            echo "=== docker compose logs (last 50 lines) ==="
+            docker compose logs --tail 50 || true
+          } > "$report" 2>&1 || true
+
+      - name: Upload integration test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-diagnostics
+          path: integration-test-diagnostics.txt
+          if-no-files-found: warn
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose --profile indexing --profile fixture down --volumes --remove-orphans --timeout 30
+
+  runtime-gate:
+    name: Runtime Gate
+    needs: [changes, twin-contracts, integration-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require successful selected validation
+        env:
+          CLASSIFICATION: ${{ needs.changes.result }}
+          RUNTIME_REQUIRED: ${{ needs.changes.outputs.requires_full_runtime }}
+          TWIN_REQUIRED: ${{ needs.changes.outputs.requires_twin_contracts }}
+          RUNTIME_RESULT: ${{ needs.integration-tests.result }}
+          TWIN_RESULT: ${{ needs.twin-contracts.result }}
+        run: |
+          set -eu
+          test "$CLASSIFICATION" = success
+          for required in "$RUNTIME_REQUIRED" "$TWIN_REQUIRED"; do
+            case "$required" in true|false) ;; *) exit 1 ;; esac
+          done
+          if [ "$RUNTIME_REQUIRED" = true ]; then
+            test "$RUNTIME_RESULT" = success
+          else
+            echo "Runtime integration not required for this documentation-only change."
+          fi
+          if [ "$TWIN_REQUIRED" = true ]; then
+            test "$TWIN_RESULT" = success
+          fi
