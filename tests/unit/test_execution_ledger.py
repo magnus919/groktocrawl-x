@@ -176,3 +176,23 @@ def test_deep_immutable_state_and_forged_budget_revalidation():
         owner.reserve(
             operation_id="bad", input_digest=DIGEST, budget=forged, expected_revision=1
         )
+
+
+def test_completion_seals_ledger_and_requires_settled_work():
+    owner = ledger(tokens=2)
+    reserve(owner, tokens=2)
+    with pytest.raises(ValueError, match="pending"):
+        owner.finish(outcome="completed", expected_revision=1)
+    complete(owner, tokens=1)
+    terminal = owner.finish(outcome="completed", expected_revision=2)
+    assert terminal.state == "completed"
+    assert owner.cancel(expected_revision=terminal.revision) is terminal
+    with pytest.raises(ValueError, match="completed"):
+        reserve(owner, "late")
+
+
+def test_failure_retains_unknown_usage():
+    owner = ledger(tokens=2)
+    reserve(owner, tokens=2)
+    result = owner.finish(outcome="failed", expected_revision=1)
+    assert result.reserved.tokens == 2

@@ -54,7 +54,7 @@ class ExecutionState(Record):
     run_id: Identity
     policy_version: Identity
     revision: Units = 0
-    state: Literal["running", "cancelled"] = "running"
+    state: Literal["running", "cancelled", "completed", "failed"] = "running"
     limit: Budget
     max_operations: Annotated[int, Field(strict=True, ge=1, le=1000)]
     spent: Budget = Budget()
@@ -86,7 +86,7 @@ class ExecutionLedger:
         ):
             raise ValueError("stale or invalid state revision")
         if self._state.state != "running":
-            raise ValueError("run is cancelled")
+            raise ValueError(f"run is {self._state.state}")
 
     def _commit(self, **changes: object) -> ExecutionState:
         # Revalidate instead of using model_copy's unvalidated update path.
@@ -192,8 +192,21 @@ class ExecutionLedger:
             or expected_revision != self._state.revision
         ):
             raise ValueError("stale or invalid state revision")
-        if self._state.state == "cancelled":
+        if self._state.state != "running":
             return self._state
         # Pending work may already have incurred usage. Cancellation cannot refund
         # it on a guess; a future adapter/recovery protocol owns reconciliation.
         return self._commit(state="cancelled")
+
+    def finish(
+        self, *, outcome: Literal["completed", "failed"], expected_revision: int
+    ) -> ExecutionState:
+        """Seal accounting; a successful run cannot leave unsettled operations."""
+        self._guard(expected_revision)
+        if outcome not in {"completed", "failed"}:
+            raise ValueError("invalid execution outcome")
+        if outcome == "completed" and any(
+            op.state == "pending" for op in self._state.operations
+        ):
+            raise ValueError("cannot complete with pending operations")
+        return self._commit(state=outcome)

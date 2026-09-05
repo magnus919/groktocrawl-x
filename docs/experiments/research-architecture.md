@@ -513,3 +513,38 @@ safety, restart recovery, retries, execution deadlines, provider cancellation,
 admission integration or successful publication transition is implemented. The
 caller owns dispatch/cancellation of actual children. Later controller work must
 add those applicable contracts before making end-to-end bounded-execution claims.
+
+## W2 scripted controller integration
+
+`agent.experimental.controller` connects a finite local script to the ledger and
+fixture publication gate ([issue #23](https://github.com/magnus919/groktocrawl-x/issues/23)).
+The owner validates unique operation IDs, reserves before each callback, checks
+expected output identity, settles known usage and accepts a publication candidate
+only from the final operation. A successful terminal requires all operations settled
+and the existing publication validator to pass against caller-established research,
+artifact-set, renderer and fixture-auditor identities. Ledger state now seals as
+completed or failed as well as cancelled; terminal result reads never rerun a script.
+
+The controller uses the event loop's monotonic clock for overall and per-operation
+deadlines. Cancellation propagates to the active child and stops subsequent dispatch.
+Failed/cancelled results contain no publication and no invented coverage assessment;
+completed results separately report complete/partial/insufficient coverage and stop
+reason. A fixture conflict may complete with qualified uncertainty. Provider/operation
+errors are not automatically relabeled as successful partial answers.
+
+Cleanup has a bounded grace period. An async child that suppresses cancellation can
+outlive the run: `cleanup_incomplete` records that condition at termination, its late
+result is never applied, and late exceptions are consumed. Python cannot forcibly
+stop arbitrary coroutine code, and a callback that blocks the event loop defeats
+cooperative timing. These callbacks are trusted local scripts, not sandboxed tools.
+External cancellation of the run task records a cancelled result and re-raises
+`CancelledError`. Unknown work remains reserved on timeout/cancellation or invalid
+receipts. No retry or external-effect reconciliation is implied.
+
+Tests connect the scripted callbacks to supported, conflicting, partial and
+insufficient three-layer fixture outputs and reject timeout, cancellation, exhausted
+budget, wrong identity, premature/missing publication and failed audits. The script
+uses caller-supplied fixture research and hand-authored judgments; it does not perform
+live research, real semantic verification or independent quality evaluation. No
+public endpoint, persistence, lease, parallel execution, complete Knowledge IR
+interchange schema or adopted graph framework is added.
