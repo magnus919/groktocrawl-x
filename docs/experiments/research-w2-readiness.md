@@ -1,0 +1,62 @@
+# W2 fixture readiness checkpoint
+
+Scope: experimental GroktoCrawl X only; not a mainline replacement. Foundation
+ADRs 0067–0070 and 0072 are accepted for bounded fixtures. Storage 0071, runtime
+adoption 0073 and recovery 0074 remain proposed. This checkpoint accompanies issue
+[#31](https://github.com/magnus919/groktocrawl-x/issues/31).
+
+## Current conclusion
+
+An executable local fixture journey now acquires text, constructs an immutable
+structural revision, binds explicit assessment/verification/freshness records and
+publishes an audited summary, analysis and dossier. The controller owns budgets,
+cooperative deadlines, cancellation and terminal outcomes. A separate pure history
+validator checks supplied revision chains. These are executable contract checks;
+W2 is **not complete**, and the internal formats are not complete `knowledge-ir/1`.
+
+The fixture author supplies claim annotations, assessment outcomes, semantic
+verdicts and render wording. A passing test establishes that the implementation
+honors those supplied expectations, not that the expectations are true, independent
+or human-reviewed. Hosted integration proves regression compatibility, not research
+quality. No provider or database has been added by these slices.
+
+## Requirement-to-evidence matrix
+
+| Accepted requirement | Implemented fixture evidence | Remaining limit or gate |
+|---|---|---|
+| ADR-0068: separate execution, knowledge and rendering | `pipeline.py` uses controller-owned acquire/construct/verify/render stages; bodies stay outside `ExecutionState`; `test_fixture_pipeline.py` | Finite local plan only. No independently evaluated research policy, adaptive search, bounded semantic repair loop or provider adapter. |
+| ADR-0068: ownership, budgets, deadlines, cancellation | `execution.py`, `controller.py`; ledger/controller/pipeline tests exercise reserve-before-dispatch, stable receipts, late-result rejection and no failed/cancelled publication | Cooperative callbacks are trusted; blocking or cancellation-suppressing code cannot be forcibly stopped. No restart safety, leases or persistent ownership. |
+| ADR-0069: exact evidence, identity, relationships | `knowledge.py`; Unicode spans, digests, scoped IDs, edge references and derivation DAG tests | Inline text fixtures only. Observation labels, semantic equivalence and source authenticity are not inferred or authenticated. Binary locators remain unspecified. |
+| ADR-0069: freshness, source dependence and uncertainty | Source dates/provenance, lineage/origin, as-of context and historical/current scope; `test_source_freshness.py` | Dates and lineage are recorded assertions. No independent-source count or proof of current real-world truth. |
+| ADR-0069: assessment distinct from verification | `FixtureAssessment` and explicit `AssessmentLink` mapping in `FixtureVerificationSet`; `test_fixture_assessments.py` | Fixture assessor shares the configured fixture identity contract. No real assessor authentication or independently evaluated semantic assessor. |
+| ADR-0069: verification and publication eligibility | Input-bound support/freshness/conflict records plus exact three-layer audit binding; assessment alone cannot publish | Fixture verdicts can be wrong. No demonstrated entailment, caveat preservation or unbiased semantic audit beyond hand-authored cases. |
+| ADR-0069: revision identity and append-only records | `revisions.py`; typed introductions, immutable IDs across removal/reintroduction, historical/current record separation | Bounded supplied linear history only; not authenticated, complete, persisted or portable. Declared novel/replacement semantics cannot be inferred. |
+| ADR-0069: complete versioned IR | Separate structure, verification, publication and revision prototype formats implement substantial parts | Consolidated schema/examples and compatibility policy are not frozen as `knowledge-ir/1`. Claim-to-assessment links currently live in an explicit envelope mapping. Whole-IR interchange hashing depends on the still-proposed D3 contract. |
+| ADR-0070: separate policy/runtime comparisons, frozen evidence, negative controls | Inherited deterministic regression baseline is pinned in `research-preflight.json`; fixture contract negative tests are executable | Independent semantic corpus/rubric/reviewers, arm definitions and comparison thresholds remain unresolved. Current fixture tests are not a completed A/B/C study. |
+| ADR-0072: verified final output distinct from progress, stable identity and coverage | Internal controller final outcome, same-revision artifacts and complete/partial/insufficient coverage | No experimental HTTP/SSE, CLI/MCP, reconnect/replay or authorization implementation. Public delivery remains later W6 work. |
+
+Implementation paths above are under `agent-svc/agent/experimental/`; test paths are
+under `tests/unit/`. See the [implementation record](research-architecture.md) for
+merged milestones and the issue/PR for the current CI evidence. Tests do not prove
+requirements listed as remaining limits.
+
+## Concrete next gate
+
+Do not turn fixture test counts into an adoption decision or start an unfrozen
+comparison. Prepare a reviewed evaluation design and a final schema gap disposition
+before moving beyond the bounded fixture scope.
+
+| Required input or decision | Proposed reviewable action | Decision owner / constraint |
+|---|---|---|
+| Target research workload and corpus | Choose a representative domain/question mix; freeze separate development and held-out source snapshots/questions, denominators and expected negative/abstention categories | Magnus selects scope. No selected domain or frozen held-out corpus exists yet. |
+| Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus assigns reviewers. The implementation agent's fixture verdicts do not fill these roles. |
+| Measurement thresholds and resources | Record quality/latency/resource regression bounds with rationale, hardware, run budgets, seeds/order and uncertainty plan | Must be explicit before applicable comparisons. Existing protocol minima are not measured results or an authorized series. |
+| Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. No implicit acceptance of proposed storage choices. |
+| Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | Current external-provider budget is zero. No provider work is authorized here. |
+| Runtime/storage/recovery decisions | Use the proposed ADR-0071/0073/0074 gates when those workstreams begin | Preserve the pgvector-versus-Qdrant consolidation evaluation and conditional PostgreSQL-native recovery option; no selection here. |
+
+The authoritative unresolved fields remain in
+[`research-preflight.json`](research-preflight.json). Null means unresolved; this
+checkpoint does not fill them with permissive defaults, promote the regression
+baseline or authorize comparisons. A useful next step is a concrete frozen-design
+packet for the selected workload, not another unconnected implementation slice.

@@ -47,7 +47,9 @@ class VerificationInput(Record):
     schema_version: Literal["fixture-verification-input/1"]
     structure: KnowledgeStructure
     subject_id: Identity
-    check_type: Literal["semantic_support", "freshness", "conflict_coverage"]
+    check_type: Literal[
+        "semantic_support", "freshness", "conflict_coverage", "assessment"
+    ]
     policy_version: Identity
     verifier: FixtureVerifier
     evidence_ids: tuple[Identity, ...] = Field(max_length=1000)
@@ -143,6 +145,8 @@ class FixtureVerification(Record):
 
     @model_validator(mode="after")
     def exact_input(self) -> Self:
+        if self.checked_input.check_type == "assessment":
+            raise ValueError("assessment is not a verification verdict")
         if self.checked_input_digest != self.checked_input.input_digest():
             raise ValueError("verification input digest mismatch")
         context = self.checked_input.freshness
@@ -153,6 +157,36 @@ class FixtureVerification(Record):
         return self
 
 
+class FixtureAssessment(Record):
+    assessment_id: Identity
+    checked_input: VerificationInput
+    checked_input_digest: Digest
+    outcome: Literal["supported", "contested", "insufficient", "refuted"]
+    checked_at: datetime
+    reason: Text
+
+    @field_validator("checked_at")
+    @classmethod
+    def utc_timestamp(cls, value: datetime) -> datetime:
+        offset = value.utcoffset()
+        if offset is None or offset.total_seconds() != 0:
+            raise ValueError("assessment time must have an explicit UTC offset")
+        return value
+
+    @model_validator(mode="after")
+    def exact_assessment(self) -> Self:
+        if self.checked_input.check_type != "assessment":
+            raise ValueError("assessment requires an assessment input")
+        if self.checked_input_digest != self.checked_input.input_digest():
+            raise ValueError("assessment input digest mismatch")
+        return self
+
+
+class AssessmentLink(Record):
+    claim_id: Identity
+    assessment_ids: tuple[Identity, ...] = Field(min_length=1, max_length=100)
+
+
 class FixtureVerificationSet(Record):
     """Binds recorded judgments to trusted expected context, never auto-approves."""
 
@@ -161,6 +195,8 @@ class FixtureVerificationSet(Record):
     policy_version: Identity
     verifier: FixtureVerifier
     records: tuple[FixtureVerification, ...] = Field(max_length=3000)
+    assessments: tuple[FixtureAssessment, ...] = Field(default=(), max_length=3000)
+    assessment_links: tuple[AssessmentLink, ...] = Field(default=(), max_length=1000)
 
     @model_validator(mode="after")
     def bind_records(self) -> Self:
@@ -183,7 +219,48 @@ class FixtureVerificationSet(Record):
                 raise ValueError("verification uses different policy")
             if context.verifier != self.verifier:
                 raise ValueError("verification uses different verifier")
+        self._bind_assessments(entity_ids | set(identities))
         return self
+
+    def _bind_assessments(self, occupied: set[str]) -> None:
+        assessments = {a.assessment_id: a for a in self.assessments}
+        if len(assessments) != len(self.assessments) or occupied.intersection(
+            assessments
+        ):
+            raise ValueError(
+                "assessment IDs must be unique and not alias other entities"
+            )
+        for assessment in self.assessments:
+            context = assessment.checked_input
+            if (
+                context.structure != self.structure
+                or context.policy_version != self.policy_version
+                or context.verifier != self.verifier
+            ):
+                raise ValueError("assessment differs from expected context")
+        links = {link.claim_id: link for link in self.assessment_links}
+        assessed = {
+            c.claim_id: c for c in self.structure.claims if c.assessment != "unassessed"
+        }
+        if len(links) != len(self.assessment_links) or set(links) != set(assessed):
+            raise ValueError(
+                "each assessed claim requires exactly one assessment link; unassessed claims have none"
+            )
+        used: set[str] = set()
+        for identity, link in links.items():
+            if len(set(link.assessment_ids)) != len(link.assessment_ids):
+                raise ValueError("assessment references must be unique")
+            for record_id in link.assessment_ids:
+                record = assessments.get(record_id)
+                if record is None or record.checked_input.subject_id != identity:
+                    raise ValueError(
+                        "assessment link references missing or foreign assessment"
+                    )
+                if record.outcome != assessed[identity].assessment:
+                    raise ValueError("assessment outcome differs from claim status")
+                used.add(record_id)
+        if used != set(assessments):
+            raise ValueError("assessment records must all be linked")
 
 
 def validate_fixture_verifications(

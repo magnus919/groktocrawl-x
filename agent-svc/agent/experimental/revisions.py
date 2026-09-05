@@ -19,6 +19,7 @@ EntityKind = Literal[
     "claim",
     "relationship",
     "verification",
+    "assessment",
     "question",
     "conflict",
 ]
@@ -54,6 +55,7 @@ class FixtureRevision(Record):
         structure = self.research.verifications.structure
         times = [s.retrieved_at for s in structure.snapshots]
         times.extend(r.checked_at for r in self.research.verifications.records)
+        times.extend(a.checked_at for a in self.research.verifications.assessments)
         if structure.as_of is not None:
             times.append(structure.as_of)
         if any(time > self.created_at for time in times):
@@ -70,6 +72,7 @@ def _entities(revision: FixtureRevision) -> dict[str, tuple[EntityKind, Record]]
         ("claim", "claim_id", structure.claims),
         ("relationship", "relationship_id", structure.relationships),
         ("verification", "verification_id", research.verifications.records),
+        ("assessment", "assessment_id", research.verifications.assessments),
         ("question", "question_id", research.questions),
         ("conflict", "conflict_id", research.conflicts),
     )

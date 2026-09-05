@@ -11,6 +11,7 @@ from agent.experimental.publication import (
     validate_fixture_publication,
 )
 from agent.experimental.verification import (
+    FixtureAssessment,
     FixtureVerification,
     FixtureVerificationSet,
     FixtureVerifier,
@@ -117,12 +118,43 @@ def journey(raw, scenario):
                 reason="Fixture expectation, not semantic proof",
             )
         )
+    assessments = []
+    for claim in structure.claims:
+        if claim.assessment == "unassessed":
+            continue
+        context = VerificationInput(
+            schema_version="fixture-verification-input/1",
+            structure=structure,
+            subject_id=claim.claim_id,
+            check_type="assessment",
+            policy_version="fixture/1",
+            verifier=verifier,
+            evidence_ids=tuple(e.evidence_id for e in structure.evidence),
+        )
+        assessments.append(
+            FixtureAssessment(
+                assessment_id=f"assessment-{claim.claim_id}",
+                checked_input=context,
+                checked_input_digest=context.input_digest(),
+                outcome=claim.assessment,
+                checked_at="2026-09-05T00:00:00Z",
+                reason="Explicit fixture assessment",
+            )
+        )
     verifications = FixtureVerificationSet(
         schema_version="fixture-verifications/1",
         structure=structure,
         policy_version="fixture/1",
         verifier=verifier,
         records=records,
+        assessments=assessments,
+        assessment_links=[
+            {
+                "claim_id": a.checked_input.subject_id,
+                "assessment_ids": [a.assessment_id],
+            }
+            for a in assessments
+        ],
     )
     research = FixtureResearch(
         verifications=verifications,
