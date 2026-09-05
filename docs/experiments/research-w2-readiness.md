@@ -68,3 +68,9 @@ Magnus supplied the domain and reviewer direction after this checkpoint. See the
 [#33](https://github.com/magnus919/groktocrawl-x/issues/33). The synthetic calibration
 corpus and separate Hermes design review do not resolve the held-out, human
 calibration, measured-baseline or comparative-execution gates.
+
+## Canonical admission implementation
+
+[Bounded canonical JSON admission](research-canonical-admission.md) implements
+representation checks and JCS bytes for the approved storage exploration. It does
+not freeze the complete IR schema or establish database lifecycle behavior.

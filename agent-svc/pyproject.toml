@@ -13,6 +13,7 @@ dependencies = [
     "referencing>=0.28.4",
     "beautifulsoup4>=4.13.0",
     "python-multipart>=0.0.20",
+    "rfc8785==0.1.4",
 ]
 
 [tool.deptry.per_rule_ignores]
