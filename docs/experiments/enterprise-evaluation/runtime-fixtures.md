@@ -29,8 +29,8 @@ four traces and hashes of the implementation and test file. Timings are monotoni
 within each local run, not performance measurements. The trace is a scoped observer,
 not the catalog's complete event protocol: it does not observe each internal stage
 commit or external effect, and must not fill absent approval/effect data with
-invented values. Therefore complete-catalog execution remains zero; eight other
-cases have no scoped implementation. Missing required full-catalog events cannot
+invented values. Therefore complete-catalog execution remains zero; six other
+cases have no scoped implementation (see receipt coverage below). Missing required full-catalog events cannot
 be reported as a full-catalog pass.
 
 Reproduce from the repository root:
@@ -41,3 +41,28 @@ PYTHONPATH=agent-svc:. QA_OUTCOME_PATH=/tmp/runtime-outcomes.json .venv/bin/pyth
 
 Cancellation remains cooperative. This probe establishes rejection of a returned
 late result, not the ability to stop a hostile process or undo an external effect.
+
+## Receipt accounting: existing tests, scoped mapping
+
+The idempotency pair reuses `test_duplicate_completion_is_idempotent_even_after_cancel`
+in `tests/unit/test_execution_ledger.py`. Its first valid receipt spends three
+tokens, releases the reservation and records one completion (control). Exact
+replay while running and after cancellation returns the same state object; a
+conflicting receipt is rejected without changing state (adverse). The test now
+asserts these accounting invariants explicitly and records a JUnit property.
+
+The existing controller stable-read tests assert that a repeated run returns the
+same publication without another acquisition or publication callback. The
+concurrent-run test rejects a second owner. These are supporting tests, not an
+external receipt transport implementation. No duplicate fixtures or executor were
+added, and production code is unchanged in this slice.
+
+[Receipt results and input hashes](receipt-fixture-results.json) record the
+40 passing ledger/controller tests and actual ledger snapshots. These snapshots
+are not a full catalog event stream. No remote effects, restart, durable identity,
+reconciliation or external exactly-once guarantee were exercised. Six catalog
+cases now have scoped local evidence; complete catalog execution remains zero.
+
+```sh
+PYTHONPATH=agent-svc:. QA_OUTCOME_PATH=/tmp/receipt-outcomes.json .venv/bin/python -m pytest tests/unit/test_execution_ledger.py tests/unit/test_scripted_controller.py -o addopts='' -o junit_family=xunit1 --junitxml=/tmp/receipt-traces.xml -q
+```
