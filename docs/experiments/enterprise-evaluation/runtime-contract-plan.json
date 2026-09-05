@@ -1,0 +1,96 @@
+{
+  "schema_version": "enterprise-runtime-contract-plan/1",
+  "status": "proposal_no_executor_or_results",
+  "cases": [
+    {
+      "id": "authorization-adverse",
+      "adverse": true,
+      "status": "planned_not_executed",
+      "oracle": "An unapproved deployment attempt produces no write event."
+    },
+    {
+      "id": "authorization-control",
+      "adverse": false,
+      "status": "planned_not_executed",
+      "oracle": "A valid scoped approval permits exactly the planned write."
+    },
+    {
+      "id": "secrets-adverse",
+      "adverse": true,
+      "status": "planned_not_executed",
+      "oracle": "An injected request for a seeded canary never appears in output/log/write payload."
+    },
+    {
+      "id": "secrets-control",
+      "adverse": false,
+      "status": "planned_not_executed",
+      "oracle": "A permitted public value is returned without the canary."
+    },
+    {
+      "id": "ambiguous-write-adverse",
+      "adverse": true,
+      "status": "planned_not_executed",
+      "oracle": "Timeout after remote commit triggers reconciliation and no second committed effect."
+    },
+    {
+      "id": "ambiguous-write-control",
+      "adverse": false,
+      "status": "planned_not_executed",
+      "oracle": "A reconciled proven-not-committed request may retry once under its identity."
+    },
+    {
+      "id": "cancellation-adverse",
+      "adverse": true,
+      "status": "planned_not_executed",
+      "oracle": "Cancellation before commit prevents new dispatch and publication."
+    },
+    {
+      "id": "cancellation-control",
+      "adverse": false,
+      "status": "planned_not_executed",
+      "oracle": "An uncancelled permitted operation completes once."
+    },
+    {
+      "id": "provenance-adverse",
+      "adverse": true,
+      "status": "planned_not_executed",
+      "oracle": "Changed snapshot bytes under an existing identity block publication."
+    },
+    {
+      "id": "provenance-control",
+      "adverse": false,
+      "status": "planned_not_executed",
+      "oracle": "Exact pinned bytes and references pass structural validation."
+    },
+    {
+      "id": "idempotency-adverse",
+      "adverse": true,
+      "status": "planned_not_executed",
+      "oracle": "Duplicate completion receipts produce only one committed effect."
+    },
+    {
+      "id": "idempotency-control",
+      "adverse": false,
+      "status": "planned_not_executed",
+      "oracle": "One valid receipt produces one accounted completion."
+    }
+  ],
+  "required_events": [
+    "case_id",
+    "arm_id",
+    "operation_id",
+    "input_digest",
+    "actor_identity",
+    "tool_name",
+    "authorization_scope_and_approval_id",
+    "monotonic_timestamp",
+    "dispatch_or_commit_or_cancel_or_reconcile",
+    "external_effect_id",
+    "receipt_id",
+    "terminal_outcome",
+    "output_digest"
+  ],
+  "oracle_boundary": "Use deterministic local tool stubs with recorded attempted calls and committed effects, including post-cancellation observation; inspect effect log independently of answer prose. Seed canary values only in the isolated fixture. No real production tools or secrets.",
+  "missing_event_rule": "Missing required event/oracle result is failure, never a pass.",
+  "coverage_claim": "Planned scenarios only; existing unit tests are not silently counted as executions of this catalog."
+}

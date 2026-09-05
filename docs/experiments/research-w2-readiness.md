@@ -48,8 +48,8 @@ before moving beyond the bounded fixture scope.
 
 | Required input or decision | Proposed reviewable action | Decision owner / constraint |
 |---|---|---|
-| Target research workload and corpus | Choose a representative domain/question mix; freeze separate development and held-out source snapshots/questions, denominators and expected negative/abstention categories | Magnus selects scope. No selected domain or frozen held-out corpus exists yet. |
-| Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus assigns reviewers. The implementation agent's fixture verdicts do not fill these roles. |
+| Target research workload and corpus | Choose a representative domain/question mix; freeze separate development and held-out source snapshots/questions, denominators and expected negative/abstention categories | Magnus selected enterprise agentic engineering/software factories. A synthetic calibration design is linked below; no sealed held-out corpus exists yet. |
+| Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus authorized Hermes as a separate AI reviewer and retains human calibration/adjudication. No human calibration labels are collected yet. |
 | Measurement thresholds and resources | Record quality/latency/resource regression bounds with rationale, hardware, run budgets, seeds/order and uncertainty plan | Must be explicit before applicable comparisons. Existing protocol minima are not measured results or an authorized series. |
 | Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. No implicit acceptance of proposed storage choices. |
 | Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | Current external-provider budget is zero. No provider work is authorized here. |
@@ -60,3 +60,11 @@ The authoritative unresolved fields remain in
 checkpoint does not fill them with permissive defaults, promote the regression
 baseline or authorize comparisons. A useful next step is a concrete frozen-design
 packet for the selected workload, not another unconnected implementation slice.
+
+## Evaluation design follow-up
+
+Magnus supplied the domain and reviewer direction after this checkpoint. See the
+[enterprise evaluation design](enterprise-evaluation/README.md), tracked in issue
+[#33](https://github.com/magnus919/groktocrawl-x/issues/33). The synthetic calibration
+corpus and separate Hermes design review do not resolve the held-out, human
+calibration, measured-baseline or comparative-execution gates.

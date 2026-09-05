@@ -311,5 +311,15 @@
     "stochastic_trials_per_question_per_arm": 5,
     "source": "ADR-0070; proposed, not a completed or approved series"
   },
-  "hard_invariant_allowed_violations": 0
+  "hard_invariant_allowed_violations": 0,
+  "evaluation_design": {
+    "status": "proposal_not_execution_authorization",
+    "domain": "enterprise agentic engineering/software factories",
+    "packet": "docs/experiments/enterprise-evaluation/README.md",
+    "manifest": "docs/experiments/enterprise-evaluation/manifest.json",
+    "separate_ai_reviewer": "Hermes via local one-shot CLI",
+    "human_calibration_and_adjudication": "Magnus; calibration labels not yet collected",
+    "held_out_status": "No sealed held-out set; candidate calibration questions exposed to author/reviewer",
+    "numerical_performance_bounds": "Pending measured baseline and review under ADR-0070"
+  }
 }
