@@ -212,3 +212,6 @@ not real arm outputs or an independently curated held-out benchmark.
 [Cancellation and pinned-source checks](runtime-fixtures.md) now exercise four
 local probes against the existing pipeline. This is partial executable coverage,
 not a full catalog event protocol or comparative run.
+
+[Local dispatch permissions](dispatch-permissions.md) add scoped authorization
+checks to the existing controller; they are not production authentication.

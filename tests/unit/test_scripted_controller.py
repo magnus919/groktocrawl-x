@@ -24,7 +24,13 @@ from tests.unit.test_knowledge_structure import payload  # noqa: F401
 @pytest.fixture
 def setup(request):
     def build(
-        scenario="supported", callbacks=None, limit=3, overall=1, per_op=1, cleanup=0.01
+        scenario="supported",
+        callbacks=None,
+        limit=3,
+        overall=1,
+        per_op=1,
+        cleanup=0.01,
+        grants=None,
     ):
         research, inputs = journey(
             request.getfixturevalue("payload"),
@@ -87,6 +93,7 @@ def setup(request):
             artifact_set_id="set1",
             renderer_version="fixture-render/1",
             auditor=research.verifications.verifier,
+            authorized_operations=grants,
         )
         return controller, calls, publication
 
@@ -272,3 +279,90 @@ async def test_premature_publication_rejected(setup):
 
     controller, _, _ = setup(callbacks=[early, late])
     assert (await controller.run()).stop_reason == "premature_publication"
+
+
+@pytest.mark.parametrize(
+    "change", ["matching", "empty", "input", "output", "budget", "identity"]
+)
+async def test_owner_permissions_gate_dispatch(setup, change, record_property):
+    import json
+
+    grants = [
+        OperationSpec(
+            operation_id="op0",
+            input_digest="a" * 64,
+            output_id="snapshot-ref",
+            reservation=Budget(sources=1),
+        ),
+        OperationSpec(
+            operation_id="op1",
+            input_digest="a" * 64,
+            output_id="set1",
+            reservation=Budget(sources=1),
+        ),
+    ]
+    if change == "empty":
+        grants = []
+    elif change != "matching":
+        raw = grants[0].model_dump()
+        field, value = {
+            "input": ("input_digest", "b" * 64),
+            "output": ("output_id", "other"),
+            "budget": ("reservation", {"sources": 2}),
+            "identity": ("operation_id", "other"),
+        }[change]
+        raw[field] = value
+        grants[0] = OperationSpec.model_validate(raw)
+    controller, calls, _ = setup(grants=tuple(grants))
+    result = await controller.run()
+    allowed = change == "matching"
+    assert calls == (["acquire", "publish"] if allowed else [])
+    assert result.execution_outcome == ("completed" if allowed else "failed")
+    assert (result.publication is not None) == allowed
+    if not allowed:
+        assert result.stop_reason == "operation_not_authorized"
+        assert result.accounting.operations == ()
+        assert result.accounting.spent == Budget()
+        assert result.accounting.reserved == Budget()
+    assert await controller.run() is result
+    record_property(
+        "dispatch_permission_trace",
+        json.dumps(
+            {
+                "variant": change,
+                "calls": calls,
+                "outcome": result.execution_outcome,
+                "reason": result.stop_reason,
+                "accounting": result.accounting.model_dump(mode="json"),
+                "scope": "trusted_local_owner_no_external_effects",
+            }
+        ),
+    )
+
+
+def test_duplicate_permission_identity_rejected(setup):
+    spec = OperationSpec(
+        operation_id="op0",
+        input_digest="a" * 64,
+        output_id="snapshot-ref",
+        reservation=Budget(sources=1),
+    )
+    with pytest.raises(ValueError, match="unique operation IDs"):
+        setup(grants=(spec, spec))
+
+
+async def test_permission_required_again_before_publication(setup):
+    grant = OperationSpec(
+        operation_id="op0",
+        input_digest="a" * 64,
+        output_id="snapshot-ref",
+        reservation=Budget(sources=1),
+    )
+    controller, calls, _ = setup(grants=(grant,))
+    result = await controller.run()
+    assert calls == ["acquire"]
+    assert result.stop_reason == "operation_not_authorized"
+    assert result.publication is None
+    assert len(result.accounting.operations) == 1
+    assert result.accounting.spent.sources == 1
+    assert result.accounting.reserved == Budget()

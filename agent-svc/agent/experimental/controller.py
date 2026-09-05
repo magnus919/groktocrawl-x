@@ -96,6 +96,7 @@ class ScriptedController:
         artifact_set_id: str,
         renderer_version: str,
         auditor: FixtureVerifier,
+        authorized_operations: tuple[OperationSpec, ...] | None = None,
     ) -> None:
         if not 1 <= len(steps) <= 100:
             raise ValueError("script must contain between one and 100 operations")
@@ -105,6 +106,18 @@ class ScriptedController:
         )
         if len({step.spec.operation_id for step in self._steps}) != len(self._steps):
             raise ValueError("script operation IDs must be unique")
+        self._permissions: dict[str, OperationSpec] | None
+        if authorized_operations is not None:
+            if len(authorized_operations) > 100:
+                raise ValueError("fixture permissions exceed operation limit")
+            permissions = tuple(
+                OperationSpec.model_validate(spec) for spec in authorized_operations
+            )
+            if len({spec.operation_id for spec in permissions}) != len(permissions):
+                raise ValueError("fixture permissions must have unique operation IDs")
+            self._permissions = {spec.operation_id: spec for spec in permissions}
+        else:
+            self._permissions = None
         self._target = (
             ResearchTarget.model_validate(research)
             if isinstance(research, ResearchTarget)
@@ -260,6 +273,11 @@ class ScriptedController:
                 remaining = deadline - loop.time()
                 if remaining <= 0:
                     raise _StoppedError("deadline_exceeded")
+                if (
+                    self._permissions is not None
+                    and self._permissions.get(step.spec.operation_id) != step.spec
+                ):
+                    raise _StoppedError("operation_not_authorized")
                 try:
                     self._ledger.reserve(
                         operation_id=step.spec.operation_id,
