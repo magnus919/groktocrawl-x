@@ -130,6 +130,9 @@ by [issue #11](https://github.com/magnus919/groktocrawl-x/issues/11). These fram
 remaining choices: runtime and recovery infrastructure selection remain open until
 their evidence gates pass. All seven decision packages now have draft records;
 all drafted decisions remain proposed.
+The [W1 acceptance review](research-acceptance-review.md) and
+[draft preflight manifest](research-preflight.json) pin existing regression evidence
+and identify the decisions and baseline inputs still required.
 No inherited ADR is superseded by these drafts. W1 remains incomplete until its
 required decisions and baseline evidence meet their gates; W2 has not started.
 
