@@ -1,6 +1,22 @@
-# Collect human calibration labels
+# Review the assistant’s answers
 
-Start with [worksheet.md](worksheet.md), or use [worksheet.json](worksheet.json).
+Start with the [plain-language review guide](review-guide.md). For one case at a
+time, open [the interactive review](review.html) locally in a browser. It explains
+the exercise, shows a worked example, and offers four simple choices with optional
+notes. You can also reply in chat by case number. No scoring codes are required.
+
+The interactive page keeps feedback only while it remains open; download your
+feedback before closing or reloading. Nothing is sent automatically.
+
+These choices record whole-answer feedback. They do not automatically establish
+assertion-level labels, severity scores, agreement thresholds, or completed
+calibration. Any more detailed interpretation must be presented to Magnus for
+confirmation. `review-presentation.json` maps case numbers to the pinned inputs.
+
+## Evaluation record
+
+The original [worksheet.md](worksheet.md) and [worksheet.json](worksheet.json)
+remain unchanged as the detailed input record.
 The twelve cases have 18 fixed subquestions, six topic groups and a pinned source
 corpus. `manifest.json` identifies exact candidate and worksheet inputs. No human
 labels or Hermes outcome labels have been collected. The prior Hermes review was
