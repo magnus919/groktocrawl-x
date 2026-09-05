@@ -82,3 +82,7 @@ the research schema or complete the W3 lifecycle matrix.
 The [retained-source staging adapter](research-source-storage.md) adds bounded
 source transactions and receipts. Full Knowledge IR and render publication remain
 unimplemented; source staging alone does not complete W2 or W3.
+
+[Retained structural revisions](research-retained-revisions.md) now pin scoped
+source references and a parent chain transactionally. Complete Knowledge IR and
+semantic verification/render publication remain separate unfinished gates.
