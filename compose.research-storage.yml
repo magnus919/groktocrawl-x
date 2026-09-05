@@ -1,0 +1,58 @@
+# Independent opt-in exploration; never merge into the inherited Compose stack.
+services:
+  research-postgres:
+    image: postgres:17.11-bookworm
+    profiles: [storage]
+    environment:
+      POSTGRES_DB: research_experiment
+      POSTGRES_USER: research_owner
+      POSTGRES_PASSWORD_FILE: /run/secrets/research_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets: [research_password]
+    volumes:
+      - research_data:/var/lib/postgresql/data
+    networks: [research_private]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    stop_grace_period: 30s
+
+  storage-probe:
+    image: postgres:17.11-bookworm
+    profiles: [storage]
+    depends_on:
+      research-postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: research-postgres
+      PGDATABASE: research_experiment
+      PGUSER: research_owner
+      PGCONNECT_TIMEOUT: '10'
+      PGOPTIONS: '-c statement_timeout=10000 -c lock_timeout=3000'
+    secrets: [research_password]
+    volumes:
+      - ./tests/storage:/probes:ro
+    networks: [research_private]
+    entrypoint: [sh, /probes/probe.sh]
+    command: [read]
+    read_only: true
+    tmpfs: ['/tmp:size=1m,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
+
+secrets:
+  research_password:
+    file: ${RESEARCH_POSTGRES_PASSWORD_FILE:?Set an absolute path to a private password file}
+volumes:
+  research_data:
+networks:
+  research_private:
+    internal: true

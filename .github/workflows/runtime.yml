@@ -768,9 +768,49 @@ jobs:
         if: always()
         run: docker compose --profile indexing --profile fixture down --volumes --remove-orphans --timeout 30
 
+  research-storage:
+    name: PostgreSQL Storage Probes
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      COMPOSE_FILE: compose.research-storage.yml
+      COMPOSE_PROFILES: storage
+      COMPOSE_PROJECT_NAME: research-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      RESEARCH_POSTGRES_PASSWORD_FILE: ${{ runner.temp }}/research-postgres-password
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Create ephemeral database credential
+        run: |
+          umask 077
+          openssl rand -hex 32 > "$RESEARCH_POSTGRES_PASSWORD_FILE"
+      - name: Resolve and start isolated database
+        run: |
+          docker compose config --quiet
+          docker compose config --services
+          docker compose up -d --wait research-postgres
+      - name: Probe commits and independent connections
+        run: |
+          docker compose run --rm storage-probe write
+          docker compose run --rm storage-probe read
+      - name: Recreate database container and verify retained bytes
+        run: |
+          docker compose up -d --force-recreate --wait research-postgres
+          docker compose run --rm storage-probe read
+          docker compose images
+          docker compose run --rm storage-probe cleanup
+      - name: Stop isolated project while preserving volume
+        if: always()
+        run: docker compose down --timeout 30
+
   runtime-gate:
     name: Runtime Gate
-    needs: [changes, twin-contracts, integration-tests]
+    needs: [changes, twin-contracts, integration-tests, research-storage]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -782,6 +822,7 @@ jobs:
           TWIN_REQUIRED: ${{ needs.changes.outputs.requires_twin_contracts }}
           RUNTIME_RESULT: ${{ needs.integration-tests.result }}
           TWIN_RESULT: ${{ needs.twin-contracts.result }}
+          STORAGE_RESULT: ${{ needs.research-storage.result }}
         run: |
           set -eu
           test "$CLASSIFICATION" = success
@@ -790,6 +831,7 @@ jobs:
           done
           if [ "$RUNTIME_REQUIRED" = true ]; then
             test "$RUNTIME_RESULT" = success
+            test "$STORAGE_RESULT" = success
           else
             echo "Runtime integration not required for this documentation-only change."
           fi
