@@ -50,6 +50,35 @@ services:
     cpus: 0.5
     pids_limit: 32
 
+  storage-adapter:
+    build:
+      context: .
+      dockerfile: agent-svc/Dockerfile
+    profiles: [storage]
+    user: ${RESEARCH_PROBE_UID:?Set the password file owner UID with id -u}
+    depends_on:
+      research-postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: research-postgres
+      PGDATABASE: research_experiment
+      PGUSER: research_owner
+      PYTHONPATH: /app
+      PYTHONDONTWRITEBYTECODE: '1'
+    secrets: [research_password]
+    volumes:
+      - ./tests/storage:/probes:ro
+    networks: [research_private]
+    entrypoint: [sh, /probes/probe.sh]
+    command: [adapter]
+    read_only: true
+    tmpfs: ['/tmp:size=32m,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1.0
+    pids_limit: 64
+
 secrets:
   research_password:
     file: ${RESEARCH_POSTGRES_PASSWORD_FILE:?Set an absolute path to a private password file}
