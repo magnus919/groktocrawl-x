@@ -210,6 +210,9 @@ class SourceStorageTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(StorageConflictError):
             await self.store.read_source(self.scope, self.root, snapshot)
 
+        # Keep the remaining real database corpus valid for the restore rehearsal.
+        await self.store.delete_root(self.scope, self.root)
+
     async def test_reinstall_refuses_existing_namespace(self):
         with self.assertRaises(psycopg.errors.DuplicateSchema):
             await self.store.install()
