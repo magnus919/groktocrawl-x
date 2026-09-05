@@ -118,7 +118,12 @@ single authoritative PostgreSQL store for bounded evidence and metadata, subject
 to review and real-database validation. It also requires evaluating PostgreSQL +
 pgvector as a replacement for Qdrant, with retrieval parity, concurrent-load,
 footprint and reversible-cutover gates before retaining two permanent databases.
-D4 runtime selection, D5 durability and D6 client protocol remain open.
+D6 has a proposed client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
+tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
+[wire examples and confirmation scenarios](research-client-protocol.md). It recommends
+an explicit experimental route family, progress-only streaming before audited
+publication, one pinned terminal result, bounded replay and compact session references.
+D4 runtime selection and D5 durability remain open. All drafted decisions remain proposed.
 No inherited ADR is superseded by these drafts. W1 remains incomplete until its
 required decisions and baseline evidence meet their gates; W2 has not started.
 
@@ -172,21 +177,28 @@ On 2026-09-04 the maintainer authorized hosted CI validation. Repository Actions
 are enabled with the following workflow split, verified through the GitHub API:
 
 - **Enabled:** AGENTS.md Validation, Architecture CI, CLI Coverage, Code Quality,
-  Documentation Surface, Fast Tests, pip-audit, Scraper Scale-Out, and Session
+  Documentation Surface, Fast Tests, pip-audit, Runtime CI, Scraper Scale-Out, and Session
   storage contract. These workflows use GitHub-hosted runners. The scale-out and
   session workflows use local fixture services, not the upstream self-hosted runner.
 - **Disabled:** Docker Build & Publish, Grounded Answer Eval (Nightly/Manual), Droid
   Auto Review, Droid Tag, Trusted Live Calibration, and Release Please. This keeps
   upstream publishing, self-hosted jobs, paid review, and live-provider calls off.
 
-Enabling a workflow is not evidence that its checks pass. Check the current PR's
-runs for results. The inherited `Runtime Gate` is inside the disabled Docker
-workflow. Issue #7 adds an independent hosted Runtime CI workflow; see the
-[experimental runtime runbook](../runbooks/experimental-runtime-ci.md) for source
-builds, fixture routing and first-run verification. Do not claim that lane works
-until its hosted runtime run succeeds.
-Ruleset configuration and release readiness remain open W0 items. Hosted validation
-authorization does not authorize enabling the disabled workflows or merging the PR.
+PR #8 merged the independent hosted Runtime CI workflow. Its
+[first successful runtime run](https://github.com/magnus919/groktocrawl-x/actions/runs/33937012097)
+built checkout images and passed integration/service tests (2,153 passed,
+216 skipped, 17 deselected), targeted checks and hosted twins. See the
+[experimental runtime runbook](../runbooks/experimental-runtime-ci.md) for fixture
+routing, provenance and limitations. PR #6 subsequently merged the storage draft;
+the resulting main commit `e7a6d0ca4ad8cb26153e49a2c1d12a4d062d0557` passed its
+selected checks, including documentation-only Runtime Gate. This does not mean a
+fresh full Docker run was required for the documentation-only merge.
+
+Ruleset configuration and release readiness remain open W0 items. GitHub returned
+no repository rulesets at this verification; checks/review are enforced procedurally.
+The maintainer authorized advancing and merging our own PRs when the current head
+is green and actionable review findings are resolved. That does not authorize
+accepting proposed ADRs or enabling the disabled workflows.
 
 ### W2: claims and evidence before prose
 
