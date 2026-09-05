@@ -484,3 +484,32 @@ storage publication transaction, complete `knowledge-ir/1` interchange schema,
 research controller, provider integration or restart guarantee is shipped. Full W2
 and later independent semantic evaluation remain open; these tests do not complete
 W1 comparisons or justify a performance/quality adoption claim.
+
+## W2 in-memory operation accounting
+
+The next controller component is `agent.experimental.execution`, tracked by
+[issue #21](https://github.com/magnus919/groktocrawl-x/issues/21). `ExecutionLedger`
+is owned by a single event-loop controller and has no await points or provider
+calls. Its immutable snapshots hold run/policy identity, revision, operation/input
+and output references, resource limits, pending reservations and settled usage.
+Evidence and rendered prose remain outside operational state.
+
+Reserve before dispatch. Search/source/token/micro-USD ceilings include pending
+reservations plus spent capacity, and an operation-count cap also bounds zero-cost
+work. Mutations require the current revision. Duplicate reservation returns the
+unchanged state: the caller must dispatch only newly added operation IDs. Identical
+completion replay is a read with no second effect, even after cancellation; a
+changed input, output or actual usage is a conflict. Completion order does not
+change reserved operation order. Settled usage releases only known-unused capacity.
+
+Cancellation blocks new dispatch reservations and late pending completions. It
+retains uncertain in-flight reservations instead of assuming zero usage. Usage
+above a reservation is rejected and remains pending for explicit reconciliation;
+it is not silently clamped. This ledger cannot prevent a misbehaving provider from
+exceeding an estimate, nor reconcile an external side effect on its own.
+
+This is not a full ResearchState/controller, lease or durable ledger. No thread
+safety, restart recovery, retries, execution deadlines, provider cancellation,
+admission integration or successful publication transition is implemented. The
+caller owns dispatch/cancellation of actual children. Later controller work must
+add those applicable contracts before making end-to-end bounded-execution claims.
