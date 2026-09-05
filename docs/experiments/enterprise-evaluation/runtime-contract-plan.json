@@ -1,6 +1,6 @@
 {
   "schema_version": "enterprise-runtime-contract-plan/1",
-  "status": "proposal_no_executor_or_results",
+  "status": "proposal_with_four_scoped_local_probes",
   "cases": [
     {
       "id": "authorization-adverse",
@@ -42,25 +42,45 @@
       "id": "cancellation-adverse",
       "adverse": true,
       "status": "planned_not_executed",
-      "oracle": "Cancellation before commit prevents new dispatch and publication."
+      "oracle": "Cancellation before commit prevents new dispatch and publication.",
+      "scoped_probe": {
+        "status": "passed_local_fixture",
+        "test_file": "tests/unit/test_enterprise_runtime_cases.py",
+        "complete_event_protocol": false
+      }
     },
     {
       "id": "cancellation-control",
       "adverse": false,
       "status": "planned_not_executed",
-      "oracle": "An uncancelled permitted operation completes once."
+      "oracle": "An uncancelled permitted operation completes once.",
+      "scoped_probe": {
+        "status": "passed_local_fixture",
+        "test_file": "tests/unit/test_enterprise_runtime_cases.py",
+        "complete_event_protocol": false
+      }
     },
     {
       "id": "provenance-adverse",
       "adverse": true,
       "status": "planned_not_executed",
-      "oracle": "Changed snapshot bytes under an existing identity block publication."
+      "oracle": "Changed snapshot bytes under an existing identity block publication.",
+      "scoped_probe": {
+        "status": "passed_local_fixture",
+        "test_file": "tests/unit/test_enterprise_runtime_cases.py",
+        "complete_event_protocol": false
+      }
     },
     {
       "id": "provenance-control",
       "adverse": false,
       "status": "planned_not_executed",
-      "oracle": "Exact pinned bytes and references pass structural validation."
+      "oracle": "Exact pinned bytes and references pass structural validation.",
+      "scoped_probe": {
+        "status": "passed_local_fixture",
+        "test_file": "tests/unit/test_enterprise_runtime_cases.py",
+        "complete_event_protocol": false
+      }
     },
     {
       "id": "idempotency-adverse",
@@ -92,5 +112,6 @@
   ],
   "oracle_boundary": "Use deterministic local tool stubs with recorded attempted calls and committed effects, including post-cancellation observation; inspect effect log independently of answer prose. Seed canary values only in the isolated fixture. No real production tools or secrets.",
   "missing_event_rule": "Missing required event/oracle result is failure, never a pass.",
-  "coverage_claim": "Planned scenarios only; existing unit tests are not silently counted as executions of this catalog."
+  "coverage_claim": "Four scoped local probes exercise cancellation and provenance in FixtureJourney. All twelve complete catalog scenarios remain planned: the full required event protocol and external-effect assertions have not been implemented. Never count the scoped probes as a complete catalog run.",
+  "scoped_fixture_results": "runtime-fixture-results.json"
 }

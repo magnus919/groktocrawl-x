@@ -36,7 +36,8 @@
     "negative_or_abstention_question_cases": 24,
     "planned_runtime_contract_cases": 12,
     "planned_adverse_runtime_contract_cases": 6,
-    "executed_runtime_contract_cases": 0
+    "executed_runtime_contract_cases": 0,
+    "scoped_local_runtime_probes_passed": 4
   },
   "design_review": {
     "reviewer": "Hermes",
