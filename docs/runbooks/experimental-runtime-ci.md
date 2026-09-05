@@ -71,3 +71,12 @@ The search fixture query-marker addition is version `v3`. Evaluation cases pin
 that version and carry recomputed content hashes; their queries, scenarios, expected
 outcomes and canonical narrow/broad baselines remain unchanged. Run the complete
 Fast Tests suite when changing fixture versions to verify all consumers.
+
+## Experimental storage probes
+
+Runtime changes also run **PostgreSQL Storage Probes** using a separate hosted
+runner and the [isolated storage harness](../experiments/research-postgres-harness.md).
+Runtime Gate requires that job to succeed. Its database volume is independent of
+the integration stack; its teardown preserves that volume until the disposable
+hosted runner is discarded. The probes check database transport and persistence,
+not application lifecycle correctness or backup recovery.

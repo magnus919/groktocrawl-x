@@ -23,6 +23,7 @@ def test_runtime_workflow_has_no_publishing_or_privileged_execution():
         "changes",
         "twin-contracts",
         "integration-tests",
+        "research-storage",
         "runtime-gate",
     }
     for job in WORKFLOW["jobs"].values():
@@ -74,7 +75,12 @@ def test_runtime_gate_fails_closed(
 ):
     gate = WORKFLOW["jobs"]["runtime-gate"]
     assert gate["if"] == "always()"
-    assert set(gate["needs"]) == {"changes", "twin-contracts", "integration-tests"}
+    assert set(gate["needs"]) == {
+        "changes",
+        "twin-contracts",
+        "integration-tests",
+        "research-storage",
+    }
     step = gate["steps"][0]
     result = subprocess.run(
         ["bash", "-c", step["run"]],
@@ -85,6 +91,7 @@ def test_runtime_gate_fails_closed(
             "TWIN_REQUIRED": twin_required,
             "RUNTIME_RESULT": runtime,
             "TWIN_RESULT": twin,
+            "STORAGE_RESULT": "success",
         },
         capture_output=True,
         timeout=5,
