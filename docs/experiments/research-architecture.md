@@ -111,7 +111,12 @@ tracks the first W1 decision package:
   snapshot hashes, evidence locators, expected claims/verification, three renderings
   and failure variants. It is synthetic design evidence, not a runtime test result.
 
-D3 storage, D4 runtime selection, D5 durability and D6 client protocol remain open.
+D3 now has a proposed storage decision in [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md),
+tracked by [issue #5](https://github.com/magnus919/groktocrawl-x/issues/5), with a
+[lifecycle and failure matrix](research-storage-lifecycle.md). It recommends a
+single authoritative PostgreSQL store for bounded evidence and metadata, subject
+to review and real-database validation. D4 runtime selection, D5 durability and D6
+client protocol remain open.
 No inherited ADR is superseded by these drafts. W1 remains incomplete until its
 required decisions and baseline evidence meet their gates; W2 has not started.
 
