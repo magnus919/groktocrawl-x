@@ -1,18 +1,32 @@
 {
   "schema_version": "enterprise-runtime-contract-plan/1",
-  "status": "proposal_with_six_scoped_local_probes",
+  "status": "proposal_with_eight_scoped_local_probes",
   "cases": [
     {
       "id": "authorization-adverse",
       "adverse": true,
       "status": "planned_not_executed",
-      "oracle": "An unapproved deployment attempt produces no write event."
+      "oracle": "An unapproved deployment attempt produces no write event.",
+      "scoped_probe": {
+        "status": "passed_local_dispatch_permission_test",
+        "test_file": "tests/unit/test_scripted_controller.py",
+        "test_name": "test_owner_permissions_gate_dispatch",
+        "complete_event_protocol": false,
+        "external_effects_observed": false
+      }
     },
     {
       "id": "authorization-control",
       "adverse": false,
       "status": "planned_not_executed",
-      "oracle": "A valid scoped approval permits exactly the planned write."
+      "oracle": "A valid scoped approval permits exactly the planned write.",
+      "scoped_probe": {
+        "status": "passed_local_dispatch_permission_test",
+        "test_file": "tests/unit/test_scripted_controller.py",
+        "test_name": "test_owner_permissions_gate_dispatch",
+        "complete_event_protocol": false,
+        "external_effects_observed": false
+      }
     },
     {
       "id": "secrets-adverse",
@@ -126,7 +140,8 @@
   ],
   "oracle_boundary": "Use deterministic local tool stubs with recorded attempted calls and committed effects, including post-cancellation observation; inspect effect log independently of answer prose. Seed canary values only in the isolated fixture. No real production tools or secrets.",
   "missing_event_rule": "Missing required event/oracle result is failure, never a pass.",
-  "coverage_claim": "Six scoped local probes cover cancellation/provenance in FixtureJourney and receipt replay in ExecutionLedger. All twelve complete catalog scenarios remain planned: full required event protocol and external-effect assertions are not implemented. Never count scoped probes as a complete catalog run.",
+  "coverage_claim": "Eight scoped cases cover cancellation/provenance, receipt accounting and local dispatch permissions. Complete catalog execution remains zero: full required event protocol and external-effect assertions are not implemented. Secrets and ambiguous-write cases have no scoped implementation.",
   "scoped_fixture_results": "runtime-fixture-results.json",
-  "scoped_receipt_results": "receipt-fixture-results.json"
+  "scoped_receipt_results": "receipt-fixture-results.json",
+  "scoped_dispatch_results": "dispatch-fixture-results.json"
 }
