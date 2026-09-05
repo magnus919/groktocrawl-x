@@ -39,6 +39,7 @@ class Conflict(Record):
 
 
 class FixtureResearch(Record):
+    objective: Text | None = None
     verifications: FixtureVerificationSet
     questions: tuple[QuestionOutcome, ...] = Field(min_length=1, max_length=100)
     conflicts: tuple[Conflict, ...] = Field(max_length=100)
