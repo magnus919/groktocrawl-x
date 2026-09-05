@@ -20,7 +20,7 @@ MAX_BODY = 10 * 1024 * 1024
 MAX_RESERVATION = MAX_BODY + 1024 * 1024
 ROOT_QUOTA = 100 * 1024 * 1024
 SCOPE_QUOTA = 1024 * 1024 * 1024
-Connection = psycopg.AsyncConnection[dict[str, Any]]
+type Connection = psycopg.AsyncConnection[dict[str, Any]]
 
 
 class StorageConflictError(ValueError):
