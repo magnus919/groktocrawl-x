@@ -419,3 +419,23 @@ public-surface inventory and API/CLI parity with every new interface. Run
 `graphify update .` after code changes where the tool is available; generated graph
 files are not a reason to suppress checks. Report blocked infrastructure separately
 from behavioral failures. Do not add tests for this planning document itself.
+
+
+## W2 structural prototype progress
+
+The first internal slice for [issue #16](https://github.com/magnus919/groktocrawl-x/issues/16)
+is `agent.experimental.knowledge`, with the distinct format
+`knowledge-structure-prototype/1`. It validates immutable fixture snapshot bytes,
+code-point evidence spans, scoped revision identity and acyclic claim relationships.
+It is not wired into API execution and does not implement the complete Knowledge IR,
+semantic verification, freshness assessment or publication eligibility.
+
+Frozen typed records and bounded collections make malformed input rejectable.
+Call `validate_structure` with trusted scope/research/revision context; IDs supplied
+in a payload are not authentication. Do not use Pydantic construction/copy bypasses
+as validation boundaries. No whole-IR digest format, database or runtime is selected.
+
+Issue #16 remains open for verification records, conflict/insufficiency fixtures,
+all three audited render layers and negative publication controls. Passing structural
+checks cannot authorize an answer; in particular, an exact quote can coexist with
+an unsupported claim. Remaining W1 comparative preflight gates still apply.
