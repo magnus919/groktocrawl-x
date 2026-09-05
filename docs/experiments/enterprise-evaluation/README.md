@@ -215,3 +215,6 @@ not a full catalog event protocol or comparative run.
 
 [Local dispatch permissions](dispatch-permissions.md) add scoped authorization
 checks to the existing controller; they are not production authentication.
+
+[Synthetic canary error tests](canary-error-boundary.md) check callback exception
+details against returned records and logs. Full secrets scenarios remain planned.
