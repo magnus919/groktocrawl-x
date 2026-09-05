@@ -55,7 +55,28 @@ name the exact transaction boundary and show pre/post state plus sanitized recei
 | Changed export file | Alter one byte of a source or IR member | Import rejects the bundle; no fetching live URLs to repair it |
 | Backup/restore | Restore bounded corpus into clean isolated database | Digests, canonical bytes, scopes, manifests, receipts and reference closure verified before opening access |
 | Restore before a later deletion | Backup includes subsequently deleted root | Quarantined until deletion inventory reconciled; missing deletion history blocks re-exposure |
-| Lost derived index | Delete Qdrant/cache projections | Retained evidence is readable from authority; rebuild indexes only from authorized retained roots |
+| Lost derived index | Delete Selected vector/cache projections | Retained evidence is readable from authority; rebuild indexes only from authorized retained roots |
+
+## Vector consolidation acceptance scenarios
+
+Run these only if PostgreSQL is adopted, following ADR-0071's fixed comparison
+manifest. All are unexecuted; passing byte-storage tests alone does not select a
+vector backend. Compare PostgreSQL + pgvector with PostgreSQL + Qdrant.
+
+| Scenario | Required evidence |
+|---|---|
+| Identical vectors and queries | Exact cosine parity within declared tolerance; ANN recall@k against exact eligible results; downstream ranking regression checks |
+| Scope, freshness and deleted-root filters | No unauthorized/stale-deleted evidence exposed; recall and result count measured across declared filter selectivities |
+| Active-model migration | Backfill and switch between declared model versions/dimensions; no mixed embedding spaces; rollback preserves query behavior |
+| Batch upsert/delete and retention | Stable identity, metadata/stats parity and bounded retries; vector eviction cannot erase retained evidence |
+| Search plus ingestion plus research publication | p50/p95 and throughput meet predeclared limits at representative scale, including default 250,000-document capacity; no publication starvation |
+| Index maintenance, timeout and failure | Bounded connections/queues, explicit errors and research authority isolation; record total RAM/CPU/disk/WAL footprint |
+| Backup, restore and cutover | Verify retained byte hashes, model/version inventory and query parity; measure restore/rebuild; rehearse rollback before removing Qdrant configuration |
+
+Record the consolidation decision and any unmet requirement. Passing gates supports
+removing Qdrant from the experimental deployment; retaining both needs an explicit
+reason. Old-volume deletion requires separate authorization. Embedding/reranking
+remain semantic-svc responsibilities unless another reviewed decision changes them.
 
 ## Evidence and next implementation work
 

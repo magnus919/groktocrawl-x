@@ -31,6 +31,8 @@ research workflow resume; D5 owns durable execution.
   obey an explicit ownership/transaction contract.
 - Re-rendering and export preserve content identity, scope and historical context.
 - A bounded, self-hosted initial implementation with a clear growth/migration path.
+- Minimize independently operated stores: if PostgreSQL is adopted, evaluate
+  pgvector as a replacement for Qdrant before retaining both permanently.
 
 ## Considered Options
 
@@ -51,9 +53,12 @@ research work, not a measured performance result. [SQLite deployment guidance](h
 **Recommend the fourth option**, subject to review and the confirmation gates below.
 Use PostgreSQL as the authority for scope/research metadata, normalized evidence
 bytes, IR revisions, render artifacts, reference ledgers and publication receipts.
-Keep Valkey for ephemeral sessions/cache where useful and Qdrant for rebuildable
-semantic indexes. Do not automatically migrate every existing store or choose
-Temporal/LangGraph persistence in this ADR.
+Keep Valkey for ephemeral sessions/cache where useful. If PostgreSQL is adopted,
+evaluate its pgvector extension as the preferred consolidation candidate for
+rebuildable semantic indexes. Qdrant is the inherited comparison/migration backend,
+not a required permanent companion. Retain it only if the comparison below shows
+a material unmet requirement. This recommendation does not select either backend
+or choose Temporal/LangGraph persistence.
 
 Store exact normalized evidence and canonical JSON bytes in bounded `bytea` values;
 retain parsed JSON only as a query projection. PostgreSQL supports binary strings
@@ -66,6 +71,73 @@ No PostgreSQL service, driver, migration or setting is introduced by this propos
 The implementation PR must pin a supported version, add the opt-in Compose/profile
 and configuration surface, and update deployment/API/CLI documentation as required.
 Keep the inherited backend available during the isolated experiment.
+
+### Vector storage consolidation gate
+
+Compare **PostgreSQL + pgvector** against **PostgreSQL + Qdrant**, with the same
+retained-evidence design in both arms. The first can remove a separately operated
+database; the second separates vector workload from publication and preserves the
+inherited backend. Fewer services is a decision driver, not proof of lower total
+resource usage or better reliability. Do not make running both the default outcome.
+
+The inherited implementation uses 1,024-dimensional BGE-M3 embeddings and named
+cosine vectors in [semantic app configuration](../../semantic-svc/app.py).
+[Vector search](../../semantic-svc/router_search.py) selects the active model and
+returns URL, title and similarity score with bounded failure handling. pgvector
+supports cosine distance, exact search, HNSW and IVFFlat; its HNSW `vector` index
+supports up to 2,000 dimensions, so the current default fits. Similarity requires
+`1 - cosine_distance`. Approximate indexes can return fewer qualifying results
+after filtering; iterative scans and indexing choices need evaluation.
+[pgvector documentation](https://github.com/pgvector/pgvector)
+
+This makes consolidation plausible, not validated. Scope/freshness filtering below
+is a requirement of the proposed retained research path; the inherited `/vector`
+handler does not currently apply those filters. Separate baseline parity from new
+requirements when reporting results.
+
+| Contract to preserve or introduce | Candidate mapping and required proof |
+|---|---|
+| Cosine retrieval and caller score semantics | Same normalized vectors, active model, top-k and score direction; compare exact results with numeric tolerance and deterministic tie handling before ANN tuning |
+| Scoped retained research retrieval | Enforce server scope, active root and allowed revision/freshness in the query and authoritative result resolution; test selective filters and deleted roots without cross-scope leakage |
+| Named-model migration | Store model identity/version and dimension explicitly; isolate incompatible dimensions in separate tables/indexes or typed partitions; prove backfill, active-model cutover and rollback without mixing embedding spaces |
+| Single/batch ingestion and metadata | Preserve stable document IDs, upsert/delete semantics, title/URL, timestamps, access/crawl counts, retention scoring and stats from [index routes](../../semantic-svc/router_index.py) and [retention](../../semantic-svc/retention.py) |
+| Existing search composition | Preserve semantic-svc's API and downstream search/reranking behavior; no requirement to emulate Qdrant's transport or internal point representation |
+| Resource and failure isolation | Bound vector query/ingestion concurrency, connections and timeouts; demonstrate index maintenance or failure cannot exhaust research publication capacity |
+
+Keep embedding/reranking in `semantic-svc` initially. Replacing its persistence
+adapter does not remove model inference or imply PostgreSQL must run models.
+For the new research index, key projections by scope, retained snapshot/revision,
+model version and content digest; never conflate a mutable URL entry with immutable
+evidence. Index updates may lag publication, but cannot publish research or bypass
+lifecycle checks. Eviction removes derived vectors, not retained source bodies.
+
+Before deciding, freeze a bounded evaluation manifest under ADR-0070 with corpus,
+queries, filter selectivity, model versions, dimensions, concurrency, machine limits
+and numerical acceptance thresholds. Use identical fixture or authorized existing
+vectors in both arms; this storage comparison authorizes no paid-provider calls.
+Measure recall@k against exact search over the same eligible corpus, downstream
+ranking/answer regressions, p50/p95 latency and throughput during concurrent batch
+ingestion and IR/render publication. Include the configured vector-index capacity
+(default 250,000 documents), not just the two-source foundation example. Measure
+total service RAM/CPU, disk/index/WAL growth, extension upgrades, backup size and
+restore/rebuild time. Verify all integrity and authorization gates independently
+of speed. Test required model dimensions explicitly; do not silently quantize or
+truncate future models to satisfy an index limit.
+
+If pgvector meets the reviewed requirements with an acceptable total footprint,
+recommend removing Qdrant from the experimental deployment. If it fails, record
+the specific requirement and measured gap before proposing two permanent stores.
+The implementation must include a bounded cutover plan: inventory all consumers,
+backfill an isolated index, reconcile IDs/model versions/counts and query parity,
+then switch the adapter with a verified rollback path. A maintenance-window write
+pause is acceptable if declared; any dual-write period must have an end condition.
+Preserve a recoverable Qdrant snapshot until rollback has been rehearsed. After
+cutover approval, remove Qdrant service/configuration/dependencies and update
+health checks, metrics and operator docs; deleting old volumes is a separate,
+explicitly authorized cleanup. Historical corpus without retained evidence must
+be explicitly migrated or declared unavailable, never presented as rebuildable
+from IR it never had. Record which rebuilds need local embedding computation;
+exporting compatible stored vectors can avoid unnecessary re-embedding.
 
 ### Logical records and identity
 
@@ -228,8 +300,8 @@ been reconciled. A pre-deletion backup must not automatically re-expose deleted
 research. Preserve/export a deletion inventory separately from the backup being
 restored, or keep access blocked when the required history is unavailable. Operators
 must explicitly reconcile that uncertainty; an old backup cannot reconstruct
-unknown later deletions. Rebuild Qdrant/cache projections from authorized retained
-roots. Do not restore pending work as runnable merely because receipts exist.
+unknown later deletions. Rebuild the selected vector/cache projections from authorized retained
+roots; restore access never depends on an old index authorizing its own hits. Do not restore pending work as runnable merely because receipts exist.
 
 Introduce storage in an isolated experimental database/namespace. Use forward
 schema migrations with a pre-migration backup, compatibility checks and a restore
@@ -243,7 +315,8 @@ its dual-store publication and restore protocol must be demonstrated before cuto
 | Record | Intended relationship on adoption | Scope |
 |---|---|---|
 | ADR-0019 | Retain scrape-cache role | A scrape cache is not authoritative retained evidence |
-| ADR-0026–0028 | Retain retrieval intent; extend migration/retention | Qdrant remains a derived index; loss/rebuild does not erase evidence |
+| ADR-0026–0028 | Retain retrieval intent; conditionally replace Qdrant backend and extend migration/retention | pgvector consolidation requires parity, load and cutover evidence; vectors remain derived |
+| ADR-0029/0030 | Preserve observability and batch-ingestion intent; adapt backend-specific details if consolidated | Update metrics, capacity measurements and bulk operations for the selected index |
 | ADR-0040/0041 (proposed) | Replace storage authority for the experimental path | Session TTL and cached prose no longer own retained research |
 | ADR-0049 | Retain compatibility intent; supersede TTL freshness basis for IR | Source freshness and research retention are separately recorded; old cached-answer rules remain for the inherited path |
 | ADR-0050/0059 | Extend | Request/pass artifact reuse feeds immutable retained snapshots |
@@ -256,7 +329,9 @@ record exact experimental scope and update relevant implementation/operator docs
 ## Consequences
 
 The initial research product has one authoritative transactional boundary and a
-clear retention/restore contract. It adds a database and grows backup volume;
+clear retention/restore contract. PostgreSQL adds a database; pgvector could offset
+that service count by replacing Qdrant, while sharing failure and resource limits.
+Retained evidence and vector indexes grow backup volume;
 strict bounds may reject large documents and require user-visible partial results.
 Database availability becomes necessary for publication. Per-scope quota locking
 may become a bottleneck; measure before replacing it with more complex accounting.
@@ -275,7 +350,9 @@ and untested failure modes under ADR-0070 evidence rules.
 Magnus reviews the database choice and limits before implementation. W3 must show
 acceptable footprint and bounded publication/backup behavior with the declared
 100 MiB/root and concurrent workload. If not, revisit SQLite or external blobs
-through evidence rather than silently weakening limits or invariants.
+through evidence rather than silently weakening limits or invariants. Acceptance
+of PostgreSQL for retained bytes does not establish vector-backend parity: complete
+the consolidation gate before committing to a permanent two-database deployment.
 
 ## Links
 

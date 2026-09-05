@@ -80,7 +80,7 @@ numbers. Allocate the next available four-digit number when each PR is opened.
 |---|---|---|---|---|
 | D1 | Separate research execution, knowledge, and rendering | Ownership, module/service boundaries, specialized workflow, portable contracts; compare event-first orchestration with explicit graph state | 0017, 0023, 0040, 0042, 0050, 0063–0066 | State transitions, dependency diagram, single-writer/commit rules; before W2 |
 | D2 | Define a versioned Knowledge IR and verification contract | Claim identity; snapshot and span references; support, contradiction and derivation edges; epistemic statuses; source quality/freshness; verifier provenance; human vs machine review labels | 0004, 0016, 0024, 0041, 0049, 0050, 0059, 0064 | Example valid/invalid records and render/audit invariants; before W2 |
-| D3 | Store and retain evidence independently of sessions | Authoritative store; local/object/blob and metadata options; Valkey's role; Qdrant as derived retrieval index; retention, export, garbage collection, schema/model migrations | 0019, 0026–0028, 0040–0041, 0049–0050, 0059, 0063, 0066 | Expired-session, deleted-source, partial-write and restore scenarios; before W3 |
+| D3 | Store and retain evidence independently of sessions | Authoritative store; local/object/blob and metadata options; Valkey's role; derived vector index; pgvector consolidation versus Qdrant if PostgreSQL is adopted; retention, export, garbage collection, schema/model migrations | 0019, 0026–0030, 0040–0041, 0049–0050, 0059, 0063, 0066 | Expired-session, deleted-source, partial-write and restore scenarios; before W3 |
 | D4 | Select the research orchestration runtime | LangGraph vs current/typed imperative loop vs a bounded alternative such as Pydantic Graph; reducers, retries, context propagation, cancellation, state migration, operational footprint | 0022, 0031, 0033, 0035, 0040, 0048, 0051, 0064–0066 | Same-policy conformance comparison and engineering assessment; after W4 spike, before adoption |
 | D5 | Define durable execution ownership and recovery | Explicit recovery target; Temporal vs Valkey leases/outbox vs graph-only recovery; one owner of retries/cancellation; idempotency, leases, side effects, artifact commit, webhook outbox | 0012, 0035, 0038, 0045, 0047, 0051, 0063, 0066 | Crash matrix and recovery/cancellation proof; before W5 implementation; expressly revisit 0047 |
 | D6 | Expose verified artifacts through compatible client protocols | FastAPI edge; stable source/claim IDs; SSE lifecycle; provisional vs verified text; checkpoint/event replay; compact sessions; JSON/schema output; API/CLI/MCP parity | 0017, 0022, 0024, 0032, 0039–0042, 0053, 0064–0066 | Wire examples and golden client traces; before W6 |
@@ -115,8 +115,10 @@ D3 now has a proposed storage decision in [ADR-0071](../adr/0071-store-research-
 tracked by [issue #5](https://github.com/magnus919/groktocrawl-x/issues/5), with a
 [lifecycle and failure matrix](research-storage-lifecycle.md). It recommends a
 single authoritative PostgreSQL store for bounded evidence and metadata, subject
-to review and real-database validation. D4 runtime selection, D5 durability and D6
-client protocol remain open.
+to review and real-database validation. It also requires evaluating PostgreSQL +
+pgvector as a replacement for Qdrant, with retrieval parity, concurrent-load,
+footprint and reversible-cutover gates before retaining two permanent databases.
+D4 runtime selection, D5 durability and D6 client protocol remain open.
 No inherited ADR is superseded by these drafts. W1 remains incomplete until its
 required decisions and baseline evidence meet their gates; W2 has not started.
 
@@ -214,6 +216,11 @@ authorization does not authorize enabling the disabled workflows or merging the 
   facts requires a freshness decision and possibly reacquisition.
 - Preserve old schema readers or explicit migration/export tooling. No bulk import
   of existing cached prose as verified claims. New storage uses a separate namespace.
+
+- If PostgreSQL is adopted, compare pgvector against Qdrant using the same corpus
+  and embeddings. Meet ADR-0071 retrieval, scope, migration and operational gates;
+  propose Qdrant removal when consolidation passes, or document the measured reason
+  to retain it. Keep model inference/reranking separate from this storage choice.
 
 ### W4–W5: explicit execution and recovery
 
