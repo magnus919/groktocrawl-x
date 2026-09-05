@@ -143,5 +143,6 @@
   "coverage_claim": "Eight scoped cases cover cancellation/provenance, receipt accounting and local dispatch permissions. Complete catalog execution remains zero: full required event protocol and external-effect assertions are not implemented. Secrets and ambiguous-write cases have no scoped implementation.",
   "scoped_fixture_results": "runtime-fixture-results.json",
   "scoped_receipt_results": "receipt-fixture-results.json",
-  "scoped_dispatch_results": "dispatch-fixture-results.json"
+  "scoped_dispatch_results": "dispatch-fixture-results.json",
+  "partial_error_boundary_evidence": "canary-fixture-results.json"
 }
