@@ -1,6 +1,6 @@
 # Research storage lifecycle and failure matrix
 
-Design scenarios for proposed [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md),
+Design scenarios for exploration-approved [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md),
 using the [conflicting-price example](research-foundation-example.md). These are
 acceptance scenarios to implement in W3, not evidence of executed database tests.
 

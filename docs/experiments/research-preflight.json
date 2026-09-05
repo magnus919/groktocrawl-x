@@ -321,5 +321,15 @@
     "human_calibration_and_adjudication": "Magnus; calibration labels not yet collected",
     "held_out_status": "No sealed held-out set; candidate calibration questions exposed to author/reviewer",
     "numerical_performance_bounds": "Pending measured baseline and review under ADR-0070"
+  },
+  "storage_exploration": {
+    "status": "approved_bounded_experimental_exploration",
+    "decision_url": "https://github.com/magnus919/groktocrawl-x/issues/47#issuecomment-5553962512",
+    "adr": "0071",
+    "postgres_exploration_authorized": true,
+    "vector_backend_selected": false,
+    "qdrant_removal_authorized": false,
+    "comparison_authorized": false,
+    "production_adoption": false
   }
 }
