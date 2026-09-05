@@ -789,6 +789,7 @@ jobs:
         run: |
           umask 077
           openssl rand -hex 32 > "$RESEARCH_POSTGRES_PASSWORD_FILE"
+          echo "RESEARCH_PROBE_UID=$(id -u)" >> "$GITHUB_ENV"
       - name: Resolve and start isolated database
         run: |
           docker compose config --quiet

@@ -14,6 +14,7 @@ explicitly; do not combine it with the inherited deployment. From the repo root:
 umask 077
 openssl rand -hex 32 > /tmp/groktocrawl-x-research-password
 export RESEARCH_POSTGRES_PASSWORD_FILE=/tmp/groktocrawl-x-research-password
+export RESEARCH_PROBE_UID=$(id -u)
 export COMPOSE_FILE=compose.research-storage.yml
 export COMPOSE_PROFILES=storage
 export COMPOSE_PROJECT_NAME=groktocrawl-x-research-probe
@@ -33,7 +34,10 @@ Use a dedicated credential file; keep it for subsequent starts of this database.
 The official image reads the password at initial database creation, so generating
 a new file does not rotate an existing database's password. The probe accepts
 hexadecimal passwords to avoid pgpass escaping ambiguity. It creates a temporary
-mode-0600 pgpass file inside its own container and removes it on exit.
+mode-0600 pgpass file inside its own container and removes it on exit. The probe
+runs as the password file owner UID, preserving mode-0600 host secret permissions
+without adding capabilities. Set `RESEARCH_PROBE_UID` to that owner on subsequent
+runs as well. File-backed Compose secrets retain host ownership on Linux.
 
 The selected project owns its private network and named volume. No ports are
 published and no inherited services are attached. `down` preserves the volume;

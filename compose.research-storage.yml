@@ -23,6 +23,8 @@ services:
     stop_grace_period: 30s
 
   storage-probe:
+    # File-backed Compose secrets retain host ownership on Linux.
+    user: ${RESEARCH_PROBE_UID:?Set the password file owner UID with id -u}
     image: postgres:17.11-bookworm
     profiles: [storage]
     depends_on:
