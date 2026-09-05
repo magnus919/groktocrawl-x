@@ -1,8 +1,8 @@
 # W2 fixture readiness checkpoint
 
 Scope: experimental GroktoCrawl X only; not a mainline replacement. Foundation
-ADRs 0067–0070 and 0072 are accepted for bounded fixtures. Storage 0071, runtime
-adoption 0073 and recovery 0074 remain proposed. This checkpoint accompanies issue
+ADRs 0067–0070 and 0072 are accepted for bounded fixtures. Storage 0071 is accepted for bounded experimental exploration per issue #47;
+runtime adoption 0073 and recovery 0074 remain proposed. This checkpoint accompanies issue
 [#31](https://github.com/magnus919/groktocrawl-x/issues/31).
 
 ## Current conclusion
@@ -31,7 +31,7 @@ quality. No provider or database has been added by these slices.
 | ADR-0069: assessment distinct from verification | `FixtureAssessment` and explicit `AssessmentLink` mapping in `FixtureVerificationSet`; `test_fixture_assessments.py` | Fixture assessor shares the configured fixture identity contract. No real assessor authentication or independently evaluated semantic assessor. |
 | ADR-0069: verification and publication eligibility | Input-bound support/freshness/conflict records plus exact three-layer audit binding; assessment alone cannot publish | Fixture verdicts can be wrong. No demonstrated entailment, caveat preservation or unbiased semantic audit beyond hand-authored cases. |
 | ADR-0069: revision identity and append-only records | `revisions.py`; typed introductions, immutable IDs across removal/reintroduction, historical/current record separation | Bounded supplied linear history only; not authenticated, complete, persisted or portable. Declared novel/replacement semantics cannot be inferred. |
-| ADR-0069: complete versioned IR | Separate structure, verification, publication and revision prototype formats implement substantial parts | Consolidated schema/examples and compatibility policy are not frozen as `knowledge-ir/1`. Claim-to-assessment links currently live in an explicit envelope mapping. Whole-IR interchange hashing depends on the still-proposed D3 contract. |
+| ADR-0069: complete versioned IR | Separate structure, verification, publication and revision prototype formats implement substantial parts | Consolidated schema/examples and compatibility policy are not frozen as `knowledge-ir/1`. Claim-to-assessment links currently live in an explicit envelope mapping. Whole-IR interchange hashing depends on the D3 exploration contract; implementation and adoption gates remain. |
 | ADR-0070: separate policy/runtime comparisons, frozen evidence, negative controls | Inherited deterministic regression baseline is pinned in `research-preflight.json`; fixture contract negative tests are executable | Independent semantic corpus/rubric/reviewers, arm definitions and comparison thresholds remain unresolved. Current fixture tests are not a completed A/B/C study. |
 | ADR-0072: verified final output distinct from progress, stable identity and coverage | Internal controller final outcome, same-revision artifacts and complete/partial/insufficient coverage | No experimental HTTP/SSE, CLI/MCP, reconnect/replay or authorization implementation. Public delivery remains later W6 work. |
 
@@ -53,7 +53,7 @@ before moving beyond the bounded fixture scope.
 | Measurement thresholds and resources | Record quality/latency/resource regression bounds with rationale, hardware, run budgets, seeds/order and uncertainty plan | Must be explicit before applicable comparisons. Existing protocol minima are not measured results or an authorized series. |
 | Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. No implicit acceptance of proposed storage choices. |
 | Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | Current external-provider budget is zero. No provider work is authorized here. |
-| Runtime/storage/recovery decisions | Use the proposed ADR-0071/0073/0074 gates when those workstreams begin | Preserve the pgvector-versus-Qdrant consolidation evaluation and conditional PostgreSQL-native recovery option; no selection here. |
+| Runtime/storage/recovery decisions | Use accepted ADR-0071 exploration gates; ADR-0073/0074 remain proposed | Preserve the pgvector-versus-Qdrant consolidation evaluation and conditional PostgreSQL-native recovery option; PostgreSQL exploration is approved, not production/vector adoption. |
 
 The authoritative unresolved fields remain in
 [`research-preflight.json`](research-preflight.json). Null means unresolved; this

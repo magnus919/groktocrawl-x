@@ -1,11 +1,29 @@
 # Store Research Evidence Independently of Sessions
 
-- Status: proposed
+- Status: accepted for bounded experimental exploration
 - Deciders: Magnus Hedemark
 - Date: 2026-09-04
 - Scope: experimental Knowledge IR persistence; `magnus919/groktocrawl-x` only
 - Plan: D3 / W1 and W3; issue [#5](https://github.com/magnus919/groktocrawl-x/issues/5)
-- Supersedes: none while proposed; intended impacts below
+- Supersedes: none in mainline; experimental implementation impacts remain gated
+
+## Exploration approval — 2026-09-05
+
+Magnus Hedemark approved [issue #47](https://github.com/magnus919/groktocrawl-x/issues/47#issuecomment-5553962512):
+“Approved for experimental exploration.”
+
+This accepts the bounded isolated implementation described in that issue:
+PostgreSQL retained-evidence exploration, starting with canonical representation
+and strict admission fixtures, then opt-in storage and retained-artifact slices.
+pgvector is the preferred consolidation candidate; vector selection and Qdrant
+removal still require the comparison/cutover gates below. It is not a production
+adoption decision or confirmation that any implementation gate has passed.
+
+Preserve inherited services and data. No default-stack cutover, volume deletion,
+paid-provider calls, A/B/C research study, runtime-framework selection or restart
+safety is authorized. ADR-0073 and ADR-0074 remain proposed. Keep prototype schema
+names until the complete ADR-0069 field/version review is done. Review numerical
+comparison thresholds and deployment limits before their respective runs.
 
 ## Context and Problem Statement
 
@@ -323,8 +341,8 @@ its dual-store publication and restore protocol must be demonstrated before cuto
 | ADR-0063/0066 | Leave inherited session operations in place pending D6 | New research publication does not reuse the session lock/TTL protocol as its authority |
 | ADR-0047 | Storage boundary only; D5 owns supersession | PostgreSQL transactions do not settle job leases, retries, scheduling or webhook durability |
 
-No inherited status changes while this record is proposed. Any acceptance must
-record exact experimental scope and update relevant implementation/operator docs.
+No inherited status changes follow from exploration approval. Implementation
+slices must update relevant experimental implementation/operator docs.
 
 ## Consequences
 
@@ -347,7 +365,8 @@ truncation, no resurrected deleted root and no provider work during storage retr
 Record version, corpus bounds, tested interleavings, latency/storage/backup metrics
 and untested failure modes under ADR-0070 evidence rules.
 
-Magnus reviews the database choice and limits before implementation. W3 must show
+Magnus approved the bounded PostgreSQL exploration above; production adoption and
+comparison/deployment limit gates remain. W3 must show
 acceptable footprint and bounded publication/backup behavior with the declared
 100 MiB/root and concurrent workload. If not, revisit SQLite or external blobs
 through evidence rather than silently weakening limits or invariants. Acceptance
