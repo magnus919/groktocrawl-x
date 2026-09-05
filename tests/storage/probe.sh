@@ -2,8 +2,8 @@
 # Only synthetic transport probes. Never an application migration or pilot gate.
 set -eu
 case "${1:-}" in
-  write|read|cleanup) phase=$1 ;;
-  *) echo 'Expected write, read, or cleanup' >&2; exit 2 ;;
+  write|read|cleanup|adapter) phase=$1 ;;
+  *) echo 'Expected write, read, cleanup, or adapter' >&2; exit 2 ;;
 esac
 umask 077
 PGPASSFILE=$(mktemp /tmp/research-pgpass.XXXXXX)
@@ -16,4 +16,8 @@ case "$password" in
 esac
 printf '%s:%s:%s:%s:%s\n' "$PGHOST" 5432 "$PGDATABASE" "$PGUSER" "$password" > "$PGPASSFILE"
 unset password
-psql -X --set=ON_ERROR_STOP=1 --file="/probes/$phase.sql"
+if [ "$phase" = adapter ]; then
+  python /probes/test_source_store_db.py
+else
+  psql -X --set=ON_ERROR_STOP=1 --file="/probes/$phase.sql"
+fi

@@ -805,6 +805,8 @@ jobs:
           docker compose run --rm storage-probe read
           docker compose images
           docker compose run --rm storage-probe cleanup
+      - name: Exercise retained-source application adapter
+        run: docker compose run --build --rm storage-adapter
       - name: Stop isolated project while preserving volume
         if: always()
         run: docker compose down --timeout 30

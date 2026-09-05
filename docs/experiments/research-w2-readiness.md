@@ -78,3 +78,7 @@ not freeze the complete IR schema or establish database lifecycle behavior.
 The [isolated PostgreSQL harness](research-postgres-harness.md) introduces a real
 database CI boundary for storage exploration. Its transport probes do not freeze
 the research schema or complete the W3 lifecycle matrix.
+
+The [retained-source staging adapter](research-source-storage.md) adds bounded
+source transactions and receipts. Full Knowledge IR and render publication remain
+unimplemented; source staging alone does not complete W2 or W3.

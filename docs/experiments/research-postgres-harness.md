@@ -83,8 +83,9 @@ image's password-file and PostgreSQL 17 data-volume conventions. References:
 A version tag is reproducible at the PostgreSQL version level, not an immutable
 image digest; CI records the resolved image. No extensions are installed.
 
-Next add the bounded application transaction adapter and forward migration in a
-separate experimental namespace. Preserve server-selected scopes and opaque
+The [retained-source adapter](research-source-storage.md) adds an explicitly
+invoked application transaction path and first migration in a separate experimental
+namespace. Its real database tests run in the same required CI job. Preserve server-selected scopes and opaque
 roots, generation checks, exact canonical bytes, logical quota accounting and
 operation receipts. Then expand real-database coverage against the
 [lifecycle matrix](research-storage-lifecycle.md). Full W3 acceptance and a pilot
