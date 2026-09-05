@@ -104,5 +104,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0069 | [Define Versioned Knowledge and Verification](0069-define-versioned-knowledge-and-verification.md) | proposed |
 | 0070 | [Evaluate Research Policy and Runtime Separately](0070-evaluate-research-policy-and-runtime-separately.md) | proposed |
 | 0071 | [Store Research Evidence Independently of Sessions](0071-store-research-evidence-independently-of-sessions.md) | proposed |
+| 0072 | [Expose Verified Research Through an Experimental Protocol](0072-expose-verified-research-through-an-experimental-protocol.md) | proposed |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
