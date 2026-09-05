@@ -9235,7 +9235,8 @@ def test_cross_concurrent_session_isolation_val_cross_018():
             sessions.append(response.json()["sessionId"])
         sid_a, sid_b = sessions
         assert sid_a != sid_b
-        url_a, url_b = TEST_SITE + "/pricing", TEST_SITE + "/docs"
+        url_a = TEST_SITE + "/content/multi-sentence"
+        url_b = TEST_SITE + "/content/near-duplicate"
 
         # Distinct known inputs let us detect leakage independently of search
         # ranking: two legitimate searches may return the same URL.
@@ -9254,7 +9255,7 @@ def test_cross_concurrent_session_isolation_val_cross_018():
             for future in futures:
                 response = future.result()
                 assert response.status_code == 200, response.text
-                assert response.json()["result"]["succeeded"] == 1
+                assert response.json()["result"]["succeeded"] == 1, response.text
 
         exports = []
         for sid, expected_url in [(sid_a, url_a), (sid_b, url_b)]:
