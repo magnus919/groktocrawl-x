@@ -7,13 +7,8 @@ from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, "scraper-svc")
 
+from scraper.adapters import youtube
 from scraper.adapters.base import AdapterContext
-from scraper.adapters.youtube import (
-    YouTubeAdapter,
-    _fetch_transcript,
-    _TranscriptFetch,
-    _YouTubeRequestGate,
-)
 
 from tests.fixtures.youtube_transcript_twin import YouTubeTranscriptTwin
 
@@ -53,9 +48,7 @@ class _Track:
 
 
 def _run(tracks):
-    from scraper.adapters import youtube
-
-    gate = _YouTubeRequestGate()
+    gate = youtube._YouTubeRequestGate()
     gate.min_interval = 0
     gate.max_interval = 0
     gate.request_interval = 0
@@ -73,7 +66,7 @@ def _run(tracks):
             },
         ),
     ):
-        return asyncio.run(_fetch_transcript("PPM2ODdo2t8"))
+        return asyncio.run(youtube._fetch_transcript("PPM2ODdo2t8"))
 
 
 def test_native_english_is_preferred():
@@ -82,7 +75,7 @@ def test_native_english_is_preferred():
 
     result = _run([translated, native])
 
-    assert result == _TranscriptFetch("usable transcript", "en")
+    assert result == youtube._TranscriptFetch("usable transcript", "en")
     assert translated.fetch_calls == 0
 
 
@@ -93,7 +86,7 @@ def test_translatable_non_english_track_is_translated_to_english():
 
     result = _run([translated_track])
 
-    assert result == _TranscriptFetch("usable transcript", "fi", "en")
+    assert result == youtube._TranscriptFetch("usable transcript", "fi", "en")
     assert translated.fetch_calls == 1
 
 
@@ -111,7 +104,7 @@ def test_failed_preferred_track_falls_back_to_next_usable_track():
 
     result = _run([failed, fallback])
 
-    assert result == _TranscriptFetch("usable transcript", "en")
+    assert result == youtube._TranscriptFetch("usable transcript", "en")
 
 
 def test_scrape_exposes_translation_provenance():
@@ -126,11 +119,13 @@ def test_scrape_exposes_translation_provenance():
         ),
         patch(
             "scraper.adapters.youtube._fetch_transcript",
-            new=AsyncMock(return_value=_TranscriptFetch("translated text", "fi", "en")),
+            new=AsyncMock(
+                return_value=youtube._TranscriptFetch("translated text", "fi", "en")
+            ),
         ),
     ):
         result = asyncio.run(
-            YouTubeAdapter().scrape(
+            youtube.YouTubeAdapter().scrape(
                 "https://www.youtube.com/watch?v=PPM2ODdo2t8", AdapterContext()
             )
         )
@@ -156,7 +151,7 @@ def test_vtt_to_text_removes_timing_and_repeated_cues():
 def test_caption_twin_recovers_translation_omitted_by_transcript_api(monkeypatch):
     twin = YouTubeTranscriptTwin(monkeypatch)
     twin.install()
-    result = asyncio.run(_fetch_transcript(twin.video_id))
+    result = asyncio.run(youtube._fetch_transcript(twin.video_id))
     assert result is not None
     assert result.text == "Hello from translated caption"
     assert result.language == "fi"
@@ -169,7 +164,7 @@ def test_caption_twin_recovers_translation_omitted_by_transcript_api(monkeypatch
 
 
 def test_gate_enforces_cooldown_without_retrying_or_falling_back():
-    gate = _YouTubeRequestGate()
+    gate = youtube._YouTubeRequestGate()
     gate.cooldown_seconds = 60
     gate.mark_rate_limited()
     try:
