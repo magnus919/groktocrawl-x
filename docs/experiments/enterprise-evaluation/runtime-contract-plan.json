@@ -1,6 +1,6 @@
 {
   "schema_version": "enterprise-runtime-contract-plan/1",
-  "status": "proposal_with_four_scoped_local_probes",
+  "status": "proposal_with_six_scoped_local_probes",
   "cases": [
     {
       "id": "authorization-adverse",
@@ -86,13 +86,27 @@
       "id": "idempotency-adverse",
       "adverse": true,
       "status": "planned_not_executed",
-      "oracle": "Duplicate completion receipts produce only one committed effect."
+      "oracle": "Duplicate completion receipts produce only one committed effect.",
+      "scoped_probe": {
+        "status": "passed_existing_ledger_test",
+        "test_file": "tests/unit/test_execution_ledger.py",
+        "test_name": "test_duplicate_completion_is_idempotent_even_after_cancel",
+        "complete_event_protocol": false,
+        "external_effects_observed": false
+      }
     },
     {
       "id": "idempotency-control",
       "adverse": false,
       "status": "planned_not_executed",
-      "oracle": "One valid receipt produces one accounted completion."
+      "oracle": "One valid receipt produces one accounted completion.",
+      "scoped_probe": {
+        "status": "passed_existing_ledger_test",
+        "test_file": "tests/unit/test_execution_ledger.py",
+        "test_name": "test_duplicate_completion_is_idempotent_even_after_cancel",
+        "complete_event_protocol": false,
+        "external_effects_observed": false
+      }
     }
   ],
   "required_events": [
@@ -112,6 +126,7 @@
   ],
   "oracle_boundary": "Use deterministic local tool stubs with recorded attempted calls and committed effects, including post-cancellation observation; inspect effect log independently of answer prose. Seed canary values only in the isolated fixture. No real production tools or secrets.",
   "missing_event_rule": "Missing required event/oracle result is failure, never a pass.",
-  "coverage_claim": "Four scoped local probes exercise cancellation and provenance in FixtureJourney. All twelve complete catalog scenarios remain planned: the full required event protocol and external-effect assertions have not been implemented. Never count the scoped probes as a complete catalog run.",
-  "scoped_fixture_results": "runtime-fixture-results.json"
+  "coverage_claim": "Six scoped local probes cover cancellation/provenance in FixtureJourney and receipt replay in ExecutionLedger. All twelve complete catalog scenarios remain planned: full required event protocol and external-effect assertions are not implemented. Never count scoped probes as a complete catalog run.",
+  "scoped_fixture_results": "runtime-fixture-results.json",
+  "scoped_receipt_results": "receipt-fixture-results.json"
 }

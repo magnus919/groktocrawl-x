@@ -1,5 +1,7 @@
 """Budget and stale-owner schedules for the in-memory fixture controller ledger."""
 
+import json
+
 import pytest
 from agent.experimental.execution import Budget, ExecutionLedger
 from pydantic import ValidationError
@@ -69,10 +71,15 @@ def test_duplicate_reservation_has_no_second_dispatch_transition():
         reserve(owner, tokens=4)
 
 
-def test_duplicate_completion_is_idempotent_even_after_cancel():
+def test_duplicate_completion_is_idempotent_even_after_cancel(record_property):
     owner = ledger(tokens=5)
     reserve(owner, tokens=5)
-    complete(owner, tokens=3)
+    first = complete(owner, tokens=3)
+    assert first.spent.tokens == 3
+    assert first.reserved.tokens == 0
+    assert len(first.operations) == 1
+    assert first.operations[0].state == "completed"
+    assert complete(owner, tokens=3) is first
     terminal = owner.cancel(expected_revision=owner.state.revision)
     assert (
         owner.complete(
@@ -86,6 +93,22 @@ def test_duplicate_completion_is_idempotent_even_after_cancel():
     )
     with pytest.raises(ValueError, match="conflicts"):
         complete(owner, tokens=2)
+    assert owner.state is terminal
+    assert terminal.spent == first.spent
+    assert terminal.operations == first.operations
+    record_property(
+        "receipt_replay_trace",
+        json.dumps(
+            {
+                "scope": "in_memory_accounting_only",
+                "control": first.model_dump(mode="json"),
+                "exact_replay_while_running": "same_state_object",
+                "after_cancel": terminal.model_dump(mode="json"),
+                "exact_replay_after_cancel": "same_state_object",
+                "conflicting_replay": "rejected_without_state_change",
+            }
+        ),
+    )
 
 
 @pytest.mark.parametrize("operation", ["reserve", "complete", "cancel"])
