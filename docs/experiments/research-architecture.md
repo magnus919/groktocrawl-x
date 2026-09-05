@@ -584,3 +584,53 @@ check boundary; old freshness records must be reconstructed and audited. They ar
 not persisted or exposed on a public wire. This does not declare complete
 `knowledge-ir/1`, a whole-IR interchange hash, source authentication, storage or
 retention behavior. No provider, database, runtime or recovery decision changes.
+
+
+## W2 executable local acquisition-to-artifact journey
+
+Issue #27 adds `agent.experimental.pipeline.FixtureJourney`. A trusted, finite
+`fixture-journey-plan/1` supplies scope/revision identity, objective, questions,
+as-of constraint, policy/budget limits, source specifications and explicit fixture
+annotations/verdicts/render statements. Injected local acquisition callbacks supply
+actual text; callers no longer need to construct the expected research object
+before acquisition. The plan rejects duplicate entity identities, invalid limits,
+missing callback bindings and incomplete layer declarations before dispatch.
+
+Each source acquisition reserves one source unit through the existing controller.
+Its text undergoes `fixture-newlines/1` (CRLF and CR to LF, no other transformation)
+before snapshot hashing or code-point span validation. The configured URL identifies
+the planned acquisition; fixture response metadata supplies retrieval time and
+source provenance. Full normalized text remains available as evidence context.
+Source text is never interpreted as a command, permission or plan modification.
+The trusted callbacks themselves are not sandboxed and must remain local fixtures.
+
+Three subsequent local operations construct the structural revision, bind explicit
+fixture verification records to it, and generate/audit all three artifact layers.
+The controller commits each immutable stage once, after receipt accounting, and
+rejects changed scope/revision/as-of, replaced knowledge, early verification or
+final-step knowledge substitution. Verification must preserve the trusted policy,
+verifier, objective and questions. Render publication is checked against that same
+pinned research object. Knowledge and bodies remain outside compact operation
+accounting. Local construction/rendering records zero provider token/cost usage;
+this is not a production cost estimate or a new execution engine.
+
+Run the deterministic journey checks from the locked fast-test environment:
+
+```bash
+PYTHONPATH=agent-svc QA_OUTCOME_PATH=/tmp/fixture-journey-outcomes.json \
+  .venv/bin/python -m pytest tests/unit/test_fixture_pipeline.py --no-cov -o addopts='' -q
+```
+
+Cases cover supported, conflicting and insufficient results, newline normalization,
+copied lineage, hostile source text, invalid spans/references, stale evidence,
+failed audits, exhausted budgets, acquisition cancellation and late/foreign stage
+results. Failed/cancelled runs have no successful artifact set, retain conservative
+unknown usage and return stable terminal rereads. Existing cooperative deadline
+and bounded-cleanup limitations still apply.
+
+The executable path is fixture-backed. Claim extraction, semantic judgments and
+render wording are hand-authored recipes, not evaluated LLM reasoning or human
+approval. Source metadata is recorded rather than authenticated. Full Knowledge IR
+revision/assessment semantics, independent semantic evaluation, public transports,
+persistence and comparative evidence remain unfinished. This slice does not select
+storage, a graph runtime or recovery infrastructure, or authorize external calls.

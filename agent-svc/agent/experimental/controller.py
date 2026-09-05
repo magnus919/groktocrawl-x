@@ -3,15 +3,17 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from .execution import Budget, ExecutionLedger, ExecutionState
-from .knowledge import Digest, Identity, Record
+from .knowledge import Digest, Identity, KnowledgeStructure, Record, Text
 from .publication import (
     FixturePublication,
     FixtureResearch,
+    QuestionOutcome,
     validate_fixture_publication,
 )
 from .verification import FixtureVerifier
@@ -29,6 +31,28 @@ class ScriptResult(Record):
     output_id: Identity
     actual: Budget
     publication: FixturePublication | None = None
+    structure: KnowledgeStructure | None = None
+    research: FixtureResearch | None = None
+
+
+class ResearchTarget(Record):
+    """Trusted identity and question constraints for a revision built during a run."""
+
+    scope_id: Identity
+    research_id: Identity
+    revision_id: Identity
+    policy_version: Identity
+    objective: Text
+    as_of: datetime
+    questions: tuple[QuestionOutcome, ...] = Field(min_length=1, max_length=100)
+
+    @field_validator("as_of")
+    @classmethod
+    def utc_as_of(cls, value: datetime) -> datetime:
+        offset = value.utcoffset()
+        if offset is None or offset.total_seconds() != 0:
+            raise ValueError("target as-of must have an explicit UTC offset")
+        return value
 
 
 class OperationSpec(Record):
@@ -68,7 +92,7 @@ class ScriptedController:
         steps: tuple[ScriptStep, ...],
         budget: Budget,
         limits: ControllerLimits,
-        research: FixtureResearch,
+        research: FixtureResearch | ResearchTarget,
         artifact_set_id: str,
         renderer_version: str,
         auditor: FixtureVerifier,
@@ -81,11 +105,27 @@ class ScriptedController:
         )
         if len({step.spec.operation_id for step in self._steps}) != len(self._steps):
             raise ValueError("script operation IDs must be unique")
-        self._research = FixtureResearch.model_validate(research)
+        self._target = (
+            ResearchTarget.model_validate(research)
+            if isinstance(research, ResearchTarget)
+            else None
+        )
+        self._research = (
+            FixtureResearch.model_validate(research) if self._target is None else None
+        )
+        self._structure = (
+            self._research.verifications.structure if self._research else None
+        )
         self._limits = ControllerLimits.model_validate(limits)
         self._ledger = ExecutionLedger(
             run_id=run_id,
-            policy_version=research.verifications.policy_version,
+            policy_version=(
+                self._target.policy_version
+                if self._target
+                else FixtureResearch.model_validate(
+                    research
+                ).verifications.policy_version
+            ),
             limit=budget,
             max_operations=len(steps),
         )
@@ -100,6 +140,51 @@ class ScriptedController:
     @property
     def result(self) -> ControllerResult | None:
         return self._result
+
+    @property
+    def structure(self) -> KnowledgeStructure | None:
+        return self._structure
+
+    @property
+    def research(self) -> FixtureResearch | None:
+        return self._research
+
+    def _check_staged_knowledge(self, result: ScriptResult, final: bool) -> None:
+        if result.structure is not None:
+            target = self._target
+            structure = result.structure
+            if final or self._structure is not None or target is None:
+                raise _StoppedError("unexpected_structure")
+            if (
+                structure.scope_id,
+                structure.research_id,
+                structure.revision_id,
+                structure.as_of,
+            ) != (
+                target.scope_id,
+                target.research_id,
+                target.revision_id,
+                target.as_of,
+            ):
+                raise _StoppedError("structure_identity_mismatch")
+        if result.research is not None:
+            target = self._target
+            research = result.research
+            if (
+                final
+                or self._research is not None
+                or self._structure is None
+                or target is None
+            ):
+                raise _StoppedError("unexpected_research")
+            if (
+                research.verifications.structure != self._structure
+                or research.verifications.policy_version != target.policy_version
+                or research.verifications.verifier != self._auditor
+                or research.objective != target.objective
+                or research.questions != target.questions
+            ):
+                raise _StoppedError("research_identity_mismatch")
 
     def cancel(self) -> None:
         if self._result is None:
@@ -195,6 +280,7 @@ class ScriptedController:
                     raise _StoppedError("output_identity_mismatch")
                 if result.publication is not None and index != len(self._steps) - 1:
                     raise _StoppedError("premature_publication")
+                self._check_staged_knowledge(result, index == len(self._steps) - 1)
                 self._ledger.complete(
                     operation_id=step.spec.operation_id,
                     input_digest=step.spec.input_digest,
@@ -202,7 +288,13 @@ class ScriptedController:
                     actual=result.actual,
                     expected_revision=self._ledger.state.revision,
                 )
+                if result.structure is not None:
+                    self._structure = result.structure
+                if result.research is not None:
+                    self._research = result.research
                 candidate = result.publication
+            if self._research is None:
+                raise _StoppedError("missing_research")
             try:
                 publication = validate_fixture_publication(
                     candidate,
