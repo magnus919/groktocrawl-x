@@ -206,3 +206,9 @@ authored candidate answers and blank review fields. Its [manifest](calibration/m
 pins selection and input bytes. Human labels must be collected separately before
 any comparison with Hermes outcome labels. These are authored calibration probes,
 not real arm outputs or an independently curated held-out benchmark.
+
+## Scoped runtime fixture progress
+
+[Cancellation and pinned-source checks](runtime-fixtures.md) now exercise four
+local probes against the existing pipeline. This is partial executable coverage,
+not a full catalog event protocol or comparative run.

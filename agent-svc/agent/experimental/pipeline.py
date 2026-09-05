@@ -18,6 +18,7 @@ from .controller import (
 from .execution import Budget
 from .knowledge import (
     Claim,
+    Digest,
     Evidence,
     Identity,
     KnowledgeStructure,
@@ -50,6 +51,8 @@ from .verification import (
 
 
 class SourceSpec(Record):
+    # SHA-256 of UTF-8 text after fixture-newlines/1 normalization, when pinned.
+    expected_digest: Digest | None = None
     snapshot_id: Identity
     canonical_url: str = Field(pattern=r"^https?://[^\s/]+(?:/[^\s]*)?$")
 
@@ -298,13 +301,16 @@ class FixtureJourney:
                     await callbacks[spec.snapshot_id]()
                 )
                 normalized = response.text.replace("\r\n", "\n").replace("\r", "\n")
+                digest = text_digest(normalized)
+                if spec.expected_digest is not None and digest != spec.expected_digest:
+                    raise ValueError("acquired snapshot differs from pinned digest")
                 snapshots[spec.snapshot_id] = Snapshot(
                     **response.model_dump(exclude={"text"}),
                     text=normalized,
                     snapshot_id=spec.snapshot_id,
                     canonical_url=spec.canonical_url,
                     normalization_version="fixture-newlines/1",
-                    digest=text_digest(normalized),
+                    digest=digest,
                 )
                 return ScriptResult(
                     output_id=f"result-{index}", actual=Budget(sources=1)
