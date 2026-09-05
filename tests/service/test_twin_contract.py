@@ -16,6 +16,7 @@ ROOT = Path(__file__).parents[2]
 def _isolate_twin_environment(monkeypatch):
     for name in (
         "TWIN_BASE_SHA",
+        "TWIN_SEARCH_BACKEND",
         "TWIN_BUILT_FROM_CHECKOUT",
         "TWIN_CALIBRATION_ARTIFACT",
         "TWIN_CHECKS",
@@ -160,11 +161,24 @@ def test_compose_unavailable_images_are_failure_not_acceptance(tmp_path, monkeyp
     assert manifest["outcome"]["failure_source"] == "infrastructure"
 
 
-def test_compose_exact_images_validate_as_success(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "search_backend,valid_source",
+    [("live", True), ("fixture", True), ("fixture", False)],
+)
+def test_compose_exact_images_validate_as_success(
+    tmp_path, monkeypatch, search_backend, valid_source
+):
     provenance = _load(
         "compose_success_provenance", ROOT / "scripts/twin_provenance.py"
     )
     checkout_sha = provenance._git("rev-parse", "HEAD")
+    monkeypatch.setenv("TWIN_SEARCH_BACKEND", search_backend)
+    source_images = provenance.REQUIRED_CHECKOUT_IMAGES.copy()
+    digest_images = provenance.REQUIRED_REPO_DIGEST_IMAGES.copy()
+    if search_backend == "fixture":
+        digest_images.remove("slopsearx")
+        if valid_source:
+            source_images.add("slopsearx")
     monkeypatch.setenv("TWIN_EXECUTION_MODE", "compose")
     monkeypatch.setenv("TWIN_BASE_SHA", provenance._git("rev-parse", "HEAD"))
     monkeypatch.setenv("TWIN_REQUIRE_IMAGES", "1")
@@ -207,15 +221,11 @@ def test_compose_exact_images_validate_as_success(tmp_path, monkeypatch):
                 "id": "sha256:" + "1" * 64,
                 "repo_digest": (
                     f"example/{name}@sha256:" + "2" * 64
-                    if name in provenance.REQUIRED_REPO_DIGEST_IMAGES
+                    if name in digest_images
                     else None
                 ),
-                "source_sha": (
-                    checkout_sha
-                    if name in provenance.REQUIRED_CHECKOUT_IMAGES
-                    else None
-                ),
-                "built_from_checkout": name in provenance.REQUIRED_CHECKOUT_IMAGES,
+                "source_sha": (checkout_sha if name in source_images else None),
+                "built_from_checkout": name in source_images,
             }
             for name in provenance.REQUIRED_COMPOSE_IMAGES
         ],
@@ -224,7 +234,7 @@ def test_compose_exact_images_validate_as_success(tmp_path, monkeypatch):
         "sys.argv",
         ["twin_provenance", "--output", str(tmp_path), "--changed-paths-json", "[]"],
     )
-    assert provenance.main() == 0
+    assert provenance.main() == (0 if valid_source else 1)
     manifest = json.loads((tmp_path / "twin-evidence.json").read_text())
     validate(
         manifest,
@@ -232,7 +242,9 @@ def test_compose_exact_images_validate_as_success(tmp_path, monkeypatch):
     )
     assert manifest["execution_mode"] == "compose"
     assert len(manifest["images"]) == len(provenance.REQUIRED_COMPOSE_IMAGES)
-    assert manifest["outcome"]["result"] == "success"
+    assert manifest["outcome"]["result"] == ("success" if valid_source else "failure")
+    if not valid_source:
+        assert "slopsearx" in manifest["outcome"]["failure_detail"]
 
 
 def test_live_calibration_projects_into_strict_aggregate_manifest(

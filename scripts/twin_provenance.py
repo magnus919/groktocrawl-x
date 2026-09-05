@@ -701,6 +701,17 @@ def main() -> int:
     if args.calibration_artifact:
         os.environ["TWIN_CALIBRATION_ARTIFACT"] = str(args.calibration_artifact)
     invalid = False
+    search_backend = os.environ.get("TWIN_SEARCH_BACKEND", "live")
+    if search_backend not in {"live", "fixture"}:
+        invalid = True
+        os.environ["TWIN_RESULT"] = "failure"
+        os.environ["TWIN_FAILURE_SOURCE"] = "harness"
+        os.environ["TWIN_FAILURE_DETAIL"] = "unknown search backend"
+    required_digests = REQUIRED_REPO_DIGEST_IMAGES.copy()
+    required_checkout = REQUIRED_CHECKOUT_IMAGES.copy()
+    if search_backend == "fixture":
+        required_digests.remove("slopsearx")
+        required_checkout.add("slopsearx")
     try:
         paths = json.loads(args.changed_paths_json)
         if not isinstance(paths, list) or not all(
@@ -738,16 +749,13 @@ def main() -> int:
             str(record["name"])
             for record in images
             if record["id"] == "unavailable"
-            or (
-                record["name"] in REQUIRED_REPO_DIGEST_IMAGES
-                and not record["repo_digest"]
-            )
+            or (record["name"] in required_digests and not record["repo_digest"])
         ]
         checkout_sha = _git("rev-parse", "HEAD")
         missing.extend(
             str(record["name"])
             for record in images
-            if record["name"] in REQUIRED_CHECKOUT_IMAGES
+            if record["name"] in required_checkout
             and (
                 not record["built_from_checkout"]
                 or record["source_sha"] != checkout_sha
