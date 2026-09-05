@@ -123,7 +123,13 @@ tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
 [wire examples and confirmation scenarios](research-client-protocol.md). It recommends
 an explicit experimental route family, progress-only streaming before audited
 publication, one pinned terminal result, bounded replay and compact session references.
-D4 runtime selection and D5 durability remain open. All drafted decisions remain proposed.
+D4 has a proposed comparison contract in [ADR-0073](../adr/0073-compare-research-runtimes-under-one-policy.md).
+D5 has a proposed recovery contract in [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md),
+with a shared [conformance/crash matrix](research-execution-confirmation.md), tracked
+by [issue #11](https://github.com/magnus919/groktocrawl-x/issues/11). These frame the
+remaining choices: runtime and recovery infrastructure selection remain open until
+their evidence gates pass. All seven decision packages now have draft records;
+all drafted decisions remain proposed.
 No inherited ADR is superseded by these drafts. W1 remains incomplete until its
 required decisions and baseline evidence meet their gates; W2 has not started.
 

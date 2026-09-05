@@ -105,5 +105,7 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0070 | [Evaluate Research Policy and Runtime Separately](0070-evaluate-research-policy-and-runtime-separately.md) | proposed |
 | 0071 | [Store Research Evidence Independently of Sessions](0071-store-research-evidence-independently-of-sessions.md) | proposed |
 | 0072 | [Expose Verified Research Through an Experimental Protocol](0072-expose-verified-research-through-an-experimental-protocol.md) | proposed |
+| 0073 | [Compare Research Runtimes Under One Policy](0073-compare-research-runtimes-under-one-policy.md) | proposed |
+| 0074 | [Define Research Recovery Before Selecting Infrastructure](0074-define-research-recovery-before-selecting-infrastructure.md) | proposed |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
