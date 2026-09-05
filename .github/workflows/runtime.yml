@@ -780,7 +780,7 @@ jobs:
       COMPOSE_FILE: compose.research-storage.yml
       COMPOSE_PROFILES: storage
       COMPOSE_PROJECT_NAME: research-ci-${{ github.run_id }}-${{ github.run_attempt }}
-      RESEARCH_POSTGRES_PASSWORD_FILE: ${{ runner.temp }}/research-postgres-password
+      RESEARCH_POSTGRES_PASSWORD_FILE: /tmp/research-postgres-password-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
         with:
