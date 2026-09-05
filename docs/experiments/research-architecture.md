@@ -457,3 +457,30 @@ model judgments or a semantic verifier. A digest binds bytes, not truth.
 No append-only persistence or public schema is shipped. Multiple recorded verdicts
 can be retained without choosing the latest pass; resolving applicable checks,
 conflict/coverage handling and audited render publication remain issue #16 work.
+
+The fixture publication slice (`agent.experimental.publication`) adds required
+question outcomes, explicit unresolved conflicts, three rendered layers and exact
+input/output-bound audit records. `validate_fixture_publication` compares the bundle
+against caller-established research, artifact-set, renderer and auditor identities.
+It requires one summary, analysis and dossier, preserves every required question and
+conflict in every layer, checks cited evidence against recorded support inputs, and
+requires passing support/freshness/conflict checks for each emitted claim. Any
+applicable failed or indeterminate verdict blocks that claim, even alongside a pass.
+Conflict-target claims are excluded from ordinary output; a separately supported
+uncertainty report can appear instead. The dossier embeds the complete fixture
+research context, including retained contested claims and verification records.
+
+The executable journeys in `tests/unit/test_fixture_publication.py` cover complete,
+partial and insufficient coverage and same-scope $20/$30 captured-price disagreement.
+Negative controls cover changed/rehashed inputs, wrong citations, hidden conflicts,
+omitted questions, missing checks/layers and failed audits. Run these with the two
+existing prototype test modules. Render text is deterministically assembled from
+mapped statements; the audit pins its UTF-8 digest and the full render input.
+
+This is an ephemeral, **fixture-only** gate: hand-authored expectations supply support,
+freshness and render judgments. It cannot detect a lie in a forged passing semantic
+audit, authenticate a reviewer, or certify real-world truth. No public endpoint,
+storage publication transaction, complete `knowledge-ir/1` interchange schema,
+research controller, provider integration or restart guarantee is shipped. Full W2
+and later independent semantic evaluation remain open; these tests do not complete
+W1 comparisons or justify a performance/quality adoption claim.
