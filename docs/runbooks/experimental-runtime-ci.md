@@ -49,3 +49,20 @@ Check actual repository rulesets separately: declaring a job named Runtime Gate
 does not make it required. W0 remains incomplete until required checks and review
 policy are configured and verified. Keep publishing, paid review, live calibration
 and inherited self-hosted execution disabled.
+
+## Fixture scenarios and image provenance
+
+For an end-to-end API that cannot forward a fixture-specific search parameter,
+start its search query with `[fixture:zero-results]` to select the versioned empty
+result scenario. Other supported scenario names use the same fixture-only marker;
+an explicit `scenario` parameter takes precedence. Ordinary queries keep their
+existing fixture behavior. Never infer emptiness from nonsense query text.
+Session isolation uses concurrent distinct-source operations and verifies that
+deleting one session leaves the other's references, steps and artifact intact;
+overlapping legitimate search results are not evidence of session leakage.
+
+Runtime CI declares `TWIN_SEARCH_BACKEND=fixture` for provenance. SlopSearX must
+then have a local image ID, a checkout-build declaration and the matching commit
+SHA. The inherited live-search configuration still requires its registry digest.
+Qdrant continues to require its registry digest in both modes. A missing source
+record fails the evidence check rather than being relabeled as a published image.

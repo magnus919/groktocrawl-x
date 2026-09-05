@@ -466,7 +466,7 @@ jobs:
             PYTHONPATH=/app/agent-svc:/app/scraper-svc:/app/llm-svc:/app/parse-svc:/app/portal-svc:/app/browser-svc:/app \
             QA_OUTCOME_PATH=/app/qa-outcomes-targeted.json \
             python3 -m pytest /app/tests/integration/test_stack.py \
-              -k 'test_cross_endpoint_compact_citations_resolvable or test_cross_plan_agent_structured_output_val_cross_005' \
+              -k 'test_cross_endpoint_compact_citations_resolvable or test_cross_plan_agent_structured_output_val_cross_005 or test_session_search_zero_results_val_ses_085 or test_cross_concurrent_session_isolation_val_cross_018' \
               --no-cov -o 'addopts=' -p no:cacheprovider -q
         timeout-minutes: 5
 
@@ -660,7 +660,8 @@ jobs:
           TWIN_EXECUTION_MODE: compose
           TWIN_REQUIRE_IMAGES: "1"
           TWIN_RECORD_IMAGES: "1"
-          TWIN_BUILT_FROM_CHECKOUT: llm-svc,slopsearx-fixture,agent-svc-fixture,test-site,tier3-fixture
+          TWIN_SEARCH_BACKEND: fixture
+          TWIN_BUILT_FROM_CHECKOUT: llm-svc,slopsearx-fixture,agent-svc-fixture,test-site,tier3-fixture,slopsearx,agent-svc,scraper-svc,browser-svc,semantic-svc,parse-svc,portal-svc,mcp-svc
           TWIN_TESTS: '["tests/integration/test_stack.py::test_cross_endpoint_compact_citations_resolvable","tests/integration/test_stack.py::test_cross_plan_agent_structured_output_val_cross_005","tests/integration/test_critical_journey.py","tests/integration/","tests/service/","tests/integration/test_twin_failure_injection.py","mcp-svc/tests/test_integration.py::TestHostHeaderTransportSecurity"]'
           TWIN_EXCLUDED_TESTS: '["tests/service/test_twin_contract.py","tests/service/test_twin_network_isolation.py","tests/service/test_workflow_contract.py","tests/service/test_answer_evals.py"]'
           TWIN_CHECKS: scenario-version-precheck,manifest-validation
