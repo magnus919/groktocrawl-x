@@ -1,10 +1,16 @@
 # Establish an Independent Research Architecture Experiment
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark (fork maintainer)
 - Date: 2026-09-04
 - Scope: `magnus919/groktocrawl-x` only
 - Supersedes: none yet; replacement decisions are separate ADRs
+
+- Accepted: 2026-09-05 by Magnus Hedemark, following the W1 review packet.
+- Acceptance scope: foundation contracts for a bounded fixture-backed prototype;
+  implementation/evidence gates remain. No storage/runtime/recovery selection or
+  external-provider spending is authorized by this acceptance.
+- Acceptance record: [issue #15](https://github.com/magnus919/groktocrawl-x/issues/15).
 
 ## Context and Problem Statement
 

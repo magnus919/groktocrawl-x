@@ -8,6 +8,10 @@ Technical Story: AI agents conducting research through GroktoCrawl need stateful
 where intermediate results accumulate server-side — the agent directs the research without
 carrying full page content in its context window.
 
+- Experimental successor status (2026-09-05): partially superseded in
+  `magnus919/groktocrawl-x` only. Experimental knowledge authority is versioned IR with compact session attachments (ADRs 0068/0072); inherited session operations remain unchanged.
+- Successor records: [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md); [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md).
+
 ## Context and Problem Statement
 
 Today's `POST /v2/agent` is a fire-and-forget call: the client submits a prompt, the server

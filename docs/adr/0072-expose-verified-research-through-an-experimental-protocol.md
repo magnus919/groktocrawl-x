@@ -1,11 +1,17 @@
 # Expose Verified Research Through an Experimental Protocol
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-04
 - Scope: experimental research clients; `magnus919/groktocrawl-x` only
 - Plan: D6 / W1 and W6; issue [#9](https://github.com/magnus919/groktocrawl-x/issues/9)
-- Supersedes: none while proposed; intended impacts below
+- Supersedes: experimental scope only, as classified below; inherited endpoints remain unchanged
+
+- Accepted: 2026-09-05 by Magnus Hedemark, following the W1 review packet.
+- Acceptance scope: foundation contracts for a bounded fixture-backed prototype;
+  implementation/evidence gates remain. No storage/runtime/recovery selection or
+  external-provider spending is authorized by this acceptance.
+- Acceptance record: [issue #15](https://github.com/magnus919/groktocrawl-x/issues/15).
 
 ## Context and Problem Statement
 
@@ -183,8 +189,8 @@ or convert a completed result into a failed research run.
 | 0053 | Retain retryable rate-limit metadata; distinguish admission retry from admitted-run observation |
 | 0064, 0065 | Retain one final answer and prompt acquisition progress; experimental text waits for audit/publication instead of streaming during synthesis |
 
-No accepted predecessor status/body changes while this record remains proposed.
-Acceptance must record exact scope and successor links; it does not accept D4/D5.
+Predecessor metadata records the exact experimental successor scope. Accepted
+predecessor bodies remain unchanged; this acceptance does not accept D4/D5.
 
 ## Consequences
 

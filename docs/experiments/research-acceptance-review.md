@@ -2,19 +2,21 @@
 
 W1 review packet for [issue #13](https://github.com/magnus919/groktocrawl-x/issues/13),
 under [experiment tracker #1](https://github.com/magnus919/groktocrawl-x/issues/1).
-**All new ADRs remain proposed. This packet neither accepts them nor authorizes a
-comparative run or implementation behind an unmet gate.**
+**Decision recorded 2026-09-05:** Magnus accepted ADRs 0067–0070 and 0072 for the
+bounded fixture-backed prototype described below. ADRs 0071, 0073 and 0074 remain
+proposed. Comparative execution and remaining implementation gates are not waived.
+See [acceptance issue #15](https://github.com/magnus919/groktocrawl-x/issues/15).
 
 ## Concrete next decision
 
-Recommend reviewing and accepting the **foundation contracts** in ADRs 0067–0070
+Magnus accepted the **foundation contracts** in ADRs 0067–0070
 and 0072 for a bounded, fixture-backed W2 prototype: experimental identity;
 separate execution/knowledge/rendering; versioned evidence and verification;
 separate policy/runtime evaluation; and a distinct experimental client contract
-with no unaudited answer text. Record acceptance through an explicit maintainer
-decision and a scoped status/successor-link change, not by merging this packet.
+with no unaudited answer text. The explicit maintainer decision is recorded in ADR/index metadata and scoped
+successor links; merging the original review packet did not itself accept them.
 
-Acceptance would establish design direction, not claim that semantic verification
+Acceptance establishes design direction, not claim that semantic verification
 works, authorize paid runs, or complete W1. Finish the applicable baseline/preflight
 gates before comparative execution and the implementation prerequisites in the
 plan before W2. Prototype issues must state their boundaries and evidence gates.
