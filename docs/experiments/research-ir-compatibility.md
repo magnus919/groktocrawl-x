@@ -42,8 +42,11 @@ The sections below preserve the original audit and intermediate milestones; thei
 “next” and “open” statements describe those earlier checkpoints.
 
 W2/W3 are not thereby accepted as complete. Consolidated `knowledge-ir/1`, public
-compatibility and authorization, independent semantic evaluation, aggregate
-admission and measured capacity remain separate gates. No production/default-stack
+compatibility and authorization, and independent semantic evaluation remain separate
+gates. Subsequent [connection admission](research-storage-admission.md) and
+[capacity exploration](research-storage-capacity-findings.md) are complete within
+their bounded scope. The current [field/version review](research-ir-contract-review.md)
+defines the next consolidated-contract work. No production/default-stack
 cutover, vector adoption, provider spend or restart-safe execution is established.
 
 ## Original audit conclusion and implementation plan
