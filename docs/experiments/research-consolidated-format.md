@@ -215,3 +215,11 @@ journey and isolated retained round trip. Freeze format names only after those
 contract tests and the field/version review pass. Until then use visibly proposed
 schema artifacts, with no production writer or implicit migration. Independent
 semantic evaluation follows separately and requires its own budget/reviewer gates.
+
+## Implementation progress
+
+[Strict knowledge context admission](research-knowledge-context.md) implements the
+non-result context and caller-supplied source-resolution boundary under issue #94.
+It uses an explicit prototype envelope and preserves legacy formats. Full check
+records, history, manifest admission, the research journey and retained integration
+remain incomplete; this is not format freeze.
