@@ -96,3 +96,8 @@ required; automated scheduling remains absent. D5 must still define
 workflow ownership, crash resumption, staging renewal, retries and webhook outbox;
 D6 must define public errors, references, session transitions and CLI/API parity.
 A storage test passing cannot be reported as end-to-end durable job completion.
+
+The [capacity probe design](research-storage-capacity.md) predeclares source-heavy
+root workloads, concurrent small publications, explicit quota/format boundaries
+and backup measurements. It is unexecuted and does not establish a capacity SLO
+or full W3 acceptance.

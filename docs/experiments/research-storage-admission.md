@@ -70,5 +70,10 @@ docker compose run --rm -T storage-adapter admission
 Use the explicit [isolated Compose setup](research-postgres-harness.md); never run
 against a pilot or mainline database. Existing 263 lifecycle cases and restore
 verification remain required, so the job now schedules 268 database cases. The new
-cases are unverified until hosted CI passes; local guard tests cannot substitute
-for them. The burst is a saturation test, not a throughput or latency benchmark.
+cases passed in [PR #81 Runtime CI](https://github.com/magnus919/groktocrawl-x/actions/runs/34031758014),
+alongside all 263 existing cases, restore checks and full integration. All five
+post-merge workflows passed on `07cb7e5fc9dfb294f7f14cf25072a721e9ff1caf`.
+Local guard tests alone would not establish these database results. The burst is a saturation test, not a throughput or latency benchmark.
+
+The next [capacity probe](research-storage-capacity.md) is predeclared separately;
+connection saturation evidence does not establish workload capacity.
