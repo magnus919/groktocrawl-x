@@ -102,6 +102,7 @@ class SourceStore:
                     [{"version": 2}],
                     [{"version": 3}],
                     [{"version": 4}],
+                    [{"version": 5}],
                 ):
                     raise StorageConflictError("unsupported storage schema")
             yield conn
@@ -168,7 +169,12 @@ class SourceStore:
 
     @staticmethod
     def _active(row: dict[str, Any], generation: int) -> None:
-        if row["deleted"] or not row["fresh"] or row["generation"] != generation:
+        if (
+            row["deleted"]
+            or not row["fresh"]
+            or row["generation"] != generation
+            or row.get("kind", "native") != "native"
+        ):
             raise StorageConflictError("root unavailable")
 
     @staticmethod
@@ -341,53 +347,125 @@ class SourceStore:
                     (scope, root, operation),
                 )
 
+    @staticmethod
+    async def _coordinate_imports(conn: Connection) -> None:
+        # Shared protocol key for schema-5 import topology mutations and deletion.
+        await conn.execute("SELECT pg_advisory_xact_lock(1735553908, 5)")
+
+    @staticmethod
+    async def _lock_roots(
+        conn: Connection,
+        roots: set[tuple[UUID, UUID]],
+        extra_scopes: tuple[UUID, ...] = (),
+    ) -> dict[tuple[UUID, UUID], dict[str, Any]]:
+        scopes = {scope for scope, _ in roots} | set(extra_scopes)
+        for scope in sorted(scopes):
+            found = await (
+                await conn.execute(
+                    "SELECT scope_id FROM research_staging.scopes WHERE scope_id=%s FOR UPDATE",
+                    (scope,),
+                )
+            ).fetchone()
+            if found is None:
+                raise StorageConflictError("scope unavailable")
+        result = {}
+        for scope, root in sorted(roots):
+            row = await (
+                await conn.execute(
+                    "SELECT *,expires_at>now() AS fresh FROM research_staging.roots WHERE scope_id=%s AND root_id=%s FOR UPDATE",
+                    (scope, root),
+                )
+            ).fetchone()
+            if row is None:
+                raise StorageConflictError("root unavailable")
+            result[(scope, root)] = row
+        return result
+
     async def delete_root(self, scope: UUID, root: UUID) -> None:
-        """Delete bounded staging content atomically; retain tombstone/receipt IDs."""
+        """Purge an origin and its bounded recipient copies; keep metadata receipts."""
         async with self._transaction() as conn:
-            row = await self._lock(conn, scope, root)
-            if row["deleted"]:
-                return
-            version = await (
+            version_row = await (
                 await conn.execute(
                     "SELECT version FROM research_staging.schema_version"
                 )
             ).fetchone()
-            if version and version["version"] >= 3:
-                await conn.execute(
-                    "DELETE FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
-                    (scope, root),
-                )
-                await conn.execute(
-                    "UPDATE research_staging.publication_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
-                    (scope, root),
-                )
-            if version and version["version"] >= 2:
-                await conn.execute(
-                    "UPDATE research_staging.roots SET current_revision=NULL WHERE scope_id=%s AND root_id=%s",
-                    (scope, root),
-                )
-                await conn.execute(
-                    "DELETE FROM research_staging.revisions WHERE scope_id=%s AND root_id=%s",
-                    (scope, root),
-                )
-                await conn.execute(
-                    "UPDATE research_staging.revision_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
-                    (scope, root),
-                )
+            assert version_row is not None
+            version = version_row["version"]
+            if version >= 5:
+                await self._coordinate_imports(conn)
+                dependents = await (
+                    await conn.execute(
+                        "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s",
+                        (scope, root),
+                    )
+                ).fetchall()
+                roots = {(scope, root)} | {
+                    (r["scope_id"], r["root_id"]) for r in dependents
+                }
+                rows = await self._lock_roots(conn, roots)
+                for (target_scope, target_root), row in rows.items():
+                    await self._purge_root(
+                        conn, target_scope, target_root, row, version
+                    )
+            else:
+                row = await self._lock(conn, scope, root)
+                await self._purge_root(conn, scope, root, row, version)
+
+    async def _purge_root(
+        self,
+        conn: Connection,
+        scope: UUID,
+        root: UUID,
+        row: dict[str, Any],
+        version: int,
+    ) -> None:
+        if row["deleted"]:
+            return
+        if version >= 5:
             await conn.execute(
-                "DELETE FROM research_staging.snapshots WHERE scope_id=%s AND root_id=%s",
+                "DELETE FROM research_staging.imported_bundles WHERE scope_id=%s AND root_id=%s",
                 (scope, root),
             )
             await conn.execute(
-                "DELETE FROM research_staging.blobs b WHERE b.scope_id=%s AND NOT EXISTS (SELECT 1 FROM research_staging.snapshots s WHERE s.scope_id=b.scope_id AND s.body_digest=b.digest)",
-                (scope,),
+                "UPDATE research_staging.import_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+                (scope, root),
             )
-            await self._charge(conn, scope, root, -row["charged"])
+        if version >= 3:
             await conn.execute(
-                "UPDATE research_staging.operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+                "DELETE FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
                 (scope, root),
             )
             await conn.execute(
-                "UPDATE research_staging.roots SET deleted=true,deleted_at=now(),generation=generation+1 WHERE scope_id=%s AND root_id=%s",
+                "UPDATE research_staging.publication_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
                 (scope, root),
             )
+        if version >= 2:
+            await conn.execute(
+                "UPDATE research_staging.roots SET current_revision=NULL WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+            await conn.execute(
+                "DELETE FROM research_staging.revisions WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+            await conn.execute(
+                "UPDATE research_staging.revision_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+                (scope, root),
+            )
+        await conn.execute(
+            "DELETE FROM research_staging.snapshots WHERE scope_id=%s AND root_id=%s",
+            (scope, root),
+        )
+        await conn.execute(
+            "DELETE FROM research_staging.blobs b WHERE b.scope_id=%s AND NOT EXISTS (SELECT 1 FROM research_staging.snapshots s WHERE s.scope_id=b.scope_id AND s.body_digest=b.digest)",
+            (scope,),
+        )
+        await self._charge(conn, scope, root, -row["charged"])
+        await conn.execute(
+            "UPDATE research_staging.operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+            (scope, root),
+        )
+        await conn.execute(
+            "UPDATE research_staging.roots SET deleted=true,deleted_at=now(),generation=generation+1 WHERE scope_id=%s AND root_id=%s",
+            (scope, root),
+        )
