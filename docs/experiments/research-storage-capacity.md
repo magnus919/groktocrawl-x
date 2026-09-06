@@ -2,9 +2,9 @@
 
 [Issue #82](https://github.com/magnus919/groktocrawl-x/issues/82) tracks this
 predeclared exploration under accepted [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md).
-**No capacity measurements have been run for this design.** Implement the harness
-and publish its exact commit, design-file digest and raw results before interpreting
-capacity. A later design change must have a new identifier; preserve failed runs.
+The [capacity findings](research-storage-capacity-findings.md) record the executed
+probe, exact commit, design-file digest, raw results and limits. The design below
+was declared before those measurements. A later design change must have a new identifier; preserve failed runs.
 
 ## Question and scope
 
