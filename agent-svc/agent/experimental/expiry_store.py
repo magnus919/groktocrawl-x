@@ -39,12 +39,13 @@ class ExpiryStore(ImportStore):
             await conn.execute(sql, prepare=False)
 
     @staticmethod
-    async def _require_expiry_schema(conn: Connection) -> None:
+    async def _require_expiry_schema(conn: Connection) -> int:
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
         if version not in ([{"version": 6}], [{"version": 7}]):
             raise StorageConflictError("expiry schema unavailable")
+        return int(version[0]["version"])
 
     async def _expiry_candidates(self, scope: UUID, limit: int) -> tuple[UUID, ...]:
         async with self._transaction(read=True) as conn:
@@ -66,7 +67,7 @@ class ExpiryStore(ImportStore):
 
     async def _collect_candidate(self, scope: UUID, root: UUID) -> CollectionOutcome:
         async with self._transaction() as conn:
-            await self._require_expiry_schema(conn)
+            version = await self._require_expiry_schema(conn)
             await self._coordinate_imports(conn)
             rows = await self._lock_purge_roots(conn, scope, root)
             candidate = rows[(scope, root)]
@@ -82,7 +83,9 @@ class ExpiryStore(ImportStore):
             purged = 0
             for (target_scope, target_root), row in rows.items():
                 if not row["deleted"]:
-                    await self._purge_root(conn, target_scope, target_root, row, 6)
+                    await self._purge_root(
+                        conn, target_scope, target_root, row, version
+                    )
                     purged += 1
             return CollectionOutcome(root, "purged", purged)
 

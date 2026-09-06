@@ -59,12 +59,13 @@ class ImportStore(ArtifactBundleStore):
             await conn.execute(sql, prepare=False)
 
     @staticmethod
-    async def _require_import_schema(conn: Connection) -> None:
+    async def _require_import_schema(conn: Connection) -> int:
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
         if version not in ([{"version": 5}], [{"version": 6}], [{"version": 7}]):
             raise StorageConflictError("import schema unavailable")
+        return int(version[0]["version"])
 
     async def _match_origin(
         self, conn: Connection, bundle: VerifiedBundle, context: PublicationContext
@@ -291,7 +292,7 @@ class ImportStore(ArtifactBundleStore):
 
     async def cancel_import(self, recipient: UUID, root: UUID) -> None:
         async with self._transaction() as conn:
-            await self._require_import_schema(conn)
+            version = await self._require_import_schema(conn)
             await self._coordinate_imports(conn)
             operation = await self._operation(conn, recipient, root)
             rows = await self._lock_roots(
@@ -303,5 +304,5 @@ class ImportStore(ArtifactBundleStore):
             )
             if operation["state"] == "pending":
                 await self._purge_root(
-                    conn, recipient, root, rows[(recipient, root)], 5
+                    conn, recipient, root, rows[(recipient, root)], version
                 )
