@@ -1,6 +1,8 @@
-# Consolidated research format proposal
+# Consolidated research format contract
 
-**Proposed, not implemented or frozen.** Companion to
+**Accepted for bounded experimental implementation; not implemented or frozen.**
+Magnus accepted the proposal on 2026-09-06; see
+[acceptance record #92](https://github.com/magnus919/groktocrawl-x/issues/92). Companion to
 [ADR-0075](../adr/0075-consolidate-research-interchange-contracts.md), issue
 [#90](https://github.com/magnus919/groktocrawl-x/issues/90). Experimental fork only.
 The [existing compatibility inventory](../../tests/contracts/research/README.md)

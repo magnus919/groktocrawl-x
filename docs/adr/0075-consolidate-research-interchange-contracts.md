@@ -1,11 +1,20 @@
 # Consolidate Research Interchange Contracts
 
-- Status: proposed
+- Status: accepted for bounded experimental implementation
 - Deciders: Magnus Hedemark
 - Date: 2026-09-06
 - Scope: bounded experimental research formats; `magnus919/groktocrawl-x` only
 - Plan: issue [#90](https://github.com/magnus919/groktocrawl-x/issues/90)
-- Supersedes: none while proposed; scoped impacts below
+- Supersedes: ADR-0071 canonical IR ceiling for the initial consolidated implementation only; extends ADR-0069 and ADR-0072 as scoped below
+
+- Accepted: 2026-09-06 by Magnus Hedemark: “I accept your proposal.”
+- Acceptance record: [issue #92](https://github.com/magnus919/groktocrawl-x/issues/92).
+- Acceptance scope: bounded consolidated admission and the experimental research
+  journey; preserve old readers/data and the initial 1 MiB format bound.
+- Implementation, format-freeze and evaluation gates remain. No provider spending,
+  production cutover, vector/runtime selection or recovery adoption is authorized.
+- The decision body below preserves the reviewed proposal; its prospective
+  acceptance wording is historical, not a reversal of this acceptance metadata.
 
 ## Context and Problem Statement
 

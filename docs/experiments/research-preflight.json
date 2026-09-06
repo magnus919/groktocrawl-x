@@ -331,5 +331,17 @@
     "qdrant_removal_authorized": false,
     "comparison_authorized": false,
     "production_adoption": false
+  },
+  "consolidated_format": {
+    "status": "accepted_bounded_experimental_implementation",
+    "adr": "0075",
+    "decision_url": "https://github.com/magnus919/groktocrawl-x/issues/92",
+    "accepted_at": "2026-09-06",
+    "format_frozen": false,
+    "implementation_complete": false,
+    "initial_canonical_byte_limit": 1048576,
+    "legacy_readers_preserved": true,
+    "comparison_authorized": false,
+    "production_adoption": false
   }
 }
