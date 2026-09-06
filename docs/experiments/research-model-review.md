@@ -56,3 +56,20 @@ The latest owner instruction selected `local` for testing. Its bounded completio
 succeeded with finish reason `stop`; the response reported model `local`, leaving
 the underlying provider model unconfirmed. The configured adapter now defaults to
 `local`, matching the working production alias. No automatic fallback is used.
+
+## Query-driven construction in progress
+
+`construct_research()` takes a question and up to eight already captured sources,
+then makes one bounded model call through the same configured completion transport.
+The model proposes claims, exact evidence quotes, relationships, the answer or
+unresolved status, and conflicts. The server assigns scope/research/revision/source
+identities, captured content hashes and quote locations. Missing or ambiguous quotes,
+altered questions, invalid relationships and additional authority fields fail
+admission. Publication/effective dates remain unknown unless separately established;
+the model cannot supply them. Returned knowledge is explicitly unverified.
+
+This is the construction component of R1. Search/acquisition dispatch, execution
+budgets across stages, real verification/rendering/publication and API/CLI delivery
+still need integration. Its local tests use scripted model responses and do not
+establish real-model quality. The default completion model is the selected `local`
+alias; there are no implicit retries or alternate-model fallbacks.
