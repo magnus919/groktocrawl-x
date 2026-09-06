@@ -918,6 +918,9 @@ jobs:
             cmp "$migration_dir/$kind-before.json" "$migration_dir/$kind-restored.json"
           done
 
+      - name: Exercise complete research export snapshots
+        run: docker compose run --rm -T storage-adapter research-export
+
       - name: Rehearse backup restore and post-backup deletion
         run: |
           set -eu

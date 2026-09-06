@@ -122,3 +122,8 @@ historical re-render authorization and interchange integration remain open.
 step 3 with isolated schema-8 transactions and explicit historical re-rendering,
 subject to required actual PostgreSQL and restore checks. Complete-history
 export/import in step 4 remains open.
+
+[Complete research bundles](research-complete-bundles.md) implement step 4's bounded
+export and offline admission with complete predecessor/source closure. The version
+is explicit and legacy bundles remain unchanged. Live-origin-authorized import,
+recipient retention and deletion propagation for this new format remain open.

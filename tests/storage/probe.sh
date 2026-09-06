@@ -2,7 +2,7 @@
 # Only synthetic transport probes. Never an application migration or pilot gate.
 set -eu
 case "${1:-}" in
-  write|read|cleanup|adapter|revision|publication|rerender|export|import|expiry|research-publication|research|research-state|import-state|publication-state|revision-state|source-state|restore-seed|restore-delete|restore-verify) phase=$1 ;;
+  write|read|cleanup|adapter|revision|publication|rerender|export|import|expiry|research-export|research-publication|research|research-state|import-state|publication-state|revision-state|source-state|restore-seed|restore-delete|restore-verify) phase=$1 ;;
   *) echo 'Expected a documented storage test phase' >&2; exit 2 ;;
 esac
 umask 077
@@ -17,6 +17,7 @@ esac
 printf '%s:%s:%s:%s:%s\n' "$PGHOST" 5432 "$PGDATABASE" "$PGUSER" "$password" > "$PGPASSFILE"
 unset password
 case "$phase" in
+research-export) python /probes/test_research_bundle_db.py; exit ;;
 research-publication) python /probes/test_research_publication_db.py; exit ;;
 research) python /probes/test_research_store_db.py; exit ;;
 expiry) python /probes/test_expiry_store_db.py; exit ;;

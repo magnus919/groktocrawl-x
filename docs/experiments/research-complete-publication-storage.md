@@ -82,3 +82,7 @@ Complete-history export/import remains open under #71. Legacy bundle methods can
 export these new publication rows. Public principal authorization, independent
 semantic evaluation, human calibration, aggregate concurrency/memory sizing and
 production/pgvector adoption remain outside this bounded fixture implementation.
+
+[Complete research bundles](research-complete-bundles.md) now add read-only export
+and offline validation of these publications with their full selected ancestry.
+The complete-history import lifecycle remains a subsequent implementation step.
