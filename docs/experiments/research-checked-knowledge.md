@@ -108,3 +108,7 @@ forcibly terminate callback code. Receipts do not survive process loss. Callers 
 deadlines and shutdown, and no provider adapter, persistence, recovery, publication
 endpoint or human attestation is introduced. The audited manifest, publication
 gate, bounded research journey and retained integration remain under #94.
+
+Binding also requires all inputs issued by this owner for the same frozen context.
+Omitting a completed, failed or cancelled check cannot preserve publication eligibility.
+A new attempt requires an explicit controller decision and newly executed records.

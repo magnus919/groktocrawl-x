@@ -43,8 +43,8 @@ Mappings do not prove that every material assertion or caveat is represented, or
 that the referenced evidence supports the words. An applicable auditor must inspect
 the actual outputs and pinned knowledge for those semantic questions. A catalogue
 match and authored pass cannot substitute for that execution. Fixture evaluations
-must remain labeled fixtures. Audit execution, publication eligibility, the bounded
-research journey and retained integration remain under #94.
+must remain labeled fixtures. The execution and candidate gate below implement the next boundary; the bounded
+research journey and retained transaction integration remain under #94.
 
 ## Bounds and validation
 
@@ -63,3 +63,42 @@ completeness, caller/reviewer isolation, chronology, coverage, identity collisio
 negative records, oversized envelopes and cancellation. These are authored fixtures,
 not evidence of semantic research quality. Existing format readers and golden bytes
 are unchanged.
+
+## Executed audit and publication candidate
+
+`render_execution.py` now dispatches a configured auditor with the exact bounded
+manifest input, resolved checked knowledge, and all three validated output byte
+strings in manifest order. The owner issues the audit identity and UTC completion
+time, binds the canonical input digest, and retains only the exact result. A
+reconstructed pass, modified result or another owner's receipt cannot satisfy its
+binding check. Both execution owners require every issued input for the same
+knowledge context or manifest core to be represented, so omitted unfavorable or
+failed executions cannot be silently discarded. Closing the owner invalidates receipts. A callback that suppresses
+its own cancellation cannot record a late result. Callback occurrence does not
+prove semantic correctness; adapters remain trusted code and no provider is wired.
+
+A render owner permits 32 issued inputs and one active inspection, failing immediately
+when busy or exhausted. Failed/cancelled inputs consume their issuance allowance.
+Each result is limited to 16 KiB without truncation, bounding retained results to
+512 KiB. Inspection holds at most three 1 MiB output bodies, alongside bounded input
+and knowledge models; this is not a total-process-memory guarantee. The controller
+owns deadlines, cancellation and callback shutdown. These receipts are process-local
+and do not survive restart.
+
+`publication_gate.py:prepare_publication()` combines manifest resolution with
+complete supplied-history/source revalidation, then requires both live execution
+owners. All global structural and conflict/coverage checks must pass. Every mapped
+claim must be supported, outside unresolved conflict groups, and have passing
+support/freshness checks and only supported assessment records, including records
+omitted from the selected assessment links. Statement evidence must equal the checked
+support closure. Every render audit must pass. Missing checks, negative/indeterminate
+results, changed sources and closed owners prevent a candidate. Fixture provenance
+from either executor makes the candidate explicitly `fixture_only`.
+
+The returned `PublicationCandidate` is ephemeral input to a future fenced storage
+transaction, not a committed publication, durable authorization or public response.
+The caller still establishes current versus explicit historical selection, authentic
+retained ancestry, coherent reads, quotas and liveness at commit. No endpoint or
+writer consumes this candidate yet. The bounded research journey and retained
+transaction integration remain under #94. Authored fixture callbacks demonstrate
+control flow and cannot establish independently verified research quality.
