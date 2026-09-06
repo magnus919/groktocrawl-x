@@ -1,8 +1,8 @@
 # Bounded expiry collection contract
 
-Planned implementation for [issue #68](https://github.com/magnus919/groktocrawl-x/issues/68)
+Implementation contract for [issue #68](https://github.com/magnus919/groktocrawl-x/issues/68)
 under [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md).
-**The collector is not implemented yet.** Existing readers already deny expired
+**The isolated `ExpiryStore` implements this bounded contract.** Existing readers deny expired
 roots; this slice adds physical payload removal and quota release in the isolated
 experimental database. It does not complete W3 or adopt a background runtime.
 
@@ -15,8 +15,7 @@ It captures this bounded candidate list once; it does not keep discovering roots
 until a scope is empty. Candidates are hints, not permission to delete.
 
 Process each candidate in a separate transaction. Existing 30-second transaction,
-SQL and lock timeouts apply to each transaction. An invocation also needs an outer
-bound; propose a 60-second total deadline. A timeout or cancellation may leave
+SQL and lock timeouts apply to each transaction. The invocation also uses a 60-second total deadline. A timeout or cancellation may leave
 previous candidate transactions committed. Do not claim whole-pass rollback, undo
 completed purges, or resume automatically. Repeating an explicit pass is safe.
 The successful result lists bounded candidate outcomes and purge counts without
@@ -62,7 +61,7 @@ reads must fail. No immediate erasure of bytes already delivered to a client is 
 
 ## Storage and resource boundaries
 
-Plan an explicit forward schema-6 migration adding an index for scope-local live
+The explicit forward schema-6 migration adds an index for scope-local live
 expiry discovery. Keep readers for retained schemas and restore a private schema-5
 backup before calling migration validation complete. No automatic migration or
 modification of an already-applied migration file.
@@ -82,7 +81,7 @@ references are gone. Receipt/tombstone reclamation, pending-operation reconcilia
 inside otherwise live roots, aggregate connection admission and scheduled cleanup
 remain separate work.
 
-## Required evidence
+## Required CI evidence
 
 Actual PostgreSQL CI must cover:
 
@@ -106,3 +105,29 @@ Update the lifecycle/readiness guides with the actual tested behavior when the
 implementation lands. Synthetic tests do not establish semantic correctness,
 public authorization, production recovery, scheduling reliability or full W2/W3
 acceptance.
+
+## Internal usage and test scope
+
+Apply `ExpiryStore.migrate_expiry()` explicitly to an isolated schema-5 namespace,
+then invoke `collect_expired(scope, limit=20)` as a trusted authorized caller. The
+method returns immutable `CollectionOutcome` records with candidate root UUID,
+`purged`/`skipped` status and number of roots purged, including recipient dependencies.
+Exceptions retain their original type and carry a note that earlier candidates may
+have committed. There is no scheduled invocation or public route.
+
+The required `expiry` phase runs twenty-nine actual PostgreSQL cases: ten new expiry
+cases and nineteen import/export regressions on schema 6. A writer-lock test allows
+a staging deadline to elapse while the valid writer owns the lock, lets collection
+discover the old expired version, then commits renewal before collector ownership;
+the collector must skip it. Additional tests cover a stale hint, expired late
+writes, collection/import/deletion contention, shared blobs, bounded passes, quota,
+faults before commit and after acknowledgement loss, and partial-pass failure.
+These cases are not exhaustive interleavings. The index test inspects the catalog
+and a real query plan without demanding a specific tiny-table access strategy.
+
+CI compares source, revision, publication and import manifests from a restored
+schema-5 backup. The final schema-6 restore begins from a backup made before expiry
+collection, applies the resulting current deletion inventory, and verifies copied
+evidence stays denied. Its result records `post_backup_expiry_collection_reconciled`.
+No content dump is uploaded. Hosted success is required before merging; local pure
+tests alone do not validate these transactions.

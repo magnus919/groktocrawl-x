@@ -91,7 +91,8 @@ The isolated implementation now uses PostgreSQL and psycopg, with source, revisi
 publication, rerender, export and same-authority import cases in required CI.
 The [readiness checkpoint](research-w2-readiness.md) distinguishes those executed
 fixture contracts from this full acceptance matrix. [Expiry collection](research-expiry-collection.md)
-is planned and remains unimplemented. D5 must still define
+is implemented as a bounded internal call, with actual database race/restore cases
+required; automated scheduling remains absent. D5 must still define
 workflow ownership, crash resumption, staging renewal, retries and webhook outbox;
 D6 must define public errors, references, session transitions and CLI/API parity.
 A storage test passing cannot be reported as end-to-end durable job completion.
