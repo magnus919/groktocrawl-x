@@ -88,7 +88,7 @@ lease ownership, webhook or completed-job event in this slice.
 
 `install()` explicitly applies `001_source_staging.sql` in one transaction to a
 NEW `research_staging` namespace. It refuses an existing namespace without modifying
-its contents. Normal source operations accept schema versions 1, 2, 3, 4 and 5; there is no automatic
+its contents. Normal source operations accept schema versions 1, 2, 3, 4, 5 and 6; there is no automatic
 migration at import or service startup. This is the first forward migration only.
 Future changes to retained data require a reviewed migration, pre-migration backup
 and restore rehearsal. Do not use the test installer on a pilot or existing database.
@@ -126,12 +126,12 @@ substituted with mocks or silently skipped. Source references for the driver:
 The isolated prototype now retains structural revisions, audited fixture publications,
 historical re-renders and bounded export/import bundles with reference ledgers.
 Required CI includes backup restore and post-backup deletion reconciliation for
-these fixture artifacts. Complete Knowledge IR compatibility, physical expiry
+these fixture artifacts. Complete Knowledge IR compatibility, scheduled expiry
 collection, reservation reconciliation, bounded aggregate admission, measured
 capacity and the remaining adversarial/production recovery coverage are still
 required by the [lifecycle matrix](research-storage-lifecycle.md).
-[Bounded expiry collection](research-expiry-collection.md) is the next planned slice;
-its collector is not implemented yet. No W3 completion, restart-safe
+[Bounded expiry collection](research-expiry-collection.md) now supplies an explicit
+internal method; actual race/restore CI remains required and scheduling is absent. No W3 completion, restart-safe
 job execution, human calibration or pgvector/Qdrant adoption follows from these tests.
 
 A [bounded source restore rehearsal](research-source-restore.md) now exercises a
@@ -140,7 +140,7 @@ CI. It does not complete the full artifact or production recovery gates above.
 
 The [retained revision extension](research-retained-revisions.md) adds an explicit
 schema-2 migration. This version of SourceStore supports source operations on
-schema 1, 2, 3, 4 and 5 and removes dependent revision/publication payloads during root deletion.
+schema 1, 2, 3, 4, 5 and 6 and removes dependent revision/publication payloads during root deletion.
 The [fixture publication extension](research-retained-publications.md) adds schema 3,
 audited fixture outputs and thirty-day published-root retention.
 

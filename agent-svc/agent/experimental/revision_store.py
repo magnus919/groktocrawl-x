@@ -102,6 +102,7 @@ class RevisionStore(SourceStore):
             [{"version": 3}],
             [{"version": 4}],
             [{"version": 5}],
+            [{"version": 6}],
         ):
             raise StorageConflictError("revision schema unavailable")
 

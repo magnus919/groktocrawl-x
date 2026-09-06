@@ -63,7 +63,7 @@ class ImportStore(ArtifactBundleStore):
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version != [{"version": 5}]:
+        if version not in ([{"version": 5}], [{"version": 6}]):
             raise StorageConflictError("import schema unavailable")
 
     async def _match_origin(

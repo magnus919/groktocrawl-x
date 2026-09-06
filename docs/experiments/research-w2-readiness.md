@@ -104,8 +104,8 @@ passed all eleven checks and all five post-merge workflows; actual PostgreSQL CI
 ran 63 storage cases and restored nine retained imports while denying deleted
 copies. These are fixture lifecycle results, not remote authorization or W3 completion.
 
-The next storage slice is [bounded expiry collection](research-expiry-collection.md):
-read denial already exists, but automatic payload/quota reclamation does not.
-Its contract is planned; implementation and actual race/restore evidence remain
-required. Full IR compatibility, aggregate admission, measured capacity and the
+The [bounded expiry collector](research-expiry-collection.md) adds an explicit
+internal method for payload/quota reclamation on schema 6, with real database
+race and restore cases required in CI. No background schedule or production
+recovery service is introduced. Full IR compatibility, aggregate admission, measured capacity and the
 independent semantic evaluation gates above also remain open.

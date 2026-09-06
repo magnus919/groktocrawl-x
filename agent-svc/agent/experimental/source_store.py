@@ -103,6 +103,7 @@ class SourceStore:
                     [{"version": 3}],
                     [{"version": 4}],
                     [{"version": 5}],
+                    [{"version": 6}],
                 ):
                     raise StorageConflictError("unsupported storage schema")
             yield conn
@@ -393,16 +394,7 @@ class SourceStore:
             version = version_row["version"]
             if version >= 5:
                 await self._coordinate_imports(conn)
-                dependents = await (
-                    await conn.execute(
-                        "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s",
-                        (scope, root),
-                    )
-                ).fetchall()
-                roots = {(scope, root)} | {
-                    (r["scope_id"], r["root_id"]) for r in dependents
-                }
-                rows = await self._lock_roots(conn, roots)
+                rows = await self._lock_purge_roots(conn, scope, root)
                 for (target_scope, target_root), row in rows.items():
                     await self._purge_root(
                         conn, target_scope, target_root, row, version
@@ -410,6 +402,24 @@ class SourceStore:
             else:
                 row = await self._lock(conn, scope, root)
                 await self._purge_root(conn, scope, root, row, version)
+
+    async def _lock_purge_roots(
+        self, conn: Connection, scope: UUID, root: UUID
+    ) -> dict[tuple[UUID, UUID], dict[str, Any]]:
+        # Caller owns the import coordination lock before discovering dependencies.
+        dependents = await (
+            await conn.execute(
+                "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s LIMIT 21",
+                (scope, root),
+            )
+        ).fetchall()
+        if len(dependents) > 20:
+            raise StorageConflictError("import dependencies exceed purge bound")
+        roots = {(scope, root)} | {(r["scope_id"], r["root_id"]) for r in dependents}
+        rows = await self._lock_roots(conn, roots)
+        if rows[(scope, root)]["kind"] == "import" and dependents:
+            raise StorageConflictError("import root has invalid dependents")
+        return rows
 
     async def _purge_root(
         self,
