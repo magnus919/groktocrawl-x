@@ -10,7 +10,11 @@ import psycopg
 from agent.experimental.expiry_store import ExpiryStore
 from agent.experimental.import_store import ImportStore
 from agent.experimental.publication_store import PublicationStore
-from agent.experimental.research_bundle import ResearchBundleStore
+from agent.experimental.research_bundle import (
+    RESEARCH_BUNDLE_SCHEMA,
+    ResearchBundleStore,
+)
+from agent.experimental.research_import_store import ResearchImportStore
 from agent.experimental.research_publication_store import ResearchPublicationStore
 from agent.experimental.research_store import ResearchStore
 from agent.experimental.revision_store import RevisionStore
@@ -45,16 +49,16 @@ async def seed():
             SCOPE, root, 1, operation, body, "https://example.test/revision"
         )
         schema = await rows("SELECT version FROM research_staging.schema_version")
-        if schema in ([(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+        if schema in ([(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
             from test_revision_store_db import payload
 
             revisions = RevisionStore()
             revision = await revisions.reserve_revision(SCOPE, root, 1, None, 10000)
             raw = payload(SCOPE, root, revision, snapshot, body)
-            if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+            if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
                 raw = supported_revision(raw)
             await revisions.commit_revision(SCOPE, root, 1, revision, raw)
-            if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+            if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
                 publications = PublicationStore()
                 publication = await publications.reserve_publication(
                     SCOPE, root, 1, revision, 100000, CONTEXT
@@ -71,7 +75,7 @@ async def seed():
                     publication_payload(structure, publication),
                     CONTEXT,
                 )
-                if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+                if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
                     rerender = await publications.reserve_publication(
                         SCOPE,
                         root,
@@ -91,7 +95,7 @@ async def seed():
                         publication_payload(structure, rerender, CONTEXT_V2),
                         CONTEXT_V2,
                     )
-                if schema in ([(5,)], [(6,)], [(7,)], [(8,)]):
+                if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
                     imports = ImportStore()
                     recipient = uuid4()
                     await imports.provision_scope(recipient)
@@ -108,7 +112,7 @@ async def seed():
                         CONTEXT,
                     )
                     await imports.commit_import(recipient, target, bundle.data, CONTEXT)
-    if schema in ([(7,)], [(8,)]):
+    if schema in ([(7,)], [(8,)], [(9,)]):
         await seed_research()
     print("Seeded bounded restore fixtures")
 
@@ -142,7 +146,7 @@ async def seed_research():
                 (await store.read_research(RESEARCH_SCOPE, root, revision)).revision
             )
             schema = await rows("SELECT version FROM research_staging.schema_version")
-            if schema == [(8,)] and len(prior) == 1:
+            if schema in ([(8,)], [(9,)]) and len(prior) == 1:
                 from research_publication_fixture import research_publication_payload
 
                 publications = ResearchPublicationStore()
@@ -159,7 +163,7 @@ async def seed_research():
                     research_publication_payload(pinned, publication, CONTEXT),
                     CONTEXT,
                 )
-        if schema == [(8,)]:
+        if schema in ([(8,)], [(9,)]):
             original_revision = UUID(
                 prior[0].research.verifications.structure.revision_id
             )
@@ -182,6 +186,23 @@ async def seed_research():
                 research_publication_payload(pinned, rerender, CONTEXT_V2),
                 CONTEXT_V2,
             )
+        if schema == [(9,)]:
+            imports = ResearchImportStore()
+            recipient = uuid4()
+            await imports.provision_scope(recipient)
+            bundle = await imports.export_research_publication(
+                RESEARCH_SCOPE, root, rerender, CONTEXT_V2
+            )
+            target = await imports.reserve_import(
+                recipient,
+                RESEARCH_SCOPE,
+                root,
+                rerender,
+                bundle.data,
+                bundle.digest,
+                CONTEXT_V2,
+            )
+            await imports.commit_import(recipient, target, bundle.data, CONTEXT_V2)
 
 
 async def research_control():
@@ -209,7 +230,7 @@ async def marker():
 async def delete_and_inventory():
     root, _ = await marker()
     schema = await rows("SELECT version FROM research_staging.schema_version")
-    if schema in ([(6,)], [(7,)], [(8,)]):
+    if schema in ([(6,)], [(7,)], [(8,)], [(9,)]):
         await rows(
             "UPDATE research_staging.roots SET expires_at=now()-interval '1 second' WHERE scope_id=%s AND root_id=%s RETURNING root_id",
             (SCOPE, root),
@@ -221,7 +242,7 @@ async def delete_and_inventory():
             raise AssertionError("post-backup expiry collection did not purge control")
     else:
         await SourceStore().delete_root(SCOPE, root)
-    if schema in ([(7,)], [(8,)]):
+    if schema in ([(7,)], [(8,)], [(9,)]):
         research_root, _ = await research_control()
         await rows(
             "UPDATE research_staging.roots SET expires_at=now()-interval '1 second' WHERE scope_id=%s AND root_id=%s RETURNING root_id",
@@ -264,13 +285,13 @@ async def verify():
         raise AssertionError("backup fixture changed")
     schema = await rows("SELECT version FROM research_staging.schema_version")
     deleted_publications = []
-    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
         deleted_publications = await rows(
             "SELECT publication_id FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
             (SCOPE, root),
         )
         if len(deleted_publications) != (
-            2 if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)]) else 1
+            2 if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]) else 1
         ):
             raise AssertionError("pre-deletion published control missing")
         for (publication,) in deleted_publications:
@@ -281,7 +302,7 @@ async def verify():
                 await fixture_context(SCOPE, root, publication),
             )
     deleted_imports = []
-    if schema in ([(5,)], [(6,)], [(7,)], [(8,)]):
+    if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
         deleted_imports = await rows(
             "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s AND state='committed'",
             (SCOPE, root),
@@ -290,16 +311,17 @@ async def verify():
             raise AssertionError("pre-deletion imported control missing")
         for recipient, target in deleted_imports:
             await ImportStore().read_import(recipient, target, CONTEXT)
+    deleted_complete_imports = []
     deleted_complete_publications = []
     deleted_research = None
-    if schema in ([(7,)], [(8,)]):
+    if schema in ([(7,)], [(8,)], [(9,)]):
         deleted_research = await research_control()
         if (RESEARCH_SCOPE, deleted_research[0]) not in deleted:
             raise ValueError(
                 "complete research deletion history missing; keep quarantined"
             )
         await ResearchStore().read_research(RESEARCH_SCOPE, *deleted_research)
-        if schema == [(8,)]:
+        if schema in ([(8,)], [(9,)]):
             deleted_complete_publications = await rows(
                 "SELECT publication_id,context_digest FROM research_staging.research_publications WHERE scope_id=%s AND root_id=%s",
                 (RESEARCH_SCOPE, deleted_research[0]),
@@ -315,6 +337,15 @@ async def verify():
                     identity,
                     complete_context(digest),
                 )
+    if schema == [(9,)]:
+        deleted_complete_imports = await rows(
+            "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s AND state='committed'",
+            (RESEARCH_SCOPE, deleted_research[0]),
+        )
+        if len(deleted_complete_imports) != 1:
+            raise AssertionError("pre-deletion complete import control missing")
+        for recipient, target in deleted_complete_imports:
+            await ResearchImportStore().read_import(recipient, target, CONTEXT_V2)
     for scope, deleted_root in deleted:
         existing = await rows(
             "SELECT 1 FROM research_staging.roots WHERE scope_id=%s AND root_id=%s",
@@ -344,6 +375,13 @@ async def verify():
             pass
         else:
             raise AssertionError("deleted complete publication re-exposed")
+    for recipient, target in deleted_complete_imports:
+        try:
+            await ResearchImportStore().read_import(recipient, target, CONTEXT_V2)
+        except StorageConflictError:
+            pass
+        else:
+            raise AssertionError("deleted complete import re-exposed")
     for recipient, target in deleted_imports:
         try:
             await ImportStore().read_import(recipient, target, CONTEXT)
@@ -378,7 +416,7 @@ async def verify():
         raise AssertionError("live receipt reference unresolved")
     schema = await rows("SELECT version FROM research_staging.schema_version")
     revision_count = 0
-    if schema in ([(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+    if schema in ([(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
         revisions = await rows(
             "SELECT v.scope_id,v.root_id,v.revision_id FROM research_staging.revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -396,7 +434,7 @@ async def verify():
         if deleted_revisions[0][0] != 0:
             raise AssertionError("deleted revision bodies survived reconciliation")
     publication_count = 0
-    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)]):
+    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
         publications = await rows(
             "SELECT p.scope_id,p.root_id,p.publication_id FROM research_staging.publications p JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -424,7 +462,8 @@ async def verify():
         if not any(scope == SCOPE for scope, _, _ in publications):
             raise AssertionError("retained publication control missing")
     import_count = 0
-    if schema in ([(5,)], [(6,)], [(7,)], [(8,)]):
+    complete_import_count = 0
+    if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
         imported = await rows(
             "SELECT o.scope_id,o.root_id,o.context_digest,o.origin_scope_id FROM research_staging.import_operations o JOIN research_staging.roots r USING(scope_id,root_id) WHERE o.state='committed' AND NOT r.deleted AND r.expires_at>now()"
         )
@@ -432,15 +471,24 @@ async def verify():
         for recipient, target, context_digest, _ in imported:
             if context_digest not in trusted:
                 raise AssertionError("unknown fixture import context")
-            value = await ImportStore().read_import(
-                recipient, target, trusted[context_digest]
-            )
+            reader = await import_reader(recipient, target)
+            value = await reader.read_import(recipient, target, trusted[context_digest])
             if (
-                await ImportStore().import_receipt(recipient, target)
+                await reader.import_receipt(recipient, target)
                 != value.bundle.document.digest
             ):
                 raise AssertionError("import receipt digest mismatch")
-        import_count = len(imported)
+            if isinstance(reader, ResearchImportStore):
+                complete_import_count += 1
+            else:
+                import_count += 1
+        if schema == [(9,)]:
+            controls = await rows(
+                "SELECT count(*) FROM research_staging.import_operations o JOIN research_staging.roots r USING(scope_id,root_id) WHERE o.origin_scope_id=%s AND o.state='committed' AND NOT r.deleted AND r.expires_at>now()",
+                (RESEARCH_SCOPE,),
+            )
+            if controls[0][0] != 1:
+                raise AssertionError("retained complete import control missing")
         if not any(origin == SCOPE for _, _, _, origin in imported):
             raise AssertionError("retained imported control missing")
         purged = await rows(
@@ -449,7 +497,7 @@ async def verify():
         if purged[0][0]:
             raise AssertionError("deleted imported bodies survived reconciliation")
     research_count = 0
-    if schema in ([(7,)], [(8,)]):
+    if schema in ([(7,)], [(8,)], [(9,)]):
         research = await rows(
             "SELECT v.scope_id,v.root_id,v.revision_id FROM research_staging.research_revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -472,7 +520,7 @@ async def verify():
         if unresolved[0][0] or purged[0][0]:
             raise AssertionError("complete research restore closure failed")
     complete_publication_count = (
-        await verify_complete_publications() if schema == [(8,)] else 0
+        await verify_complete_publications() if schema in ([(8,)], [(9,)]) else 0
     )
     version = await rows("SHOW server_version")
     print(
@@ -487,10 +535,11 @@ async def verify():
                 "verified_complete_research_publications": complete_publication_count,
                 "verified_complete_research_exports": complete_publication_count,
                 "verified_live_imports": import_count,
+                "verified_complete_research_imports": complete_import_count,
                 "deletion_inventory_entries": len(deleted),
                 "post_backup_deletion_denied": True,
                 "post_backup_expiry_collection_reconciled": schema
-                in ([(6,)], [(7,)], [(8,)]),
+                in ([(6,)], [(7,)], [(8,)], [(9,)]),
                 "live_receipt_references_resolve": True,
             }
         )
@@ -589,6 +638,39 @@ async def research_state():
     )
 
 
+async def import_reader(scope, root):
+    schema = await rows("SELECT version FROM research_staging.schema_version")
+    if schema == [(9,)]:
+        value = await rows(
+            "SELECT bundle_schema FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s",
+            (scope, root),
+        )
+        if value == [(RESEARCH_BUNDLE_SCHEMA,)]:
+            return ResearchImportStore()
+    return ImportStore()
+
+
+async def research_publication_state():
+    store = ResearchBundleStore()
+    values = await rows(
+        "SELECT scope_id,root_id,publication_id,context_digest FROM research_staging.research_publications ORDER BY scope_id,root_id,publication_id"
+    )
+    manifest = []
+    for scope, root, publication, digest in values:
+        value = await store.export_research_publication(
+            scope, root, publication, complete_context(digest)
+        )
+        manifest.append([str(scope), str(root), str(publication), value.digest])
+    digest = hashlib.sha256(
+        json.dumps(manifest, separators=(",", ":")).encode()
+    ).hexdigest()
+    print(
+        json.dumps(
+            {"complete_publications": len(manifest), "fixture_manifest_sha256": digest}
+        )
+    )
+
+
 async def import_state():
     retained = await rows(
         "SELECT o.scope_id,o.root_id,o.context_digest FROM research_staging.import_operations o JOIN research_staging.imported_bundles b USING(scope_id,root_id) ORDER BY o.scope_id,o.root_id"
@@ -598,7 +680,8 @@ async def import_state():
     for scope, root, digest in retained:
         if digest not in trusted:
             raise AssertionError("unknown fixture import context")
-        value = await ImportStore().read_import(scope, root, trusted[digest])
+        reader = await import_reader(scope, root)
+        value = await reader.read_import(scope, root, trusted[digest])
         manifest.append([str(scope), str(root), value.bundle.document.digest])
     digest = hashlib.sha256(
         json.dumps(manifest, separators=(",", ":")).encode()
@@ -656,6 +739,7 @@ if __name__ == "__main__":
         "publication-state": publication_state,
         "import-state": import_state,
         "research-state": research_state,
+        "research-publication-state": research_publication_state,
         "restore-seed": seed,
         "restore-delete": delete_and_inventory,
         "restore-verify": verify,
