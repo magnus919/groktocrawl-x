@@ -10,7 +10,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from capacity_common import DESIGN, digest, summaries
+from capacity_common import DESIGN, adapter_identity, digest, summaries
 
 
 class Runner:
@@ -80,6 +80,30 @@ class Runner:
                     ).stdout.split()
                     if not ids:
                         raise RuntimeError("no project containers")
+                    observed = subprocess.run(
+                        [
+                            "docker",
+                            "inspect",
+                            "--format",
+                            '{"image_id":{{json .Image}},"memory_bytes":{{json .HostConfig.Memory}},"nano_cpus":{{json .HostConfig.NanoCpus}}}',
+                            self.container,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        check=False,
+                    )
+                    if observed.returncode == 0:
+                        try:
+                            identity = adapter_identity(observed.stdout)
+                        except ValueError:
+                            self.report["adapter_identity_invalid"] = True
+                            raise
+                        record["adapter_identity"] = identity
+                        previous = self.report.get("adapter_identity")
+                        if previous is not None and identity != previous:
+                            self.report["adapter_identity_changed"] = True
+                        self.report["adapter_identity"] = identity
                     stats = subprocess.run(
                         [
                             "docker",
@@ -174,11 +198,6 @@ class Runner:
                 .stdout.decode()
                 .strip()
             )
-            self.report["adapter_image_id"] = (
-                self.compose(["images", "-q", "storage-adapter"])
-                .stdout.decode()
-                .strip()
-            )
             config = json.loads(self.compose(["config", "--format", "json"]).stdout)
             self.report["adapter_limits"] = {
                 key: config["services"]["storage-adapter"].get(key)
@@ -251,6 +270,12 @@ class Runner:
                 )
             with manifest_path.open("rb") as source:
                 self.phase("verify-restored", "research_capacity_restore", source)
+            if "adapter_identity" not in self.report or self.report.get(
+                "adapter_identity_changed"
+            ):
+                raise RuntimeError(
+                    "adapter image/resource identity unavailable or changed"
+                )
             self.report["status"] = "verified_feasibility_sample"
         except BaseException as exc:
             self.report["status"] = "failed"

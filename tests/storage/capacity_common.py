@@ -54,3 +54,23 @@ def format_boundary_payload(raw):
     for audit in data["publication"]["audits"]:
         audit["reason"] = "Synthetic format boundary. " + "🧪" * 70000
     return json.dumps(data, ensure_ascii=False).encode()
+
+
+def adapter_identity(raw):
+    """Require the observed container image and effective declared resource limits."""
+    value = json.loads(raw)
+    image = value.get("image_id", "")
+    if (
+        not isinstance(image, str)
+        or not image.startswith("sha256:")
+        or len(image) != 71
+    ):
+        raise ValueError("missing adapter image identity")
+    if any(char not in "0123456789abcdef" for char in image[7:]):
+        raise ValueError("invalid adapter image identity")
+    if (
+        value.get("memory_bytes") != 256 * MIB
+        or value.get("nano_cpus") != 1_000_000_000
+    ):
+        raise ValueError("adapter limits differ from the declared probe")
+    return value
