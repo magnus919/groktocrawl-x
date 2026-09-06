@@ -48,6 +48,7 @@ class ExpiryStore(ImportStore):
             [{"version": 7}],
             [{"version": 8}],
             [{"version": 9}],
+            [{"version": 10}],
         ):
             raise StorageConflictError("expiry schema unavailable")
         return int(version[0]["version"])

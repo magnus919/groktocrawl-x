@@ -154,6 +154,11 @@ class ConsolidatedFixtureJourney:
         artifact_set_id: str,
         clock: Callable[[], datetime],
         timeout_seconds: int = 30,
+        commit: Callable[
+            [JourneyResult, KnowledgeExecutionLedger, RenderExecutionLedger],
+            Awaitable[None],
+        ]
+        | None = None,
     ) -> None:
         context_document = admit_canonical_json(
             json.dumps(
@@ -207,6 +212,7 @@ class ConsolidatedFixtureJourney:
             clock,
             timeout_seconds,
         )
+        self._commit = commit
         self._started = False
         self._deadline = 0.0
 
@@ -358,10 +364,15 @@ class ConsolidatedFixtureJourney:
         self._live()
         if not candidate.fixture_only:
             raise ValueError("fixture journey cannot promote reviewer provenance")
-        return JourneyResult(
+        result = JourneyResult(
             candidate,
             document.data,
             manifest_bytes,
             tuple(material.sources.values()),
             tuple(material.outputs.values()),
         )
+
+        if self._commit is not None:
+            await self._commit(result, knowledge_owner, render_owner)
+            self._live()
+        return result

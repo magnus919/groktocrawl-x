@@ -182,3 +182,33 @@ async def test_deadline_stops_waiting_acquisition():
 def test_invalid_deadline_is_rejected_before_work(timeout):
     with pytest.raises(ValueError):
         example_journey(timeout_seconds=timeout)
+
+
+@pytest.mark.asyncio
+async def test_commit_hook_runs_with_live_owners_and_closes_them_afterward():
+    observed = []
+
+    async def commit(result, knowledge_owner, render_owner):
+        assert knowledge_owner.check_bindings(result.candidate.admitted.knowledge)
+        assert render_owner.check_bindings(result.candidate.admitted.manifest)
+        observed.extend((knowledge_owner, render_owner))
+
+    result = await example_journey(commit=commit).run()
+    assert len(observed) == 2
+    with pytest.raises(ValueError, match="closed"):
+        observed[0].check_bindings(result.candidate.admitted.knowledge)
+    with pytest.raises(ValueError, match="closed"):
+        observed[1].check_bindings(result.candidate.admitted.manifest)
+
+
+@pytest.mark.asyncio
+async def test_commit_failure_propagates_without_retry():
+    calls = []
+
+    async def commit(_result, _knowledge, _render):
+        calls.append(1)
+        raise ConnectionError("unknown commit acknowledgement")
+
+    with pytest.raises(ConnectionError):
+        await example_journey(commit=commit).run()
+    assert calls == [1]

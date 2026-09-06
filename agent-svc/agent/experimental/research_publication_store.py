@@ -37,7 +37,7 @@ class ResearchPublicationStore(ResearchStore):
         current = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if current not in ([{"version": 8}], [{"version": 9}]):
+        if current not in ([{"version": 8}], [{"version": 9}], [{"version": 10}]):
             raise StorageConflictError("complete publication schema unavailable")
 
     async def reserve_research_publication(

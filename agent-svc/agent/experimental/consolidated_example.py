@@ -1,13 +1,14 @@
 """Synthetic enterprise software-factory example; no real research findings."""
 
 import json
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 
 from .checked_knowledge import CheckedKnowledge
 from .consolidated_journey import (
     Acquire,
     ConsolidatedFixtureJourney,
+    JourneyResult,
     Render,
     RenderedReport,
 )
@@ -15,8 +16,12 @@ from .context_sources import ResolvedContextSource
 from .knowledge import text_digest
 from .knowledge_checks import FixtureReviewer, KnowledgeCheckInput
 from .knowledge_context import ContentReference, KnowledgeContext
-from .knowledge_execution import CheckExecutor, ExecutionDecision
-from .render_execution import RenderExecutor, RenderInspection
+from .knowledge_execution import (
+    CheckExecutor,
+    ExecutionDecision,
+    KnowledgeExecutionLedger,
+)
+from .render_execution import RenderExecutionLedger, RenderExecutor, RenderInspection
 from .render_manifest import ManifestArtifact, Renderer
 
 BODIES = (
@@ -270,6 +275,11 @@ def example_journey(
     audit: RenderExecutor = example_auditor,
     acquisitions: Mapping[str, Acquire] | None = None,
     timeout_seconds: int = 30,
+    commit: Callable[
+        [JourneyResult, KnowledgeExecutionLedger, RenderExecutionLedger],
+        Awaitable[None],
+    ]
+    | None = None,
 ) -> ConsolidatedFixtureJourney:
     context = example_context()
     callbacks = {}
@@ -297,4 +307,5 @@ def example_journey(
         artifact_set_id="reports-1",
         clock=lambda: datetime(2026, 9, 7, tzinfo=UTC),
         timeout_seconds=timeout_seconds,
+        commit=commit,
     )

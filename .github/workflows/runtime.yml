@@ -938,6 +938,23 @@ jobs:
             cmp "$migration_dir/$kind-before.json" "$migration_dir/$kind-restored.json"
           done
 
+      - name: Back up schema nine and exercise consolidated journey storage
+        run: |
+          set -euo pipefail
+          umask 077
+          migration_dir=$(mktemp -d "$RUNNER_TEMP/consolidated-migration.XXXXXX")
+          for kind in source revision publication import research research-publication; do
+            docker compose run --rm -T storage-adapter "$kind-state" > "$migration_dir/$kind-before.json"
+          done
+          docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$migration_dir/schema-nine.sql"
+          docker compose run --rm -T storage-adapter consolidated
+          docker compose exec -T research-postgres createdb -U research_owner research_pre_consolidated_restore
+          docker compose exec -T research-postgres psql -X -U research_owner -d research_pre_consolidated_restore --set=ON_ERROR_STOP=1 --single-transaction < "$migration_dir/schema-nine.sql"
+          for kind in source revision publication import research research-publication; do
+            docker compose run --rm -T -e PGDATABASE=research_pre_consolidated_restore storage-adapter "$kind-state" > "$migration_dir/$kind-restored.json"
+            cmp "$migration_dir/$kind-before.json" "$migration_dir/$kind-restored.json"
+          done
+
       - name: Verify bounded storage connection admission
         run: docker compose run --rm -T storage-adapter admission
 
@@ -973,6 +990,32 @@ jobs:
         with:
           name: source-storage-restore-result
           path: restore-result.json
+          if-no-files-found: error
+      - name: Rehearse consolidated restore and post-backup deletion
+        run: |
+          set -euo pipefail
+          umask 077
+          restore_dir=$(mktemp -d "$RUNNER_TEMP/consolidated-restore.XXXXXX")
+          docker compose run --rm -T storage-adapter consolidated-restore-seed > "$restore_dir/seed.json"
+          docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$restore_dir/backup.sql"
+          docker compose run --rm -T storage-adapter consolidated-restore-delete < "$restore_dir/seed.json" > "$restore_dir/current.json"
+          docker compose exec -T research-postgres createdb -U research_owner research_consolidated_restore
+          docker compose exec -T research-postgres psql -X -U research_owner -d research_consolidated_restore --set=ON_ERROR_STOP=1 --single-transaction < "$restore_dir/backup.sql"
+          if docker compose run --rm -T -e PGDATABASE=research_consolidated_restore storage-adapter consolidated-restore-verify < /dev/null; then
+            echo 'Consolidated restore accepted missing deletion history' >&2
+            exit 1
+          fi
+          if docker compose run --rm -T -e PGDATABASE=research_consolidated_restore storage-adapter consolidated-restore-verify < "$restore_dir/seed.json"; then
+            echo 'Consolidated restore accepted stale deletion history' >&2
+            exit 1
+          fi
+          docker compose run --rm -T -e PGDATABASE=research_consolidated_restore storage-adapter consolidated-restore-verify < "$restore_dir/current.json" > consolidated-restore-result.json
+          cat consolidated-restore-result.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload consolidated restore result
+        uses: actions/upload-artifact@v7
+        with:
+          name: consolidated-storage-restore-result
+          path: consolidated-restore-result.json
           if-no-files-found: error
       - name: Measure declared retained-storage capacity
         timeout-minutes: 22
