@@ -76,7 +76,7 @@ class ReviewTransport:
 
 
 def configured_model_review(
-    client: httpx.AsyncClient, *, base_url: str, api_key: str, model: str = "luna"
+    client: httpx.AsyncClient, *, base_url: str, api_key: str, model: str = "local"
 ) -> ModelReviewAdapter:
     """Wire the experimental reviewer to the owner's LiteLLM alias.
 

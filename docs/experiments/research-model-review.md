@@ -45,9 +45,14 @@ against the incumbent using the same sources and model settings.
 
 Magnus subsequently selected `luna` explicitly after a second `general` probe
 still returned DeepSeek. `configured_model_review(client, base_url=..., api_key=...)`
-wires the adapter to `luna` by default, independently of the inherited production
+initially wired the adapter to `luna` by default, independently of the inherited production
 `LLM_MODEL`. An explicit model argument can override it; failure never silently
 falls back to `general` or `local`. The first live `luna` probe returned an HTTP
 403 `user_model_access_denied`: the existing key permits only `general`,
 `local` and `cron`. That key needs access to `luna`. Routing configuration is implemented, but successful Luna inference is not
 yet established. Gateway diagnosis is separate from local transport validation.
+
+The latest owner instruction selected `local` for testing. Its bounded completion
+succeeded with finish reason `stop`; the response reported model `local`, leaving
+the underlying provider model unconfirmed. The configured adapter now defaults to
+`local`, matching the working production alias. No automatic fallback is used.

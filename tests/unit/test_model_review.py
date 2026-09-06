@@ -17,7 +17,7 @@ from agent.experimental.model_transport import ReviewTransport
 
 def configured(complete, **kwargs):
     adapter = ModelReviewAdapter(
-        provider="configured-litellm", model="luna", complete=complete, **kwargs
+        provider="configured-litellm", model="local", complete=complete, **kwargs
     )
     journey = example_journey()
     payload = journey._checks[0].model_dump(mode="json")
@@ -134,7 +134,7 @@ async def test_transport_uses_alias_and_rejects_nonfinal_results(finish):
         transport = ReviewTransport(
             client, base_url="https://gateway.invalid/v1", api_key="test"
         )
-        request = ReviewRequest("review", b"{}", "luna", 32)
+        request = ReviewRequest("review", b"{}", "local", 32)
         if finish == "stop":
             result = await transport(request)
             assert result.input_tokens is None
@@ -143,7 +143,7 @@ async def test_transport_uses_alias_and_rejects_nonfinal_results(finish):
             with pytest.raises(ValueError, match="transport failed"):
                 await transport(request)
     assert len(calls) == 1
-    assert calls[0]["model"] == "luna"
+    assert calls[0]["model"] == "local"
 
 
 @pytest.mark.asyncio
@@ -182,7 +182,7 @@ async def test_cancellation_cannot_accept_suppressed_child_result():
 
 
 @pytest.mark.asyncio
-async def test_configured_luna_route_denial_does_not_fallback():
+async def test_configured_route_denial_does_not_fallback():
     from agent.experimental.model_transport import configured_model_review
 
     calls = []
@@ -206,5 +206,5 @@ async def test_configured_luna_route_denial_does_not_fallback():
 
         with pytest.raises(ValueError, match="no judgment accepted"):
             await adapter.verify(checked, Sources())
-    assert calls == ["luna"]
+    assert calls == ["local"]
     assert adapter.usage == ()
