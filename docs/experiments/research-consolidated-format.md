@@ -227,5 +227,7 @@ remain incomplete; this is not format freeze.
 [Input-bound checks and supplied history](research-checked-knowledge.md) now extend
 that context with immutable verification/assessment records and full prefix checks.
 They remain prototype contracts, without publication authority or stored-current-parent
-proof. Manifest admission, trusted execution binding, the journey and retained
-integration remain under #94.
+proof. Configured knowledge execution is now implemented; publication integration, the
+journey and retained integration remain under #94. See the
+[manifest admission guide](research-render-manifest.md) for pinned output validation
+and its remaining audit execution/publication boundary.
