@@ -223,3 +223,9 @@ non-result context and caller-supplied source-resolution boundary under issue #9
 It uses an explicit prototype envelope and preserves legacy formats. Full check
 records, history, manifest admission, the research journey and retained integration
 remain incomplete; this is not format freeze.
+
+[Input-bound checks and supplied history](research-checked-knowledge.md) now extend
+that context with immutable verification/assessment records and full prefix checks.
+They remain prototype contracts, without publication authority or stored-current-parent
+proof. Manifest admission, trusted execution binding, the journey and retained
+integration remain under #94.
