@@ -105,3 +105,8 @@ explicit isolated harness, without dropping existing databases or volumes.
 Cross-scope import, signatures/authentication, current deletion authority,
 full Knowledge IR compatibility, automatic GC and remaining W2/W3 acceptance
 remain separate work.
+
+The next implementation is specified in the [import transaction and revocation
+contract](research-import-contract.md). It plans same-authority recipient mapping
+and atomic origin revocation; import remains unimplemented until its code and
+required database evidence land.
