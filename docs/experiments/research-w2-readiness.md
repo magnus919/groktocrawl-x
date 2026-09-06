@@ -109,3 +109,13 @@ internal method for payload/quota reclamation on schema 6, with real database
 race and restore cases required in CI. No background schedule or production
 recovery service is introduced. Full IR compatibility, aggregate admission, measured capacity and the
 independent semantic evaluation gates above also remain open.
+
+## Complete revision compatibility follow-up
+
+The [field and behavior disposition](research-ir-compatibility.md) compares the
+implemented prototype with ADR-0069 after the storage lifecycle slices. Its primary
+remaining gap is complete retained research history: the full in-memory revision
+validator checks more entities and provenance than persisted structural revisions.
+Issue [#71](https://github.com/magnus919/groktocrawl-x/issues/71) tracks complete
+fixture-revision persistence and subsequent publication/interchange integration.
+No format is renamed to `knowledge-ir/1` by this audit.
