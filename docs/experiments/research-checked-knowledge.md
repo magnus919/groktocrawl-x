@@ -71,7 +71,40 @@ bindings, forbidden human records, freshness denial, source closure including
 contradictory premises, twenty-revision admission, invalid ancestry and identity
 reuse after removal. These are structural fixture cases, not semantic-quality scores.
 
-Remaining under #94: trusted execution/publication binding and the separate audited
-manifest, then the bounded acquisition-to-output journey and actual retained
+Remaining under #94: publication integration of the execution boundary below and
+the separate audited manifest, then the bounded acquisition-to-output journey and actual retained
 integration/round trip. Supplied-history validation alone does not implement that
 retained integration or finish the research journey.
+
+## Configured execution boundary
+
+`knowledge_execution.py` adds `KnowledgeExecutionLedger`: a trusted controller
+registers exact reviewer metadata with an async callback, then dispatches the
+complete check input. The ledger creates the result ID, input digest and UTC
+completion time itself. `check_bindings()` rejects otherwise valid knowledge when
+any result was not returned by this live ledger, or any result field was changed.
+It returns whether any bound input uses a fixture reviewer so later publication
+can preserve fixture labeling. This return value is not a portable certificate.
+
+Registration and clock are server configuration, not request parameters. Callbacks
+are trusted in-process code; this mechanism proves callback occurrence and exact
+result binding, not that a source was read or a semantic judgment was correct.
+Negative and indeterminate results remain negative or indeterminate. Publication
+must separately enforce required checks, assessments, conflict handling, current
+source authority and lifecycle constraints. Call `check_bindings()` again at use.
+
+One ledger belongs to one controller/event loop. Defaults are 64 issued operations,
+eight concurrent callbacks and 16 KiB reserved per result. Configurable ceilings
+are 6,000 operations, eight concurrent callbacks and 1 MiB per result. Retained
+result bytes plus worst-case in-flight result reservations cannot exceed 1 MiB;
+this is not a bound on total process memory. Admission fails immediately when full;
+there is no queue or retry. Failed and cancelled calls consume their input identity
+and operation allowance, but release the in-flight slot and byte reservation.
+Oversized results fail without truncation. Cancellation cannot record a late pass
+even if a child callback suppresses its own cancellation.
+
+Closing the ledger invalidates receipts and rejects late completion; it does not
+forcibly terminate callback code. Receipts do not survive process loss. Callers own
+deadlines and shutdown, and no provider adapter, persistence, recovery, publication
+endpoint or human attestation is introduced. The audited manifest, publication
+gate, bounded research journey and retained integration remain under #94.
