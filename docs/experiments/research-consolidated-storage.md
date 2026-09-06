@@ -74,3 +74,23 @@ The restore result is uploaded as `consolidated-storage-restore-result`. Success
 CI is required before claiming these PostgreSQL guarantees. The rehearsal uses only
 fictional fixtures and a dedicated scratch database; it does not establish a
 production recovery objective or a restart-safe research executor.
+
+## Verified bounded milestone
+
+[PR #101](https://github.com/magnus919/groktocrawl-x/pull/101) merged on
+2026-09-06. All five workflows passed on merged commit
+`ebf0d4baf7fd875959ebdd75bea20d21c75d9f12`, including the
+[Runtime CI run](https://github.com/magnus919/groktocrawl-x/actions/runs/34064859486).
+The PR's [database probe run](https://github.com/magnus919/groktocrawl-x/actions/runs/34063576277)
+passed 85 database tests: 11 consolidated cases and 74 inherited regression cases.
+Its downloaded `consolidated-storage-restore-result` artifact confirmed exact
+retained content, deleted content unavailable, deleted payload rows and references
+purged, metadata receipt preserved, and fixture provenance preserved.
+The local unit/service suite passed 3,271 tests with seven skips.
+
+This completes the implemented journey and isolated retained round trip requested
+by #94. It demonstrates that the experimental components work together and reject
+the tested invalid states. The judgments and reports still come from authored
+fixtures. Real research quality, independent verifier accuracy, provider adapters,
+consolidated successor history and operational deployment remain outside this
+milestone; PostgreSQL vector storage and Qdrant replacement are still undecided.
