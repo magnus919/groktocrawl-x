@@ -231,3 +231,8 @@ proof. Configured knowledge execution is now implemented; publication integratio
 journey and retained integration remain under #94. See the
 [manifest admission guide](research-render-manifest.md) for pinned output validation
 and its remaining audit execution/publication boundary.
+
+The [bounded consolidated fixture journey](research-consolidated-journey.md) now
+connects acquisition, construction, executed verification, all three report layers
+and the publication candidate gate. It preserves fixture provenance and incomplete
+coverage. Actual retained transaction/round-trip integration remains under #94.
