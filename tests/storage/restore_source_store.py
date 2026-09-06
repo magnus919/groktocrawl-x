@@ -49,16 +49,44 @@ async def seed():
             SCOPE, root, 1, operation, body, "https://example.test/revision"
         )
         schema = await rows("SELECT version FROM research_staging.schema_version")
-        if schema in ([(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+        if schema in (
+            [(2,)],
+            [(3,)],
+            [(4,)],
+            [(5,)],
+            [(6,)],
+            [(7,)],
+            [(8,)],
+            [(9,)],
+            [(10,)],
+        ):
             from test_revision_store_db import payload
 
             revisions = RevisionStore()
             revision = await revisions.reserve_revision(SCOPE, root, 1, None, 10000)
             raw = payload(SCOPE, root, revision, snapshot, body)
-            if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+            if schema in (
+                [(3,)],
+                [(4,)],
+                [(5,)],
+                [(6,)],
+                [(7,)],
+                [(8,)],
+                [(9,)],
+                [(10,)],
+            ):
                 raw = supported_revision(raw)
             await revisions.commit_revision(SCOPE, root, 1, revision, raw)
-            if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+            if schema in (
+                [(3,)],
+                [(4,)],
+                [(5,)],
+                [(6,)],
+                [(7,)],
+                [(8,)],
+                [(9,)],
+                [(10,)],
+            ):
                 publications = PublicationStore()
                 publication = await publications.reserve_publication(
                     SCOPE, root, 1, revision, 100000, CONTEXT
@@ -75,7 +103,7 @@ async def seed():
                     publication_payload(structure, publication),
                     CONTEXT,
                 )
-                if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+                if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
                     rerender = await publications.reserve_publication(
                         SCOPE,
                         root,
@@ -95,7 +123,7 @@ async def seed():
                         publication_payload(structure, rerender, CONTEXT_V2),
                         CONTEXT_V2,
                     )
-                if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+                if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
                     imports = ImportStore()
                     recipient = uuid4()
                     await imports.provision_scope(recipient)
@@ -112,7 +140,7 @@ async def seed():
                         CONTEXT,
                     )
                     await imports.commit_import(recipient, target, bundle.data, CONTEXT)
-    if schema in ([(7,)], [(8,)], [(9,)]):
+    if schema in ([(7,)], [(8,)], [(9,)], [(10,)]):
         await seed_research()
     print("Seeded bounded restore fixtures")
 
@@ -146,7 +174,7 @@ async def seed_research():
                 (await store.read_research(RESEARCH_SCOPE, root, revision)).revision
             )
             schema = await rows("SELECT version FROM research_staging.schema_version")
-            if schema in ([(8,)], [(9,)]) and len(prior) == 1:
+            if schema in ([(8,)], [(9,)], [(10,)]) and len(prior) == 1:
                 from research_publication_fixture import research_publication_payload
 
                 publications = ResearchPublicationStore()
@@ -163,7 +191,7 @@ async def seed_research():
                     research_publication_payload(pinned, publication, CONTEXT),
                     CONTEXT,
                 )
-        if schema in ([(8,)], [(9,)]):
+        if schema in ([(8,)], [(9,)], [(10,)]):
             original_revision = UUID(
                 prior[0].research.verifications.structure.revision_id
             )
@@ -186,7 +214,7 @@ async def seed_research():
                 research_publication_payload(pinned, rerender, CONTEXT_V2),
                 CONTEXT_V2,
             )
-        if schema == [(9,)]:
+        if schema in ([(9,)], [(10,)]):
             imports = ResearchImportStore()
             recipient = uuid4()
             await imports.provision_scope(recipient)
@@ -230,7 +258,7 @@ async def marker():
 async def delete_and_inventory():
     root, _ = await marker()
     schema = await rows("SELECT version FROM research_staging.schema_version")
-    if schema in ([(6,)], [(7,)], [(8,)], [(9,)]):
+    if schema in ([(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
         await rows(
             "UPDATE research_staging.roots SET expires_at=now()-interval '1 second' WHERE scope_id=%s AND root_id=%s RETURNING root_id",
             (SCOPE, root),
@@ -242,7 +270,7 @@ async def delete_and_inventory():
             raise AssertionError("post-backup expiry collection did not purge control")
     else:
         await SourceStore().delete_root(SCOPE, root)
-    if schema in ([(7,)], [(8,)], [(9,)]):
+    if schema in ([(7,)], [(8,)], [(9,)], [(10,)]):
         research_root, _ = await research_control()
         await rows(
             "UPDATE research_staging.roots SET expires_at=now()-interval '1 second' WHERE scope_id=%s AND root_id=%s RETURNING root_id",
@@ -285,13 +313,15 @@ async def verify():
         raise AssertionError("backup fixture changed")
     schema = await rows("SELECT version FROM research_staging.schema_version")
     deleted_publications = []
-    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
         deleted_publications = await rows(
             "SELECT publication_id FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
             (SCOPE, root),
         )
         if len(deleted_publications) != (
-            2 if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]) else 1
+            2
+            if schema in ([(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)])
+            else 1
         ):
             raise AssertionError("pre-deletion published control missing")
         for (publication,) in deleted_publications:
@@ -302,7 +332,7 @@ async def verify():
                 await fixture_context(SCOPE, root, publication),
             )
     deleted_imports = []
-    if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+    if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
         deleted_imports = await rows(
             "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s AND state='committed'",
             (SCOPE, root),
@@ -314,14 +344,14 @@ async def verify():
     deleted_complete_imports = []
     deleted_complete_publications = []
     deleted_research = None
-    if schema in ([(7,)], [(8,)], [(9,)]):
+    if schema in ([(7,)], [(8,)], [(9,)], [(10,)]):
         deleted_research = await research_control()
         if (RESEARCH_SCOPE, deleted_research[0]) not in deleted:
             raise ValueError(
                 "complete research deletion history missing; keep quarantined"
             )
         await ResearchStore().read_research(RESEARCH_SCOPE, *deleted_research)
-        if schema in ([(8,)], [(9,)]):
+        if schema in ([(8,)], [(9,)], [(10,)]):
             deleted_complete_publications = await rows(
                 "SELECT publication_id,context_digest FROM research_staging.research_publications WHERE scope_id=%s AND root_id=%s",
                 (RESEARCH_SCOPE, deleted_research[0]),
@@ -337,7 +367,7 @@ async def verify():
                     identity,
                     complete_context(digest),
                 )
-    if schema == [(9,)]:
+    if schema in ([(9,)], [(10,)]):
         deleted_complete_imports = await rows(
             "SELECT scope_id,root_id FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s AND state='committed'",
             (RESEARCH_SCOPE, deleted_research[0]),
@@ -416,7 +446,17 @@ async def verify():
         raise AssertionError("live receipt reference unresolved")
     schema = await rows("SELECT version FROM research_staging.schema_version")
     revision_count = 0
-    if schema in ([(2,)], [(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+    if schema in (
+        [(2,)],
+        [(3,)],
+        [(4,)],
+        [(5,)],
+        [(6,)],
+        [(7,)],
+        [(8,)],
+        [(9,)],
+        [(10,)],
+    ):
         revisions = await rows(
             "SELECT v.scope_id,v.root_id,v.revision_id FROM research_staging.revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -434,7 +474,7 @@ async def verify():
         if deleted_revisions[0][0] != 0:
             raise AssertionError("deleted revision bodies survived reconciliation")
     publication_count = 0
-    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+    if schema in ([(3,)], [(4,)], [(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
         publications = await rows(
             "SELECT p.scope_id,p.root_id,p.publication_id FROM research_staging.publications p JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -463,7 +503,7 @@ async def verify():
             raise AssertionError("retained publication control missing")
     import_count = 0
     complete_import_count = 0
-    if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)]):
+    if schema in ([(5,)], [(6,)], [(7,)], [(8,)], [(9,)], [(10,)]):
         imported = await rows(
             "SELECT o.scope_id,o.root_id,o.context_digest,o.origin_scope_id FROM research_staging.import_operations o JOIN research_staging.roots r USING(scope_id,root_id) WHERE o.state='committed' AND NOT r.deleted AND r.expires_at>now()"
         )
@@ -482,7 +522,7 @@ async def verify():
                 complete_import_count += 1
             else:
                 import_count += 1
-        if schema == [(9,)]:
+        if schema in ([(9,)], [(10,)]):
             controls = await rows(
                 "SELECT count(*) FROM research_staging.import_operations o JOIN research_staging.roots r USING(scope_id,root_id) WHERE o.origin_scope_id=%s AND o.state='committed' AND NOT r.deleted AND r.expires_at>now()",
                 (RESEARCH_SCOPE,),
@@ -497,7 +537,7 @@ async def verify():
         if purged[0][0]:
             raise AssertionError("deleted imported bodies survived reconciliation")
     research_count = 0
-    if schema in ([(7,)], [(8,)], [(9,)]):
+    if schema in ([(7,)], [(8,)], [(9,)], [(10,)]):
         research = await rows(
             "SELECT v.scope_id,v.root_id,v.revision_id FROM research_staging.research_revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -520,7 +560,9 @@ async def verify():
         if unresolved[0][0] or purged[0][0]:
             raise AssertionError("complete research restore closure failed")
     complete_publication_count = (
-        await verify_complete_publications() if schema in ([(8,)], [(9,)]) else 0
+        await verify_complete_publications()
+        if schema in ([(8,)], [(9,)], [(10,)])
+        else 0
     )
     version = await rows("SHOW server_version")
     print(
@@ -539,7 +581,7 @@ async def verify():
                 "deletion_inventory_entries": len(deleted),
                 "post_backup_deletion_denied": True,
                 "post_backup_expiry_collection_reconciled": schema
-                in ([(6,)], [(7,)], [(8,)], [(9,)]),
+                in ([(6,)], [(7,)], [(8,)], [(9,)], [(10,)]),
                 "live_receipt_references_resolve": True,
             }
         )
@@ -640,7 +682,7 @@ async def research_state():
 
 async def import_reader(scope, root):
     schema = await rows("SELECT version FROM research_staging.schema_version")
-    if schema == [(9,)]:
+    if schema in ([(9,)], [(10,)]):
         value = await rows(
             "SELECT bundle_schema FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s",
             (scope, root),

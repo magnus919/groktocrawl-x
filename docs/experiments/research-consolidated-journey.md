@@ -68,3 +68,8 @@ Still under #94: integrate this material into an isolated retained transaction,
 with current-parent/root-generation/liveness/quota fencing, fixture provenance and
 actual PostgreSQL round-trip/lifecycle/restore evidence. No production stack change,
 provider spend, format freeze or semantic-quality promotion follows from this demo.
+
+The [consolidated storage integration](research-consolidated-storage.md) adds a
+server-owned commit hook inside the live execution window, with an isolated
+PostgreSQL transaction and explicit receipt reconciliation. The no-storage demo
+remains unchanged. Database confirmation requires its hosted probes.

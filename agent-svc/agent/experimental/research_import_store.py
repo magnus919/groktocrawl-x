@@ -41,9 +41,9 @@ class ResearchImportStore(ResearchBundleStore):
         current = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if current != [{"version": 9}]:
+        if current not in ([{"version": 9}], [{"version": 10}]):
             raise StorageConflictError("complete import schema unavailable")
-        return 9
+        return current[0]["version"]
 
     async def _export_import_origin(
         self,

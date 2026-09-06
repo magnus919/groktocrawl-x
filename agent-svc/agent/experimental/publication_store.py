@@ -155,6 +155,7 @@ class PublicationStore(RevisionStore):
             [{"version": 7}],
             [{"version": 8}],
             [{"version": 9}],
+            [{"version": 10}],
         ):
             raise StorageConflictError("publication schema unavailable")
 
@@ -195,6 +196,7 @@ class PublicationStore(RevisionStore):
                     [{"version": 7}],
                     [{"version": 8}],
                     [{"version": 9}],
+                    [{"version": 10}],
                 ):
                     raise StorageConflictError("rerender schema unavailable")
                 original_context = PublicationContext.model_validate(original_context)
