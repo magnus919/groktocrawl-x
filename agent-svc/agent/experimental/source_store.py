@@ -104,6 +104,7 @@ class SourceStore:
                     [{"version": 4}],
                     [{"version": 5}],
                     [{"version": 6}],
+                    [{"version": 7}],
                 ):
                     raise StorageConflictError("unsupported storage schema")
             yield conn
@@ -133,22 +134,32 @@ class SourceStore:
         if type(quota) is not int or not 0 < quota <= ROOT_QUOTA:
             raise ValueError("invalid root quota")
         async with self._transaction() as conn:
-            row = await (
-                await conn.execute(
-                    "SELECT scope_id FROM research_staging.scopes WHERE scope_id=%s FOR UPDATE",
-                    (scope,),
-                )
-            ).fetchone()
-            if row is None:
-                raise StorageConflictError("scope unavailable")
-            row = await (
-                await conn.execute(
-                    "INSERT INTO research_staging.roots(scope_id,quota) VALUES (%s,%s) RETURNING root_id",
-                    (scope, quota),
-                )
-            ).fetchone()
-            assert row is not None
-            return row["root_id"]
+            return await self._insert_root(conn, scope, quota)
+
+    @staticmethod
+    async def _insert_root(
+        conn: Connection, scope: UUID, quota: int, *, research: bool = False
+    ) -> UUID:
+        row = await (
+            await conn.execute(
+                "SELECT scope_id FROM research_staging.scopes WHERE scope_id=%s FOR UPDATE",
+                (scope,),
+            )
+        ).fetchone()
+        if row is None:
+            raise StorageConflictError("scope unavailable")
+        row = await (
+            await conn.execute(
+                (
+                    "INSERT INTO research_staging.roots(scope_id,quota,revision_format) VALUES (%s,%s,'research') RETURNING root_id"
+                    if research
+                    else "INSERT INTO research_staging.roots(scope_id,quota) VALUES (%s,%s) RETURNING root_id"
+                ),
+                (scope, quota),
+            )
+        ).fetchone()
+        assert row is not None
+        return row["root_id"]
 
     @staticmethod
     async def _lock(conn: Connection, scope: UUID, root: UUID) -> dict[str, Any]:
@@ -431,6 +442,19 @@ class SourceStore:
     ) -> None:
         if row["deleted"]:
             return
+        if version >= 7:
+            await conn.execute(
+                "UPDATE research_staging.roots SET current_research_revision=NULL WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+            await conn.execute(
+                "DELETE FROM research_staging.research_revisions WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+            await conn.execute(
+                "UPDATE research_staging.research_revision_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+                (scope, root),
+            )
         if version >= 5:
             await conn.execute(
                 "DELETE FROM research_staging.imported_bundles WHERE scope_id=%s AND root_id=%s",

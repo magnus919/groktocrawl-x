@@ -885,6 +885,22 @@ jobs:
             docker compose run --rm -T -e PGDATABASE=research_pre_expiry_restore storage-adapter "$kind-state" > "$migration_dir/$kind-restored.json"
             cmp "$migration_dir/$kind-before.json" "$migration_dir/$kind-restored.json"
           done
+      - name: Back up schema six and exercise complete research histories
+        run: |
+          set -euo pipefail
+          umask 077
+          migration_dir=$(mktemp -d "$RUNNER_TEMP/research-migration.XXXXXX")
+          for kind in source revision publication import; do
+            docker compose run --rm -T storage-adapter "$kind-state" > "$migration_dir/$kind-before.json"
+          done
+          docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$migration_dir/schema-six.sql"
+          docker compose run --rm -T storage-adapter research
+          docker compose exec -T research-postgres createdb -U research_owner research_pre_complete_restore
+          docker compose exec -T research-postgres psql -X -U research_owner -d research_pre_complete_restore --set=ON_ERROR_STOP=1 --single-transaction < "$migration_dir/schema-six.sql"
+          for kind in source revision publication import; do
+            docker compose run --rm -T -e PGDATABASE=research_pre_complete_restore storage-adapter "$kind-state" > "$migration_dir/$kind-restored.json"
+            cmp "$migration_dir/$kind-before.json" "$migration_dir/$kind-restored.json"
+          done
       - name: Rehearse backup restore and post-backup deletion
         run: |
           set -eu
