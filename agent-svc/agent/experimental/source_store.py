@@ -14,6 +14,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from .canonical import CanonicalDocument, admit_canonical_json
+from .storage_admission import DEFAULT_STORAGE_ADMISSION, StorageAdmission
 
 SCHEMA = "source-staging/1"
 MAX_BODY = 10 * 1024 * 1024
@@ -73,43 +74,47 @@ class SourceStore:
     strings or scope selection may be exposed via a public API. No auto migration.
     """
 
-    def __init__(self, conninfo: str = "") -> None:
+    def __init__(
+        self, conninfo: str = "", *, admission: StorageAdmission | None = None
+    ) -> None:
         self._conninfo = conninfo
+        self._admission = DEFAULT_STORAGE_ADMISSION if admission is None else admission
 
     @asynccontextmanager
     async def _transaction(
         self, *, read: bool = False, bootstrap: bool = False
     ) -> AsyncIterator[Connection]:
-        async with (
-            asyncio.timeout(30),
-            await psycopg.AsyncConnection.connect(
-                self._conninfo,
-                row_factory=dict_row,
-                connect_timeout=10,
-                options="-c statement_timeout=10000 -c lock_timeout=3000 -c idle_in_transaction_session_timeout=10000",
-            ) as conn,
-        ):
-            mode = "REPEATABLE READ READ ONLY" if read else "READ COMMITTED"
-            await conn.execute(f"SET TRANSACTION ISOLATION LEVEL {mode}")
-            if not bootstrap:
-                version = await (
-                    await conn.execute(
-                        "SELECT version FROM research_staging.schema_version"
-                    )
-                ).fetchall()
-                if version not in (
-                    [{"version": 1}],
-                    [{"version": 2}],
-                    [{"version": 3}],
-                    [{"version": 4}],
-                    [{"version": 5}],
-                    [{"version": 6}],
-                    [{"version": 7}],
-                    [{"version": 8}],
-                    [{"version": 9}],
-                ):
-                    raise StorageConflictError("unsupported storage schema")
-            yield conn
+        with self._admission.slot():
+            async with (
+                asyncio.timeout(30),
+                await psycopg.AsyncConnection.connect(
+                    self._conninfo,
+                    row_factory=dict_row,
+                    connect_timeout=10,
+                    options="-c statement_timeout=10000 -c lock_timeout=3000 -c idle_in_transaction_session_timeout=10000",
+                ) as conn,
+            ):
+                mode = "REPEATABLE READ READ ONLY" if read else "READ COMMITTED"
+                await conn.execute(f"SET TRANSACTION ISOLATION LEVEL {mode}")
+                if not bootstrap:
+                    version = await (
+                        await conn.execute(
+                            "SELECT version FROM research_staging.schema_version"
+                        )
+                    ).fetchall()
+                    if version not in (
+                        [{"version": 1}],
+                        [{"version": 2}],
+                        [{"version": 3}],
+                        [{"version": 4}],
+                        [{"version": 5}],
+                        [{"version": 6}],
+                        [{"version": 7}],
+                        [{"version": 8}],
+                        [{"version": 9}],
+                    ):
+                        raise StorageConflictError("unsupported storage schema")
+                yield conn
 
     async def install(self) -> None:
         """Explicit first migration; refuses any existing namespace, atomically."""
