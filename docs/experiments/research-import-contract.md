@@ -1,13 +1,13 @@
 # Import transaction and revocation contract
 
-Implementation plan for [issue #65](https://github.com/magnus919/groktocrawl-x/issues/65),
+Implementation contract for [issue #65](https://github.com/magnus919/groktocrawl-x/issues/65),
 under the bounded exploration in
 [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md).
-**This is a planned contract, not implemented import behavior or a completed W3 gate.**
+**The isolated `ImportStore` implements this bounded contract; it is not a completed W3 gate.**
 The [bundle exporter and offline validator](research-artifact-bundles.md) already
-preserve original bytes; this plan defines the authority needed before copying them.
+preserve original bytes; this contract defines the authority needed before copying them.
 
-## What the first importer will do
+## What the first importer does
 
 Import one verified fixture bundle into a fresh recipient root, with both origin
 and recipient registered in the same isolated PostgreSQL database. The recipient
@@ -15,7 +15,7 @@ gets its own access/lifecycle identity. Original scope, research, revision and
 publication identities remain inside unchanged canonical bundle bytes. A separate
 recipient mapping identifies which original artifact the recipient holds.
 
-The first importer will reject an absent origin. It will not accept remote/offline
+The first importer rejects an absent origin. It does not accept remote/offline
 origins, infer authority from a digest, or treat possession of a bundle as access.
 A future remote importer needs an authenticated origin/deletion protocol; the
 synthetic restore inventory is insufficient for that job.
@@ -29,7 +29,7 @@ remain W6 work and must precede public delivery.
 
 ## Storage model
 
-Plan an explicit schema-5 migration with these logical additions:
+The explicit schema-5 migration ships with these logical additions:
 
 | Record | Responsibility |
 |---|---|
@@ -87,7 +87,7 @@ snapshot; subsequent reads must fail.
 
 The existing single-scope lock helper cannot simply be called origin-first and
 recipient-second: opposing imports can otherwise acquire scopes in opposite order.
-The initial bounded implementation will use this protocol:
+The initial bounded implementation uses this protocol:
 
 1. Import grant/commit/cancellation and all root deletions acquire one common,
    fixed PostgreSQL transaction advisory-lock key in exclusive mode. This
@@ -121,7 +121,7 @@ order and must reject import-only roots.
   not renew the origin. Ordinary reads, replay and receipt inspection renew neither.
 - No background worker, lease, webhook or automatic job continuation is introduced.
 
-## Required evidence before implementation is called complete
+## Required CI evidence
 
 | Scenario | Required observation |
 |---|---|
@@ -142,3 +142,34 @@ Run actual PostgreSQL cases in the existing private Compose harness, with no
 existing database/volume deletion. Record which interleavings ran and any untested
 failure modes. Passing synthetic fixture imports does not establish semantic truth,
 human calibration, remote authorization, production recovery or full W2/W3 completion.
+
+## Internal use and evidence limits
+
+Apply `ImportStore.migrate_imports()` explicitly to an existing isolated schema-4
+namespace. Normal operations do not migrate. Keep the pre-migration dump private;
+the CI harness restores it into a separate database and compares original source,
+revision and publication manifests before proceeding to the schema-5 restore test.
+There is no downgrade operation and no database or volume deletion.
+
+A trusted server calls `reserve_import(recipient, origin_scope, origin_root,
+publication, raw, expected_digest, context)` after authorizing the recipient.
+It receives a new target root UUID, then calls
+`commit_import(recipient, target, raw, context)`. `read_import` returns
+`ImportedArtifact`: recipient scope/root, effective retention, and the independently
+verified original bundle. `import_receipt` resolves a committed digest even after
+payload deletion. `cancel_import` releases pending grants only.
+
+The `import` phase in the private storage harness runs nineteen actual PostgreSQL
+cases: fourteen import cases plus the five export regressions on schema 5. It
+exercises concurrent grant/delete and commit/delete races, opposing scope imports,
+quota and fan-out contention, injected before-commit rollback and lost commit
+acknowledgement, expiry and retention clamping. These are bounded executions, not
+exhaustive scheduling or a production failure-recovery proof. Pure tests cover the
+independent retention limits and timezone admission. CI must pass these cases and
+the final restore rehearsal; merely collecting tests is insufficient evidence.
+
+The restore rehearsal seeds both deleted and retained imported controls. It verifies
+the old backup contains the soon-to-be-revoked copy, applies current origin deletion
+history, rejects reopening that copy, and checks every remaining imported bundle
+and receipt. Results report `verified_live_imports`. No copied content or private
+dump is uploaded as a public result.

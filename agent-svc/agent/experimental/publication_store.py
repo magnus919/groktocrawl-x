@@ -147,7 +147,7 @@ class PublicationStore(RevisionStore):
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version not in ([{"version": 3}], [{"version": 4}]):
+        if version not in ([{"version": 3}], [{"version": 4}], [{"version": 5}]):
             raise StorageConflictError("publication schema unavailable")
 
     async def reserve_publication(
@@ -180,7 +180,7 @@ class PublicationStore(RevisionStore):
                         "SELECT version FROM research_staging.schema_version"
                     )
                 ).fetchall()
-                if version != [{"version": 4}]:
+                if version not in ([{"version": 4}], [{"version": 5}]):
                     raise StorageConflictError("rerender schema unavailable")
                 original_context = PublicationContext.model_validate(original_context)
                 if (

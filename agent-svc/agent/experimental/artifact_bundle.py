@@ -15,7 +15,7 @@ from .revision_store import (
     admit_revision,
     entity_records,
 )
-from .source_store import SCHEMA, StorageConflictError, source_descriptor
+from .source_store import SCHEMA, Connection, StorageConflictError, source_descriptor
 
 BUNDLE_SCHEMA = "retained-artifact-bundle-prototype/1"
 MAX_SNAPSHOTS = 100
@@ -189,81 +189,90 @@ class ArtifactBundleStore(PublicationStore):
     async def export_publication(
         self, scope: UUID, root: UUID, publication: UUID, context: PublicationContext
     ) -> CanonicalDocument:
-        # Materialize a bounded complete bundle before returning; no client-held transaction.
         async with self._transaction(read=True) as conn:
             await self._require_publication_schema(conn)
-            retained = await self._read_publication(
+            return await self._export_publication(
                 conn, scope, root, publication, context
             )
-            row = await (
-                await conn.execute(
-                    "SELECT expires_at FROM research_staging.roots WHERE scope_id=%s AND root_id=%s AND NOT deleted AND expires_at>now()",
-                    (scope, root),
-                )
-            ).fetchone()
-            if row is None:
-                raise StorageConflictError("export root unavailable")
-            revision_id: UUID | None = UUID(
-                json.loads(retained.document.data)["revision_id"]
-            )
-            history: list[RetainedRevision] = []
-            seen = set()
-            while revision_id is not None:
-                if revision_id in seen or len(history) >= MAX_REVISIONS:
-                    raise StorageConflictError("export history exceeds bounds")
-                seen.add(revision_id)
-                revision = await self._read_revision(conn, scope, root, revision_id)
-                history.append(revision)
-                revision_id = revision.parent_id
-            history.reverse()
-            snapshots = sorted(
-                {
-                    UUID(s.snapshot_id)
-                    for revision in history
-                    for s in revision.structure.snapshots
-                },
-                key=str,
-            )
-            if len(snapshots) > MAX_SNAPSHOTS:
-                raise StorageConflictError("export source count exceeds bounds")
-            members: dict[str, dict[str, str]] = {}
-            encoded_bytes = 0
 
-            def add(name: str, data: bytes) -> None:
-                nonlocal encoded_bytes
-                encoded_bytes += 4 * ((len(data) + 2) // 3)
-                if encoded_bytes > MAX_BYTES:
-                    raise StorageConflictError("export byte limit exceeded")
-                members[name] = bundle_member(data)
+    async def _export_publication(
+        self,
+        conn: Connection,
+        scope: UUID,
+        root: UUID,
+        publication: UUID,
+        context: PublicationContext,
+    ) -> CanonicalDocument:
+        retained = await self._read_publication(conn, scope, root, publication, context)
+        row = await (
+            await conn.execute(
+                "SELECT expires_at FROM research_staging.roots WHERE scope_id=%s AND root_id=%s AND NOT deleted AND expires_at>now()",
+                (scope, root),
+            )
+        ).fetchone()
+        if row is None:
+            raise StorageConflictError("export root unavailable")
+        revision_id: UUID | None = UUID(
+            json.loads(retained.document.data)["revision_id"]
+        )
+        history: list[RetainedRevision] = []
+        seen = set()
+        while revision_id is not None:
+            if revision_id in seen or len(history) >= MAX_REVISIONS:
+                raise StorageConflictError("export history exceeds bounds")
+            seen.add(revision_id)
+            revision = await self._read_revision(conn, scope, root, revision_id)
+            history.append(revision)
+            revision_id = revision.parent_id
+        history.reverse()
+        snapshots = sorted(
+            {
+                UUID(s.snapshot_id)
+                for revision in history
+                for s in revision.structure.snapshots
+            },
+            key=str,
+        )
+        if len(snapshots) > MAX_SNAPSHOTS:
+            raise StorageConflictError("export source count exceeds bounds")
+        members: dict[str, dict[str, str]] = {}
+        encoded_bytes = 0
 
-            for revision in history:
-                add(f"revisions/{revision.revision_id}.json", revision.document.data)
-            for snapshot in snapshots:
-                source = await self._read_source(conn, scope, root, snapshot)
-                add(f"sources/{snapshot}.json", source.descriptor.data)
-                add(f"sources/{snapshot}.body", source.body)
-            add("publication.json", retained.document.data)
-            for layer in LAYERS:
-                add(f"outputs/{layer}.md", getattr(retained, layer))
-            raw = json.dumps(
-                {
-                    "schema_version": BUNDLE_SCHEMA,
-                    "scope_id": str(scope),
-                    "root_id": str(root),
-                    "publication_id": str(publication),
-                    "revision_ids": [str(r.revision_id) for r in history],
-                    "snapshot_ids": list(map(str, snapshots)),
-                    "retained_until": row["expires_at"].isoformat(),
-                    "members": members,
-                }
-            ).encode()
-            document = admit_canonical_json(raw, schema_version=BUNDLE_SCHEMA)
-            return admit_bundle(
-                document.data,
-                expected_digest=document.digest,
-                scope=scope,
-                root=root,
-                publication=publication,
-                context=context,
-                now=datetime.now(UTC),
-            ).document
+        def add(name: str, data: bytes) -> None:
+            nonlocal encoded_bytes
+            encoded_bytes += 4 * ((len(data) + 2) // 3)
+            if encoded_bytes > MAX_BYTES:
+                raise StorageConflictError("export byte limit exceeded")
+            members[name] = bundle_member(data)
+
+        for revision in history:
+            add(f"revisions/{revision.revision_id}.json", revision.document.data)
+        for snapshot in snapshots:
+            source = await self._read_source(conn, scope, root, snapshot)
+            add(f"sources/{snapshot}.json", source.descriptor.data)
+            add(f"sources/{snapshot}.body", source.body)
+        add("publication.json", retained.document.data)
+        for layer in LAYERS:
+            add(f"outputs/{layer}.md", getattr(retained, layer))
+        raw = json.dumps(
+            {
+                "schema_version": BUNDLE_SCHEMA,
+                "scope_id": str(scope),
+                "root_id": str(root),
+                "publication_id": str(publication),
+                "revision_ids": [str(r.revision_id) for r in history],
+                "snapshot_ids": list(map(str, snapshots)),
+                "retained_until": row["expires_at"].isoformat(),
+                "members": members,
+            }
+        ).encode()
+        document = admit_canonical_json(raw, schema_version=BUNDLE_SCHEMA)
+        return admit_bundle(
+            document.data,
+            expected_digest=document.digest,
+            scope=scope,
+            root=root,
+            publication=publication,
+            context=context,
+            now=datetime.now(UTC),
+        ).document

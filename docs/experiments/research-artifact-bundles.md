@@ -81,7 +81,7 @@ complete envelope bound. The current implementation may materialize up to twenty
 bounded revision records before rejecting an oversized bundle; it is not a
 streaming large-corpus exporter or aggregate-memory admission controller.
 
-There is no database migration: export uses the existing publication schema 3/4
+There is no database migration: export uses the existing publication schema 3/4/5
 readers. Stored fixture versions and hashes are unchanged. No extra dependency,
 provider, vector backend or mainline service is introduced.
 
@@ -102,11 +102,11 @@ by skipped tests or mocks. Follow the `Exercise bounded artifact export and offl
 validation` phase in [Runtime CI](../../.github/workflows/runtime.yml) using the
 explicit isolated harness, without dropping existing databases or volumes.
 
-Cross-scope import, signatures/authentication, current deletion authority,
+Remote import, signatures/authentication, remote deletion authority,
 full Knowledge IR compatibility, automatic GC and remaining W2/W3 acceptance
 remain separate work.
 
-The next implementation is specified in the [import transaction and revocation
-contract](research-import-contract.md). It plans same-authority recipient mapping
-and atomic origin revocation; import remains unimplemented until its code and
-required database evidence land.
+The [import transaction and revocation contract](research-import-contract.md)
+describes the schema-5 same-authority importer. It preserves these bytes in a
+recipient mapping and atomically purges copies when the registered origin is
+deleted. It does not make offline validation a source of current deletion authority.

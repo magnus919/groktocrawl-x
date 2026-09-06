@@ -97,7 +97,12 @@ class RevisionStore(SourceStore):
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version not in ([{"version": 2}], [{"version": 3}], [{"version": 4}]):
+        if version not in (
+            [{"version": 2}],
+            [{"version": 3}],
+            [{"version": 4}],
+            [{"version": 5}],
+        ):
             raise StorageConflictError("revision schema unavailable")
 
     async def reserve_revision(
