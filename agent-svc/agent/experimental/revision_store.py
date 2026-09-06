@@ -103,6 +103,7 @@ class RevisionStore(SourceStore):
             [{"version": 4}],
             [{"version": 5}],
             [{"version": 6}],
+            [{"version": 7}],
         ):
             raise StorageConflictError("revision schema unavailable")
 
@@ -115,6 +116,8 @@ class RevisionStore(SourceStore):
             await self._require_revision_schema(conn)
             row = await self._lock(conn, scope, root)
             self._active(row, generation)
+            if row.get("revision_format", "structure") != "structure":
+                raise StorageConflictError("root requires complete research revisions")
             if row["current_revision"] != parent:
                 raise StorageConflictError("stale revision parent")
             if size > min(row["scope_free"], row["quota"] - row["charged"]):
@@ -162,6 +165,8 @@ class RevisionStore(SourceStore):
             await self._require_revision_schema(conn)
             current = await self._lock(conn, scope, root)
             self._active(current, generation)
+            if current.get("revision_format", "structure") != "structure":
+                raise StorageConflictError("root requires complete research revisions")
             operation = await (
                 await conn.execute(
                     "SELECT * FROM research_staging.revision_operations WHERE scope_id=%s AND root_id=%s AND revision_id=%s",

@@ -59,8 +59,9 @@ missing parents, modified verification ID reuse, tampered prefix validation,
 duplicate JSON, oversize input, and the inclusive twenty-revision bound. Existing
 history tests cover the deeper structural/entity predecessor invariants.
 
-Persistence, actual source closure, current-parent locking, quota, receipts and
-migration/restore tests are the next dependent step. Publication, historical
+[Complete history storage](research-complete-history-storage.md) now adds the
+dependent persistence/source-closure/current-parent/receipt boundary on explicit
+schema 7, with actual PostgreSQL migration/restore CI required. Publication, historical
 re-render and export/import must then explicitly reference and carry complete
 history before issue #71's end-to-end scope can be called complete. No new database
 lifecycle or independent semantic evaluation evidence follows from these pure tests.

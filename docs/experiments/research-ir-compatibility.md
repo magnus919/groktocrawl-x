@@ -101,3 +101,12 @@ canonicalizes the explicit full envelope and validates a bounded supplied prefix
 against caller identities. This implements step 1's pure admission boundary. It
 does not persist or authenticate that prefix, resolve sources from storage, or
 establish the latest parent. Steps 2–4 remain open under issue #71.
+
+## Retained complete-history step
+
+[Complete fixture history storage](research-complete-history-storage.md) adds explicit
+schema-7 persistence with a separate root format, complete retained-parent validation,
+source ledgers and stable receipts. Legacy structural roots remain unchanged. This
+implements the persistence boundary in step 2, subject to required actual database
+and restore CI. Publication/rerender and export/import integration in steps 3–4
+remain open; those operations do not yet consume complete-history roots.

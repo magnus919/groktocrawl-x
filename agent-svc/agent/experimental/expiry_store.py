@@ -43,7 +43,7 @@ class ExpiryStore(ImportStore):
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version != [{"version": 6}]:
+        if version not in ([{"version": 6}], [{"version": 7}]):
             raise StorageConflictError("expiry schema unavailable")
 
     async def _expiry_candidates(self, scope: UUID, limit: int) -> tuple[UUID, ...]:
