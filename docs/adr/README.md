@@ -30,7 +30,9 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043, 0044, 0045, 0046, 0047, 0048, 0049, 0050, 0051, 0052, 0053, 0054, 0055, 0056, 0057, and 0059–0070, and 0072.
 
-**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0071, 0073 and 0074.
+**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073 and 0074.
+
+**Bounded exploration accepted:** ADR-0071 permits isolated retained-evidence implementation; production adoption and vector cutover remain gated.
 
 | ADR | Title | Status |
 |-----|-------|--------|

@@ -64,3 +64,9 @@ test run. Creation refuses an existing restore database. No existing database or
 volume is dropped to make the test pass.
 
 Source: [PostgreSQL SQL dump backup and restore](https://www.postgresql.org/docs/17/backup-dump.html).
+
+The [retained publication extension](research-retained-publications.md) runs this
+rehearsal on schema 3, including retained/deleted published controls, exact output
+reopening and live publication receipt closure. It also restores the pre-migration
+schema-2 dump into a separate new database and compares source/revision manifests.
+These extensions preserve the same isolated-fixture and recovery-evidence limits.

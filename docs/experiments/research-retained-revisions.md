@@ -81,7 +81,7 @@ SourceStore's explicit initial installer still creates schema 1. `migrate_revisi
 is a separate explicit, forward-only migration to schema 2. It locks the schema
 version table, requires version 1 and applies `002_structure_revisions.sql` in one
 transaction. Reapplication or unknown version fails. This code's source operations
-read both schema versions; revision operations require version 2. An older source
+read schemas 1/2/3; revision operations require version 2 or 3. An older source
 binary that only accepts version 1 rejects the upgraded schema rather than silently
 operating on it. There is no automatic upgrade or destructive down migration.
 
@@ -102,6 +102,8 @@ and reservation bound, removed/reintroduced identity, and migration refusal. It
 requires a populated schema-1 test database and a verified pre-migration backup;
 never drop an existing database to force the fixture to rerun.
 
-Full research verification records, final three-layer render publication, export/
-import and the remaining lifecycle/admission/restore gates are still future work.
+The [fixture publication extension](research-retained-publications.md) now stores
+synthetic verification records and three audited output layers on schema 3. Full
+authenticated research verification, export/import and the remaining lifecycle/
+admission/restore gates are still future work.
 This slice does not complete W2/W3 or select pgvector over Qdrant.

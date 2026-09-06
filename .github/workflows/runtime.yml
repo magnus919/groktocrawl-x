@@ -819,6 +819,22 @@ jobs:
           docker compose exec -T research-postgres psql -X -U research_owner -d research_pre_revision_restore --set=ON_ERROR_STOP=1 --single-transaction < "$migration_dir/schema-one.sql"
           docker compose run --rm -T -e PGDATABASE=research_pre_revision_restore storage-adapter source-state > "$migration_dir/restored.json"
           diff -u "$migration_dir/before.json" "$migration_dir/restored.json"
+      - name: Back up schema two and exercise retained publications
+        run: |
+          set -euo pipefail
+          umask 077
+          migration_dir=$(mktemp -d "$RUNNER_TEMP/publication-migration.XXXXXX")
+          chmod 700 "$migration_dir"
+          docker compose run --rm -T storage-adapter source-state > "$migration_dir/sources-before.json"
+          docker compose run --rm -T storage-adapter revision-state > "$migration_dir/revisions-before.json"
+          docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$migration_dir/schema-two.sql"
+          docker compose run --rm -T storage-adapter publication
+          docker compose exec -T research-postgres createdb -U research_owner research_pre_publication_restore
+          docker compose exec -T research-postgres psql -X -U research_owner -d research_pre_publication_restore --set=ON_ERROR_STOP=1 --single-transaction < "$migration_dir/schema-two.sql"
+          docker compose run --rm -T -e PGDATABASE=research_pre_publication_restore storage-adapter source-state > "$migration_dir/sources-restored.json"
+          docker compose run --rm -T -e PGDATABASE=research_pre_publication_restore storage-adapter revision-state > "$migration_dir/revisions-restored.json"
+          cmp "$migration_dir/sources-before.json" "$migration_dir/sources-restored.json"
+          cmp "$migration_dir/revisions-before.json" "$migration_dir/revisions-restored.json"
       - name: Rehearse backup restore and post-backup deletion
         run: |
           set -eu

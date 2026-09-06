@@ -86,3 +86,7 @@ unimplemented; source staging alone does not complete W2 or W3.
 [Retained structural revisions](research-retained-revisions.md) now pin scoped
 source references and a parent chain transactionally. Complete Knowledge IR and
 semantic verification/render publication remain separate unfinished gates.
+
+The [retained fixture publication slice](research-retained-publications.md) adds
+atomic audited outputs and pinned reference reopening on isolated schema 3. This
+remains synthetic fixture evidence and does not complete W2/W3 or human calibration.
