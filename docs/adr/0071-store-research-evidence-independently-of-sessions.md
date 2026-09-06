@@ -6,6 +6,7 @@
 - Scope: experimental Knowledge IR persistence; `magnus919/groktocrawl-x` only
 - Plan: D3 / W1 and W3; issue [#5](https://github.com/magnus919/groktocrawl-x/issues/5)
 - Supersedes: none in mainline; experimental implementation impacts remain gated
+- Experimental successor: Partially superseded by ADR-0075 for the initial consolidated canonical IR ceiling only: 1 MiB replaces the proposed 5 MiB; all other lifecycle, quota and adoption gates remain. [ADR-0075](0075-consolidate-research-interchange-contracts.md), accepted 2026-09-06.
 
 ## Exploration approval — 2026-09-05
 

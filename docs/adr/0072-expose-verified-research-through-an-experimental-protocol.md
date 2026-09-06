@@ -6,6 +6,7 @@
 - Scope: experimental research clients; `magnus919/groktocrawl-x` only
 - Plan: D6 / W1 and W6; issue [#9](https://github.com/magnus919/groktocrawl-x/issues/9)
 - Supersedes: experimental scope only, as classified below; inherited endpoints remain unchanged
+- Experimental successor: Extended by ADR-0075 at the knowledge/artifact format boundary; public delivery and principal authentication remain separate work. [ADR-0075](0075-consolidate-research-interchange-contracts.md), accepted 2026-09-06.
 
 - Accepted: 2026-09-05 by Magnus Hedemark, following the W1 review packet.
 - Acceptance scope: foundation contracts for a bounded fixture-backed prototype;

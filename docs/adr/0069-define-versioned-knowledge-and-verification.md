@@ -6,6 +6,7 @@
 - Scope: experimental research Knowledge IR, independent of storage/runtime
 - Plan: D2 / W1; issue [#3](https://github.com/magnus919/groktocrawl-x/issues/3)
 - Supersedes: experimental scope only, as classified in the inherited-impact table; inherited endpoints remain unchanged
+- Experimental successor: Extended by ADR-0075 for consolidated layout, explicit fields, source references, assessment mapping and reviewer input contracts. [ADR-0075](0075-consolidate-research-interchange-contracts.md), accepted 2026-09-06.
 
 - Accepted: 2026-09-05 by Magnus Hedemark, following the W1 review packet.
 - Acceptance scope: foundation contracts for a bounded fixture-backed prototype;

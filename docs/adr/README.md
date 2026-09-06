@@ -30,7 +30,9 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043, 0044, 0045, 0046, 0047, 0048, 0049, 0050, 0051, 0052, 0053, 0054, 0055, 0056, 0057, and 0059–0070, and 0072.
 
-**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073, 0074 and 0075.
+**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073 and 0074.
+
+**Bounded implementation accepted:** ADR-0075 defines consolidated research interchange contracts; implementation and format-freeze checks remain.
 
 **Bounded exploration accepted:** ADR-0071 permits isolated retained-evidence implementation; production adoption and vector cutover remain gated.
 
@@ -109,6 +111,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0072 | [Expose Verified Research Through an Experimental Protocol](0072-expose-verified-research-through-an-experimental-protocol.md) | accepted |
 | 0073 | [Compare Research Runtimes Under One Policy](0073-compare-research-runtimes-under-one-policy.md) | proposed |
 | 0074 | [Define Research Recovery Before Selecting Infrastructure](0074-define-research-recovery-before-selecting-infrastructure.md) | proposed |
-| 0075 | [Consolidate Research Interchange Contracts](0075-consolidate-research-interchange-contracts.md) | proposed |
+| 0075 | [Consolidate Research Interchange Contracts](0075-consolidate-research-interchange-contracts.md) | accepted for bounded experimental implementation |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.

@@ -24,6 +24,12 @@ no runtime or recovery infrastructure is adopted. PostgreSQL production adoption
 and pgvector/Qdrant consolidation remain gated. Follow the acceptance record and
 remaining implementation gates. Provider spend remains zero.
 
+On 2026-09-06 Magnus accepted ADR-0075 for bounded experimental implementation
+(issue #92): consolidated knowledge and audited render contracts, preserving old
+readers/data and the initial 1 MiB format bound. Implement admission and a bounded
+research journey under its confirmation plan. Acceptance is not format freeze or
+permission for production/provider/vector/runtime/recovery changes.
+
 Retain contribution and engineering standards: Conventional Commits with DCO
 sign-off, typed async Python, relevant tests, public API/CLI/documentation parity,
 webhook contracts for async endpoints, and review/check gates. Architecture changes

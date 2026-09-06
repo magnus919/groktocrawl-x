@@ -119,3 +119,11 @@ The [consolidated format proposal](research-consolidated-format.md) and proposed
 [ADR-0075](../adr/0075-consolidate-research-interchange-contracts.md) now define the
 next representation and confirmation plan. They remain proposed; old formats and
 accepted ADR bodies are unchanged.
+
+## Accepted consolidated direction
+
+Magnus accepted ADR-0075 for bounded experimental implementation on 2026-09-06
+([issue #92](https://github.com/magnus919/groktocrawl-x/issues/92)). The proposal
+references above are historical. Consolidated admission and the bounded research
+journey may now proceed; format freeze and independent semantic evaluation remain
+separate gates. Existing prototype readers and byte identities remain preserved.
