@@ -4,7 +4,8 @@ The bounded experimental journey now connects source acquisition, knowledge
 construction, executed checks, three report layers, executed render audit and the
 publication candidate gate. This implements the end-to-end fixture portion of
 [issue #94](https://github.com/magnus919/groktocrawl-x/issues/94).
-It does not yet commit a publication to retained storage.
+The optional storage integration commits the result in an isolated PostgreSQL
+transaction; the command below remains a file-only demonstration.
 
 Start with the generated [summary](consolidated-example/summary.md), then the
 [analysis](consolidated-example/analysis.md) or [dossier](consolidated-example/dossier.md).
@@ -44,8 +45,8 @@ plumbing; it is not an independent semantic auditor.
 The result includes canonical knowledge/manifest bytes, exact source/output bytes
 and an explicitly fixture-only candidate. Execution owners close on success,
 failure or cancellation. The returned data is not a portable authorization token;
-a future retained integration must perform its fenced commit inside the live
-workflow, not resurrect closed-owner receipts.
+the retained integration performs its fenced commit inside the live workflow
+before those owners close.
 
 ## Bounds and remaining work
 
@@ -64,12 +65,14 @@ source denial/alteration, actual negative checks, missing output layers, omitted
 caveats with consistent hashes, deadline and cancellation suppression. Existing
 manifest and legacy format tests remain unchanged.
 
-Still under #94: integrate this material into an isolated retained transaction,
-with current-parent/root-generation/liveness/quota fencing, fixture provenance and
-actual PostgreSQL round-trip/lifecycle/restore evidence. No production stack change,
-provider spend, format freeze or semantic-quality promotion follows from this demo.
+The bounded retained integration is implemented in PR #101, including root-generation,
+liveness and quota fencing, fixture provenance, and actual PostgreSQL round-trip,
+lifecycle and restore probes. It supports one initial publication per root;
+successor revisions, historical re-render and import/export for the consolidated
+format remain unsupported. No production stack change, provider spend, format
+freeze or semantic-quality promotion follows from this demo.
 
 The [consolidated storage integration](research-consolidated-storage.md) adds a
 server-owned commit hook inside the live execution window, with an isolated
 PostgreSQL transaction and explicit receipt reconciliation. The no-storage demo
-remains unchanged. Database confirmation requires its hosted probes.
+remains unchanged. See the storage guide for verified hosted evidence.
