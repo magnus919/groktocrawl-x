@@ -152,3 +152,7 @@ commit, and migration refusal. The final schema-4 restore includes both original
 and re-rendered retained/deleted controls and a fixed allowlist of trusted fixture
 renderer contexts. It verifies copied presentations are purged after post-backup
 deletion. No existing database or volume is removed to run these checks.
+
+[Bounded artifact bundles](research-artifact-bundles.md) now support consistent
+export and offline integrity validation with preserved original identities.
+Recipient scope mapping and atomic import remain unimplemented.
