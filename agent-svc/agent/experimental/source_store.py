@@ -105,6 +105,7 @@ class SourceStore:
                     [{"version": 5}],
                     [{"version": 6}],
                     [{"version": 7}],
+                    [{"version": 8}],
                 ):
                     raise StorageConflictError("unsupported storage schema")
             yield conn
@@ -442,6 +443,15 @@ class SourceStore:
     ) -> None:
         if row["deleted"]:
             return
+        if version >= 8:
+            await conn.execute(
+                "DELETE FROM research_staging.research_publications WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+            await conn.execute(
+                "UPDATE research_staging.research_publication_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+                (scope, root),
+            )
         if version >= 7:
             await conn.execute(
                 "UPDATE research_staging.roots SET current_research_revision=NULL WHERE scope_id=%s AND root_id=%s",

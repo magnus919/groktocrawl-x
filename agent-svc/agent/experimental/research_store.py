@@ -39,7 +39,7 @@ class ResearchStore(ExpiryStore):
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version != [{"version": 7}]:
+        if version not in ([{"version": 7}], [{"version": 8}]):
             raise StorageConflictError("complete research schema unavailable")
 
     async def create_research_root(self, scope: UUID, quota: int = ROOT_QUOTA) -> UUID:
