@@ -104,3 +104,13 @@ the accepted fixture scope while those gates are unresolved.
 
 W2 and W3 remain open. PostgreSQL production use, vector consolidation, orchestration
 runtime adoption and restart-safe execution are not selected by this review.
+
+## Executable inventory follow-up
+
+The [frozen format inventory](../../tests/contracts/research/README.md) implements
+this review's next compatibility boundary under issue #88. It includes complete
+root/child/publication and legacy examples, explicit outer reader contracts,
+nested model schema snapshots, byte/digest pins and actual-reader negative tests.
+An accepted omitted-date example also demonstrates why model defaults must not
+rewrite authoritative bytes. The consolidated IR and render-manifest proposal
+remains the next architecture task; these examples do not freeze either format.
