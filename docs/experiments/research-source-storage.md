@@ -45,8 +45,10 @@ All mutations lock the scope row before the root row under explicit Read Committ
 Reads use Repeatable Read. No provider, acquisition or indexing call occurs under
 a database lock. Each call owns a new connection, with 10-second connection and
 statement limits, a 3-second lock timeout, a 10-second idle-transaction timeout and
-a 30-second outer deadline. Caller admission must bound aggregate connections;
-this slice does not add a global pool or distributed concurrency admission.
+a 30-second outer deadline. The [shared admission guard](research-storage-admission.md) now bounds aggregate
+connections within a process, failing immediately before connecting when its
+eight default slots are occupied. It is not a pool or distributed limiter; caller
+dispatch and acquisition buffers still need their own bounds.
 
 The prototype caps a body at 10 MiB and a reservation at 11 MiB (body plus bounded
 canonical descriptor). Root quota is at most 100 MiB and scope quota at most 1 GiB;
@@ -88,7 +90,7 @@ lease ownership, webhook or completed-job event in this slice.
 
 `install()` explicitly applies `001_source_staging.sql` in one transaction to a
 NEW `research_staging` namespace. It refuses an existing namespace without modifying
-its contents. Normal source operations accept schema versions 1, 2, 3, 4, 5, 6 and 7; there is no automatic
+its contents. Normal source operations accept schema versions 1 through 9; there is no automatic
 migration at import or service startup. This is the first forward migration only.
 Future changes to retained data require a reviewed migration, pre-migration backup
 and restore rehearsal. Do not use the test installer on a pilot or existing database.
@@ -127,7 +129,7 @@ The isolated prototype now retains structural revisions, audited fixture publica
 historical re-renders and bounded export/import bundles with reference ledgers.
 Required CI includes backup restore and post-backup deletion reconciliation for
 these fixture artifacts. Complete Knowledge IR compatibility, scheduled expiry
-collection, reservation reconciliation, bounded aggregate admission, measured
+collection, reservation reconciliation, aggregate acquisition admission, measured
 capacity and the remaining adversarial/production recovery coverage are still
 required by the [lifecycle matrix](research-storage-lifecycle.md).
 [Bounded expiry collection](research-expiry-collection.md) now supplies an explicit
@@ -140,7 +142,7 @@ CI. It does not complete the full artifact or production recovery gates above.
 
 The [retained revision extension](research-retained-revisions.md) adds an explicit
 schema-2 migration. This version of SourceStore supports source operations on
-schema 1, 2, 3, 4, 5, 6 and 7 and removes dependent revision/publication payloads during root deletion.
+schema 1 through 9 and removes dependent revision/publication payloads during root deletion.
 The [fixture publication extension](research-retained-publications.md) adds schema 3,
 audited fixture outputs and thirty-day published-root retention.
 

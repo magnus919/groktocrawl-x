@@ -938,6 +938,9 @@ jobs:
             cmp "$migration_dir/$kind-before.json" "$migration_dir/$kind-restored.json"
           done
 
+      - name: Verify bounded storage connection admission
+        run: docker compose run --rm -T storage-adapter admission
+
       - name: Rehearse backup restore and post-backup deletion
         run: |
           set -eu
