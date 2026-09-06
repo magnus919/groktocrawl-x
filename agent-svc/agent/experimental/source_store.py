@@ -285,25 +285,30 @@ class SourceStore:
         self, scope: UUID, root: UUID, snapshot: UUID
     ) -> RetainedSource:
         async with self._transaction(read=True) as conn:
-            row = await (
-                await conn.execute(
-                    "SELECT s.*,b.body FROM research_staging.snapshots s JOIN research_staging.roots r USING(scope_id,root_id) JOIN research_staging.blobs b ON b.scope_id=s.scope_id AND b.digest=s.body_digest WHERE s.scope_id=%s AND s.root_id=%s AND s.snapshot_id=%s AND NOT r.deleted AND r.expires_at>now()",
-                    (scope, root, snapshot),
-                )
-            ).fetchone()
-            if row is None:
-                raise StorageConflictError("source unavailable")
-            canonical = admit_canonical_json(row["descriptor"], schema_version=SCHEMA)
-            fields = json.loads(canonical.data)
-            expected = source_descriptor(row["body"], fields.get("url"))
-            if (
-                canonical.data != row["descriptor"]
-                or canonical != expected
-                or canonical.digest != row["descriptor_digest"]
-                or fields["body_sha256"] != row["body_digest"]
-            ):
-                raise StorageConflictError("source integrity mismatch")
-            return RetainedSource(snapshot, row["body"], canonical)
+            return await self._read_source(conn, scope, root, snapshot)
+
+    async def _read_source(
+        self, conn: Connection, scope: UUID, root: UUID, snapshot: UUID
+    ) -> RetainedSource:
+        row = await (
+            await conn.execute(
+                "SELECT s.*,b.body FROM research_staging.snapshots s JOIN research_staging.roots r USING(scope_id,root_id) JOIN research_staging.blobs b ON b.scope_id=s.scope_id AND b.digest=s.body_digest WHERE s.scope_id=%s AND s.root_id=%s AND s.snapshot_id=%s AND NOT r.deleted AND r.expires_at>now()",
+                (scope, root, snapshot),
+            )
+        ).fetchone()
+        if row is None:
+            raise StorageConflictError("source unavailable")
+        canonical = admit_canonical_json(row["descriptor"], schema_version=SCHEMA)
+        fields = json.loads(canonical.data)
+        expected = source_descriptor(row["body"], fields.get("url"))
+        if (
+            canonical.data != row["descriptor"]
+            or canonical != expected
+            or canonical.digest != row["descriptor_digest"]
+            or fields["body_sha256"] != row["body_digest"]
+        ):
+            raise StorageConflictError("source integrity mismatch")
+        return RetainedSource(snapshot, row["body"], canonical)
 
     async def receipt(
         self, scope: UUID, root: UUID, operation: UUID

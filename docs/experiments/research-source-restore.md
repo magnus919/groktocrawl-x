@@ -75,3 +75,7 @@ Schema 4 additionally rehearses historical re-rendering: both original and new
 presentations participate in retained/deleted controls, and pre-migration schema-3
 source/revision/publication manifests must match the separately restored backup.
 Fixture contexts come from a fixed trusted allowlist, never arbitrary payload policy.
+
+[Bounded artifact bundles](research-artifact-bundles.md) now support consistent
+export and offline integrity validation with preserved original identities.
+Recipient scope mapping and atomic import remain unimplemented.

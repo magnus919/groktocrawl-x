@@ -95,3 +95,7 @@ remains synthetic fixture evidence and does not complete W2/W3 or human calibrat
 Explicit historical re-rendering now preserves the complete original research
 envelope while creating a new audited fixture presentation on schema 4. This adds
 reuse without retrieval; export/import and the remaining W3 gates are still open.
+
+[Bounded artifact bundles](research-artifact-bundles.md) now support consistent
+export and offline integrity validation with preserved original identities.
+Recipient scope mapping and atomic import remain unimplemented.
