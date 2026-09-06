@@ -110,3 +110,10 @@ source ledgers and stable receipts. Legacy structural roots remain unchanged. Th
 implements the persistence boundary in step 2, subject to required actual database
 and restore CI. Publication/rerender and export/import integration in steps 3–4
 remain open; those operations do not yet consume complete-history roots.
+
+## Complete publication admission
+
+[Complete publication admission](research-complete-publication-admission.md) now
+binds the entire research object and complete revision digest before validating
+fixture render audits. This is step 3's pure boundary only: database publication,
+historical re-render authorization and interchange integration remain open.
