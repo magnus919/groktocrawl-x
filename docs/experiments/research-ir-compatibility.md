@@ -93,3 +93,11 @@ The storage lifecycle's 92 real PostgreSQL cases and restore evidence are record
 in [issue #1](https://github.com/magnus919/groktocrawl-x/issues/1#issuecomment-5557113293).
 All five workflows for the audit base commit passed. This audit adds no executed
 compatibility feature or additional database evidence.
+
+## First implementation step
+
+[Complete fixture revision admission](research-complete-revision-admission.md) now
+canonicalizes the explicit full envelope and validates a bounded supplied prefix
+against caller identities. This implements step 1's pure admission boundary. It
+does not persist or authenticate that prefix, resolve sources from storage, or
+establish the latest parent. Steps 2–4 remain open under issue #71.
