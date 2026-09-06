@@ -94,8 +94,18 @@ remains synthetic fixture evidence and does not complete W2/W3 or human calibrat
 
 Explicit historical re-rendering now preserves the complete original research
 envelope while creating a new audited fixture presentation on schema 4. This adds
-reuse without retrieval; export/import and the remaining W3 gates are still open.
+reuse without retrieval; the remaining W3 gates are still open.
 
 [Bounded artifact bundles](research-artifact-bundles.md) now support consistent
 export and offline integrity validation with preserved original identities.
-Recipient scope mapping and atomic import remain unimplemented.
+[Same-authority scoped imports](research-import-contract.md) now preserve those
+bytes in recipient mappings, with atomic origin revocation on schema 5. PR #67
+passed all eleven checks and all five post-merge workflows; actual PostgreSQL CI
+ran 63 storage cases and restored nine retained imports while denying deleted
+copies. These are fixture lifecycle results, not remote authorization or W3 completion.
+
+The next storage slice is [bounded expiry collection](research-expiry-collection.md):
+read denial already exists, but automatic payload/quota reclamation does not.
+Its contract is planned; implementation and actual race/restore evidence remain
+required. Full IR compatibility, aggregate admission, measured capacity and the
+independent semantic evaluation gates above also remain open.

@@ -87,7 +87,11 @@ case. Explicitly mark any omitted failure mode unverified. All publication and
 integrity cases are hard gates; timing/footprint thresholds come from the reviewed
 ADR-0070 baseline manifest before comparative runs.
 
-The proposal does not add a database or choose a Python driver. D5 must still define
+The isolated implementation now uses PostgreSQL and psycopg, with source, revision,
+publication, rerender, export and same-authority import cases in required CI.
+The [readiness checkpoint](research-w2-readiness.md) distinguishes those executed
+fixture contracts from this full acceptance matrix. [Expiry collection](research-expiry-collection.md)
+is planned and remains unimplemented. D5 must still define
 workflow ownership, crash resumption, staging renewal, retries and webhook outbox;
 D6 must define public errors, references, session transitions and CLI/API parity.
 A storage test passing cannot be reported as end-to-end durable job completion.

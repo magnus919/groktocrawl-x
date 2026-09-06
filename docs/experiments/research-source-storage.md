@@ -123,11 +123,15 @@ substituted with mocks or silently skipped. Source references for the driver:
 
 ## Remaining W3 work
 
-No complete IR/render/reference ledger is committed yet. Full artifact publication,
-export/import, automatic retention/GC, reservation reconciliation, bounded aggregate
-admission, backup restore/deletion-inventory quarantine, measured capacity and
-adversarial failure coverage remain required by the
-[lifecycle matrix](research-storage-lifecycle.md). No W3 completion, restart-safe
+The isolated prototype now retains structural revisions, audited fixture publications,
+historical re-renders and bounded export/import bundles with reference ledgers.
+Required CI includes backup restore and post-backup deletion reconciliation for
+these fixture artifacts. Complete Knowledge IR compatibility, physical expiry
+collection, reservation reconciliation, bounded aggregate admission, measured
+capacity and the remaining adversarial/production recovery coverage are still
+required by the [lifecycle matrix](research-storage-lifecycle.md).
+[Bounded expiry collection](research-expiry-collection.md) is the next planned slice;
+its collector is not implemented yet. No W3 completion, restart-safe
 job execution, human calibration or pgvector/Qdrant adoption follows from these tests.
 
 A [bounded source restore rehearsal](research-source-restore.md) now exercises a
