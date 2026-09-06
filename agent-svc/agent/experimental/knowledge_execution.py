@@ -1,6 +1,7 @@
 """Process-local evidence that configured callbacks returned exact check results."""
 
 import asyncio
+import hashlib
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Literal
@@ -82,6 +83,7 @@ class KnowledgeExecutionLedger:
         self._max_result_bytes = max_result_bytes
         self._issued: set[tuple[str, str, str]] = set()
         self._completed: dict[str, tuple[str, str, bytes]] = {}
+        self._contexts: dict[tuple[str, str, str], str] = {}
         self._retained = 0
         self._reserved = 0
         self._inflight = 0
@@ -93,6 +95,7 @@ class KnowledgeExecutionLedger:
         self._completed.clear()
         self._retained = 0
         self._issued.clear()
+        self._contexts.clear()
 
     async def execute(self, supplied: KnowledgeCheckInput) -> ExecutedCheck:
         document = admit_canonical_json(
@@ -118,6 +121,9 @@ class KnowledgeExecutionLedger:
         ):
             raise ValueError("execution capacity exhausted")
         self._issued.add(identity)
+        self._contexts[identity] = hashlib.sha256(
+            checked.context.model_dump_json().encode()
+        ).hexdigest()
         self._inflight += 1
         self._reserved += self._max_result_bytes
         try:
@@ -212,6 +218,14 @@ class KnowledgeExecutionLedger:
                 raise ValueError(
                     "knowledge result was not returned by this execution owner"
                 )
+        context_digest = hashlib.sha256(
+            knowledge.context.model_dump_json().encode()
+        ).hexdigest()
+        issued_inputs = {
+            key[2] for key, digest in self._contexts.items() if digest == context_digest
+        }
+        if issued_inputs != set(inputs):
+            raise ValueError("knowledge omits issued checks for this context")
         return any(
             item.reviewer.kind == "fixture" for item in knowledge.verification_inputs
         )
