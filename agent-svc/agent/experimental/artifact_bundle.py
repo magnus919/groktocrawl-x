@@ -5,6 +5,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from .canonical import MAX_BYTES, CanonicalDocument, admit_canonical_json
@@ -55,17 +56,23 @@ def _ids(value: object, limit: int, *, allow_empty: bool = False) -> tuple[UUID,
     return tuple(result)
 
 
-def admit_bundle(
+def _bundle_parts(
     raw: bytes,
     *,
+    schema_version: str,
     expected_digest: str,
     scope: UUID,
     root: UUID,
     publication: UUID,
-    context: PublicationContext,
     now: datetime,
-) -> VerifiedBundle:
-    document = admit_canonical_json(raw, schema_version=BUNDLE_SCHEMA)
+) -> tuple[
+    CanonicalDocument,
+    tuple[UUID, ...],
+    tuple[UUID, ...],
+    dict[str, bytes],
+    dict[str, Any],
+]:
+    document = admit_canonical_json(raw, schema_version=schema_version)
     if document.digest != expected_digest:
         raise ValueError("bundle differs from expected digest")
     fields = json.loads(document.data)
@@ -143,6 +150,28 @@ def admit_bundle(
         ):
             raise ValueError("source descriptor or body mismatch")
         sources[str(snapshot)] = (body, json.loads(descriptor.data))
+    return document, revisions, snapshots, decoded, sources
+
+
+def admit_bundle(
+    raw: bytes,
+    *,
+    expected_digest: str,
+    scope: UUID,
+    root: UUID,
+    publication: UUID,
+    context: PublicationContext,
+    now: datetime,
+) -> VerifiedBundle:
+    document, revisions, snapshots, decoded, sources = _bundle_parts(
+        raw,
+        schema_version=BUNDLE_SCHEMA,
+        expected_digest=expected_digest,
+        scope=scope,
+        root=root,
+        publication=publication,
+        now=now,
+    )
     history: list[RetainedRevision] = []
     entities: dict[str, tuple[str, str]] = {}
     referenced = set()

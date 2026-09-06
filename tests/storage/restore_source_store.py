@@ -10,6 +10,7 @@ import psycopg
 from agent.experimental.expiry_store import ExpiryStore
 from agent.experimental.import_store import ImportStore
 from agent.experimental.publication_store import PublicationStore
+from agent.experimental.research_bundle import ResearchBundleStore
 from agent.experimental.research_publication_store import ResearchPublicationStore
 from agent.experimental.research_store import ResearchStore
 from agent.experimental.revision_store import RevisionStore
@@ -484,6 +485,7 @@ async def verify():
                 "verified_complete_research_revisions": research_count,
                 "verified_live_publications": publication_count,
                 "verified_complete_research_publications": complete_publication_count,
+                "verified_complete_research_exports": complete_publication_count,
                 "verified_live_imports": import_count,
                 "deletion_inventory_entries": len(deleted),
                 "post_backup_deletion_denied": True,
@@ -503,7 +505,7 @@ def complete_context(digest):
 
 
 async def verify_complete_publications():
-    store = ResearchPublicationStore()
+    store = ResearchBundleStore()
     values = await rows(
         "SELECT p.scope_id,p.root_id,p.publication_id,p.context_digest FROM research_staging.research_publications p JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
     )
@@ -516,6 +518,9 @@ async def verify_complete_publications():
             != value.document.digest
         ):
             raise AssertionError("complete publication receipt mismatch")
+        await store.export_research_publication(
+            scope, root, identity, complete_context(digest)
+        )
     if sum(scope == RESEARCH_SCOPE for scope, _, _, _ in values) != 2:
         raise AssertionError("retained complete publication/rerender controls missing")
     unresolved = await rows(
