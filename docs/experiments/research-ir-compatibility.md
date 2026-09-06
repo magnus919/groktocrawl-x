@@ -117,3 +117,8 @@ remain open; those operations do not yet consume complete-history roots.
 binds the entire research object and complete revision digest before validating
 fixture render audits. This is step 3's pure boundary only: database publication,
 historical re-render authorization and interchange integration remain open.
+
+[Complete publication storage](research-complete-publication-storage.md) extends
+step 3 with isolated schema-8 transactions and explicit historical re-rendering,
+subject to required actual PostgreSQL and restore checks. Complete-history
+export/import in step 4 remains open.

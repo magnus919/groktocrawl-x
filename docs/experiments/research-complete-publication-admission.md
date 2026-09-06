@@ -61,3 +61,10 @@ publication identity, failed audit, unknown fields/version and an inconsistent
 pinned container. Existing legacy admission and complete revision tests run beside
 them. These are synthetic fixture checks, not semantic truth, human calibration,
 public authorization, production storage adoption or database publication evidence.
+
+## Dependent storage implementation
+
+[Complete publication storage](research-complete-publication-storage.md) adds schema-8
+transactions and explicit historical re-render operations with actual migration and
+restore CI required. The pure function's trust limits above remain unchanged;
+complete-history export/import remains separate work under #71.
