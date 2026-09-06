@@ -110,3 +110,32 @@ Preserve databases/volumes for inspection. Do not add automatic volume deletion,
 provider calls, public routes, Qdrant changes or a new recovery runtime. No accepted
 ADR decision changes here; implementation detail is within the existing bounded
 exploration scope.
+
+## Probe implementation and execution
+
+`tests/storage/run_capacity_probe.py` orchestrates the design with the existing
+isolated Compose environment. Run it from the repository root after building the
+storage-adapter image and starting the dedicated PostgreSQL service. It refuses
+an existing `capacity-results` output directory or existing capacity databases.
+`capacity_workload.py` emits append-only operation events and a compact external
+manifest; `capacity_verify.py` reopens every source and regenerates its exact bytes
+before and after restore. The large-export control uses a valid publication with
+multibyte synthetic audit rationales; character bounds and canonical publication
+admission pass while its base64 member alone exceeds the export byte limit.
+
+The host records `capacity-results/result.json`, raw phase JSONL, the manifest,
+resource samples and phase failure diagnostics. The logical dump stays in a host
+temporary directory outside the uploaded artifact; its size/format/timings are
+reported. This is an experimental fixture dump, not a production backup policy.
+A failed or interrupted workload cannot produce a verified result. The host stops
+any surviving named workload container after failure; it preserves database data.
+The twenty-minute execution budget has bounded sampling/stop cleanup afterward.
+
+Required Runtime CI runs the probe after the existing 268 database cases and
+post-backup deletion rehearsal. Its database job allowance is now 35 minutes to
+accommodate the additional twenty-minute probe and cleanup; the probe and existing
+per-operation deadlines remain unchanged. Capacity artifacts upload even after
+failure. Local pure tests cover reproducible unique corpus bytes, descriptive
+statistics including failures, and a valid publication that exceeds the encoded
+export limit. Actual database capacity and restore remain unverified until hosted
+execution completes; no local Docker measurement is claimed.
