@@ -114,3 +114,8 @@ nested model schema snapshots, byte/digest pins and actual-reader negative tests
 An accepted omitted-date example also demonstrates why model defaults must not
 rewrite authoritative bytes. The consolidated IR and render-manifest proposal
 remains the next architecture task; these examples do not freeze either format.
+
+The [consolidated format proposal](research-consolidated-format.md) and proposed
+[ADR-0075](../adr/0075-consolidate-research-interchange-contracts.md) now define the
+next representation and confirmation plan. They remain proposed; old formats and
+accepted ADR bodies are unchanged.
