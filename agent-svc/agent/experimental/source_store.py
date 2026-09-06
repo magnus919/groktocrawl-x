@@ -101,6 +101,7 @@ class SourceStore:
                     [{"version": 1}],
                     [{"version": 2}],
                     [{"version": 3}],
+                    [{"version": 4}],
                 ):
                     raise StorageConflictError("unsupported storage schema")
             yield conn
@@ -186,7 +187,7 @@ class SourceStore:
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchone()
-        if version and version["version"] == 3:
+        if version and version["version"] >= 3:
             await conn.execute(
                 "UPDATE research_staging.roots SET expires_at=CASE WHEN published_at IS NULL THEN now()+interval '24 hours' ELSE expires_at END WHERE scope_id=%s AND root_id=%s",
                 (scope, root),
@@ -346,7 +347,7 @@ class SourceStore:
                     "SELECT version FROM research_staging.schema_version"
                 )
             ).fetchone()
-            if version and version["version"] == 3:
+            if version and version["version"] >= 3:
                 await conn.execute(
                     "DELETE FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
                     (scope, root),

@@ -62,3 +62,35 @@ def test_invalid_context_or_audit_denied(admitted_inputs, mutation):
         data["extra"] = "unbound"
     with pytest.raises(ValueError):
         admit_publication(json.dumps(data).encode(), structure, publication, context)
+
+
+def test_rerender_pins_research_independently_of_presentation(admitted_inputs):
+    from agent.experimental.publication_store import research_digest
+
+    from tests.storage.publication_fixture import CONTEXT_V2
+
+    structure, publication, raw = admitted_inputs
+    original = admit_publication(raw, structure, publication, CONTEXT)
+    rerender_id = uuid4()
+    rerender = admit_publication(
+        publication_payload(structure, rerender_id, CONTEXT_V2),
+        structure,
+        rerender_id,
+        CONTEXT_V2,
+    )
+    assert original.document.digest != rerender.document.digest
+    assert research_digest(original.document) == research_digest(rerender.document)
+
+
+def test_research_binding_detects_question_change(admitted_inputs):
+    from agent.experimental.canonical import admit_canonical_json
+    from agent.experimental.publication_store import PUBLICATION_SCHEMA, research_digest
+
+    _, _, raw = admitted_inputs
+    original = admit_canonical_json(raw, schema_version=PUBLICATION_SCHEMA)
+    data = json.loads(raw)
+    data["research"]["questions"][0]["question"] = "Changed question"
+    changed = admit_canonical_json(
+        json.dumps(data).encode(), schema_version=PUBLICATION_SCHEMA
+    )
+    assert research_digest(original) != research_digest(changed)

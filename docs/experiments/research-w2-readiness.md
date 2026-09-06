@@ -18,7 +18,8 @@ The fixture author supplies claim annotations, assessment outcomes, semantic
 verdicts and render wording. A passing test establishes that the implementation
 honors those supplied expectations, not that the expectations are true, independent
 or human-reviewed. Hosted integration proves regression compatibility, not research
-quality. No provider or database has been added by these slices.
+quality. No provider has been added. Subsequent isolated PostgreSQL storage slices are
+recorded below.
 
 ## Requirement-to-evidence matrix
 
@@ -80,13 +81,17 @@ database CI boundary for storage exploration. Its transport probes do not freeze
 the research schema or complete the W3 lifecycle matrix.
 
 The [retained-source staging adapter](research-source-storage.md) adds bounded
-source transactions and receipts. Full Knowledge IR and render publication remain
-unimplemented; source staging alone does not complete W2 or W3.
+source transactions and receipts. Complete Knowledge IR remains unfinished; the subsequent fixture publication
+extension is recorded below. Source staging alone does not complete W2 or W3.
 
 [Retained structural revisions](research-retained-revisions.md) now pin scoped
 source references and a parent chain transactionally. Complete Knowledge IR and
-semantic verification/render publication remain separate unfinished gates.
+authenticated semantic verification remain separate unfinished gates.
 
 The [retained fixture publication slice](research-retained-publications.md) adds
 atomic audited outputs and pinned reference reopening on isolated schema 3. This
 remains synthetic fixture evidence and does not complete W2/W3 or human calibration.
+
+Explicit historical re-rendering now preserves the complete original research
+envelope while creating a new audited fixture presentation on schema 4. This adds
+reuse without retrieval; export/import and the remaining W3 gates are still open.

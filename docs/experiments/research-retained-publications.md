@@ -38,8 +38,7 @@ releases unused quota and sets root retention to thirty days from publication.
 
 A competing revision advance makes an uncommitted publication stale. Rebuild with
 a new reservation against the new revision; no silent rebase occurs. Successfully
-published older sets remain readable while their root is active. Explicitly
-rerendering an older, noncurrent revision is outside this slice.
+published older sets remain readable while their root is active. An explicit historical re-render reservation is described below.
 
 `read_publication` uses one repeatable-read transaction. It revalidates trusted
 context, the pinned revision and every retained source; reconstructs each output;
@@ -78,7 +77,8 @@ restore protocol implied by these operations.
 `migrate_publications` requires schema 2 and atomically applies
 `003_fixture_publications.sql` under the schema-version lock. It refuses
 reapplication. Initial installation still creates schema 1; source operations
-support 1/2/3 and revision operations 2/3. Publication operations require 3. Older
+support 1/2/3/4 and revision operations 2/3/4. Publication operations support 3/4;
+historical re-render reservations require 4. Older
 binaries reject unsupported schema versions. No automatic upgrade or destructive
 downgrade is provided.
 
@@ -105,3 +105,50 @@ PostgreSQL cases are required hosted CI, never replaced with mocks or skipped wh
 Docker is unavailable locally. Full Knowledge IR, authenticated verification,
 export/import, aggregate admission, GC, capacity and remaining W2/W3 gates are still
 incomplete. pgvector has not replaced Qdrant.
+
+## Historical re-rendering
+
+On schema 4, a caller may reserve a new publication with explicit `rerender_of`
+(original publication UUID) and `original_context` keyword arguments. Both must
+be supplied. The ordinary `revision` argument must match that original publication,
+which may now be older than the current research revision. The new context may
+select a different renderer or auditor, but must preserve verification policy and
+verifier identity/version.
+
+The reservation opens and validates the original publication under the root lock,
+including its exact outputs and evidence closure. It records the original identity
+and a schema-prefixed JCS digest of the **complete research envelope**. This pins
+questions, assessments, verification records, conflicts, source dates and as-of
+context, as well as structural evidence. Newly generated fixture audits cannot
+silently legitimize changing any of those fields.
+
+Commit still requires new passing audits bound to the newly issued artifact-set
+UUID and trusted rendering context. For this explicit reservation it compares the
+pinned research digest instead of requiring the current revision pointer. Ordinary
+reservations retain the current-revision rule. The original publication and current
+pointer stay unchanged. Exact same-input replay uses the existing receipt. Explicit
+publication renews retention; reservations and reads do not renew an already
+published root. Deleted or expired roots remain unavailable.
+
+No acquisition callback, search client or provider is invoked by these storage
+methods. A new presentation makes no new assertion of current factual freshness.
+The caller constructs presentation inputs outside the transaction and supplies
+fixture render audits; this does not introduce an automatic semantic renderer.
+
+`migrate_rerenders` explicitly requires schema 3 and applies
+`004_historical_rerender.sql` transactionally. Nullable operation metadata preserves
+old reservation behavior and captures re-render provenance for new reservations.
+Receipt metadata may retain the original UUID and research digest after deletion,
+but no research text. Initial installation and old stored publication bytes/hashes
+remain unchanged; older readers reject unsupported database versions.
+
+Runtime CI dumps schema 3 and captures verified source/revision/publication
+manifests before migration. It runs thirteen actual schema-4 cases (the eight
+publication lifecycle regressions plus five historical-reuse cases), restores the
+old dump into a fresh private database, and compares all three manifests. Historical
+cases cover older-revision reuse with unchanged original/current pointer, changed
+research despite recomputed audits, wrong original/context/policy, deletion before
+commit, and migration refusal. The final schema-4 restore includes both original
+and re-rendered retained/deleted controls and a fixed allowlist of trusted fixture
+renderer contexts. It verifies copied presentations are purged after post-backup
+deletion. No existing database or volume is removed to run these checks.

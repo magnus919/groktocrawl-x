@@ -70,3 +70,8 @@ rehearsal on schema 3, including retained/deleted published controls, exact outp
 reopening and live publication receipt closure. It also restores the pre-migration
 schema-2 dump into a separate new database and compares source/revision manifests.
 These extensions preserve the same isolated-fixture and recovery-evidence limits.
+
+Schema 4 additionally rehearses historical re-rendering: both original and new
+presentations participate in retained/deleted controls, and pre-migration schema-3
+source/revision/publication manifests must match the separately restored backup.
+Fixture contexts come from a fixed trusted allowlist, never arbitrary payload policy.
