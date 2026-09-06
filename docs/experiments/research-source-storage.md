@@ -88,7 +88,7 @@ lease ownership, webhook or completed-job event in this slice.
 
 `install()` explicitly applies `001_source_staging.sql` in one transaction to a
 NEW `research_staging` namespace. It refuses an existing namespace without modifying
-its contents. Normal source operations accept schema versions 1 and 2; there is no automatic
+its contents. Normal source operations accept schema versions 1, 2 and 3; there is no automatic
 migration at import or service startup. This is the first forward migration only.
 Future changes to retained data require a reviewed migration, pre-migration backup
 and restore rehearsal. Do not use the test installer on a pilot or existing database.
@@ -136,4 +136,6 @@ CI. It does not complete the full artifact or production recovery gates above.
 
 The [retained revision extension](research-retained-revisions.md) adds an explicit
 schema-2 migration. This version of SourceStore supports source operations on
-schema 1 and 2 and removes dependent revision payloads during root deletion.
+schema 1, 2 and 3 and removes dependent revision/publication payloads during root deletion.
+The [fixture publication extension](research-retained-publications.md) adds schema 3,
+audited fixture outputs and thirty-day published-root retention.

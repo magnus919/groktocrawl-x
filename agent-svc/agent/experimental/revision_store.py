@@ -97,7 +97,7 @@ class RevisionStore(SourceStore):
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version != [{"version": 2}]:
+        if version not in ([{"version": 2}], [{"version": 3}]):
             raise StorageConflictError("revision schema unavailable")
 
     async def reserve_revision(
@@ -114,10 +114,7 @@ class RevisionStore(SourceStore):
             if size > min(row["scope_free"], row["quota"] - row["charged"]):
                 raise StorageConflictError("quota exhausted")
             await self._charge(conn, scope, root, size)
-            await conn.execute(
-                "UPDATE research_staging.roots SET expires_at=now()+interval '24 hours' WHERE scope_id=%s AND root_id=%s",
-                (scope, root),
-            )
+            await self._renew_staging(conn, scope, root)
             result = await (
                 await conn.execute(
                     "INSERT INTO research_staging.revision_operations(scope_id,root_id,generation,parent_id,reserved) VALUES (%s,%s,%s,%s,%s) RETURNING revision_id",
@@ -226,9 +223,10 @@ class RevisionStore(SourceStore):
                 (admitted.document.digest, scope, root, revision),
             )
             await conn.execute(
-                "UPDATE research_staging.roots SET current_revision=%s,expires_at=now()+interval '24 hours' WHERE scope_id=%s AND root_id=%s",
+                "UPDATE research_staging.roots SET current_revision=%s WHERE scope_id=%s AND root_id=%s",
                 (revision, scope, root),
             )
+            await self._renew_staging(conn, scope, root)
             return revision
 
     async def read_revision(
@@ -236,33 +234,38 @@ class RevisionStore(SourceStore):
     ) -> RetainedRevision:
         async with self._transaction(read=True) as conn:
             await self._require_revision_schema(conn)
-            row = await (
-                await conn.execute(
-                    "SELECT v.* FROM research_staging.revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE v.scope_id=%s AND v.root_id=%s AND v.revision_id=%s AND NOT r.deleted AND r.expires_at>now()",
-                    (scope, root, revision),
-                )
-            ).fetchone()
-            if row is None:
-                raise StorageConflictError("revision unavailable")
-            admitted = admit_revision(row["payload"], scope, root, revision)
-            if (
-                admitted.document.data != row["payload"]
-                or admitted.document.digest != row["digest"]
-                or admitted.parent_id != row["parent_id"]
-            ):
-                raise StorageConflictError("revision integrity mismatch")
-            refs = await (
-                await conn.execute(
-                    "SELECT snapshot_id FROM research_staging.revision_sources WHERE scope_id=%s AND root_id=%s AND revision_id=%s",
-                    (scope, root, revision),
-                )
-            ).fetchall()
-            if {str(ref["snapshot_id"]) for ref in refs} != {
-                s.snapshot_id for s in admitted.structure.snapshots
-            }:
-                raise StorageConflictError("revision ledger mismatch")
-            await self._check_sources(conn, scope, root, admitted.structure)
-            return admitted
+            return await self._read_revision(conn, scope, root, revision)
+
+    async def _read_revision(
+        self, conn: Connection, scope: UUID, root: UUID, revision: UUID
+    ) -> RetainedRevision:
+        row = await (
+            await conn.execute(
+                "SELECT v.* FROM research_staging.revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE v.scope_id=%s AND v.root_id=%s AND v.revision_id=%s AND NOT r.deleted AND r.expires_at>now()",
+                (scope, root, revision),
+            )
+        ).fetchone()
+        if row is None:
+            raise StorageConflictError("revision unavailable")
+        admitted = admit_revision(row["payload"], scope, root, revision)
+        if (
+            admitted.document.data != row["payload"]
+            or admitted.document.digest != row["digest"]
+            or admitted.parent_id != row["parent_id"]
+        ):
+            raise StorageConflictError("revision integrity mismatch")
+        refs = await (
+            await conn.execute(
+                "SELECT snapshot_id FROM research_staging.revision_sources WHERE scope_id=%s AND root_id=%s AND revision_id=%s",
+                (scope, root, revision),
+            )
+        ).fetchall()
+        if {str(ref["snapshot_id"]) for ref in refs} != {
+            s.snapshot_id for s in admitted.structure.snapshots
+        }:
+            raise StorageConflictError("revision ledger mismatch")
+        await self._check_sources(conn, scope, root, admitted.structure)
+        return admitted
 
     async def revision_receipt(
         self, scope: UUID, root: UUID, revision: UUID

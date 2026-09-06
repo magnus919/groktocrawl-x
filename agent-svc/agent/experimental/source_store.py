@@ -97,7 +97,11 @@ class SourceStore:
                         "SELECT version FROM research_staging.schema_version"
                     )
                 ).fetchall()
-                if version not in ([{"version": 1}], [{"version": 2}]):
+                if version not in (
+                    [{"version": 1}],
+                    [{"version": 2}],
+                    [{"version": 3}],
+                ):
                     raise StorageConflictError("unsupported storage schema")
             yield conn
 
@@ -177,6 +181,22 @@ class SourceStore:
             (delta, scope, root),
         )
 
+    @staticmethod
+    async def _renew_staging(conn: Connection, scope: UUID, root: UUID) -> None:
+        version = await (
+            await conn.execute("SELECT version FROM research_staging.schema_version")
+        ).fetchone()
+        if version and version["version"] == 3:
+            await conn.execute(
+                "UPDATE research_staging.roots SET expires_at=CASE WHEN published_at IS NULL THEN now()+interval '24 hours' ELSE expires_at END WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+        else:
+            await conn.execute(
+                "UPDATE research_staging.roots SET expires_at=now()+interval '24 hours' WHERE scope_id=%s AND root_id=%s",
+                (scope, root),
+            )
+
     async def reserve(
         self, scope: UUID, root: UUID, generation: int, size: int
     ) -> UUID:
@@ -189,10 +209,7 @@ class SourceStore:
             if size > min(row["scope_free"], row["quota"] - row["charged"]):
                 raise StorageConflictError("quota exhausted")
             await self._charge(conn, scope, root, size)
-            await conn.execute(
-                "UPDATE research_staging.roots SET expires_at=now()+interval '24 hours' WHERE scope_id=%s AND root_id=%s",
-                (scope, root),
-            )
+            await self._renew_staging(conn, scope, root)
             operation = await (
                 await conn.execute(
                     "INSERT INTO research_staging.operations(scope_id,root_id,generation,reserved) VALUES (%s,%s,%s,%s) RETURNING operation_id",
@@ -260,10 +277,7 @@ class SourceStore:
                 (descriptor.digest, snapshot_id, scope, root, operation),
             )
             await self._charge(conn, scope, root, charge - op["reserved"])
-            await conn.execute(
-                "UPDATE research_staging.roots SET expires_at=now()+interval '24 hours' WHERE scope_id=%s AND root_id=%s",
-                (scope, root),
-            )
+            await self._renew_staging(conn, scope, root)
             return snapshot_id
 
     async def read_source(
@@ -332,7 +346,16 @@ class SourceStore:
                     "SELECT version FROM research_staging.schema_version"
                 )
             ).fetchone()
-            if version and version["version"] == 2:
+            if version and version["version"] == 3:
+                await conn.execute(
+                    "DELETE FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
+                    (scope, root),
+                )
+                await conn.execute(
+                    "UPDATE research_staging.publication_operations SET state='cancelled' WHERE scope_id=%s AND root_id=%s AND state='pending'",
+                    (scope, root),
+                )
+            if version and version["version"] >= 2:
                 await conn.execute(
                     "UPDATE research_staging.roots SET current_revision=NULL WHERE scope_id=%s AND root_id=%s",
                     (scope, root),
