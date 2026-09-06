@@ -62,9 +62,9 @@ idempotent. No automatic expiry scheduler or restart-safe job execution is added
 
 ## Migration and recovery evidence
 
-The new schema-9 phase schedules 74 actual PostgreSQL cases: 57 existing lifecycle,
+The schema-9 phase passed 74 actual PostgreSQL cases: 57 existing lifecycle,
 complete-history/publication/export regressions plus 17 complete-import cases.
-Combined with 189 preceding cases, 263 are expected. New-format cases include exact
+Combined with 189 preceding cases, all 263 passed in PR #78. New-format cases include exact
 round trip, complete child ancestry, native/chained write denial, format separation,
 rehashed live-origin mismatch, cancellation, grant expiry, recipient quota races,
 fan-out bounds, opposing scope imports, generation changes, deletion races,
@@ -79,7 +79,8 @@ all retained imports through their explicit format readers. The result separates
 `verified_complete_research_imports` from legacy import counts. No databases or
 volumes are removed by the added workflow.
 
-Local pure checks and fixtures are not substitutes for these hosted tests. The
-end-to-end scope of #71 can be assessed only after required PostgreSQL, restore,
-full integration and post-merge checks pass. Semantic verdicts remain fixtures;
-this implementation supplies neither independent evaluation nor human calibration.
+Required PostgreSQL, restore, full integration and all five exact-main workflows
+passed for PR #78. The [completion assessment](research-ir-compatibility.md#verified-completion-of-issue-71)
+records the pinned runs, recovery counts and remaining gates. Semantic verdicts
+remain fixtures; this implementation supplies neither independent evaluation nor
+human calibration.

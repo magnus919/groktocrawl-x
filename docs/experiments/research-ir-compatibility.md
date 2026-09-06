@@ -7,7 +7,46 @@ after storage, import and expiry collection landed. Tracked in
 bounded foundation contract; its body is unchanged. This document does not freeze
 `knowledge-ir/1`, change an accepted ADR or report W2/W3 complete.
 
-## Conclusion and next implementation
+## Verified completion of issue #71
+
+The bounded complete-history implementation is complete as of main commit
+`baf5f783eddbb77360fe242cd3fc7df36eef2149` (PR #78). A retained complete
+research revision can now be reopened before rendering, published, historically
+re-rendered, exported with its required ancestry, and imported within the same
+live storage authority. Legacy structural formats retain their original readers,
+bytes and digest interpretations.
+
+| Declared requirement | Delivered implementation |
+|---|---|
+| Explicit compatibility disposition without invented legacy provenance | This original audit, PR #72; separate complete envelope admission, PR #73 |
+| Retained complete parents, immutable identities and scoped source closure | Schema 7 and complete history storage, PR #74 |
+| Publication and historical re-render bound to the complete revision | Complete publication admission and schema 8, PRs #75–#76 |
+| Complete ancestry through versioned export/import | Complete bundles and schema 9 format-bound imports, PRs #77–#78 |
+| Atomic receipts, lifecycle closure and migration/restore evidence | Actual PostgreSQL lifecycle and recovery checks through PR #78 |
+
+[PR #78 Runtime CI](https://github.com/magnus919/groktocrawl-x/actions/runs/34028115924)
+passed all 263 scheduled PostgreSQL cases, full integration and the runtime gate.
+The schema-8 backup's six manifests matched its independent restore. The final
+PostgreSQL 17.11 recovery report verified 125 complete research revisions,
+35 complete publications, 35 complete exports and 11 complete imports alongside
+legacy controls. It reconciled 334 deletion inventory entries; post-backup deletion
+remained denied, expiry collection reconciled and live receipt references resolved.
+These are test executions and retained fixture objects, not independent workloads
+or measurements of semantic quality. The local unit/service suite passed 3,084
+cases with seven existing skips.
+
+All five workflows on that exact merged commit passed, including
+[post-merge Runtime CI](https://github.com/magnus919/groktocrawl-x/actions/runs/34029205027).
+This satisfies issue #71's declared bounded implementation and evidence scope.
+The sections below preserve the original audit and intermediate milestones; their
+“next” and “open” statements describe those earlier checkpoints.
+
+W2/W3 are not thereby accepted as complete. Consolidated `knowledge-ir/1`, public
+compatibility and authorization, independent semantic evaluation, aggregate
+admission and measured capacity remain separate gates. No production/default-stack
+cutover, vector adoption, provider spend or restart-safe execution is established.
+
+## Original audit conclusion and implementation plan
 
 The prototype has substantial structural and storage validation, but **a retained
 structural revision is not a complete research revision**. The complete in-memory
