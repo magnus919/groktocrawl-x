@@ -81,7 +81,7 @@ SourceStore's explicit initial installer still creates schema 1. `migrate_revisi
 is a separate explicit, forward-only migration to schema 2. It locks the schema
 version table, requires version 1 and applies `002_structure_revisions.sql` in one
 transaction. Reapplication or unknown version fails. This code's source operations
-read schemas 1/2/3; revision operations require version 2 or 3. An older source
+read schemas 1/2/3/4; revision operations require version 2, 3 or 4. An older source
 binary that only accepts version 1 rejects the upgraded schema rather than silently
 operating on it. There is no automatic upgrade or destructive down migration.
 

@@ -88,6 +88,19 @@ def admit_publication(
     return result
 
 
+def research_digest(document: CanonicalDocument) -> str:
+    """Pin all historical assessments, questions, dates and verification records."""
+    return admit_canonical_json(
+        json.dumps(
+            {
+                "schema_version": "retained-rerender-research/1",
+                "research": json.loads(document.data)["research"],
+            }
+        ).encode(),
+        schema_version="retained-rerender-research/1",
+    ).digest
+
+
 class PublicationStore(RevisionStore):
     async def migrate_publications(self) -> None:
         sql = (
@@ -109,12 +122,32 @@ class PublicationStore(RevisionStore):
                 raise StorageConflictError("migration requires schema 2")
             await conn.execute(sql, prepare=False)
 
+    async def migrate_rerenders(self) -> None:
+        sql = (
+            Path(__file__)
+            .with_name("migrations")
+            .joinpath("004_historical_rerender.sql")
+            .read_text()
+        )
+        async with self._transaction(bootstrap=True) as conn:
+            await conn.execute(
+                "LOCK TABLE research_staging.schema_version IN ACCESS EXCLUSIVE MODE"
+            )
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 3}]:
+                raise StorageConflictError("migration requires schema 3")
+            await conn.execute(sql, prepare=False)
+
     @staticmethod
     async def _require_publication_schema(conn: Connection) -> None:
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version != [{"version": 3}]:
+        if version not in ([{"version": 3}], [{"version": 4}]):
             raise StorageConflictError("publication schema unavailable")
 
     async def reserve_publication(
@@ -125,15 +158,47 @@ class PublicationStore(RevisionStore):
         revision: UUID,
         size: int,
         context: PublicationContext,
+        *,
+        rerender_of: UUID | None = None,
+        original_context: PublicationContext | None = None,
     ) -> UUID:
         digest = context.digest()
+        if (rerender_of is None) != (original_context is None):
+            raise ValueError(
+                "rerender requires original publication and trusted context"
+            )
         if type(size) is not int or not 0 < size <= MAX_BYTES:
             raise ValueError("invalid publication reservation")
         async with self._transaction() as conn:
             await self._require_publication_schema(conn)
             row = await self._lock(conn, scope, root)
             self._active(row, generation)
-            if row["current_revision"] != revision:
+            pinned_research = None
+            if rerender_of is not None and original_context is not None:
+                version = await (
+                    await conn.execute(
+                        "SELECT version FROM research_staging.schema_version"
+                    )
+                ).fetchall()
+                if version != [{"version": 4}]:
+                    raise StorageConflictError("rerender schema unavailable")
+                original_context = PublicationContext.model_validate(original_context)
+                if (
+                    context.policy_version != original_context.policy_version
+                    or context.verifier != original_context.verifier
+                ):
+                    raise StorageConflictError(
+                        "rerender cannot change verification context"
+                    )
+                original = await self._read_publication(
+                    conn, scope, root, rerender_of, original_context
+                )
+                if json.loads(original.document.data)["revision_id"] != str(revision):
+                    raise StorageConflictError(
+                        "rerender differs from original revision"
+                    )
+                pinned_research = research_digest(original.document)
+            elif row["current_revision"] != revision:
                 raise StorageConflictError("publication requires current revision")
             if size > min(row["scope_free"], row["quota"] - row["charged"]):
                 raise StorageConflictError("quota exhausted")
@@ -146,6 +211,17 @@ class PublicationStore(RevisionStore):
             ).fetchone()
             await self._renew_staging(conn, scope, root)
             assert result is not None
+            if rerender_of is not None:
+                await conn.execute(
+                    "UPDATE research_staging.publication_operations SET rerender_of=%s,research_digest=%s WHERE scope_id=%s AND root_id=%s AND publication_id=%s",
+                    (
+                        rerender_of,
+                        pinned_research,
+                        scope,
+                        root,
+                        result["publication_id"],
+                    ),
+                )
             return result["publication_id"]
 
     async def commit_publication(
@@ -184,7 +260,10 @@ class PublicationStore(RevisionStore):
                 if operation["input_digest"] != admitted.document.digest:
                     raise StorageConflictError("publication input changed")
                 return publication
-            if row["current_revision"] != revision:
+            if operation.get("research_digest") is not None:
+                if research_digest(admitted.document) != operation["research_digest"]:
+                    raise StorageConflictError("rerender research changed")
+            elif row["current_revision"] != revision:
                 raise StorageConflictError("publication requires current revision")
             if admitted.size > operation["reserved"]:
                 raise StorageConflictError("publication reservation exceeded")
@@ -226,41 +305,51 @@ class PublicationStore(RevisionStore):
     async def read_publication(
         self, scope: UUID, root: UUID, publication: UUID, context: PublicationContext
     ) -> RetainedPublication:
-        context_digest = context.digest()
         async with self._transaction(read=True) as conn:
             await self._require_publication_schema(conn)
-            row = await (
-                await conn.execute(
-                    "SELECT p.* FROM research_staging.publications p JOIN research_staging.roots r USING(scope_id,root_id) WHERE p.scope_id=%s AND p.root_id=%s AND p.publication_id=%s AND NOT r.deleted AND r.expires_at>now()",
-                    (scope, root, publication),
-                )
-            ).fetchone()
-            if row is None or row["context_digest"] != context_digest:
-                raise StorageConflictError("publication unavailable")
-            retained = await self._read_revision(conn, scope, root, row["revision_id"])
-            admitted = admit_publication(
-                row["payload"], retained.structure, publication, context
+            return await self._read_publication(conn, scope, root, publication, context)
+
+    async def _read_publication(
+        self,
+        conn: Connection,
+        scope: UUID,
+        root: UUID,
+        publication: UUID,
+        context: PublicationContext,
+    ) -> RetainedPublication:
+        context_digest = context.digest()
+        row = await (
+            await conn.execute(
+                "SELECT p.* FROM research_staging.publications p JOIN research_staging.roots r USING(scope_id,root_id) WHERE p.scope_id=%s AND p.root_id=%s AND p.publication_id=%s AND NOT r.deleted AND r.expires_at>now()",
+                (scope, root, publication),
             )
-            if (
-                admitted.document.data != row["payload"]
-                or admitted.document.digest != row["digest"]
-                or any(
-                    getattr(admitted, layer) != row[layer]
-                    for layer in ("summary", "analysis", "dossier")
-                )
-            ):
-                raise StorageConflictError("publication integrity mismatch")
-            refs = await (
-                await conn.execute(
-                    "SELECT snapshot_id FROM research_staging.publication_sources WHERE scope_id=%s AND root_id=%s AND publication_id=%s",
-                    (scope, root, publication),
-                )
-            ).fetchall()
-            if {str(r["snapshot_id"]) for r in refs} != {
-                s.snapshot_id for s in retained.structure.snapshots
-            }:
-                raise StorageConflictError("publication ledger mismatch")
-            return admitted
+        ).fetchone()
+        if row is None or row["context_digest"] != context_digest:
+            raise StorageConflictError("publication unavailable")
+        retained = await self._read_revision(conn, scope, root, row["revision_id"])
+        admitted = admit_publication(
+            row["payload"], retained.structure, publication, context
+        )
+        if (
+            admitted.document.data != row["payload"]
+            or admitted.document.digest != row["digest"]
+            or any(
+                getattr(admitted, layer) != row[layer]
+                for layer in ("summary", "analysis", "dossier")
+            )
+        ):
+            raise StorageConflictError("publication integrity mismatch")
+        refs = await (
+            await conn.execute(
+                "SELECT snapshot_id FROM research_staging.publication_sources WHERE scope_id=%s AND root_id=%s AND publication_id=%s",
+                (scope, root, publication),
+            )
+        ).fetchall()
+        if {str(r["snapshot_id"]) for r in refs} != {
+            s.snapshot_id for s in retained.structure.snapshots
+        }:
+            raise StorageConflictError("publication ledger mismatch")
+        return admitted
 
     async def publication_receipt(
         self, scope: UUID, root: UUID, publication: UUID

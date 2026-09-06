@@ -10,7 +10,12 @@ import psycopg
 from agent.experimental.publication_store import PublicationStore
 from agent.experimental.revision_store import RevisionStore
 from agent.experimental.source_store import SourceStore, StorageConflictError
-from publication_fixture import CONTEXT, publication_payload, supported_revision
+from publication_fixture import (
+    CONTEXT,
+    CONTEXT_V2,
+    publication_payload,
+    supported_revision,
+)
 
 SCOPE = UUID("37249300-d005-4f26-813c-3a6ecc9f54cc")
 DELETED_BODY = b"Fixture evidence deleted AFTER the backup."
@@ -32,16 +37,16 @@ async def seed():
             SCOPE, root, 1, operation, body, "https://example.test/revision"
         )
         schema = await rows("SELECT version FROM research_staging.schema_version")
-        if schema in ([(2,)], [(3,)]):
+        if schema in ([(2,)], [(3,)], [(4,)]):
             from test_revision_store_db import payload
 
             revisions = RevisionStore()
             revision = await revisions.reserve_revision(SCOPE, root, 1, None, 10000)
             raw = payload(SCOPE, root, revision, snapshot, body)
-            if schema == [(3,)]:
+            if schema in ([(3,)], [(4,)]):
                 raw = supported_revision(raw)
             await revisions.commit_revision(SCOPE, root, 1, revision, raw)
-            if schema == [(3,)]:
+            if schema in ([(3,)], [(4,)]):
                 publications = PublicationStore()
                 publication = await publications.reserve_publication(
                     SCOPE, root, 1, revision, 100000, CONTEXT
@@ -58,6 +63,26 @@ async def seed():
                     publication_payload(structure, publication),
                     CONTEXT,
                 )
+                if schema == [(4,)]:
+                    rerender = await publications.reserve_publication(
+                        SCOPE,
+                        root,
+                        1,
+                        revision,
+                        100000,
+                        CONTEXT_V2,
+                        rerender_of=publication,
+                        original_context=CONTEXT,
+                    )
+                    await publications.commit_publication(
+                        SCOPE,
+                        root,
+                        1,
+                        revision,
+                        rerender,
+                        publication_payload(structure, rerender, CONTEXT_V2),
+                        CONTEXT_V2,
+                    )
     print("Seeded bounded restore fixtures")
 
 
@@ -112,16 +137,20 @@ async def verify():
         raise AssertionError("backup fixture changed")
     schema = await rows("SELECT version FROM research_staging.schema_version")
     deleted_publications = []
-    if schema == [(3,)]:
+    if schema in ([(3,)], [(4,)]):
         deleted_publications = await rows(
             "SELECT publication_id FROM research_staging.publications WHERE scope_id=%s AND root_id=%s",
             (SCOPE, root),
         )
-        if len(deleted_publications) != 1:
+        if len(deleted_publications) != (2 if schema == [(4,)] else 1):
             raise AssertionError("pre-deletion published control missing")
-        await PublicationStore().read_publication(
-            SCOPE, root, deleted_publications[0][0], CONTEXT
-        )
+        for (publication,) in deleted_publications:
+            await PublicationStore().read_publication(
+                SCOPE,
+                root,
+                publication,
+                await fixture_context(SCOPE, root, publication),
+            )
     for scope, deleted_root in deleted:
         existing = await rows(
             "SELECT 1 FROM research_staging.roots WHERE scope_id=%s AND root_id=%s",
@@ -162,7 +191,7 @@ async def verify():
         raise AssertionError("live receipt reference unresolved")
     schema = await rows("SELECT version FROM research_staging.schema_version")
     revision_count = 0
-    if schema in ([(2,)], [(3,)]):
+    if schema in ([(2,)], [(3,)], [(4,)]):
         revisions = await rows(
             "SELECT v.scope_id,v.root_id,v.revision_id FROM research_staging.revisions v JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
@@ -180,13 +209,16 @@ async def verify():
         if deleted_revisions[0][0] != 0:
             raise AssertionError("deleted revision bodies survived reconciliation")
     publication_count = 0
-    if schema == [(3,)]:
+    if schema in ([(3,)], [(4,)]):
         publications = await rows(
             "SELECT p.scope_id,p.root_id,p.publication_id FROM research_staging.publications p JOIN research_staging.roots r USING(scope_id,root_id) WHERE NOT r.deleted AND r.expires_at>now()"
         )
         for scope, root, publication in publications:
             retained_publication = await PublicationStore().read_publication(
-                scope, root, publication, CONTEXT
+                scope,
+                root,
+                publication,
+                await fixture_context(scope, root, publication),
             )
             if (
                 await PublicationStore().publication_receipt(scope, root, publication)
@@ -243,6 +275,47 @@ async def source_state():
     print(json.dumps({"sources": len(manifest), "fixture_manifest_sha256": digest}))
 
 
+async def fixture_context(scope, root, publication):
+    # Fixed trusted fixture allowlist; never construct arbitrary trust from payload.
+    result = await rows(
+        "SELECT context_digest FROM research_staging.publications WHERE scope_id=%s AND root_id=%s AND publication_id=%s",
+        (scope, root, publication),
+    )
+    trusted = {context.digest(): context for context in (CONTEXT, CONTEXT_V2)}
+    if len(result) != 1 or result[0][0] not in trusted:
+        raise AssertionError("unknown fixture publication context")
+    return trusted[result[0][0]]
+
+
+async def publication_state():
+    retained = await rows(
+        "SELECT scope_id,root_id,publication_id FROM research_staging.publications ORDER BY scope_id,root_id,publication_id"
+    )
+    manifest = []
+    for scope, root, publication in retained:
+        value = await PublicationStore().read_publication(
+            scope, root, publication, await fixture_context(scope, root, publication)
+        )
+        manifest.append(
+            [
+                str(scope),
+                str(root),
+                str(publication),
+                value.document.digest,
+                *[
+                    hashlib.sha256(getattr(value, layer)).hexdigest()
+                    for layer in ("summary", "analysis", "dossier")
+                ],
+            ]
+        )
+    digest = hashlib.sha256(
+        json.dumps(manifest, separators=(",", ":")).encode()
+    ).hexdigest()
+    print(
+        json.dumps({"publications": len(manifest), "fixture_manifest_sha256": digest})
+    )
+
+
 async def revision_state():
     retained = await rows(
         "SELECT scope_id,root_id,revision_id FROM research_staging.revisions ORDER BY scope_id,root_id,revision_id"
@@ -261,6 +334,7 @@ if __name__ == "__main__":
     modes = {
         "source-state": source_state,
         "revision-state": revision_state,
+        "publication-state": publication_state,
         "restore-seed": seed,
         "restore-delete": delete_and_inventory,
         "restore-verify": verify,

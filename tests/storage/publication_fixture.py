@@ -29,6 +29,9 @@ CONTEXT = PublicationContext(
 )
 
 
+CONTEXT_V2 = CONTEXT.model_copy(update={"renderer_version": "fixture-render/2"})
+
+
 def supported_revision(raw):
     data = json.loads(raw)
     data["structure"]["as_of"] = AT
@@ -38,7 +41,7 @@ def supported_revision(raw):
     return json.dumps(data).encode()
 
 
-def publication_payload(structure, publication):
+def publication_payload(structure, publication, context=CONTEXT):
     claim = structure.claims[0]
     evidence = tuple(e.evidence_id for e in structure.evidence)
     records = []
@@ -48,11 +51,11 @@ def publication_payload(structure, publication):
             structure=structure,
             subject_id=claim.claim_id,
             check_type=check,
-            policy_version=CONTEXT.policy_version,
-            verifier=VERIFIER,
+            policy_version=context.policy_version,
+            verifier=context.verifier,
             evidence_ids=evidence,
             freshness={
-                "policy_version": CONTEXT.policy_version,
+                "policy_version": context.policy_version,
                 "evaluated_at": AT,
                 "as_of": AT,
                 "sources": [
@@ -83,8 +86,8 @@ def publication_payload(structure, publication):
         structure=structure,
         subject_id=claim.claim_id,
         check_type="assessment",
-        policy_version=CONTEXT.policy_version,
-        verifier=VERIFIER,
+        policy_version=context.policy_version,
+        verifier=context.verifier,
         evidence_ids=evidence,
     )
     assessment = FixtureAssessment(
@@ -98,8 +101,8 @@ def publication_payload(structure, publication):
     verifications = FixtureVerificationSet(
         schema_version="fixture-verifications/1",
         structure=structure,
-        policy_version=CONTEXT.policy_version,
-        verifier=VERIFIER,
+        policy_version=context.policy_version,
+        verifier=context.verifier,
         records=records,
         assessments=[assessment],
         assessment_links=[{"claim_id": claim.claim_id, "assessment_ids": ["a-1"]}],
@@ -122,8 +125,8 @@ def publication_payload(structure, publication):
             schema_version="fixture-render-input/1",
             research=research,
             artifact_set_id=str(publication),
-            renderer_version=CONTEXT.renderer_version,
-            auditor=CONTEXT.auditor,
+            renderer_version=context.renderer_version,
+            auditor=context.auditor,
             artifact={
                 "artifact_id": layer,
                 "layer": layer,
