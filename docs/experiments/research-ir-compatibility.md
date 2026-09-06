@@ -127,3 +127,9 @@ export/import in step 4 remains open.
 export and offline admission with complete predecessor/source closure. The version
 is explicit and legacy bundles remain unchanged. Live-origin-authorized import,
 recipient retention and deletion propagation for this new format remain open.
+
+[Complete research import](research-complete-imports.md) extends step 4 with explicit
+schema-9 operation/payload format binding and the shared recipient lifecycle.
+Legacy payloads remain unchanged. Live-origin comparison, full-history admission,
+retention and deletion propagation require actual database/recovery verification;
+#71's declared scope is ready for final assessment only after those checks pass.

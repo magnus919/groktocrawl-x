@@ -84,3 +84,10 @@ Hosted database and full integration checks remain required before merge.
 Complete-history import remains open under #71. This is synthetic fixture evidence,
 not human semantic calibration, production adoption, vector consolidation or
 restart-safe job execution.
+
+## Dependent import implementation
+
+[Complete research import](research-complete-imports.md) adds explicit schema-9
+format binding to the shared trusted-server import lifecycle, including live-origin
+comparison, recipient quota/retention and deletion propagation. Actual database,
+migration and recovery validation remain required before accepting this path.

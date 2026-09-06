@@ -4,11 +4,16 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
-from .artifact_bundle import ArtifactBundleStore, VerifiedBundle, admit_bundle
-from .canonical import MAX_BYTES
+from .artifact_bundle import (
+    BUNDLE_SCHEMA,
+    ArtifactBundleStore,
+    VerifiedBundle,
+    admit_bundle,
+)
+from .canonical import MAX_BYTES, CanonicalDocument
 from .publication_store import PublicationContext
 from .source_store import Connection, StorageConflictError
 
@@ -38,6 +43,24 @@ def effective_retention(
 
 
 class ImportStore(ArtifactBundleStore):
+    bundle_schema: ClassVar[str] = BUNDLE_SCHEMA
+    admit_import_bundle = staticmethod(admit_bundle)
+
+    async def _export_import_origin(
+        self,
+        conn: Connection,
+        scope: UUID,
+        root: UUID,
+        publication: UUID,
+        context: PublicationContext,
+    ) -> CanonicalDocument:
+        return await self._export_publication(conn, scope, root, publication, context)
+
+    @classmethod
+    def _check_import_format(cls, operation: dict[str, Any]) -> None:
+        if operation.get("bundle_schema", BUNDLE_SCHEMA) != cls.bundle_schema:
+            raise StorageConflictError("import bundle format unavailable")
+
     async def migrate_imports(self) -> None:
         sql = (
             Path(__file__)
@@ -68,6 +91,7 @@ class ImportStore(ArtifactBundleStore):
             [{"version": 6}],
             [{"version": 7}],
             [{"version": 8}],
+            [{"version": 9}],
         ):
             raise StorageConflictError("import schema unavailable")
         return int(version[0]["version"])
@@ -77,7 +101,7 @@ class ImportStore(ArtifactBundleStore):
     ) -> None:
         live = json.loads(
             (
-                await self._export_publication(
+                await self._export_import_origin(
                     conn,
                     bundle.scope_id,
                     bundle.root_id,
@@ -93,8 +117,10 @@ class ImportStore(ArtifactBundleStore):
         if incoming != live:
             raise StorageConflictError("bundle differs from live origin")
 
-    @staticmethod
-    async def _operation(conn: Connection, scope: UUID, root: UUID) -> dict[str, Any]:
+    @classmethod
+    async def _operation(
+        cls, conn: Connection, scope: UUID, root: UUID
+    ) -> dict[str, Any]:
         row = await (
             await conn.execute(
                 "SELECT * FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s",
@@ -103,15 +129,17 @@ class ImportStore(ArtifactBundleStore):
         ).fetchone()
         if row is None:
             raise StorageConflictError("import operation unavailable")
+        cls._check_import_format(row)
         return row
 
-    @staticmethod
+    @classmethod
     def _validate(
-        raw: bytes, operation: dict[str, Any], context: PublicationContext
+        cls, raw: bytes, operation: dict[str, Any], context: PublicationContext
     ) -> VerifiedBundle:
+        cls._check_import_format(operation)
         if context.digest() != operation["context_digest"]:
             raise StorageConflictError("import context unavailable")
-        return admit_bundle(
+        return cls.admit_import_bundle(
             raw,
             expected_digest=operation["bundle_digest"],
             scope=operation["origin_scope_id"],
@@ -132,7 +160,7 @@ class ImportStore(ArtifactBundleStore):
         context: PublicationContext,
     ) -> UUID:
         """Privileged internal grant issuer; caller must authorize the recipient scope."""
-        bundle = admit_bundle(
+        bundle = self.admit_import_bundle(
             raw,
             expected_digest=expected_digest,
             scope=origin_scope,
@@ -142,7 +170,7 @@ class ImportStore(ArtifactBundleStore):
             now=datetime.now(UTC),
         )
         async with self._transaction() as conn:
-            await self._require_import_schema(conn)
+            version = await self._require_import_schema(conn)
             await self._coordinate_imports(conn)
             rows = await self._lock_roots(
                 conn, {(origin_scope, origin_root)}, (recipient,)
@@ -201,6 +229,11 @@ class ImportStore(ArtifactBundleStore):
                     retained_until,
                 ),
             )
+            if version >= 9:
+                await conn.execute(
+                    "UPDATE research_staging.import_operations SET bundle_schema=%s WHERE scope_id=%s AND root_id=%s",
+                    (self.bundle_schema, recipient, root),
+                )
             return root
 
     async def commit_import(
@@ -212,7 +245,7 @@ class ImportStore(ArtifactBundleStore):
             before = await self._operation(conn, recipient, root)
         bundle = self._validate(raw, before, context)
         async with self._transaction() as conn:
-            await self._require_import_schema(conn)
+            version = await self._require_import_schema(conn)
             await self._coordinate_imports(conn)
             operation = await self._operation(conn, recipient, root)
             origin_key = (operation["origin_scope_id"], operation["origin_root_id"])
@@ -246,10 +279,22 @@ class ImportStore(ArtifactBundleStore):
             size = len(bundle.document.data)
             if size > operation["reserved"]:
                 raise StorageConflictError("import reservation exceeded")
-            await conn.execute(
-                "INSERT INTO research_staging.imported_bundles(scope_id,root_id,payload,digest) VALUES (%s,%s,%s,%s)",
-                (recipient, root, bundle.document.data, bundle.document.digest),
-            )
+            if version >= 9:
+                await conn.execute(
+                    "INSERT INTO research_staging.imported_bundles(scope_id,root_id,payload,digest,bundle_schema) VALUES (%s,%s,%s,%s,%s)",
+                    (
+                        recipient,
+                        root,
+                        bundle.document.data,
+                        bundle.document.digest,
+                        self.bundle_schema,
+                    ),
+                )
+            else:
+                await conn.execute(
+                    "INSERT INTO research_staging.imported_bundles(scope_id,root_id,payload,digest) VALUES (%s,%s,%s,%s)",
+                    (recipient, root, bundle.document.data, bundle.document.digest),
+                )
             await self._charge(conn, recipient, root, size - operation["reserved"])
             await conn.execute(
                 "UPDATE research_staging.import_operations SET state='committed',receipt_digest=%s WHERE scope_id=%s AND root_id=%s",
@@ -289,10 +334,12 @@ class ImportStore(ArtifactBundleStore):
             await self._require_import_schema(conn)
             row = await (
                 await conn.execute(
-                    "SELECT receipt_digest FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s AND state='committed'",
+                    "SELECT * FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s AND state='committed'",
                     (recipient, root),
                 )
             ).fetchone()
+            if row:
+                self._check_import_format(row)
             return row["receipt_digest"] if row else None
 
     async def cancel_import(self, recipient: UUID, root: UUID) -> None:
