@@ -10,8 +10,10 @@ runtime adoption 0073 and recovery 0074 remain proposed. This checkpoint accompa
 An executable local fixture journey now acquires text, constructs an immutable
 structural revision, binds explicit assessment/verification/freshness records and
 publishes an audited summary, analysis and dossier. The controller owns budgets,
-cooperative deadlines, cancellation and terminal outcomes. A separate pure history
-validator checks supplied revision chains. These are executable contract checks;
+cooperative deadlines, cancellation and terminal outcomes. Complete fixture history
+is also retained and validated across publication, re-render, export and
+same-authority import in the isolated PostgreSQL adapter. These are executable
+contract checks;
 W2 is **not complete**, and the internal formats are not complete `knowledge-ir/1`.
 
 The fixture author supplies claim annotations, assessment outcomes, semantic
@@ -31,9 +33,9 @@ recorded below.
 | ADR-0069: freshness, source dependence and uncertainty | Source dates/provenance, lineage/origin, as-of context and historical/current scope; `test_source_freshness.py` | Dates and lineage are recorded assertions. No independent-source count or proof of current real-world truth. |
 | ADR-0069: assessment distinct from verification | `FixtureAssessment` and explicit `AssessmentLink` mapping in `FixtureVerificationSet`; `test_fixture_assessments.py` | Fixture assessor shares the configured fixture identity contract. No real assessor authentication or independently evaluated semantic assessor. |
 | ADR-0069: verification and publication eligibility | Input-bound support/freshness/conflict records plus exact three-layer audit binding; assessment alone cannot publish | Fixture verdicts can be wrong. No demonstrated entailment, caveat preservation or unbiased semantic audit beyond hand-authored cases. |
-| ADR-0069: revision identity and append-only records | `revisions.py`; typed introductions, immutable IDs across removal/reintroduction, historical/current record separation | Bounded supplied linear history only; not authenticated, complete, persisted or portable. Declared novel/replacement semantics cannot be inferred. |
-| ADR-0069: complete versioned IR | Separate structure, verification, publication and revision prototype formats implement substantial parts | Consolidated schema/examples and compatibility policy are not frozen as `knowledge-ir/1`. Claim-to-assessment links currently live in an explicit envelope mapping. Whole-IR interchange hashing depends on the D3 exploration contract; implementation and adoption gates remain. |
-| ADR-0070: separate policy/runtime comparisons, frozen evidence, negative controls | Inherited deterministic regression baseline is pinned in `research-preflight.json`; fixture contract negative tests are executable | Independent semantic corpus/rubric/reviewers, arm definitions and comparison thresholds remain unresolved. Current fixture tests are not a completed A/B/C study. |
+| ADR-0069: revision identity and append-only records | `revisions.py`; typed introductions, immutable IDs across removal/reintroduction, historical/current record separation | Bounded complete linear history is persisted and portable through same-authority bundles. Authorship is not authenticated; declared novel/replacement semantics cannot be inferred. |
+| ADR-0069: complete versioned IR | Separate structure, verification, publication and revision prototype formats implement substantial parts | Consolidated schema/examples and compatibility policy are not frozen as `knowledge-ir/1`. Claim-to-assessment links currently live in an explicit envelope mapping. Retained envelopes use JCS; inner fixture hashes retain their original rules. The consolidated IR and render-manifest layouts remain open. |
+| ADR-0070: separate policy/runtime comparisons, frozen evidence, negative controls | Inherited deterministic regression baseline is pinned in `research-preflight.json`; fixture contract negative tests are executable | Synthetic design and reviewer roles are recorded below; held-out corpus, human calibration, executable arm definitions and comparison thresholds remain unresolved. Current fixture tests are not a completed A/B/C study. |
 | ADR-0072: verified final output distinct from progress, stable identity and coverage | Internal controller final outcome, same-revision artifacts and complete/partial/insufficient coverage | No experimental HTTP/SSE, CLI/MCP, reconnect/replay or authorization implementation. Public delivery remains later W6 work. |
 
 Implementation paths above are under `agent-svc/agent/experimental/`; test paths are
@@ -52,7 +54,7 @@ before moving beyond the bounded fixture scope.
 | Target research workload and corpus | Choose a representative domain/question mix; freeze separate development and held-out source snapshots/questions, denominators and expected negative/abstention categories | Magnus selected enterprise agentic engineering/software factories. A synthetic calibration design is linked below; no sealed held-out corpus exists yet. |
 | Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus authorized Hermes as a separate AI reviewer and retains human calibration/adjudication. No human calibration labels are collected yet. |
 | Measurement thresholds and resources | Record quality/latency/resource regression bounds with rationale, hardware, run budgets, seeds/order and uncertainty plan | Must be explicit before applicable comparisons. Existing protocol minima are not measured results or an authorized series. |
-| Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. No implicit acceptance of proposed storage choices. |
+| Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. See the current field/version review below; isolated storage exploration is already accepted. |
 | Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | Current external-provider budget is zero. No provider work is authorized here. |
 | Runtime/storage/recovery decisions | Use accepted ADR-0071 exploration gates; ADR-0073/0074 remain proposed | Preserve the pgvector-versus-Qdrant consolidation evaluation and conditional PostgreSQL-native recovery option; PostgreSQL exploration is approved, not production/vector adoption. |
 
@@ -107,15 +109,20 @@ copies. These are fixture lifecycle results, not remote authorization or W3 comp
 The [bounded expiry collector](research-expiry-collection.md) adds an explicit
 internal method for payload/quota reclamation on schema 6, with real database
 race and restore cases required in CI. No background schedule or production
-recovery service is introduced. Full IR compatibility, aggregate admission, measured capacity and the
-independent semantic evaluation gates above also remain open.
+recovery service is introduced. The later complete-history, admission and capacity
+checkpoints are recorded below.
+Consolidated IR and independent semantic evaluation remain open.
 
 ## Complete revision compatibility follow-up
 
-The [field and behavior disposition](research-ir-compatibility.md) compares the
-implemented prototype with ADR-0069 after the storage lifecycle slices. Its primary
-remaining gap is complete retained research history: the full in-memory revision
-validator checks more entities and provenance than persisted structural revisions.
-Issue [#71](https://github.com/magnus919/groktocrawl-x/issues/71) tracks complete
-fixture-revision persistence and subsequent publication/interchange integration.
-No format is renamed to `knowledge-ir/1` by this audit.
+The [field and behavior disposition](research-ir-compatibility.md) records completed
+issue [#71](https://github.com/magnus919/groktocrawl-x/issues/71): complete retained
+fixture history now supports publication, re-render and bounded interchange.
+[Connection admission](research-storage-admission.md) (#80) and the
+[measured capacity checkpoint](research-storage-capacity-findings.md) (#82) are also
+complete within their documented experimental scope.
+
+The next contract work is the [Knowledge IR field and version review](research-ir-contract-review.md)
+(#86): create an executable inventory and compatibility examples, then define the
+consolidated IR and render-manifest layout. No prototype is renamed to
+`knowledge-ir/1`; W2/W3 and independent semantic evaluation remain open.
