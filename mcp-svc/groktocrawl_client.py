@@ -1058,6 +1058,14 @@ class GroktocrawlClient:
             f"/experimental/research/v1/research/{research_id}"
         )
 
+    async def experimental_research_attach(
+        self, session_id: str, run_id: str, expected_revision: int
+    ) -> dict:
+        return await self._post(
+            f"/experimental/research/v1/sessions/{session_id}/attachments",
+            {"run_id": run_id, "expected_revision": expected_revision},
+        )
+
     async def browser_create(self, ttl: int = 300) -> dict:
         """Create a browser session."""
         return await self._post("/v2/browser", {"ttl": ttl})

@@ -15,7 +15,7 @@ boundary when `FEATURE_EXPERIMENTAL_RESEARCH=true`. A second opt-in gate,
 run/status/cancel/event adapter plus exact in-memory artifact and evidence reads.
 Its capabilities document advertises `fixture_run_adapter` and `process_local`
 recovery, so it makes no durable execution or live-provider claim. Session
-operations remain unavailable, the flags are off by default, and inherited `/v2`
+session attachment is now available in `attachment_only` mode; the flags are off by default, and inherited `/v2`
 routes are unchanged.
 
 The tests cover completed, failed and cancelled terminal outcomes, duplicate replay

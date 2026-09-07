@@ -36,6 +36,13 @@ class CreateResearchRunRequest(BaseModel):
     webhook: str | None = None
 
 
+class AttachResearchSessionRequest(BaseModel):
+    """Optimistic attachment of a completed research root to a session."""
+
+    run_id: str = Field(min_length=1, max_length=200)
+    expected_revision: int = Field(strict=True, ge=0)
+
+
 @dataclass
 class _RunRecord:
     run_id: str
@@ -57,6 +64,7 @@ class _RunRecord:
 
 _RUNS: dict[str, _RunRecord] = {}
 _IDEMPOTENCY: dict[tuple[str, str], tuple[str, str]] = {}
+_SESSION_ATTACHMENTS: dict[tuple[str, str], tuple[int, str]] = {}
 
 
 def _scope_id(request: Request) -> str:
@@ -204,7 +212,11 @@ def capability_document() -> dict[str, Any]:
             "runs": {"available": runs_available, "reason": None if runs_available else "public_adapters_pending"},
             "artifacts": {"available": runs_available, "reason": None if runs_available else "public_adapters_pending"},
             "evidence": {"available": runs_available, "reason": None if runs_available else "public_adapters_pending"},
-            "sessions": {"available": False, "reason": "public_adapters_pending"},
+            "sessions": {
+                "available": runs_available,
+                "reason": None if runs_available else "public_adapters_pending",
+                "mode": "attachment_only" if runs_available else None,
+            },
         },
     }
 
@@ -381,3 +393,38 @@ async def delete_experimental_research(research_id: str, request: Request) -> di
             record.deleted = True
             return {"research_id": research_id, "state": "deleted"}
     raise HTTPException(status_code=404, detail="Research root not found")
+
+
+@router.post(f"{_ROUTE_PREFIX}/sessions/{{session_id}}/attachments", status_code=200)
+async def attach_experimental_research_session(
+    session_id: str, payload: AttachResearchSessionRequest, request: Request
+) -> dict[str, Any]:
+    """Attach a completed root with an expected-revision concurrency guard."""
+    _require_runs()
+    if len(session_id) > 200:
+        raise HTTPException(status_code=400, detail="Session ID is too long")
+    record = _find_run(payload.run_id, request)
+    if record.state != "completed" or record.result is None:
+        raise HTTPException(status_code=409, detail="Research run is not completed")
+    key = (_scope_id(request), session_id)
+    current = _SESSION_ATTACHMENTS.get(key)
+    current_revision = current[0] if current is not None else 0
+    if payload.expected_revision != current_revision:
+        raise HTTPException(status_code=409, detail="Session revision conflict")
+    if current is not None and current[1] == payload.run_id:
+        return {
+            "session_id": session_id,
+            "revision": current_revision,
+            "run_id": payload.run_id,
+            "research_id": record.research_id,
+            "artifact_set_id": record.result["artifact_set_id"],
+        }
+    revision = current_revision + 1
+    _SESSION_ATTACHMENTS[key] = (revision, payload.run_id)
+    return {
+        "session_id": session_id,
+        "revision": revision,
+        "run_id": payload.run_id,
+        "research_id": record.research_id,
+        "artifact_set_id": record.result["artifact_set_id"],
+    }

@@ -7,6 +7,7 @@ running agent-svc is required.
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 import httpx
@@ -856,6 +857,30 @@ class TestExpandedSurface:
         assert result["artifact_id"] == "a-1"
         assert result["content_type"] == "text/markdown"
         assert result["content_base64"]
+
+    def test_experimental_research_attach_posts_expected_revision(self):
+        captured: dict[str, Any] = {}
+
+        def _handler(request: httpx.Request) -> httpx.Response:
+            captured["path"] = request.url.path
+            captured["body"] = json.loads(request.content)
+            return httpx.Response(
+                200, json={"session_id": "s-1", "revision": 1}, request=request
+            )
+
+        client = GroktocrawlClient(base_url="http://test:8080", api_key=None)
+        client._client = httpx.AsyncClient(
+            base_url=client._base_url,
+            headers=client._headers(),
+            transport=httpx.MockTransport(_handler),
+        )
+        result = asyncio.run(client.experimental_research_attach("s-1", "run-1", 0))
+
+        assert result["revision"] == 1
+        assert captured == {
+            "path": "/experimental/research/v1/sessions/s-1/attachments",
+            "body": {"run_id": "run-1", "expected_revision": 0},
+        }
 
     def test_experimental_research_capabilities_uses_unversioned_route(self):
         client = _make_matched_client(

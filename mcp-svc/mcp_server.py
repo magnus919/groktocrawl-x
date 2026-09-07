@@ -1,7 +1,7 @@
 """MCP server exposing GroktoCrawl tools via Model Context Protocol.
 
 Uses FastMCP from the official mcp SDK (v1.x) with Streamable HTTP
-transport.  Defines 43 tools matching the GroktoCrawl agent-svc
+transport.  Defines 44 tools matching the GroktoCrawl agent-svc
 API surface, with proper readOnlyHint/destructiveHint annotations.
 
 Tool surface policy (see scripts/check-mcp-coverage.py): every agent-svc
@@ -512,6 +512,18 @@ async def research_evidence(research_id: str, snapshot_id: str) -> str:
 async def research_delete(research_id: str) -> str:
     """Tombstone one experimental research root."""
     result = await _client.experimental_research_delete(research_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def research_attach(
+    session_id: str, run_id: str, expected_revision: int
+) -> str:
+    """Attach a completed research run using an expected session revision."""
+    result = await _client.experimental_research_attach(
+        session_id, run_id, expected_revision
+    )
     _ensure_success(result)
     return _resp(result)
 

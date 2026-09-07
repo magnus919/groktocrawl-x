@@ -777,6 +777,15 @@ class Client:
             "DELETE", f"/experimental/research/v1/research/{research_id}"
         )
 
+    def experimental_research_attach(
+        self, session_id: str, run_id: str, expected_revision: int
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/experimental/research/v1/sessions/{session_id}/attachments",
+            json_data={"run_id": run_id, "expected_revision": expected_revision},
+        )
+
     def _request(
         self,
         method: str,
@@ -1792,6 +1801,11 @@ def cmd_research(client: Client, args: argparse.Namespace) -> None:
         elif action == "delete":
             result = client.experimental_research_delete(args.research_id)
             emit("Experimental research deleted", result)
+        elif action == "attach":
+            result = client.experimental_research_attach(
+                args.session_id, args.run_id, args.expected_revision
+            )
+            emit("Experimental research attached to session", result)
         else:
             die("research requires a supported action")
     except ApiError as error:
@@ -3122,6 +3136,14 @@ def make_parser() -> argparse.ArgumentParser:
         "delete", help="Tombstone a retained research root"
     )
     p_research_delete.add_argument("research_id", help="Research root ID")
+    p_research_attach = p_research_sub.add_parser(
+        "attach", help="Attach a completed run to an existing session"
+    )
+    p_research_attach.add_argument("session_id", help="Session ID")
+    p_research_attach.add_argument("run_id", help="Research run ID")
+    p_research_attach.add_argument(
+        "--expected-revision", type=int, required=True, help="Expected session revision"
+    )
 
     p_download = subparsers.add_parser(
         "download", help="Download binary content (PDF, EPUB, image, etc.) to disk"
