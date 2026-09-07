@@ -26,6 +26,7 @@ and whether citations actually support each assertion. Unknown is not a passing 
 For assessment return supported, contested, insufficient or refuted. For other checks
 return pass, fail or indeterminate. A render audit must inspect all three full reports,
 including unmapped text, preserve uncertainty and coverage, and reject unsupported prose.
+Follow the supplied response_schema and its allowed outcome labels exactly.
 Return only JSON with schema_version model-review-decision/1, the exact input_digest,
 outcome, and a concise evidence-based reason. Do not claim human review or use tools."""
 
@@ -165,6 +166,7 @@ class ModelReviewAdapter:
                     for s in values
                 ],
             },
+            assessment=checked.check_type == "assessment",
         )
 
     async def audit(self, inspection: RenderInspection) -> ExecutionDecision:
@@ -186,14 +188,25 @@ class ModelReviewAdapter:
             },
         )
 
-    async def _review(self, digest: str, material: dict) -> ExecutionDecision:
+    async def _review(
+        self, digest: str, material: dict, *, assessment: bool = False
+    ) -> ExecutionDecision:
         task = asyncio.current_task()
         if self._closed or self._busy or self._calls >= self._max_calls:
             raise ValueError("model review owner unavailable or exhausted")
         if task is not None and task.cancelling():
             raise asyncio.CancelledError
+        outcomes = (
+            ("supported", "contested", "insufficient", "refuted")
+            if assessment
+            else ("pass", "fail", "indeterminate")
+        )
+        schema = ReviewDecision.model_json_schema()
+        schema["properties"]["outcome"]["enum"] = list(outcomes)
+        schema["properties"]["input_digest"]["const"] = digest
         payload = json.dumps(
-            {"input_digest": digest, **material}, ensure_ascii=False
+            {"input_digest": digest, "response_schema": schema, **material},
+            ensure_ascii=False,
         ).encode()
         if len(payload) > MAX_BYTES:
             raise ValueError("model review input exceeds byte budget")
@@ -235,6 +248,10 @@ class ModelReviewAdapter:
                 reply.content, schema_version="model-review-decision/1"
             )
             decision = ReviewDecision.model_validate_json(document.data)
+            if decision.outcome not in outcomes:
+                raise ValueError(
+                    "model decision uses an invalid outcome for this check"
+                )
             if decision.input_digest != digest:
                 raise ValueError("model decision binds a different input")
             return ExecutionDecision(outcome=decision.outcome, reason=decision.reason)

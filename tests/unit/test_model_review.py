@@ -252,3 +252,19 @@ async def test_fenced_response_with_extra_prose_is_not_salvaged():
             client, base_url="https://gateway.invalid/v1", api_key="test"
         )(ReviewRequest("review", b"{}", "local", 32))
     assert reply.content == raw.encode()  # Strict admission will reject this.
+
+
+@pytest.mark.asyncio
+async def test_review_schema_disallows_assessment_label_for_structural_check():
+    async def complete(request):
+        payload = json.loads(request.payload)
+        assert payload["response_schema"]["properties"]["outcome"]["enum"] == [
+            "pass",
+            "fail",
+            "indeterminate",
+        ]
+        return reply_for(request, outcome="supported")
+
+    adapter, checked, sources = configured(complete)
+    with pytest.raises(ValueError, match="no judgment accepted"):
+        await adapter.verify(checked, sources)

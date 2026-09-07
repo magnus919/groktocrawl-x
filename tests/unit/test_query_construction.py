@@ -13,34 +13,25 @@ TEXT = "Pilot lead time fell. Causation is unproven."
 
 def proposal():
     return {
-        "schema_version": "research-construction/3",
+        "schema_version": "research-construction/4",
         "evidence": [
             {
-                "evidence_id": "e1",
-                "snapshot_id": "source-1",
+                "source_index": 1,
                 "start_line": 1,
                 "end_line": 1,
             }
         ],
         "claims": [
             {
-                "claim_id": "c1",
                 "text": "The captured note reports lower lead time without establishing causation.",
-                "kind": "source_statement",
                 "qualifiers": ["One captured pilot note"],
                 "temporal_scope": "historical",
-                "supported_by": ["e1"],
+                "supported_by": [1],
                 "contradicted_by": [],
             }
         ],
-        "questions": [
-            {
-                "question_id": "question-root",
-                "question": QUESTION,
-                "status": "answered",
-                "report_claim_id": "c1",
-            }
-        ],
+        "answer_claim_index": 1,
+        "answer_status": "answered",
         "conflicts": [],
     }
 
@@ -80,9 +71,9 @@ async def test_rejects_model_changes_to_evidence_or_authority(mutation):
     if mutation == "quote":
         value["evidence"][0]["quote"] = "Invented"
     elif mutation == "question":
-        value["questions"][0]["question"] = "Different question"
+        value["question"] = "Different question"
     elif mutation == "source":
-        value["evidence"][0]["snapshot_id"] = "foreign"
+        value["evidence"][0]["source_index"] = 2
     else:
         value["scope_id" if mutation == "scope" else "human_approved"] = "forged"
     with pytest.raises(ValueError):
