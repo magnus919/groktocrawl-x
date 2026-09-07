@@ -27,6 +27,11 @@ or expected answer leaks into tuning, replace it or label the study exploratory;
 a filename or hash does not establish independence. Synthetic cases remain useful
 negative controls alongside the independently curated material.
 
+The current reviewable proposal for that packet is
+[w1-baseline-packet-proposal.md](w1-baseline-packet-proposal.md). It keeps the
+preflight fail-closed until the corpus, isolation, limits and measured baseline are
+reviewed.
+
 ## Review rubric and record
 
 For each anonymized answer, Hermes receives the exact question, complete source
