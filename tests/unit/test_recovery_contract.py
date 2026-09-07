@@ -69,3 +69,49 @@ def test_cancellation_wins_before_publication_and_publication_wins_after():
     ledger.receipt("published", 1, "d" * 64)
     ledger.publish("published", 1, "d" * 64)
     assert ledger.cancel("published", 1) == "committed"
+
+
+def test_provider_confirmation_reconciles_to_one_publishable_receipt():
+    ledger = RecoveryLedger()
+    ledger.admit("ambiguous", "a" * 64)
+    ledger.dispatch("ambiguous", 1, "attempt-1")
+    ledger.mark_unknown("ambiguous", 1)
+    assert ledger.reconcile_unknown("ambiguous", 1, "confirmed", "b" * 64) == "receipt"
+    ledger.publish("ambiguous", 1, "b" * 64)
+    assert ledger.operations["ambiguous"].state == "committed"
+
+
+def test_provider_absence_reopens_dispatch_without_a_receipt():
+    ledger = RecoveryLedger()
+    ledger.admit("absent", "a" * 64)
+    ledger.dispatch("absent", 1, "attempt-1")
+    ledger.mark_unknown("absent", 1)
+    assert ledger.reconcile_unknown("absent", 1, "absent") == "dispatch_intent"
+    assert ledger.operations["absent"].receipt_digest is None
+    ledger.dispatch("absent", 1, "attempt-2")
+    ledger.receipt("absent", 1, "c" * 64)
+    ledger.publish("absent", 1, "c" * 64)
+
+
+def test_persistent_ambiguity_stays_nonterminal_and_can_be_cancelled():
+    ledger = RecoveryLedger()
+    ledger.admit("still-unknown", "a" * 64)
+    ledger.dispatch("still-unknown", 1, "attempt-1")
+    ledger.mark_unknown("still-unknown", 1)
+    assert ledger.reconcile_unknown("still-unknown", 1, "unknown") == "outcome_unknown"
+    with pytest.raises(ValueError, match="exact receipt"):
+        ledger.publish("still-unknown", 1, "b" * 64)
+    assert ledger.cancel("still-unknown", 1) == "cancelled"
+
+
+def test_stale_owner_cannot_reconcile_an_unknown_attempt():
+    ledger = RecoveryLedger()
+    ledger.admit("stale-unknown", "a" * 64)
+    ledger.dispatch("stale-unknown", 1, "attempt-1")
+    ledger.reclaim("stale-unknown")
+    with pytest.raises(ValueError, match="stale owner"):
+        ledger.mark_unknown("stale-unknown", 1)
+    ledger.dispatch("stale-unknown", 2, "attempt-2")
+    ledger.mark_unknown("stale-unknown", 2)
+    with pytest.raises(ValueError, match="stale owner"):
+        ledger.reconcile_unknown("stale-unknown", 1, "confirmed", "c" * 64)

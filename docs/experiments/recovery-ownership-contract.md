@@ -7,8 +7,9 @@ explicit retry/outbox/reconciliation owners, bounded lease/reclaim/heartbeat and
 retry relationships, and an explicit at-least-once network-effect boundary.
 
 The `RecoveryLedger` fixture covers stale-owner rejection, idempotent receipts,
-conflicting receipts, cancellation/publication races, and exact receipt binding at
-publication. The opt-in `DurableResearchLedger` merged in [PR #135](https://github.com/magnus919/groktocrawl-x/pull/135) adds a Valkey-backed bounded
+conflicting receipts, cancellation/publication races, exact receipt binding at
+publication, and provider ambiguity reconciliation for confirmed, absent, and
+still-unknown outcomes (bounded evidence is tracked in [issue #143](https://github.com/magnus919/groktocrawl-x/issues/143)). The opt-in `DurableResearchLedger` merged in [PR #135](https://github.com/magnus919/groktocrawl-x/pull/135) adds a Valkey-backed bounded
 implementation for admission, lease expiry/reclaim, monotonic fencing, persisted
 cancellation, checkpoints, and terminal receipt commits with a recoverable projection
 payload. Its tests exercise a new ledger
