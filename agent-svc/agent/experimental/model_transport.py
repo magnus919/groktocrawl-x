@@ -1,5 +1,6 @@
 """Bounded OpenAI-compatible transport for experimental model review."""
 
+import hashlib
 import json
 
 import httpx
@@ -64,12 +65,20 @@ class ReviewTransport:
             content, model = message["content"], result["model"]
             if not isinstance(content, str) or not isinstance(model, str) or not model:
                 raise ValueError("model response missing content or identity")
+            raw_digest = hashlib.sha256(content.encode()).hexdigest()
+            # Some compatible gateways return one JSON code fence despite
+            # json_object. Unwrap only that exact whole-response envelope; never
+            # extract a favorable fragment or repair JSON/semantic fields.
+            normalized = content.strip()
+            if normalized.startswith("```json\n") and normalized.endswith("\n```"):
+                content = normalized[len("```json\n") : -len("\n```")]
             usage = result.get("usage") or {}
             return ModelReply(
                 content.encode(),
                 model,
                 usage.get("prompt_tokens"),
                 usage.get("completion_tokens"),
+                raw_digest,
             )
         except Exception:
             raise ValueError("model transport failed") from None

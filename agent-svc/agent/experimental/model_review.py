@@ -44,6 +44,7 @@ class ModelReply:
     resolved_model: str
     input_tokens: int | None
     output_tokens: int | None
+    raw_content_digest: str | None = None
 
 
 Complete = Callable[[ReviewRequest], Awaitable[ModelReply]]

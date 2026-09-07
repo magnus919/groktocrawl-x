@@ -107,3 +107,14 @@ most 64 model calls, does not silently fall back to another model, and has a
 180-second cooperative query deadline. This script is an experimental developer
 entry point; public API/CLI/MCP integration, retained publication, targeted follow-up
 and comparative evaluation remain roadmap work.
+
+### Observed compatible-gateway envelope
+
+Two separate development runs against `local` failed strict JSON admission because
+the model returned a whole-response Markdown `json` code fence despite requesting
+`json_object`. The transport now unwraps only that exact complete fence. It does
+not extract JSON from surrounding prose, repair malformed JSON or change judgment
+fields. Canonical/schema admission still runs afterwards. `ModelReply` retains the
+SHA-256 digest of original response content, and the pilot usage trace records it.
+The original failed probes remain retained separately; this is a transport fix,
+not a favorable retry of a scored evaluation case.

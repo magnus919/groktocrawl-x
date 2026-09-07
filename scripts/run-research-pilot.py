@@ -74,6 +74,7 @@ async def main(query: str, output: Path) -> None:
                     resolved_model=reply.resolved_model,
                     input_tokens=reply.input_tokens,
                     output_tokens=reply.output_tokens,
+                    raw_content_digest=reply.raw_content_digest,
                 )
                 return reply
 
