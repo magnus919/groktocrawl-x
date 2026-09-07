@@ -160,6 +160,7 @@ jobs:
         run: |
           cp .env.sample .env
           echo "TWIN_RUN_ID=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> .env
+          echo "DURABLE_RESEARCH_REDIS_URL=redis://valkey:6379/15" >> .env
           echo "LLM_BASE_URL=http://llm-svc:8011/v1?run_id=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> .env
           echo "LLM_MODEL=fixture-model" >> .env
           echo "CAPTCHA_VISION_BASE_URL=http://llm-svc:8011/v1" >> .env

@@ -8,9 +8,10 @@ durable execution, live-provider quality, or production authorization policy.
 import asyncio
 import hashlib
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request
@@ -21,6 +22,7 @@ from common.features import is_enabled
 
 from ..experimental.client_protocol import ProtocolEvent, ProtocolState, replay_after
 from ..experimental.consolidated_example import example_journey
+from ..experimental.durable_research import DurableResearchLedger, DurableRun
 
 router = APIRouter()
 
@@ -60,11 +62,15 @@ class _RunRecord:
     task: asyncio.Task[None] | None = None
     deleted: bool = False
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    durable_ledger: DurableResearchLedger | None = None
+    durable_owner_id: str | None = None
+    durable_generation: int | None = None
 
 
 _RUNS: dict[str, _RunRecord] = {}
 _IDEMPOTENCY: dict[tuple[str, str], tuple[str, str]] = {}
 _SESSION_ATTACHMENTS: dict[tuple[str, str], tuple[int, str]] = {}
+_DURABLE_LEDGERS: dict[str, DurableResearchLedger] = {}
 
 
 def _scope_id(request: Request) -> str:
@@ -86,6 +92,25 @@ def _require_runs() -> None:
     _require_feature()
     if not is_enabled("experimental_research_runs"):
         raise HTTPException(status_code=404, detail="Experimental research runs disabled")
+
+
+def _durable_enabled() -> bool:
+    return is_enabled("experimental_research_durable")
+
+
+def _durable_ledger(request: Request) -> DurableResearchLedger:
+    url = getattr(request.app.state, "valkey_url", None) or os.environ.get(
+        "DURABLE_RESEARCH_REDIS_URL"
+    )
+    if not url:
+        raise HTTPException(
+            status_code=503, detail="Durable experimental research storage unavailable"
+        )
+    ledger = _DURABLE_LEDGERS.get(url)
+    if ledger is None:
+        ledger = DurableResearchLedger(url)
+        _DURABLE_LEDGERS[url] = ledger
+    return ledger
 
 
 def _event(
@@ -120,7 +145,9 @@ def _record_projection(record: _RunRecord) -> dict[str, Any]:
             if record.state in {"failed", "cancelled"}
             else None
         ),
-        "result": record.result if terminal and terminal.event == "done" else None,
+        "result": record.result
+        if record.state == "completed" and record.result is not None
+        else None,
         "error": record.error if terminal and terminal.event == "error" else None,
         "status_url": f"{_ROUTE_PREFIX}/runs/{record.run_id}",
         "events_url": f"{_ROUTE_PREFIX}/runs/{record.run_id}/events",
@@ -129,11 +156,57 @@ def _record_projection(record: _RunRecord) -> dict[str, Any]:
 
 def _find_run(run_id: str, request: Request) -> _RunRecord:
     record = _RUNS.get(run_id)
+    if record is None and _durable_enabled():
+        durable = _durable_ledger(request).get(run_id)
+        if durable is not None:
+            record = _restore_durable_record(durable)
+            record.durable_ledger = _durable_ledger(request)
+            if record.scope_id != _scope_id(request):
+                raise HTTPException(status_code=404, detail="Research run not found")
+            _RUNS[run_id] = record
+            if durable.state in {"admitted", "running"}:
+                record.task = asyncio.create_task(_execute_run(record))
     if record is None or record.scope_id != _scope_id(request):
         raise HTTPException(status_code=404, detail="Research run not found")
     if record.deleted:
         raise HTTPException(status_code=410, detail="Research run deleted")
     return record
+
+
+def _restore_durable_record(durable: DurableRun) -> _RunRecord:
+    payload = durable.payload
+    terminal = durable.terminal_payload or {}
+    state = durable.state
+    if state not in {
+        "accepted",
+        "running",
+        "cancel_requested",
+        "completed",
+        "failed",
+        "cancelled",
+    }:
+        state = "accepted"
+    typed_state = cast(
+        Literal[
+            "accepted",
+            "running",
+            "cancel_requested",
+            "completed",
+            "failed",
+            "cancelled",
+        ],
+        state,
+    )
+    return _RunRecord(
+        run_id=durable.run_id,
+        research_id=str(payload.get("research_id", durable.run_id)),
+        scope_id=durable.scope_id,
+        objective=str(payload.get("objective", "Recovered experimental research run")),
+        request_digest=durable.request_digest,
+        state=typed_state,
+        result=terminal.get("result") if typed_state == "completed" else None,
+        durable_ledger=None,
+    )
 
 
 def _artifact_result(record: _RunRecord) -> dict[str, Any]:
@@ -156,8 +229,19 @@ def _artifact_result(record: _RunRecord) -> dict[str, Any]:
 
 async def _execute_run(record: _RunRecord) -> None:
     async with record.lock:
-        if record.state != "accepted":
+        if record.state not in {"accepted", "running"}:
             return
+        if record.durable_ledger is not None:
+            try:
+                claimed = record.durable_ledger.claim(
+                    record.run_id,
+                    owner_id=f"worker:{uuid4()}",
+                    attempt_id=f"attempt:{uuid4()}",
+                )
+            except Exception:
+                return
+            record.durable_owner_id = claimed.owner_id
+            record.durable_generation = claimed.owner_generation
         record.state = "running"
         _event(record, "progress", "running", stage="acquisition")
     try:
@@ -191,6 +275,31 @@ async def _execute_run(record: _RunRecord) -> None:
             return
         record.journey = result
         record.result = _artifact_result(record)
+        if (
+            record.durable_ledger is not None
+            and record.durable_owner_id is not None
+            and record.durable_generation is not None
+        ):
+            checkpoint_digest = hashlib.sha256(
+                json.dumps(record.result, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+            record.durable_ledger.checkpoint(
+                record.run_id,
+                record.durable_owner_id,
+                record.durable_generation,
+                "terminal_projection",
+                checkpoint_digest,
+            )
+            record.durable_ledger.commit_result(
+                record.run_id,
+                record.durable_owner_id,
+                record.durable_generation,
+                checkpoint_digest,
+                terminal_payload={
+                    "research_id": record.research_id,
+                    "result": record.result,
+                },
+            )
         record.state = "completed"
         _event(record, "done", "completed", result=record.result)
 
@@ -198,11 +307,20 @@ async def _execute_run(record: _RunRecord) -> None:
 def capability_document() -> dict[str, Any]:
     """Return the honest capability boundary for the current W6 slice."""
     runs_available = is_enabled("experimental_research_runs")
+    durable = runs_available and _durable_enabled()
     return {
         "protocol_version": "research/1",
         "route_prefix": _ROUTE_PREFIX,
-        "implementation_stage": "fixture_run_adapter" if runs_available else "contract_and_golden_traces",
-        "recovery_mode": "process_local" if runs_available else "not_advertised",
+        "implementation_stage": "durable_fixture_run_adapter"
+        if durable
+        else "fixture_run_adapter"
+        if runs_available
+        else "contract_and_golden_traces",
+        "recovery_mode": "valkey_fenced"
+        if durable
+        else "process_local"
+        if runs_available
+        else "not_advertised",
         "replay": {
             "mode": "contract_only",
             "window_events": 0,
@@ -239,8 +357,33 @@ async def create_experimental_research_run(
     if not key or len(key) > 200:
         raise HTTPException(status_code=400, detail="Idempotency-Key is required")
     scope = _scope_id(request)
+    durable = _durable_ledger(request) if _durable_enabled() else None
     digest = hashlib.sha256(payload.model_dump_json().encode()).hexdigest()
-    existing = _IDEMPOTENCY.get((scope, key))
+    existing = _IDEMPOTENCY.get((scope, key)) if durable is None else None
+    if durable is not None:
+        admitted = durable.admit(
+            scope,
+            key,
+            digest,
+            payload={"objective": payload.objective, "research_id": str(uuid4())},
+        )
+        research_id = str(admitted.payload.get("research_id", str(uuid4())))
+        record = _RUNS.get(admitted.run_id)
+        if record is None:
+            record = _restore_durable_record(admitted)
+            record.research_id = research_id
+            record.durable_ledger = durable
+            _RUNS[admitted.run_id] = record
+        if record.task is None:
+            record.task = asyncio.create_task(_execute_run(record))
+        return {
+            "protocol_version": "research/1",
+            "run_id": record.run_id,
+            "research_id": record.research_id,
+            "state": record.state,
+            "status_url": f"{_ROUTE_PREFIX}/runs/{record.run_id}",
+            "events_url": f"{_ROUTE_PREFIX}/runs/{record.run_id}/events",
+        }
     if existing is not None:
         run_id, prior_digest = existing
         if prior_digest != digest:
@@ -307,6 +450,18 @@ async def cancel_experimental_research_run(run_id: str, request: Request) -> dic
     record = _find_run(run_id, request)
     async with record.lock:
         if record.state in {"completed", "failed", "cancelled"}:
+            return _record_projection(record)
+        if record.durable_ledger is not None:
+            durable = record.durable_ledger.cancel(record.run_id)
+            if durable.state == "completed":
+                terminal = durable.terminal_payload or {}
+                record.state = "completed"
+                record.result = terminal.get("result")
+                return _record_projection(record)
+            record.state = "cancelled"
+            _event(record, "cancelled", "cancelled")
+            if record.task is not None and not record.task.done():
+                record.task.cancel()
             return _record_projection(record)
         if record.state == "accepted":
             record.state = "cancelled"

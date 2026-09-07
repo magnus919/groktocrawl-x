@@ -14,9 +14,10 @@ cancellation, checkpoints, and terminal receipt commits with a recoverable proje
 payload. Its tests exercise a new ledger
 instance after lease loss, including stale-owner rejection, checkpoint persistence, terminal projection
 persistence, and late cancellation.
-This is still a recovery implementation slice, not a production deployment: it
-does not yet recover the public research route, persist checkpoints or artifacts,
-reconcile provider ambiguity, or provide backup/restore evidence. W5 remains open
+This is still a recovery implementation slice, not a production deployment. The
+route status-recovery wiring is under review in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139);
+artifact bytes, SSE history, provider ambiguity reconciliation and backup/restore
+evidence remain open. W5 remains open
 until the declared crash/cancel matrix is exercised against the selected execution
 path and the resulting ADR decision is reviewed.
 

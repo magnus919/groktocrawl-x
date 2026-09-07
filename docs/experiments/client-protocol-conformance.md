@@ -11,11 +11,14 @@ and cancelled outcomes for cross-client parity checks.
 
 The opt-in `GET /experimental/research/v1/capabilities` adapter now exposes this
 boundary when `FEATURE_EXPERIMENTAL_RESEARCH=true`. A second opt-in gate,
-`FEATURE_EXPERIMENTAL_RESEARCH_RUNS=true`, enables a fixture-backed process-local
-run/status/cancel/event adapter plus exact in-memory artifact and evidence reads.
-Its capabilities document advertises `fixture_run_adapter` and `process_local`
-recovery, so it makes no durable execution or live-provider claim. Session attachment is now available in `attachment_only` mode; the flags are off by default, and inherited `/v2`
-routes are unchanged.
+`FEATURE_EXPERIMENTAL_RESEARCH_RUNS=true`, enables a fixture-backed run/status/cancel/event
+adapter plus exact in-memory artifact and evidence reads. A third opt-in gate,
+`FEATURE_EXPERIMENTAL_RESEARCH_DURABLE=true`, wires admission, lease fencing,
+checkpoint identity and terminal status projection to Valkey; clearing the process-local
+run map can recover completed status, while artifact bytes and SSE history remain
+process-local. Capabilities report `fixture_run_adapter`/`process_local` or
+`durable_fixture_run_adapter`/`valkey_fenced` accordingly. Session attachment remains
+`attachment_only`; all flags are off by default, and inherited `/v2` routes are unchanged.
 
 The tests cover completed, failed and cancelled terminal outcomes, duplicate replay
 deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
@@ -25,7 +28,8 @@ from status, events, artifacts and session attachment. The run adapter is still 
 production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130)
 and remains subject to hosted review. W6 remains open until durable recovery and the full authorization/deletion race
 matrix are implemented and reviewed; bounded scope-isolation and deletion-tombstone
-evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133).
+evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133). The
+durable status-recovery route slice is under review in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); it does not yet claim artifact-byte or event-history recovery.
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and
