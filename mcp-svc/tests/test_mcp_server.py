@@ -129,15 +129,15 @@ class TestTransportSecurity:
 
 
 class TestToolDiscovery:
-    """VAL-MCP-B01: tools/list returns exactly 36 tools."""
+    """VAL-MCP-B01: tools/list returns exactly 43 tools."""
 
     async def test_tool_count(self):
-        """tools/list returns exactly 36 tools."""
+        """tools/list returns exactly 43 tools."""
         tools = await mcp.list_tools()
-        assert len(tools) == 36, f"Expected 36 tools, got {len(tools)}"
+        assert len(tools) == 43, f"Expected 43 tools, got {len(tools)}"
 
     async def test_all_tool_names(self):
-        """All 36 expected tool names are present."""
+        """All 43 expected tool names are present."""
         tools = await mcp.list_tools()
         names = {t.name for t in tools}
         expected = {
@@ -150,6 +150,13 @@ class TestToolDiscovery:
             "get_active_crawls",
             "map",
             "research_capabilities",
+            "research_create",
+            "research_status",
+            "research_cancel",
+            "research_show",
+            "research_artifact",
+            "research_evidence",
+            "research_delete",
             "agent",
             "get_agent_status",
             "cancel_agent",
@@ -503,6 +510,48 @@ class TestToolCallRouting:
 
         result = await mcp.call_tool("research_capabilities", {})
         assert "research/1" in str(result)
+
+    async def test_research_create_passes_idempotency_key(self, monkeypatch):
+        captured: dict[str, Any] = {}
+
+        async def _fake_create(
+            objective: str, idempotency_key: str, webhook: str | None = None
+        ) -> dict:
+            captured.update(
+                objective=objective, idempotency_key=idempotency_key, webhook=webhook
+            )
+            return {"run_id": "run-1", "state": "accepted"}
+
+        monkeypatch.setattr(
+            __import__("mcp_server", fromlist=["_client"])._client,
+            "experimental_research_create",
+            _fake_create,
+        )
+        await mcp.call_tool(
+            "research_create",
+            {"objective": "objective", "idempotency_key": "stable-key"},
+        )
+        assert captured == {
+            "objective": "objective",
+            "idempotency_key": "stable-key",
+            "webhook": None,
+        }
+
+    async def test_research_artifact_routes_to_client(self, monkeypatch):
+        async def _fake_artifact(artifact_id: str) -> dict:
+            return {
+                "artifact_id": artifact_id,
+                "content_type": "text/markdown",
+                "content_base64": "IyBleGFjdA==",
+            }
+
+        monkeypatch.setattr(
+            __import__("mcp_server", fromlist=["_client"])._client,
+            "experimental_research_artifact",
+            _fake_artifact,
+        )
+        result = await mcp.call_tool("research_artifact", {"artifact_id": "a-1"})
+        assert "a-1" in str(result)
 
     async def test_scrape_passes_only_main_content(self, monkeypatch):
         """Scrape passes only_main_content=False through."""

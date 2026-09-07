@@ -709,6 +709,74 @@ class Client:
         """Return opt-in experimental research protocol capabilities."""
         return self._request("GET", "/experimental/research/v1/capabilities")
 
+    def experimental_research_create(
+        self,
+        objective: str,
+        *,
+        idempotency_key: str,
+        webhook: str | None = None,
+    ) -> dict[str, Any]:
+        """Admit one experimental fixture-backed research run."""
+        body: dict[str, Any] = {"objective": objective}
+        if webhook:
+            body["webhook"] = webhook
+        return self._request(
+            "POST",
+            "/experimental/research/v1/runs",
+            json_data=body,
+            request_headers={"Idempotency-Key": idempotency_key},
+        )
+
+    def experimental_research_status(self, run_id: str) -> dict[str, Any]:
+        return self._request("GET", f"/experimental/research/v1/runs/{run_id}")
+
+    def experimental_research_cancel(self, run_id: str) -> dict[str, Any]:
+        return self._request("POST", f"/experimental/research/v1/runs/{run_id}/cancel")
+
+    def experimental_research_artifact_set(self, artifact_set_id: str) -> dict[str, Any]:
+        return self._request(
+            "GET", f"/experimental/research/v1/artifact-sets/{artifact_set_id}"
+        )
+
+    def experimental_research_artifact(self, artifact_id: str) -> dict[str, Any]:
+        return self._request("GET", f"/experimental/research/v1/artifacts/{artifact_id}")
+
+    def experimental_research_artifact_bytes(self, artifact_id: str) -> bytes:
+        """Download exact server-retained artifact bytes."""
+        import requests
+
+        if self.dry_run:
+            return b""
+        url = self._url(f"/experimental/research/v1/artifacts/{artifact_id}")
+        api_key = os.getenv("GROKTOCRAWL_API_KEY") or os.getenv("API_KEY") or ""
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        response = requests.get(url, headers=headers, timeout=120)
+        if response.status_code >= 400:
+            try:
+                body = response.json()
+            except (json.JSONDecodeError, ValueError):
+                body = {"raw": response.text[:500]}
+            detail = body.get("detail", body.get("error", str(body)))
+            raise ApiError(
+                f"API error ({response.status_code}): {detail}",
+                status_code=response.status_code,
+                body=body,
+            )
+        return response.content
+
+    def experimental_research_evidence(
+        self, research_id: str, snapshot_id: str
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            f"/experimental/research/v1/research/{research_id}/evidence/{snapshot_id}",
+        )
+
+    def experimental_research_delete(self, research_id: str) -> dict[str, Any]:
+        return self._request(
+            "DELETE", f"/experimental/research/v1/research/{research_id}"
+        )
+
     def _request(
         self,
         method: str,
@@ -717,6 +785,7 @@ class Client:
         params: dict | None = None,
         retry: bool = False,
         operation: str = "",
+        request_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         import requests
 
@@ -737,6 +806,8 @@ class Client:
         headers: dict[str, str] = {}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
+        if request_headers:
+            headers.update(request_headers)
 
         policy = _retry_policy()
         attempt = 0
@@ -1646,31 +1717,85 @@ def cmd_crawl(client: Client, args: argparse.Namespace) -> None:
 
 
 def cmd_research(client: Client, args: argparse.Namespace) -> None:
-    """Inspect the experimental research protocol without starting work."""
-    if getattr(args, "research_action", None) != "capabilities":
-        die("research requires an action")
-
-    result = client.experimental_research_capabilities()
-    if client.dry_run:
-        emit("[dry-run] Would inspect experimental research capabilities", result)
+    """Run an opt-in experimental research client operation."""
+    action = getattr(args, "research_action", None)
+    if action == "capabilities":
+        result = client.experimental_research_capabilities()
+        if client.dry_run:
+            emit("[dry-run] Would inspect experimental research capabilities", result)
+            return
+        if not result.get("protocol_version"):
+            die(f"Research capabilities failed: {result.get('error', 'unknown error')}")
+        if JSON_OUTPUT:
+            emit("", result)
+            return
+        print(f"Experimental research protocol: {result['protocol_version']}")
+        print(f"Stage: {result['implementation_stage']}")
+        print(f"Recovery: {result['recovery_mode']}")
+        for name, operation in result.get("operations", {}).items():
+            state = (
+                "available"
+                if operation.get("available")
+                else f"pending ({operation.get('reason', 'not yet advertised')})"
+            )
+            print(f"  {name}: {state}")
         return
-    if not result.get("protocol_version"):
-        die(f"Research capabilities failed: {result.get('error', 'unknown error')}")
 
-    if JSON_OUTPUT:
-        emit("", result)
-        return
-
-    print(f"Experimental research protocol: {result['protocol_version']}")
-    print(f"Stage: {result['implementation_stage']}")
-    print(f"Recovery: {result['recovery_mode']}")
-    for name, operation in result.get("operations", {}).items():
-        state = (
-            "available"
-            if operation.get("available")
-            else f"pending ({operation.get('reason', 'not yet advertised')})"
-        )
-        print(f"  {name}: {state}")
+    try:
+        if action == "create":
+            result = client.experimental_research_create(
+                args.objective,
+                idempotency_key=args.idempotency_key,
+                webhook=args.webhook,
+            )
+            emit(f"Research run admitted: {result.get('run_id', '?')}", result)
+        elif action in {"status", "watch"}:
+            if client.dry_run:
+                result = client.experimental_research_status(args.run_id)
+                emit("[dry-run] Would inspect experimental research run", result)
+                return
+            while True:
+                result = client.experimental_research_status(args.run_id)
+                if action == "status" or result.get("state") in {
+                    "completed",
+                    "failed",
+                    "cancelled",
+                }:
+                    emit(f"Research run {result.get('state', 'unknown')}", result)
+                    return
+                if JSON_OUTPUT:
+                    emit("", result)
+                else:
+                    info(f"Research run: {result.get('state', 'unknown')}")
+                time.sleep(POLL_INTERVAL)
+        elif action == "cancel":
+            result = client.experimental_research_cancel(args.run_id)
+            emit(f"Research cancellation: {result.get('state', 'unknown')}", result)
+        elif action == "show":
+            result = client.experimental_research_artifact_set(args.artifact_set_id)
+            emit("Experimental research artifact set", result)
+        elif action == "evidence":
+            result = client.experimental_research_evidence(
+                args.research_id, args.snapshot_id
+            )
+            emit("Experimental research evidence", result)
+        elif action == "download":
+            content = client.experimental_research_artifact_bytes(args.artifact_id)
+            if client.dry_run:
+                emit("[dry-run] Would download experimental research artifact", {"artifact_id": args.artifact_id})
+            elif args.output:
+                with open(args.output, "wb") as handle:
+                    handle.write(content)
+                emit(f"Wrote artifact to {args.output}", {"artifact_id": args.artifact_id, "path": args.output, "bytes": len(content)})
+            else:
+                sys.stdout.buffer.write(content)
+        elif action == "delete":
+            result = client.experimental_research_delete(args.research_id)
+            emit("Experimental research deleted", result)
+        else:
+            die("research requires a supported action")
+    except ApiError as error:
+        die(error)
 
 
 def cmd_agent(client: Client, args: argparse.Namespace) -> None:
@@ -2961,6 +3086,42 @@ def make_parser() -> argparse.ArgumentParser:
     p_research_sub.add_parser(
         "capabilities", help="Show the advertised research protocol capabilities"
     )
+    p_research_create = p_research_sub.add_parser(
+        "create", help="Admit a fixture-backed experimental research run"
+    )
+    p_research_create.add_argument("objective", help="Research objective")
+    p_research_create.add_argument(
+        "--idempotency-key", required=True, help="Stable key for safe admission retries"
+    )
+    p_research_create.add_argument("--webhook", help="Optional completion webhook")
+    for action, help_text in (
+        ("status", "Read authoritative run status"),
+        ("watch", "Poll until the run reaches a terminal state"),
+    ):
+        command = p_research_sub.add_parser(action, help=help_text)
+        command.add_argument("run_id", help="Research run ID")
+    p_research_cancel = p_research_sub.add_parser(
+        "cancel", help="Request cancellation of a research run"
+    )
+    p_research_cancel.add_argument("run_id", help="Research run ID")
+    p_research_show = p_research_sub.add_parser(
+        "show", help="Read an audited artifact-set manifest"
+    )
+    p_research_show.add_argument("artifact_set_id", help="Artifact-set ID")
+    p_research_download = p_research_sub.add_parser(
+        "download", help="Download one retained research artifact"
+    )
+    p_research_download.add_argument("artifact_id", help="Artifact ID")
+    p_research_download.add_argument("-o", "--output", help="Output file path")
+    p_research_evidence = p_research_sub.add_parser(
+        "evidence", help="Read one retained evidence snapshot"
+    )
+    p_research_evidence.add_argument("research_id", help="Research root ID")
+    p_research_evidence.add_argument("snapshot_id", help="Snapshot ID")
+    p_research_delete = p_research_sub.add_parser(
+        "delete", help="Tombstone a retained research root"
+    )
+    p_research_delete.add_argument("research_id", help="Research root ID")
 
     p_download = subparsers.add_parser(
         "download", help="Download binary content (PDF, EPUB, image, etc.) to disk"

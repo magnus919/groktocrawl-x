@@ -1,7 +1,7 @@
 """MCP server exposing GroktoCrawl tools via Model Context Protocol.
 
 Uses FastMCP from the official mcp SDK (v1.x) with Streamable HTTP
-transport.  Defines 36 tools matching the GroktoCrawl agent-svc
+transport.  Defines 43 tools matching the GroktoCrawl agent-svc
 API surface, with proper readOnlyHint/destructiveHint annotations.
 
 Tool surface policy (see scripts/check-mcp-coverage.py): every agent-svc
@@ -445,13 +445,73 @@ async def map(
     return _resp(result)
 
 
-# ── Tools 8–10: experimental capabilities, agent, get_agent_status ───
+# ── Tools 8–17: experimental research lifecycle and agent ───────────
 
 
 @mcp.tool(annotations=_RO)
 async def research_capabilities() -> str:
     """Return the opt-in experimental research protocol capabilities."""
     result = await _client.experimental_research_capabilities()
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def research_create(
+    objective: str, idempotency_key: str, webhook: str | None = None
+) -> str:
+    """Admit one bounded experimental research run."""
+    result = await _client.experimental_research_create(
+        objective, idempotency_key, webhook
+    )
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def research_status(run_id: str) -> str:
+    """Return authoritative status for an experimental research run."""
+    result = await _client.experimental_research_status(run_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_DESTRUCTIVE)
+async def research_cancel(run_id: str) -> str:
+    """Request cancellation of an experimental research run."""
+    result = await _client.experimental_research_cancel(run_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def research_show(artifact_set_id: str) -> str:
+    """Return the audited manifest for one experimental artifact set."""
+    result = await _client.experimental_research_artifact_set(artifact_set_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def research_artifact(artifact_id: str) -> str:
+    """Return one exact retained artifact as base64 bytes."""
+    result = await _client.experimental_research_artifact(artifact_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def research_evidence(research_id: str, snapshot_id: str) -> str:
+    """Return one scoped retained evidence snapshot."""
+    result = await _client.experimental_research_evidence(research_id, snapshot_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_DESTRUCTIVE)
+async def research_delete(research_id: str) -> str:
+    """Tombstone one experimental research root."""
+    result = await _client.experimental_research_delete(research_id)
     _ensure_success(result)
     return _resp(result)
 
