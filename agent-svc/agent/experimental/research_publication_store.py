@@ -42,6 +42,7 @@ class ResearchPublicationStore(ResearchStore):
             [{"version": 9}],
             [{"version": 10}],
             [{"version": 11}],
+            [{"version": 12}],
         ):
             raise StorageConflictError("complete publication schema unavailable")
 
