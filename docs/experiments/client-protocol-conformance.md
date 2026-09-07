@@ -21,9 +21,10 @@ routes are unchanged.
 The tests cover completed, failed and cancelled terminal outcomes, duplicate replay
 deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
 violations. The run adapter is still a bounded fixture implementation, not
-production research. W6 remains open until CLI/MCP journey parity, session
-attachment, durable recovery, and the full authorization/deletion race matrix are
-implemented and reviewed.
+production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130)
+and remains subject to hosted review. W6 remains open until session attachment,
+durable recovery, and the full authorization/deletion race matrix are implemented
+and reviewed.
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and
