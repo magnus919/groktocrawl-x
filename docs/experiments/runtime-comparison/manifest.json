@@ -1,0 +1,41 @@
+{
+  "schema_version": "runtime-comparison-manifest/1",
+  "status": "conformance_harness_ready_measurement_pending",
+  "scope": "magnus919/groktocrawl-x only",
+  "issue": 110,
+  "adr": "0073",
+  "policy_version": "fixture-policy/1",
+  "runtimes": [
+    {
+      "id": "imperative",
+      "implementation": "agent.experimental.runtime_comparison.ImperativeRuntime",
+      "persistence": "none"
+    },
+    {
+      "id": "graph-candidate",
+      "implementation": "agent.experimental.runtime_comparison.GraphCandidateRuntime",
+      "implementation_status": "framework-neutral candidate seam; no LangGraph dependency selected",
+      "persistence": "none"
+    }
+  ],
+  "fixture_lane": {
+    "external_provider_budget_usd": 0,
+    "scripted_inputs": true,
+    "quality_claim_authorized": false
+  },
+  "measurement": {
+    "paired_repetitions": 0,
+    "cold_runs": 0,
+    "warm_runs": 0,
+    "baseline_frozen": false,
+    "reason": "W1 comparative preflight and baseline evidence remain open"
+  },
+  "hard_invariants": [
+    "stable operation identity and input digest",
+    "reserved budget bounds every dispatch",
+    "duplicate receipts are idempotent",
+    "conflicting or over-budget receipts fail closed",
+    "cancellation prevents late completion",
+    "terminal accounting is explicit"
+  ]
+}
