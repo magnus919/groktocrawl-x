@@ -1,4 +1,4 @@
-"""Permit the consolidated publication table to retain non-fixture candidates."""
+-- Permit the consolidated publication table to retain non-fixture candidates.
 
 ALTER TABLE research_staging.consolidated_publications
     DROP CONSTRAINT consolidated_publications_fixture_only_check;
