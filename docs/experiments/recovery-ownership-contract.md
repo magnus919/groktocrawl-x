@@ -8,10 +8,15 @@ retry relationships, and an explicit at-least-once network-effect boundary.
 
 The `RecoveryLedger` fixture covers stale-owner rejection, idempotent receipts,
 conflicting receipts, cancellation/publication races, and exact receipt binding at
-publication. It is a contract test only. It does not provide a durable lease,
-process recovery, checkpoint persistence, provider reconciliation, or backup/restore
-evidence. W5 remains open until the declared crash/cancel matrix is exercised
-against a selected implementation and the resulting ADR decision is reviewed.
+publication. The opt-in `DurableResearchLedger` adds a Valkey-backed bounded
+implementation for admission, lease expiry/reclaim, monotonic fencing, persisted
+cancellation, and terminal receipt commits. Its tests exercise a new ledger
+instance after lease loss, including stale-owner rejection and late cancellation.
+This is still a recovery implementation slice, not a production deployment: it
+does not yet recover the public research route, persist checkpoints or artifacts,
+reconcile provider ambiguity, or provide backup/restore evidence. W5 remains open
+until the declared crash/cancel matrix is exercised against the selected execution
+path and the resulting ADR decision is reviewed.
 
 See [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md),
 the [execution confirmation matrix](research-execution-confirmation.md), and
