@@ -25,7 +25,7 @@ from status, events, artifacts and session attachment. The run adapter is still 
 production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130)
 and remains subject to hosted review. W6 remains open until durable recovery and the full authorization/deletion race
 matrix are implemented and reviewed; bounded scope-isolation and deletion-tombstone
-evidence is under review in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133).
+evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133).
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and
