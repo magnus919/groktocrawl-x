@@ -1,4 +1,4 @@
-"""Atomic root-only consolidated fixture publication in the isolated database."""
+"""Atomic root-only consolidated publication in the isolated database."""
 
 import asyncio
 from collections.abc import Mapping
@@ -42,12 +42,31 @@ class ConsolidatedStore(ResearchImportStore):
                 raise StorageConflictError("consolidated migration requires schema 9")
             await conn.execute(migration.read_text(), prepare=False)
 
+    async def migrate_consolidated_model(self) -> None:
+        """Opt in to schema 11, which retains an explicit provenance boolean."""
+        migration = (
+            Path(__file__).with_name("migrations")
+            / "011_consolidated_model_publications.sql"
+        )
+        async with self._transaction(bootstrap=True) as conn:
+            await conn.execute(
+                "LOCK TABLE research_staging.schema_version IN ACCESS EXCLUSIVE MODE"
+            )
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 10}]:
+                raise StorageConflictError("model publication migration requires schema 10")
+            await conn.execute(migration.read_text(), prepare=False)
+
     @staticmethod
     async def _require_consolidated(conn: Connection) -> None:
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version != [{"version": 10}]:
+        if version not in ([{"version": 10}], [{"version": 11}]):
             raise StorageConflictError("consolidated schema unavailable")
 
     async def create_consolidated_root(
@@ -131,8 +150,8 @@ class ConsolidatedStore(ResearchImportStore):
             knowledge_execution=knowledge_owner,
             render_execution=render_owner,
         )
-        if not candidate.fixture_only or context.parent_revision_id is not None:
-            raise StorageConflictError("only root fixture publications supported")
+        if context.parent_revision_id is not None:
+            raise StorageConflictError("consolidated publications require root revisions")
         admitted = candidate.admitted
         outputs = {
             a.layer: material.outputs[a.artifact_id].body
@@ -172,7 +191,7 @@ class ConsolidatedStore(ResearchImportStore):
             if row["current_consolidated"] is not None or size > op["reserved"]:
                 raise StorageConflictError("consolidated parent or reservation changed")
             await conn.execute(
-                "INSERT INTO research_staging.consolidated_publications(scope_id,root_id,operation_id,knowledge,knowledge_digest,manifest,manifest_digest,summary,analysis,dossier,fixture_only) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,true)",
+                "INSERT INTO research_staging.consolidated_publications(scope_id,root_id,operation_id,knowledge,knowledge_digest,manifest,manifest_digest,summary,analysis,dossier,fixture_only) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
                     scope,
                     root,
@@ -184,6 +203,7 @@ class ConsolidatedStore(ResearchImportStore):
                     outputs["summary"],
                     outputs["analysis"],
                     outputs["dossier"],
+                    candidate.fixture_only,
                 ),
             )
             for logical_id, snapshot_id in material.bindings.items():
@@ -262,7 +282,7 @@ class ConsolidatedStore(ResearchImportStore):
                 or knowledge_document.digest != row["knowledge_digest"]
                 or manifest_document.digest != row["manifest_digest"]
                 or context_digest(knowledge.context) != row["context_digest"]
-                or row["fixture_only"] is not True
+                or type(row["fixture_only"]) is not bool
             ):
                 raise StorageConflictError("consolidated document integrity mismatch")
             links = await (
@@ -293,7 +313,7 @@ class ConsolidatedStore(ResearchImportStore):
                 row["manifest"],
                 tuple(sources),
                 reports,
-                True,
+                row["fixture_only"],
                 row["manifest_digest"],
             )
             material = StoredMaterial(self, scope, root, retained, bindings, conn)

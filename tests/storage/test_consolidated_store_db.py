@@ -254,6 +254,18 @@ class ConsolidatedTests(unittest.IsolatedAsyncioTestCase):
             ).fixture_only
         )
 
+    async def test_schema11_round_trip_preserves_nonfixture_provenance_marker(self):
+        await self.store.migrate_consolidated_model()
+        await self.run_journey()
+        await self.sql(
+            "UPDATE research_staging.consolidated_publications SET fixture_only=false WHERE root_id=%s RETURNING root_id",
+            (self.root,),
+        )
+        retained = await self.store.read_consolidated(
+            self.scope, self.root, self.op
+        )
+        self.assertFalse(retained.fixture_only)
+
 
 if __name__ == "__main__":
     asyncio.run(ConsolidatedStore().migrate_consolidated())
