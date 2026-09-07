@@ -268,3 +268,16 @@ async def test_review_schema_disallows_assessment_label_for_structural_check():
     adapter, checked, sources = configured(complete)
     with pytest.raises(ValueError, match="no judgment accepted"):
         await adapter.verify(checked, sources)
+
+
+@pytest.mark.asyncio
+async def test_review_payload_repeats_check_type_and_allowed_outcomes():
+    async def complete(request):
+        payload = json.loads(request.payload)
+        assert payload["check_type"] == "structural"
+        assert payload["allowed_outcomes"] == ["pass", "fail", "indeterminate"]
+        return reply_for(request, outcome="pass")
+
+    adapter, checked, sources = configured(complete)
+    result = await adapter.verify(checked, sources)
+    assert result.outcome == "pass"
