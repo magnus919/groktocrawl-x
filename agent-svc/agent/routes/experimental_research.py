@@ -451,6 +451,18 @@ async def cancel_experimental_research_run(run_id: str, request: Request) -> dic
     async with record.lock:
         if record.state in {"completed", "failed", "cancelled"}:
             return _record_projection(record)
+        if record.durable_ledger is not None:
+            durable = record.durable_ledger.cancel(record.run_id)
+            if durable.state == "completed":
+                terminal = durable.terminal_payload or {}
+                record.state = "completed"
+                record.result = terminal.get("result")
+                return _record_projection(record)
+            record.state = "cancelled"
+            _event(record, "cancelled", "cancelled")
+            if record.task is not None and not record.task.done():
+                record.task.cancel()
+            return _record_projection(record)
         if record.state == "accepted":
             record.state = "cancelled"
             _event(record, "cancelled", "cancelled")

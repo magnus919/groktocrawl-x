@@ -15,9 +15,11 @@ from redis import Redis
 
 @pytest.fixture
 def app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
-    url = os.environ.get("DURABLE_RESEARCH_REDIS_URL")
+    # The dedicated URL is used by the isolated Valkey lanes. The compose
+    # integration lane already provides the same durable store as VALKEY_URL.
+    url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ.get("VALKEY_URL")
     if url is None:
-        raise RuntimeError("DURABLE_RESEARCH_REDIS_URL is required")
+        raise RuntimeError("DURABLE_RESEARCH_REDIS_URL or VALKEY_URL is required")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_DURABLE", "true")
@@ -60,7 +62,7 @@ async def test_status_recovers_from_durable_terminal_projection(app: FastAPI) ->
         status = await _wait_for_terminal(client, admission["run_id"])
         assert status["state"] == "completed"
 
-        url = os.environ["DURABLE_RESEARCH_REDIS_URL"]
+        url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
         ledger = DurableResearchLedger(url)
         durable = ledger.get(admission["run_id"])
         assert durable is not None
@@ -73,3 +75,25 @@ async def test_status_recovers_from_durable_terminal_projection(app: FastAPI) ->
         assert recovered.json()["state"] == "completed"
         assert recovered.json()["result"] == status["result"]
 
+
+@pytest.mark.asyncio
+async def test_cancel_persists_durable_terminal_state(app: FastAPI) -> None:
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "durable-cancel-1"},
+            json={"objective": "Cancel durable status"},
+        )
+        assert created.status_code == 202
+        run_id = created.json()["run_id"]
+        cancelled = await client.post(
+            f"/experimental/research/v1/runs/{run_id}/cancel"
+        )
+        assert cancelled.status_code == 202
+        assert cancelled.json()["state"] == "cancelled"
+
+        durable = DurableResearchLedger(
+            os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
+        ).get(run_id)
+        assert durable is not None
+        assert durable.state == "cancelled"
