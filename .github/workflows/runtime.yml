@@ -985,11 +985,42 @@ jobs:
           docker compose run --rm -T -e PGDATABASE=research_restore_probe storage-adapter restore-verify < "$restore_dir/deletions.json" > restore-result.json
           echo "Dump seconds: $dump_seconds; restore seconds: $restore_seconds; backup bytes: $(wc -c < "$restore_dir/backup.sql")" >> "$GITHUB_STEP_SUMMARY"
           cat restore-result.json >> "$GITHUB_STEP_SUMMARY"
+          # A corrupt dump must fail before the database is considered usable.
+          cp "$restore_dir/backup.sql" "$restore_dir/corrupt.sql"
+          printf '\nTHIS IS NOT VALID SQL;\n' >> "$restore_dir/corrupt.sql"
+          docker compose exec -T research-postgres createdb -U research_owner research_corrupt_restore
+          if docker compose exec -T research-postgres psql -X -U research_owner -d research_corrupt_restore --set=ON_ERROR_STOP=1 --single-transaction < "$restore_dir/corrupt.sql"; then
+            echo 'Corrupt restore unexpectedly succeeded' >&2
+            exit 1
+          fi
+          docker compose exec -T research-postgres dropdb -U research_owner research_corrupt_restore
+          # A process interruption is represented by a deliberately truncated
+          # restore. It may exit cleanly after valid statements, but it must not
+          # pass the same authoritative deletion/retention verification.
+          docker compose exec -T research-postgres createdb -U research_owner research_interrupted_restore
+          set +e
+          head -n 32 "$restore_dir/backup.sql" | docker compose exec -T research-postgres psql -X -U research_owner -d research_interrupted_restore --set=ON_ERROR_STOP=1 --single-transaction
+          interrupted_status=$?
+          set -e
+          if docker compose run --rm -T -e PGDATABASE=research_interrupted_restore storage-adapter restore-verify < "$restore_dir/deletions.json"; then
+            echo 'Interrupted restore unexpectedly passed authoritative verification' >&2
+            exit 1
+          fi
+          docker compose exec -T research-postgres dropdb -U research_owner research_interrupted_restore
+          cat > restore-failure-controls.json <<EOF
+          {"schema_version":"fixture-restore-failure-controls/1","corrupt_restore_rejected":true,"interrupted_restore_rejected":true,"interrupted_psql_status":$interrupted_status}
+          EOF
       - name: Upload bounded restore result
         uses: actions/upload-artifact@v7
         with:
           name: source-storage-restore-result
           path: restore-result.json
+          if-no-files-found: error
+      - name: Upload restore failure controls
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-storage-restore-failure-controls
+          path: restore-failure-controls.json
           if-no-files-found: error
       - name: Rehearse consolidated restore and post-backup deletion
         run: |
