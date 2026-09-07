@@ -120,3 +120,59 @@ def test_new_ledger_instance_can_recover_after_process_loss(
     assert [item.run_id for item in reclaimable] == [admitted.run_id]
     recovered = restarted.claim(admitted.run_id, "restarted-owner")
     assert recovered.owner_generation == first.owner_generation + 1
+
+
+def test_snapshot_restore_preserves_receipts_and_makes_live_work_reclaimable(
+    ledger: DurableResearchLedger,
+) -> None:
+    active = ledger.admit("scope-a", "request-a", "digest-a")
+    ledger.claim(active.run_id, "active-owner")
+    completed = ledger.admit("scope-a", "request-b", "digest-b")
+    claimed = ledger.claim(completed.run_id, "completed-owner")
+    ledger.commit_result(
+        completed.run_id,
+        "completed-owner",
+        claimed.owner_generation,
+        "result-b",
+        terminal_payload={"artifact_set_id": "artifact-b"},
+    )
+    deleted = ledger.admit("scope-a", "request-c", "digest-c")
+    ledger.delete(
+        deleted.run_id,
+        terminal_payload={"research_id": "research-c", "deleted": True},
+    )
+
+    snapshot = ledger.export_snapshot()
+    assert snapshot["schema_version"] == "durable-research-backup/1"
+    assert all(":lease:" not in item["key"] for item in snapshot["keys"])
+
+    ledger.redis.flushdb()
+    restored = DurableResearchLedger(
+        os.environ["DURABLE_RESEARCH_REDIS_URL"],
+        namespace=ledger.namespace,
+        lease_ms=100,
+        retention_ms=10_000,
+        retry_window_ms=5_000,
+    )
+    assert restored.restore_snapshot(snapshot) == len(snapshot["keys"])
+    assert restored.admit("scope-a", "request-b", "digest-b").run_id == completed.run_id
+    assert restored.get(completed.run_id).terminal_payload == {
+        "artifact_set_id": "artifact-b"
+    }
+    assert restored.get(deleted.run_id).state == "deleted"
+    assert [item.run_id for item in restored.reclaimable()] == [active.run_id]
+
+
+def test_snapshot_restore_rejects_tampering_and_nonempty_targets(
+    ledger: DurableResearchLedger,
+) -> None:
+    admitted = ledger.admit("scope-a", "request-d", "digest-d")
+    snapshot = ledger.export_snapshot()
+    tampered = dict(snapshot)
+    tampered["snapshot_digest"] = "0" * 64
+    with pytest.raises(RuntimeError, match="backup digest"):
+        ledger.restore_snapshot(tampered)
+
+    with pytest.raises(RuntimeError, match="target is not empty"):
+        ledger.restore_snapshot(snapshot)
+    assert ledger.get(admitted.run_id) is not None

@@ -185,3 +185,4 @@ and retained test history. No executed recovery evidence accompanies this draft.
 - [ADR-0071](0071-store-research-evidence-independently-of-sessions.md)
 - [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md)
 - [ADR-0073](0073-compare-research-runtimes-under-one-policy.md)
+- [ADR-0078](0078-define-durable-research-backup-and-artifact-authority.md)
