@@ -103,6 +103,12 @@ series. Existing twelve-case fixtures are a regression seed, not the required
 held-out quality dataset. No runtime speedup, storage reliability or recovery claim
 can be made from this packet.
 
+Issue [#116](https://github.com/magnus919/groktocrawl-x/issues/116) adds the
+fail-closed validator for this manifest. Run
+`python3 scripts/validate-research-preflight.py` before any comparison runner;
+the current draft is expected to fail with unresolved baseline, reviewer,
+threshold and pin diagnostics.
+
 W0 also remains incomplete: repository ruleset enforcement and publishing identity
 are unresolved. Hosted checks passing does not prove GitHub enforces merge policy.
 Keep inherited publishing and paid/live workflows disabled. The next implementation
