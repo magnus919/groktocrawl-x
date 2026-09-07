@@ -77,7 +77,22 @@ async def test_status_recovers_from_durable_terminal_projection(app: FastAPI) ->
 
 
 @pytest.mark.asyncio
-async def test_cancel_persists_durable_terminal_state(app: FastAPI) -> None:
+async def test_cancel_persists_durable_terminal_state(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    class BlockedJourney:
+        async def run(self) -> None:
+            started.set()
+            await release.wait()
+
+    monkeypatch.setattr(
+        experimental,
+        "example_journey",
+        lambda **_: BlockedJourney(),
+    )
     async with await _client(app) as client:
         created = await client.post(
             "/experimental/research/v1/runs",
@@ -86,6 +101,7 @@ async def test_cancel_persists_durable_terminal_state(app: FastAPI) -> None:
         )
         assert created.status_code == 202
         run_id = created.json()["run_id"]
+        await asyncio.wait_for(started.wait(), timeout=1)
         cancelled = await client.post(
             f"/experimental/research/v1/runs/{run_id}/cancel"
         )
@@ -97,3 +113,5 @@ async def test_cancel_persists_durable_terminal_state(app: FastAPI) -> None:
         ).get(run_id)
         assert durable is not None
         assert durable.state == "cancelled"
+        release.set()
+        await asyncio.sleep(0)
