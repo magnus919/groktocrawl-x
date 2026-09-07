@@ -79,12 +79,13 @@ inline payload must migrate before production-sized artifacts can be adopted.
 
 ## Confirmation
 
-Issue #147 must record hosted evidence for terminal receipt/artifact recovery,
+Issue #147 records hosted evidence for terminal receipt/artifact recovery,
 idempotency retry continuity, active-run reclaim, deletion-tombstone continuity,
-tampered snapshot rejection and non-empty-target rejection. The evidence must name
-the commit, Valkey version/configuration, retention settings and exclusions. Any
-failure blocks W5 closure; passing this rehearsal does not close D5 or authorize a
-production artifact store.
+tampered snapshot rejection and non-empty-target rejection in [the W5 packet](../experiments/durable-backup-restore.md),
+from Runtime CI run [34142290308](https://github.com/magnus919/groktocrawl-x/actions/runs/34142290308).
+The rehearsal passed. W5 remains open only for the production artifact-authority
+and infrastructure decision; passing this bounded rehearsal does not close D5 or
+authorize a production artifact store.
 
 ## Links
 

@@ -24,10 +24,12 @@ The crash/cancel matrix is merged in [PR #146](https://github.com/magnus919/grok
 with the hosted Runtime Gate, Integration Tests, PostgreSQL Storage Probes and Twin
 Contracts all passing.
 The next W5 slice, tracked by [issue #147](https://github.com/magnus919/groktocrawl-x/issues/147),
-adds validated non-lease snapshots, reclaim-after-restore behavior and durable deletion
-tombstones. [ADR-0078](../adr/0078-define-durable-research-backup-and-artifact-authority.md)
-records this as a proposed experimental boundary; backup/restore evidence and the
-production artifact-store decision remain open.
+is merged in [PR #148](https://github.com/magnus919/groktocrawl-x/pull/148): it adds
+validated non-lease snapshots, reclaim-after-restore behavior and durable deletion
+tombstones. Hosted evidence is recorded in [the W5 packet](durable-backup-restore.md).
+[ADR-0078](../adr/0078-define-durable-research-backup-and-artifact-authority.md)
+remains proposed; W5 is still open only for the production artifact-authority and
+infrastructure decision.
 
 See [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md),
 the [execution confirmation matrix](research-execution-confirmation.md), and
