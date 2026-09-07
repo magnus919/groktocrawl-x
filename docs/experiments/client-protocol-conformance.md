@@ -9,6 +9,12 @@ client surfaces. The machine-readable traces under
 `docs/experiments/client-protocol/golden/` freeze completed-conflict, failed-audit
 and cancelled outcomes for cross-client parity checks.
 
+The opt-in `GET /experimental/research/v1/capabilities` adapter now exposes this
+boundary when `FEATURE_EXPERIMENTAL_RESEARCH=true`. It reports the contract and
+golden-trace stage, an unadvertised recovery mode, and unavailable run/artifact/
+evidence/session operations until their adapters are implemented. The flag is off
+by default and inherited `/v2` routes are unchanged.
+
 The tests cover completed, failed and cancelled terminal outcomes, duplicate replay
 deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
 violations. This is still a contract and golden-trace fixture, not a public route or
