@@ -318,7 +318,7 @@
     "packet": "docs/experiments/enterprise-evaluation/README.md",
     "manifest": "docs/experiments/enterprise-evaluation/manifest.json",
     "separate_ai_reviewer": "Hermes via local one-shot CLI",
-    "human_calibration_and_adjudication": "Magnus; calibration labels not yet collected",
+    "human_calibration_and_adjudication": "Magnus; 12 exposed calibration cases human-confirmed in docs/experiments/enterprise-evaluation/calibration/human-confirmation.json; no held-out labels",
     "held_out_status": "No sealed held-out set; candidate calibration questions exposed to author/reviewer",
     "numerical_performance_bounds": "Pending measured baseline and review under ADR-0070"
   },
