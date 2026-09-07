@@ -57,9 +57,33 @@ def test_expired_lease_reclaims_and_fences_old_owner(
     assert second.owner_generation == 2
     with pytest.raises(LeaseLostError):
         ledger.commit_result(admitted.run_id, "owner-a", 1, "result-a")
-    committed = ledger.commit_result(admitted.run_id, "owner-b", 2, "result-b")
+    checkpointed = ledger.checkpoint(
+        admitted.run_id, "owner-b", 2, "knowledge_ir", "checkpoint-b"
+    )
+    assert checkpointed.checkpoint_name == "knowledge_ir"
+    committed = ledger.commit_result(
+        admitted.run_id,
+        "owner-b",
+        2,
+        "result-b",
+        terminal_payload={"state": "completed", "artifact_set_id": "artifact-b"},
+    )
     assert committed.state == "completed"
     assert committed.result_digest == "result-b"
+    restarted = DurableResearchLedger(
+        os.environ["DURABLE_RESEARCH_REDIS_URL"],
+        namespace=ledger.namespace,
+        lease_ms=100,
+        retention_ms=10_000,
+        retry_window_ms=5_000,
+    )
+    recovered = restarted.get(admitted.run_id)
+    assert recovered is not None
+    assert recovered.checkpoint_digest == "checkpoint-b"
+    assert recovered.terminal_payload == {
+        "state": "completed",
+        "artifact_set_id": "artifact-b",
+    }
 
 
 def test_cancellation_survives_late_worker_completion(
