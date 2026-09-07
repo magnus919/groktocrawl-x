@@ -298,7 +298,7 @@ class ConsolidatedTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(retained.fixture_only)
 
 
-class ConsolidatedImportTests(unittest.IsolatedAsyncioTestCase):
+class ZConsolidatedImportTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.store = ConsolidatedStore()
         async with self.store._transaction(bootstrap=True) as conn:
