@@ -75,7 +75,8 @@ gateway reliability limitation therefore remains visible.
 ## Confirmation
 
 Add migration and database tests for schema-10 compatibility, schema-11 model-marker
-round trips, exact source/output reopening, quota/expiry/deletion behavior and
-rejection of ineligible candidates. Run the existing hosted PostgreSQL probes and
-full CI. Report any live model failure separately from storage success. Revisit this
-proposal before format freeze, API exposure, recovery adoption or production traffic.
+round trips, exact source/output reopening, bounded consolidated export and offline
+revalidation, quota/expiry/deletion behavior and rejection of ineligible candidates.
+Run the existing hosted PostgreSQL probes and full CI. Report any live model failure
+separately from storage success. Revisit this proposal before cross-scope import,
+format freeze, API exposure, recovery adoption or production traffic.

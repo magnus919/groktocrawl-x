@@ -167,6 +167,23 @@ work can overlap W5; recovery claims cannot. Storage contracts, CI access, and
 runtime selection can each move the completion date. Do not schedule downstream
 implementation around an unreviewed ADR.
 
+### GitHub execution tracker
+
+The following issues and milestones are the execution index for this plan. Keep
+issue acceptance checklists, ADR status, and this document synchronized whenever a
+slice changes state. An issue is only closed by a PR whose validation demonstrates
+its acceptance criteria; passing structural checks alone does not close an evidence
+gate.
+
+| Workstream | Milestone | Execution issue | Current state |
+|---|---|---|---|
+| W0–W2 | [Foundation history](https://github.com/magnus919/groktocrawl-x/milestone/6) | [#1](https://github.com/magnus919/groktocrawl-x/issues/1) | Open: W1/W2 acceptance gates remain incomplete |
+| W3 | [Retention and reuse](https://github.com/magnus919/groktocrawl-x/milestone/1) | [#108 export](https://github.com/magnus919/groktocrawl-x/issues/108), [#109 import](https://github.com/magnus919/groktocrawl-x/issues/109) | #108 implemented by [PR #107](https://github.com/magnus919/groktocrawl-x/pull/107); CI pending |
+| W4 | [Runtime comparison](https://github.com/magnus919/groktocrawl-x/milestone/2) | [#110](https://github.com/magnus919/groktocrawl-x/issues/110) | Open |
+| W5 | [Durable execution and recovery](https://github.com/magnus919/groktocrawl-x/milestone/3) | [#111](https://github.com/magnus919/groktocrawl-x/issues/111) | Open |
+| W6 | [Verified client protocols](https://github.com/magnus919/groktocrawl-x/milestone/4) | [#112](https://github.com/magnus919/groktocrawl-x/issues/112) | Open |
+| W7 | [Evaluation and adoption decision](https://github.com/magnus919/groktocrawl-x/milestone/5) | [#103](https://github.com/magnus919/groktocrawl-x/issues/103), [#113](https://github.com/magnus919/groktocrawl-x/issues/113) | Open |
+
 ## Slice acceptance details
 
 ### W0–W1: establish an honest foundation
