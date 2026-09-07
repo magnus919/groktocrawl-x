@@ -8,6 +8,7 @@ outside this experimental adapter.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import time
@@ -86,7 +87,7 @@ _CLAIM_SCRIPT = """
 local raw = redis.call('GET', KEYS[1])
 if not raw then return {-1, 'missing'} end
 local record = cjson.decode(raw)
-if record.state == 'cancelled' or record.state == 'completed' or record.state == 'failed' then
+if record.state == 'cancelled' or record.state == 'completed' or record.state == 'failed' or record.state == 'deleted' then
   return {-2, record.state}
 end
 local lease = redis.call('GET', KEYS[2])
@@ -124,7 +125,7 @@ local lease = redis.call('GET', KEYS[2])
 if not raw then return {-1, 'missing'} end
 local record = cjson.decode(raw)
 if record.state == 'completed' and record.result_digest == ARGV[2] then return {1, 'completed'} end
-if record.state == 'cancelled' then return {-2, 'cancelled'} end
+if record.state == 'cancelled' or record.state == 'deleted' then return {-2, record.state} end
 if lease ~= ARGV[1] or record.owner_id .. ':' .. record.owner_generation ~= ARGV[1] then return {0, 'lease_lost'} end
 if record.state ~= 'running' then return {-3, record.state} end
 record.state = 'completed'
@@ -153,7 +154,7 @@ _CANCEL_SCRIPT = """
 local raw = redis.call('GET', KEYS[1])
 if not raw then return {-1, 'missing'} end
 local record = cjson.decode(raw)
-if record.state == 'completed' or record.state == 'cancelled' or record.state == 'failed' then return {1, record.state} end
+if record.state == 'completed' or record.state == 'cancelled' or record.state == 'failed' or record.state == 'deleted' then return {1, record.state} end
 record.state = 'cancelled'
 record.terminal_payload = cjson.decode(ARGV[2])
 record.owner_id = false
@@ -162,6 +163,20 @@ record.cancel_requested = true
 redis.call('SET', KEYS[1], cjson.encode(record), 'PX', ARGV[1])
 redis.call('DEL', KEYS[2])
 return {1, 'cancelled'}
+"""
+
+_DELETE_SCRIPT = """
+local raw = redis.call('GET', KEYS[1])
+if not raw then return {-1, 'missing'} end
+local record = cjson.decode(raw)
+if record.state == 'deleted' then return {1, 'deleted'} end
+record.state = 'deleted'
+record.terminal_payload = cjson.decode(ARGV[2])
+record.owner_id = false
+record.lease_expires_at_ms = false
+redis.call('SET', KEYS[1], cjson.encode(record), 'PX', ARGV[1])
+redis.call('DEL', KEYS[2])
+return {1, 'deleted'}
 """
 
 
@@ -377,6 +392,124 @@ class DurableResearchLedger:
         if snapshot is None:
             raise DurableResearchError("cancelled run disappeared before read")
         return snapshot
+
+    def delete(
+        self,
+        run_id: str,
+        *,
+        terminal_payload: dict[str, Any] | None = None,
+    ) -> DurableRun:
+        """Persist a minimal deletion tombstone that fences future reads."""
+        result = self.redis.eval(
+            _DELETE_SCRIPT,
+            2,
+            self._run_key(run_id),
+            self._lease_key(run_id),
+            str(self.retention_ms),
+            json.dumps(terminal_payload or {}, separators=(",", ":")),
+        )
+        if int(result[0]) == -1:
+            raise DurableResearchError("run is missing")
+        snapshot = self.get(run_id)
+        if snapshot is None:
+            raise DurableResearchError("deleted run disappeared before read")
+        return snapshot
+
+    def export_snapshot(self) -> dict[str, Any]:
+        """Export retained ledger bytes while excluding ephemeral lease keys.
+
+        A restored running record has no lease and is therefore reclaimable. This
+        intentionally preserves terminal receipts and deletion tombstones while
+        avoiding resurrection of a worker's old lease.
+        """
+        prefix = f"{self.namespace}:"
+        lease_prefix = self._key("lease", "")
+        entries: list[dict[str, Any]] = []
+        for raw_key in sorted(self.redis.scan_iter(match=f"{prefix}*")):
+            key = raw_key.decode() if isinstance(raw_key, bytes) else str(raw_key)
+            if key.startswith(lease_prefix):
+                continue
+            value = self.redis.dump(key)
+            if value is None:
+                continue
+            ttl_ms = int(self.redis.pttl(key))
+            if ttl_ms == -2:
+                continue
+            entries.append(
+                {
+                    "key": key,
+                    "ttl_ms": ttl_ms,
+                    "value_b64": base64.b64encode(value).decode("ascii"),
+                    "value_digest": hashlib.sha256(value).hexdigest(),
+                }
+            )
+        snapshot: dict[str, Any] = {
+            "schema_version": "durable-research-backup/1",
+            "namespace": self.namespace,
+            "keys": entries,
+        }
+        snapshot["snapshot_digest"] = hashlib.sha256(
+            json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        return snapshot
+
+    def restore_snapshot(
+        self, snapshot: dict[str, Any], *, replace: bool = False
+    ) -> int:
+        """Restore a validated snapshot into an empty or explicitly replaced ledger."""
+        if not isinstance(snapshot, dict):
+            raise DurableResearchError("durable backup payload is invalid")
+        if snapshot.get("schema_version") != "durable-research-backup/1":
+            raise DurableResearchError("unsupported durable backup schema")
+        if snapshot.get("namespace") != self.namespace:
+            raise DurableConflictError("durable backup namespace conflicts")
+        supplied_digest = snapshot.get("snapshot_digest")
+        unsigned = dict(snapshot)
+        unsigned.pop("snapshot_digest", None)
+        expected_digest = hashlib.sha256(
+            json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        if supplied_digest != expected_digest:
+            raise DurableResearchError("durable backup digest mismatch")
+        raw_entries = snapshot.get("keys")
+        if not isinstance(raw_entries, list):
+            raise DurableResearchError("durable backup keys are invalid")
+
+        prefix = f"{self.namespace}:"
+        lease_prefix = self._key("lease", "")
+        entries: list[tuple[str, int, bytes]] = []
+        seen: set[str] = set()
+        for item in raw_entries:
+            if not isinstance(item, dict):
+                raise DurableResearchError("durable backup entry is invalid")
+            key = item.get("key")
+            if (
+                not isinstance(key, str)
+                or not key.startswith(prefix)
+                or key.startswith(lease_prefix)
+                or key in seen
+            ):
+                raise DurableResearchError("durable backup key is invalid")
+            seen.add(key)
+            try:
+                value = base64.b64decode(item["value_b64"], validate=True)
+                ttl_ms = int(item["ttl_ms"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise DurableResearchError("durable backup entry is invalid") from exc
+            if hashlib.sha256(value).hexdigest() != item.get("value_digest"):
+                raise DurableResearchError("durable backup value digest mismatch")
+            entries.append((key, ttl_ms, value))
+
+        existing = list(self.redis.scan_iter(match=f"{prefix}*"))
+        if existing and not replace:
+            raise DurableConflictError("durable backup target is not empty")
+        with self.redis.pipeline(transaction=True) as pipe:
+            if replace and existing:
+                pipe.delete(*existing)
+            for key, ttl_ms, value in entries:
+                pipe.restore(key, max(ttl_ms, 0), value, replace=True)
+            pipe.execute()
+        return len(entries)
 
     def reclaimable(self) -> list[DurableRun]:
         """Return admitted/running work whose lease is absent for recovery."""

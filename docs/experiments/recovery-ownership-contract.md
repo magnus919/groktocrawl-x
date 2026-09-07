@@ -16,11 +16,18 @@ payload. Its tests exercise a new ledger
 instance after lease loss, including stale-owner rejection, checkpoint persistence, terminal projection
 persistence, and late cancellation.
 This is still a recovery implementation slice, not a production deployment. The
-experimental route now wires durable status recovery and persisted cancellation through
-[PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact bytes and
-terminal event history are under review in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). The durable route crash/cancel matrix is under review in [PR #146](https://github.com/magnus919/groktocrawl-x/pull/146); backup/restore evidence and the infrastructure decision remain open. W5 remains open
-until the declared crash/cancel matrix is exercised against the selected execution
-path and the resulting ADR decision is reviewed.
+experimental route wires durable status recovery and persisted cancellation through
+[PR #139](https://github.com/magnus919/groktocrawl-x/pull/139), bounded artifact bytes and
+terminal event history through [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142),
+and provider ambiguity reconciliation through [PR #144](https://github.com/magnus919/groktocrawl-x/pull/144).
+The crash/cancel matrix is merged in [PR #146](https://github.com/magnus919/groktocrawl-x/pull/146)
+with the hosted Runtime Gate, Integration Tests, PostgreSQL Storage Probes and Twin
+Contracts all passing.
+The next W5 slice, tracked by [issue #147](https://github.com/magnus919/groktocrawl-x/issues/147),
+adds validated non-lease snapshots, reclaim-after-restore behavior and durable deletion
+tombstones. [ADR-0078](../adr/0078-define-durable-research-backup-and-artifact-authority.md)
+records this as a proposed experimental boundary; backup/restore evidence and the
+production artifact-store decision remain open.
 
 See [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md),
 the [execution confirmation matrix](research-execution-confirmation.md), and

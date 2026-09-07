@@ -279,6 +279,7 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
     payload = durable.payload
     terminal = durable.terminal_payload or {}
     state = durable.state
+    deleted = state == "deleted"
     if state not in {
         "accepted",
         "running",
@@ -286,8 +287,12 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
         "completed",
         "failed",
         "cancelled",
+        "deleted",
     }:
         state = "accepted"
+    if deleted:
+        # Deletion is a durable tombstone, not a public protocol state.
+        state = "cancelled"
     typed_state = cast(
         Literal[
             "accepted",
@@ -312,6 +317,7 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
         durable_manifest=manifest,
         durable_artifacts=artifacts,
         durable_ledger=None,
+        deleted=deleted,
     )
 
 
@@ -720,6 +726,19 @@ async def delete_experimental_research(research_id: str, request: Request) -> di
     """Tombstone the process-local research root before physical cleanup."""
     _require_runs()
     scope = _scope_id(request)
+    if _durable_enabled():
+        ledger = _durable_ledger(request)
+        for durable in ledger.retained():
+            if durable.scope_id != scope or durable.payload.get("research_id") != research_id:
+                continue
+            ledger.delete(
+                durable.run_id,
+                terminal_payload={"research_id": research_id, "deleted": True},
+            )
+            record = _RUNS.get(durable.run_id)
+            if record is not None:
+                record.deleted = True
+            return {"research_id": research_id, "state": "deleted"}
     for record in _RUNS.values():
         if record.scope_id == scope and record.research_id == research_id:
             record.deleted = True

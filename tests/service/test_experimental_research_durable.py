@@ -247,3 +247,36 @@ async def test_tampered_durable_artifact_projection_fails_closed(app: FastAPI) -
         experimental._RUNS.clear()
         artifact = await client.get(status["result"]["artifacts"]["summary"])
         assert artifact.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_durable_deletion_tombstone_survives_process_loss(app: FastAPI) -> None:
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "x"},
+            json={"objective": "Persist deletion authority"},
+        )
+        admission = created.json()
+        status = await _wait_for_terminal(client, admission["run_id"])
+        assert status["state"] == "completed"
+
+        deleted = await client.delete(
+            f"/experimental/research/v1/research/{status['research_id']}"
+        )
+        assert deleted.status_code == 202
+        assert deleted.json() == {
+            "research_id": status["research_id"],
+            "state": "deleted",
+        }
+
+        url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
+        durable = DurableResearchLedger(url).get(admission["run_id"])
+        assert durable is not None
+        assert durable.state == "deleted"
+        experimental._RUNS.clear()
+
+        recovered_status = await client.get(admission["status_url"])
+        assert recovered_status.status_code == 410
+        recovered_artifact = await client.get(status["result"]["artifacts"]["summary"])
+        assert recovered_artifact.status_code == 410
