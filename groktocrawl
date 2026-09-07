@@ -11,6 +11,7 @@ Commands:
   map              Discover URLs on a site
   crawl            Crawl a website
   agent            Start an autonomous research agent
+  research         Inspect the experimental research protocol
   download         Download binary content (PDF, EPUB, image, etc.) to disk
   extract          Extract structured data from URLs
   browser          Manage browser sessions
@@ -700,7 +701,13 @@ class Client:
         self.api_key = os.getenv("API_KEY", "") or os.getenv("GROKTOCRAWL_API_KEY", "")
 
     def _url(self, path: str) -> str:
+        if path.startswith("/experimental/"):
+            return f"{self.server}{path}"
         return f"{self.server}/{self.api_version}{path}"
+
+    def experimental_research_capabilities(self) -> dict[str, Any]:
+        """Return opt-in experimental research protocol capabilities."""
+        return self._request("GET", "/experimental/research/v1/capabilities")
 
     def _request(
         self,
@@ -1636,6 +1643,34 @@ def cmd_crawl(client: Client, args: argparse.Namespace) -> None:
             die(f"Crawl failed: {status.get('error', 'unknown')}")
         else:
             info(f"  Status: {s}")
+
+
+def cmd_research(client: Client, args: argparse.Namespace) -> None:
+    """Inspect the experimental research protocol without starting work."""
+    if getattr(args, "research_action", None) != "capabilities":
+        die("research requires an action")
+
+    result = client.experimental_research_capabilities()
+    if client.dry_run:
+        emit("[dry-run] Would inspect experimental research capabilities", result)
+        return
+    if not result.get("protocol_version"):
+        die(f"Research capabilities failed: {result.get('error', 'unknown error')}")
+
+    if JSON_OUTPUT:
+        emit("", result)
+        return
+
+    print(f"Experimental research protocol: {result['protocol_version']}")
+    print(f"Stage: {result['implementation_stage']}")
+    print(f"Recovery: {result['recovery_mode']}")
+    for name, operation in result.get("operations", {}).items():
+        state = (
+            "available"
+            if operation.get("available")
+            else f"pending ({operation.get('reason', 'not yet advertised')})"
+        )
+        print(f"  {name}: {state}")
 
 
 def cmd_agent(client: Client, args: argparse.Namespace) -> None:
@@ -2917,6 +2952,16 @@ def make_parser() -> argparse.ArgumentParser:
         help="Research depth: deep (multi-query, multi-pass, default) or focused (single-query, single-pass)",
     )
 
+    p_research = subparsers.add_parser(
+        "research", help="Inspect the opt-in experimental research protocol"
+    )
+    p_research_sub = p_research.add_subparsers(
+        dest="research_action", required=True
+    )
+    p_research_sub.add_parser(
+        "capabilities", help="Show the advertised research protocol capabilities"
+    )
+
     p_download = subparsers.add_parser(
         "download", help="Download binary content (PDF, EPUB, image, etc.) to disk"
     )
@@ -3199,6 +3244,7 @@ def main() -> None:
         "map": cmd_map,
         "crawl": cmd_crawl,
         "agent": cmd_agent,
+        "research": cmd_research,
         "download": cmd_download,
         "extract": cmd_extract,
         "browser": cmd_browser,

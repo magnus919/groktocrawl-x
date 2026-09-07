@@ -2,7 +2,7 @@
 """Verify every expressible agent-svc API endpoint has an MCP tool.
 
 Reads agent-svc/agent/routes/*.py for ``@router.*`` decorators and
-cross-references each ``/v2`` path against the tool surface in
+cross-references each expressible API path against the tool surface in
 mcp-svc/mcp_server.py.  Exits non-zero if a non-exempted endpoint has
 no MCP tool, so the MCP surface cannot silently drift behind the API
 (the way the CLI surface is guarded by check-cli-coverage.py).
@@ -95,11 +95,12 @@ PATH_TO_MCP_TOOL: dict[str, str] = {
     "POST /v2/parse": "parse",
     "POST /v2/scrape": "scrape",
     "POST /v2/search": "search",
+    "GET /experimental/research/v1/capabilities": "research_capabilities",
 }
 
 
 def extract_api_endpoints() -> list[str]:
-    """Return all ``METHOD /v2/...`` paths found across routes/."""
+    """Return all expressible versioned and experimental paths in routes/."""
     if not API_DIR.is_dir():
         print(f"ERROR: Routes directory not found: {API_DIR}")
         sys.exit(1)
@@ -114,7 +115,7 @@ def extract_api_endpoints() -> list[str]:
             text,
         ):
             method, path = m.group(1).upper(), m.group(2)
-            if path.startswith("/v2/"):
+            if path.startswith("/v2/") or path.startswith("/experimental/"):
                 endpoints.append(f"{method} {path}")
             elif path.startswith("/v1/"):
                 endpoints.append(f"{method} {path}")

@@ -976,6 +976,10 @@ class GroktocrawlClient:
         """Server health check."""
         return await self._get("/health")
 
+    async def experimental_research_capabilities(self) -> dict:
+        """Return opt-in experimental research protocol capabilities."""
+        return await self._get("/experimental/research/v1/capabilities")
+
     async def browser_create(self, ttl: int = 300) -> dict:
         """Create a browser session."""
         return await self._post("/v2/browser", {"ttl": ttl})

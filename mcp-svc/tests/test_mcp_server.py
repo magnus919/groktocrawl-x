@@ -129,15 +129,15 @@ class TestTransportSecurity:
 
 
 class TestToolDiscovery:
-    """VAL-MCP-B01: tools/list returns exactly 35 tools."""
+    """VAL-MCP-B01: tools/list returns exactly 36 tools."""
 
     async def test_tool_count(self):
-        """tools/list returns exactly 35 tools."""
+        """tools/list returns exactly 36 tools."""
         tools = await mcp.list_tools()
-        assert len(tools) == 35, f"Expected 35 tools, got {len(tools)}"
+        assert len(tools) == 36, f"Expected 36 tools, got {len(tools)}"
 
     async def test_all_tool_names(self):
-        """All 35 expected tool names are present."""
+        """All 36 expected tool names are present."""
         tools = await mcp.list_tools()
         names = {t.name for t in tools}
         expected = {
@@ -149,6 +149,7 @@ class TestToolDiscovery:
             "get_crawl_errors",
             "get_active_crawls",
             "map",
+            "research_capabilities",
             "agent",
             "get_agent_status",
             "cancel_agent",
@@ -483,6 +484,25 @@ class TestContentBlocks:
 
 class TestToolCallRouting:
     """Verify each tool maps to the correct client method."""
+
+    async def test_research_capabilities_routes_to_client(self, monkeypatch):
+        """Experimental capability discovery is exposed as a read-only tool."""
+        async def _fake_capabilities() -> dict[str, Any]:
+            return {
+                "protocol_version": "research/1",
+                "implementation_stage": "contract_and_golden_traces",
+                "recovery_mode": "not_advertised",
+                "operations": {},
+            }
+
+        monkeypatch.setattr(
+            __import__("mcp_server", fromlist=["_client"])._client,
+            "experimental_research_capabilities",
+            _fake_capabilities,
+        )
+
+        result = await mcp.call_tool("research_capabilities", {})
+        assert "research/1" in str(result)
 
     async def test_scrape_passes_only_main_content(self, monkeypatch):
         """Scrape passes only_main_content=False through."""

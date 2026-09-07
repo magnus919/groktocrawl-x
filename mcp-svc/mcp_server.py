@@ -1,11 +1,12 @@
 """MCP server exposing GroktoCrawl tools via Model Context Protocol.
 
 Uses FastMCP from the official mcp SDK (v1.x) with Streamable HTTP
-transport.  Defines 35 tools matching the GroktoCrawl agent-svc
+transport.  Defines 36 tools matching the GroktoCrawl agent-svc
 API surface, with proper readOnlyHint/destructiveHint annotations.
 
 Tool surface policy (see scripts/check-mcp-coverage.py): every agent-svc
-``/v2`` endpoint that is expressible as a tool has one.  SSE-streaming,
+``/v2`` endpoint that is expressible as a tool, plus the opt-in experimental
+research capability endpoint, has one.  SSE-streaming,
 two-phase-upload, and pre-admission-internal endpoints, plus the
 plan/session/research-memory subsystems, are exempted explicitly.
 """
@@ -444,7 +445,18 @@ async def map(
     return _resp(result)
 
 
-# ── Tools 8–9: agent, get_agent_status ─────────────────────────────
+# ── Tools 8–10: experimental capabilities, agent, get_agent_status ───
+
+
+@mcp.tool(annotations=_RO)
+async def research_capabilities() -> str:
+    """Return the opt-in experimental research protocol capabilities."""
+    result = await _client.experimental_research_capabilities()
+    _ensure_success(result)
+    return _resp(result)
+
+
+# ── Tools 9–10: agent, get_agent_status ─────────────────────────────
 
 
 @mcp.tool(annotations=_RO)

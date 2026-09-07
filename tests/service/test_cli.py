@@ -138,6 +138,31 @@ class TestClientAuthentication:
         assert exit_info.value.code == 1
         assert json.loads(capsys.readouterr().out)["error_code"] == "CAPTCHA_UNRESOLVED"
 
+    def test_experimental_capabilities_uses_unversioned_route(self, client):
+        """Experimental protocol discovery must not be sent under /v2."""
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "protocol_version": "research/1",
+            "implementation_stage": "contract_and_golden_traces",
+            "recovery_mode": "not_advertised",
+            "operations": {},
+        }
+        response.headers = {}
+        response.url = (
+            "http://test-server:8080/experimental/research/v1/capabilities"
+        )
+
+        import requests as requests_module
+
+        with patch.object(requests_module, "request", return_value=response) as request:
+            result = client.experimental_research_capabilities()
+
+        assert result["protocol_version"] == "research/1"
+        assert request.call_args.kwargs["url"].endswith(
+            "/experimental/research/v1/capabilities"
+        )
+
 
 class TestClientCrawl:
     """Tests for Client.crawl() parameter mapping."""
