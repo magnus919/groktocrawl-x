@@ -20,6 +20,10 @@ dependencies = [
 [tool.deptry.per_rule_ignores]
 # Uvicorn is the container entry point; FastAPI loads multipart support dynamically.
 DEP002 = ["uvicorn", "python-multipart"]
+# LangGraph is intentionally an optional W4 comparison dependency. It must not
+# enter the production service or locked default test environment before the
+# runtime comparison is authorized and its exact version is pinned.
+DEP001 = ["langgraph"]
 
 [tool.mutmut]
 # Bounded mutation-testing pilot config (issue #572). Run from cwd agent-svc/.

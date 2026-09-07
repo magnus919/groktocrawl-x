@@ -1,6 +1,7 @@
 """Equivalent-runtime conformance and negative-control fixtures."""
 
 import asyncio
+import importlib.util
 
 import pytest
 from agent.experimental.controller import OperationSpec, ScriptResult
@@ -8,6 +9,8 @@ from agent.experimental.execution import Budget
 from agent.experimental.runtime_comparison import (
     GraphCandidateRuntime,
     ImperativeRuntime,
+    LangGraphRuntime,
+    LangGraphUnavailableError,
     RuntimeNode,
     RuntimePlan,
     compare_outcomes,
@@ -118,3 +121,26 @@ async def test_conflicting_output_is_a_failed_terminal_result():
     assert outcome.accounting.state == "failed"
     assert outcome.accounting.reserved.sources == 1
     assert any(event.kind == "failed" for event in outcome.events)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is optional until W4 measurement is authorized",
+    owner="repository-maintainer",
+    issue="#110",
+    classification="retained",
+    environment="LangGraph package is not installed in the default test lane",
+)
+async def test_langgraph_runtime_requires_the_optional_comparison_dependency():
+    current = plan(node("acquire"))
+    outcome = await LangGraphRuntime().run(current)
+    assert outcome.accounting.state == "completed"
+    assert outcome.outputs == (("acquire", "out-acquire"),)
+
+
+@pytest.mark.asyncio
+async def test_langgraph_runtime_reports_a_missing_dependency_without_mutation():
+    if importlib.util.find_spec("langgraph") is None:
+        with pytest.raises(LangGraphUnavailableError):
+            await LangGraphRuntime().run(plan(node("acquire")))
