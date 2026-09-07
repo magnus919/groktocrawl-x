@@ -13,8 +13,15 @@ TEXT = "Pilot lead time fell. Causation is unproven."
 
 def proposal():
     return {
-        "schema_version": "research-construction/1",
-        "evidence": [{"evidence_id": "e1", "snapshot_id": "source-1", "quote": TEXT}],
+        "schema_version": "research-construction/2",
+        "evidence": [
+            {
+                "evidence_id": "e1",
+                "snapshot_id": "source-1",
+                "start_line": 1,
+                "end_line": 1,
+            }
+        ],
         "claims": [
             {
                 "claim_id": "c1",
@@ -92,9 +99,10 @@ async def test_rejects_model_changes_to_evidence_or_authority(mutation):
 
 
 @pytest.mark.asyncio
-async def test_ambiguous_quote_requires_explicit_new_construction():
-    with pytest.raises(ValueError, match="ambiguous"):
-        await run(proposal(), TEXT + TEXT)
+async def test_explicit_lines_distinguish_repeated_text():
+    result = await run(proposal(), TEXT + "\n" + TEXT)
+    assert result.context.evidence[0].quote == TEXT + "\n"
+    assert result.context.evidence[0].end == len(TEXT) + 1
 
 
 @pytest.mark.asyncio
@@ -280,3 +288,12 @@ def test_fixture_entry_point_still_rejects_model_reviewers():
             artifact_set_id=fixture._artifact_set_id,
             clock=fixture._clock,
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("start,end", [(0, 1), (2, 1), (1, 2), (True, 1)])
+async def test_invalid_line_ranges_are_rejected(start, end):
+    value = proposal()
+    value["evidence"][0].update(start_line=start, end_line=end)
+    with pytest.raises(ValueError):
+        await run(value)
