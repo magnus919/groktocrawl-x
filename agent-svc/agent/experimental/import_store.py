@@ -94,6 +94,7 @@ class ImportStore(ArtifactBundleStore):
             [{"version": 9}],
             [{"version": 10}],
             [{"version": 11}],
+            [{"version": 12}],
         ):
             raise StorageConflictError("import schema unavailable")
         return int(version[0]["version"])

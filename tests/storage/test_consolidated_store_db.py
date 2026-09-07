@@ -298,6 +298,94 @@ class ConsolidatedTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(retained.fixture_only)
 
 
+class ZConsolidatedImportTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.store = ConsolidatedStore()
+        async with self.store._transaction(bootstrap=True) as conn:
+            version = (
+                await (
+                    await conn.execute(
+                        "SELECT version FROM research_staging.schema_version"
+                    )
+                ).fetchone()
+            )["version"]
+        if version == 10:
+            await self.store.migrate_consolidated_model()
+            version = 11
+        if version == 11:
+            await self.store.migrate_consolidated_imports()
+        self.origin_scope = uuid4()
+        self.recipient_scope = uuid4()
+        await self.store.provision_scope(self.origin_scope)
+        await self.store.provision_scope(self.recipient_scope)
+        self.origin_root = await self.store.create_consolidated_root(self.origin_scope)
+        self.origin_operation = await self.store.reserve_consolidated(
+            self.origin_scope, self.origin_root, 1, 100000, example_context()
+        )
+        await stage_journey(
+            self.store,
+            self.origin_scope,
+            self.origin_root,
+            self.origin_operation,
+        )
+        self.bundle = await self.store.export_consolidated(
+            self.origin_scope, self.origin_root, self.origin_operation
+        )
+
+    async def test_roundtrip_receipt_and_origin_deletion_authority(self):
+        target = await self.store.reserve_consolidated_import(
+            self.recipient_scope, self.bundle.data, self.bundle.digest
+        )
+        self.assertEqual(
+            await self.store.commit_consolidated_import(
+                self.recipient_scope, target, self.bundle.data
+            ),
+            target,
+        )
+        self.assertEqual(
+            await self.store.commit_consolidated_import(
+                self.recipient_scope, target, self.bundle.data
+            ),
+            target,
+        )
+        imported = await self.store.read_consolidated_import(
+            self.recipient_scope, target
+        )
+        self.assertEqual(imported.bundle, self.bundle)
+        self.assertEqual(
+            await self.store.consolidated_import_receipt(
+                self.recipient_scope, target
+            ),
+            self.bundle.digest,
+        )
+        await self.store.delete_root(self.origin_scope, self.origin_root)
+        with self.assertRaises(StorageConflictError):
+            await self.store.read_consolidated_import(self.recipient_scope, target)
+        self.assertEqual(
+            await self.store.consolidated_import_receipt(
+                self.recipient_scope, target
+            ),
+            self.bundle.digest,
+        )
+
+    async def test_altered_bundle_and_expired_origin_fail_closed(self):
+        target = await self.store.reserve_consolidated_import(
+            self.recipient_scope, self.bundle.data, self.bundle.digest
+        )
+        altered = self.bundle.data.replace(b"fixture_only", b"fixture_only", 1)
+        altered = altered + b" "
+        with self.assertRaises(ValueError):
+            await self.store.commit_consolidated_import(
+                self.recipient_scope, target, altered
+            )
+        await self.store.cancel_consolidated_import(self.recipient_scope, target)
+        await self.store.delete_root(self.origin_scope, self.origin_root)
+        with self.assertRaises(StorageConflictError):
+            await self.store.reserve_consolidated_import(
+                self.recipient_scope, self.bundle.data, self.bundle.digest
+            )
+
+
 if __name__ == "__main__":
     asyncio.run(ConsolidatedStore().migrate_consolidated())
     unittest.main(verbosity=2)

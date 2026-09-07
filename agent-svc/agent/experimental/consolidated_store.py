@@ -1,13 +1,21 @@
 """Atomic root-only consolidated publication in the isolated database."""
 
 import asyncio
+import base64
+import json
 from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
 from .canonical import MAX_BYTES, CanonicalDocument, admit_canonical_json
 from .checked_knowledge import CHECKED_SCHEMA, CheckedKnowledge, admit_checked_history
-from .consolidated_bundle import build_consolidated_bundle
+from .consolidated_bundle import (
+    CONSOLIDATED_BUNDLE_SCHEMA,
+    admit_consolidated_bundle,
+    build_consolidated_bundle,
+)
 from .consolidated_journey import JourneyResult, RenderedReport
 from .consolidated_storage_material import (
     RetainedConsolidated,
@@ -23,6 +31,14 @@ from .render_execution import RenderExecutionLedger
 from .render_manifest import MANIFEST_SCHEMA, RenderManifest
 from .research_import_store import ResearchImportStore
 from .source_store import ROOT_QUOTA, Connection, StorageConflictError
+
+
+@dataclass(frozen=True)
+class ImportedConsolidated:
+    recipient_scope: UUID
+    recipient_root: UUID
+    retained_until: datetime
+    bundle: CanonicalDocument
 
 
 class ConsolidatedStore(ResearchImportStore):
@@ -62,12 +78,33 @@ class ConsolidatedStore(ResearchImportStore):
                 raise StorageConflictError("model publication migration requires schema 10")
             await conn.execute(migration.read_text(), prepare=False)
 
+    async def migrate_consolidated_imports(self) -> None:
+        """Opt in to trusted-server imports of consolidated bundles."""
+        migration = (
+            Path(__file__).with_name("migrations")
+            / "012_consolidated_imports.sql"
+        )
+        async with self._transaction(bootstrap=True) as conn:
+            await conn.execute(
+                "LOCK TABLE research_staging.schema_version IN ACCESS EXCLUSIVE MODE"
+            )
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 11}]:
+                raise StorageConflictError(
+                    "consolidated import migration requires schema 11"
+                )
+            await conn.execute(migration.read_text(), prepare=False)
+
     @staticmethod
     async def _require_consolidated(conn: Connection) -> None:
         version = await (
             await conn.execute("SELECT version FROM research_staging.schema_version")
         ).fetchall()
-        if version not in ([{"version": 10}], [{"version": 11}]):
+        if version not in ([{"version": 10}], [{"version": 11}], [{"version": 12}]):
             raise StorageConflictError("consolidated schema unavailable")
 
     async def create_consolidated_root(
@@ -362,3 +399,266 @@ class ConsolidatedStore(ResearchImportStore):
                 operation=operation,
                 retained_until=row["expires_at"],
             )
+
+    @staticmethod
+    def _bundle_origin(raw: bytes, expected_digest: str) -> tuple[CanonicalDocument, UUID, UUID, UUID, datetime, str]:
+        document = admit_canonical_json(raw, schema_version=CONSOLIDATED_BUNDLE_SCHEMA)
+        if document.digest != expected_digest:
+            raise ValueError("consolidated bundle differs from expected digest")
+        fields = json.loads(document.data)
+        try:
+            scope, root, operation = (
+                UUID(fields["scope_id"]),
+                UUID(fields["root_id"]),
+                UUID(fields["operation_id"]),
+            )
+            retained_until = datetime.fromisoformat(fields["retained_until"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError("consolidated bundle origin is invalid") from error
+        members = fields.get("members")
+        try:
+            knowledge = base64.b64decode(members["knowledge.json"]["data"], validate=True)
+            context = CheckedKnowledge.model_validate_json(knowledge).context
+        except (KeyError, TypeError, ValueError) as error:
+            raise ValueError("consolidated bundle context is invalid") from error
+        return document, scope, root, operation, retained_until, context_digest(context)
+
+    async def reserve_consolidated_import(
+        self, recipient: UUID, raw: bytes, expected_digest: str
+    ) -> UUID:
+        """Reserve a recipient root for a same-authority consolidated import."""
+        document, origin_scope, origin_root, operation, retained, context_hash = (
+            self._bundle_origin(raw, expected_digest)
+        )
+        await admit_consolidated_bundle(
+            raw,
+            expected_digest=expected_digest,
+            scope=origin_scope,
+            root=origin_root,
+            operation=operation,
+            now=datetime.now(UTC),
+        )
+        async with self._transaction() as conn:
+            version = await self._require_consolidated_import_schema(conn)
+            await self._coordinate_imports(conn)
+            rows = await self._lock_roots(conn, {(origin_scope, origin_root)}, (recipient,))
+            origin = rows[(origin_scope, origin_root)]
+            self._active(origin, origin["generation"])
+            if (
+                origin["revision_format"] != "consolidated"
+                or origin["current_consolidated"] != operation
+            ):
+                raise StorageConflictError("consolidated origin unavailable")
+            count = await (
+                await conn.execute(
+                    "SELECT count(*) AS count FROM research_staging.import_operations WHERE origin_scope_id=%s AND origin_root_id=%s AND bundle_schema=%s",
+                    (origin_scope, origin_root, CONSOLIDATED_BUNDLE_SCHEMA),
+                )
+            ).fetchone()
+            if count is None or count["count"] >= 20:
+                raise StorageConflictError("origin import limit exceeded")
+            capacity = await (
+                await conn.execute(
+                    "SELECT quota-charged AS free FROM research_staging.scopes WHERE scope_id=%s",
+                    (recipient,),
+                )
+            ).fetchone()
+            size = len(raw)
+            if capacity is None or capacity["free"] < size or size > MAX_BYTES:
+                raise StorageConflictError("recipient quota exhausted")
+            now = datetime.now(UTC)
+            if any(
+                value.tzinfo is None or value.utcoffset() is None
+                for value in (retained, origin["expires_at"], now)
+            ):
+                raise ValueError("timezone-qualified retention required")
+            deadline = min(retained, origin["expires_at"], now + timedelta(days=30))
+            if deadline <= now:
+                raise StorageConflictError("consolidated import retention expired")
+            grant = min(deadline, now + timedelta(minutes=5))
+            target = await (
+                await conn.execute(
+                    "INSERT INTO research_staging.roots(scope_id,quota,kind,revision_format,expires_at) VALUES (%s,%s,'import','consolidated',%s) RETURNING root_id",
+                    (recipient, MAX_BYTES, grant),
+                )
+            ).fetchone()
+            assert target is not None
+            target_root = target["root_id"]
+            await self._charge(conn, recipient, target_root, size)
+            await conn.execute(
+                "INSERT INTO research_staging.import_operations(scope_id,root_id,origin_scope_id,origin_root_id,publication_id,origin_generation,bundle_digest,context_digest,reserved,grant_expires_at,retained_until,bundle_schema) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    recipient,
+                    target_root,
+                    origin_scope,
+                    origin_root,
+                    operation,
+                    origin["generation"],
+                    document.digest,
+                    context_hash,
+                    size,
+                    grant,
+                    deadline,
+                    CONSOLIDATED_BUNDLE_SCHEMA,
+                ),
+            )
+            # Keep the version check explicit so an old schema cannot silently
+            # accept the new bundle type.
+            if version < 12:
+                raise StorageConflictError("consolidated import schema unavailable")
+            return target_root
+
+    async def commit_consolidated_import(
+        self, recipient: UUID, root: UUID, raw: bytes
+    ) -> UUID:
+        async with self._transaction(read=True) as conn:
+            await self._require_consolidated_import_schema(conn)
+            operation_row = await (
+                await conn.execute(
+                    "SELECT * FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s AND bundle_schema=%s",
+                    (recipient, root, CONSOLIDATED_BUNDLE_SCHEMA),
+                )
+            ).fetchone()
+            if operation_row is None:
+                raise StorageConflictError("consolidated import operation unavailable")
+        _document, origin_scope, origin_root, operation, _retained, context_hash = (
+            self._bundle_origin(raw, operation_row["bundle_digest"])
+        )
+        bundle = await admit_consolidated_bundle(
+            raw,
+            expected_digest=operation_row["bundle_digest"],
+            scope=origin_scope,
+            root=origin_root,
+            operation=operation,
+            now=datetime.now(UTC),
+        )
+        async with self._transaction() as conn:
+            await self._require_consolidated_import_schema(conn)
+            await self._coordinate_imports(conn)
+            rows = await self._lock_roots(
+                conn, {(recipient, root), (origin_scope, origin_root)}
+            )
+            target, origin = rows[(recipient, root)], rows[(origin_scope, origin_root)]
+            current = await (
+                await conn.execute(
+                    "SELECT * FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s AND bundle_schema=%s",
+                    (recipient, root, CONSOLIDATED_BUNDLE_SCHEMA),
+                )
+            ).fetchone()
+            if current is None:
+                raise StorageConflictError("consolidated import operation unavailable")
+            if current["state"] == "committed":
+                if current["receipt_digest"] != bundle.digest:
+                    raise StorageConflictError("consolidated import receipt mismatch")
+                return root
+            if (
+                target["deleted"]
+                or not target["fresh"]
+                or target["kind"] != "import"
+                or target["revision_format"] != "consolidated"
+                or target["generation"] != 1
+                or current["bundle_digest"] != bundle.digest
+                or current["context_digest"] != context_hash
+                or current["origin_scope_id"] != origin_scope
+                or current["origin_root_id"] != origin_root
+                or current["publication_id"] != operation
+                or current["origin_generation"] != origin["generation"]
+                or origin["deleted"]
+                or not origin["fresh"]
+                or origin["current_consolidated"] != current["publication_id"]
+            ):
+                raise StorageConflictError("consolidated import authority unavailable")
+            now = datetime.now(UTC)
+            deadline = min(current["retained_until"], origin["expires_at"])
+            if deadline <= now or current["grant_expires_at"] <= now:
+                raise StorageConflictError("consolidated import expired")
+            size = len(raw)
+            if size > current["reserved"]:
+                raise StorageConflictError("consolidated import reservation exceeded")
+            await conn.execute(
+                "INSERT INTO research_staging.imported_bundles(scope_id,root_id,payload,digest,bundle_schema) VALUES (%s,%s,%s,%s,%s)",
+                (recipient, root, bundle.data, bundle.digest, CONSOLIDATED_BUNDLE_SCHEMA),
+            )
+            await self._charge(conn, recipient, root, size - current["reserved"])
+            await conn.execute(
+                "UPDATE research_staging.import_operations SET state='committed',receipt_digest=%s WHERE scope_id=%s AND root_id=%s",
+                (bundle.digest, recipient, root),
+            )
+            await conn.execute(
+                "UPDATE research_staging.roots SET published_at=now(),expires_at=%s WHERE scope_id=%s AND root_id=%s",
+                (deadline, recipient, root),
+            )
+            return root
+
+    async def read_consolidated_import(
+        self, recipient: UUID, root: UUID
+    ) -> ImportedConsolidated:
+        async with self._transaction(read=True) as conn:
+            await self._require_consolidated_import_schema(conn)
+            row = await (
+                await conn.execute(
+                    "SELECT o.*,b.payload,b.digest,least(t.expires_at,s.expires_at) AS effective_deadline FROM research_staging.import_operations o JOIN research_staging.imported_bundles b USING(scope_id,root_id,bundle_schema) JOIN research_staging.roots t USING(scope_id,root_id) JOIN research_staging.roots s ON s.scope_id=o.origin_scope_id AND s.root_id=o.origin_root_id WHERE o.scope_id=%s AND o.root_id=%s AND o.bundle_schema=%s AND o.state='committed' AND NOT t.deleted AND t.kind='import' AND t.revision_format='consolidated' AND t.expires_at>now() AND NOT s.deleted AND s.kind='native' AND s.revision_format='consolidated' AND s.generation=o.origin_generation AND s.current_consolidated=o.publication_id AND s.expires_at>now()",
+                    (recipient, root, CONSOLIDATED_BUNDLE_SCHEMA),
+                )
+            ).fetchone()
+            if row is None:
+                raise StorageConflictError("consolidated import unavailable")
+            document, origin_scope, origin_root, operation, _retained, _context = (
+                self._bundle_origin(row["payload"], row["digest"])
+            )
+            if (
+                row["origin_scope_id"] != origin_scope
+                or row["origin_root_id"] != origin_root
+                or row["publication_id"] != operation
+            ):
+                raise StorageConflictError("consolidated import origin mismatch")
+            bundle = await admit_consolidated_bundle(
+                row["payload"],
+                expected_digest=row["digest"],
+                scope=origin_scope,
+                root=origin_root,
+                operation=operation,
+                now=datetime.now(UTC),
+            )
+            if row["receipt_digest"] != bundle.digest:
+                raise StorageConflictError("consolidated import integrity mismatch")
+            return ImportedConsolidated(recipient, root, row["effective_deadline"], document)
+
+    async def consolidated_import_receipt(self, recipient: UUID, root: UUID) -> str | None:
+        async with self._transaction(read=True) as conn:
+            await self._require_consolidated_import_schema(conn)
+            row = await (
+                await conn.execute(
+                    "SELECT receipt_digest FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s AND bundle_schema=%s AND state='committed'",
+                    (recipient, root, CONSOLIDATED_BUNDLE_SCHEMA),
+                )
+            ).fetchone()
+            return row["receipt_digest"] if row else None
+
+    async def cancel_consolidated_import(self, recipient: UUID, root: UUID) -> None:
+        async with self._transaction() as conn:
+            version = await self._require_consolidated_import_schema(conn)
+            await self._coordinate_imports(conn)
+            operation = await (
+                await conn.execute(
+                    "SELECT * FROM research_staging.import_operations WHERE scope_id=%s AND root_id=%s AND bundle_schema=%s",
+                    (recipient, root, CONSOLIDATED_BUNDLE_SCHEMA),
+                )
+            ).fetchone()
+            if operation is None:
+                raise StorageConflictError("consolidated import operation unavailable")
+            rows = await self._lock_roots(
+                conn,
+                {(recipient, root), (operation["origin_scope_id"], operation["origin_root_id"])},
+            )
+            if operation["state"] == "pending":
+                await self._purge_root(conn, recipient, root, rows[(recipient, root)], version)
+
+    @staticmethod
+    async def _require_consolidated_import_schema(conn: Connection) -> int:
+        version = await (
+            await conn.execute("SELECT version FROM research_staging.schema_version")
+        ).fetchone()
+        if version is None or version["version"] != 12:
+            raise StorageConflictError("consolidated import schema unavailable")
+        return int(version["version"])
