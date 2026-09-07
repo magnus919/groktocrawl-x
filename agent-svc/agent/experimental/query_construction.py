@@ -31,9 +31,12 @@ inclusive one-based start_line/end_line. Do not copy evidence or generate IDs.
 For each claim, supported_by and contradicted_by select one-based positions in your
 EVIDENCE array (not source indices). Prefer a few specific statements about what the
 source says; do not invent causal inferences. Supply meaningful scope qualifiers.
+Use historical for statements explicitly limited to the captured document; current
+assertions require evidence of present validity, not just a recent retrieval.
 answer_claim_index selects the one-based position in your CLAIMS array which reports
-the answer or its uncertainty. answer_status is unresolved if the objective cannot
-be established. Conflict records select positions in the same claims/evidence arrays;
+the answer or its uncertainty. This is always a required integer, never null, even
+when unresolved: include a source-backed claim explaining the limit. answer_status
+is unresolved if the objective cannot be established. Conflict records select positions in the same claims/evidence arrays;
 conflicts require unresolved status. The application builds identifiers and edges.
 Return only JSON matching the supplied schema. No tools, code fences or extra prose."""
 

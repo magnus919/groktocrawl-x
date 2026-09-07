@@ -95,3 +95,21 @@ public-source development diagnostics, not a held-out or scored evaluation. Pass
 structural tests does not establish research quality. Full live journey outcomes,
 failed trials and later comparative evidence must be reported separately before
 claiming improvement over the incumbent.
+
+### Latest development result
+
+The complete local suite passed 3,305 tests (seven skipped). The latest live
+`local` probe used the consolidated-storage guide at commit
+`b1e4fed414d3f5a8b46d43a74fced74c57ada33b` as one captured public source.
+Construction and structural review completed, but conflict/coverage review returned
+`conflicted`, outside the permitted `pass`/`fail`/`indeterminate` outcomes. The adapter
+rejected the decision after three calls and 30.87 seconds; no reports or successful
+manifest were produced. This is an unresolved model-contract reliability limitation,
+not evidence of successful end-to-end research or an incumbent quality improvement.
+
+Earlier development attempts also rejected null answer references and invalid
+check outcomes. Required-answer and check-specific schema instructions preserve
+strict admission, but prompting alone has not established reliable compliance.
+The next live-readiness work must address this explicitly and retain failed trials;
+it must not translate invalid labels into passing judgments or retry selectively
+until a favorable result appears. No full search/scraper CLI run is claimed here.
