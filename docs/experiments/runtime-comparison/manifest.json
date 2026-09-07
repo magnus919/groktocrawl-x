@@ -13,8 +13,14 @@
     },
     {
       "id": "graph-candidate",
-      "implementation": "agent.experimental.runtime_comparison.GraphCandidateRuntime",
-      "implementation_status": "framework-neutral candidate seam; no LangGraph dependency selected",
+      "implementation": "agent.experimental.runtime_comparison.LangGraphRuntime",
+      "implementation_status": "implemented as an optional adapter; measurement and dependency pin remain pending",
+      "framework": "LangGraph",
+      "dependency": {
+        "name": "langgraph",
+        "specifier": ">=0.6,<1",
+        "exact_version_required_before_measurement": true
+      },
       "persistence": "none"
     }
   ],

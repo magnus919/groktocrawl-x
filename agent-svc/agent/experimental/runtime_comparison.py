@@ -9,14 +9,15 @@ the adopted production runtime or recovery implementation.
 import asyncio
 import hashlib
 import json
+import operator
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Annotated, Literal, Protocol, TypedDict
 
 from .controller import OperationSpec, ScriptResult
 from .execution import Budget, ExecutionLedger, ExecutionState
 
-RuntimeName = Literal["imperative", "graph-candidate"]
+RuntimeName = Literal["imperative", "graph-candidate", "langgraph"]
 EventKind = Literal[
     "reserved",
     "started",
@@ -286,6 +287,144 @@ class GraphCandidateRuntime:
             if runner.ledger.state.state == "running":
                 runner.fail("failed")
             return runner.outcome()
+        return runner.outcome()
+
+
+class _GraphState(TypedDict):
+    """State exchanged by the optional LangGraph comparison adapter.
+
+    Each operation writes a distinct output entry, so reducers are only used
+    for append-only collections.  The execution ledger remains the authority
+    for budgets and terminal state; this state carries the graph's committed
+    operation results back to the adapter.
+    """
+
+    completed: Annotated[tuple[str, ...], operator.add]
+    outputs: Annotated[tuple[tuple[str, str], ...], operator.add]
+
+
+class LangGraphUnavailableError(RuntimeError):
+    """Raised when the optional W4 LangGraph dependency is not installed."""
+
+
+class LangGraphRuntime:
+    """Run the shared fixture policy through an actual LangGraph state graph.
+
+    LangGraph is intentionally optional: production code and the default test
+    lane do not acquire a framework dependency until W4 measurement is
+    authorized.  The adapter uses the same runner, receipts, budget ledger and
+    cancellation contract as the imperative reference.  A lock serializes
+    ledger commits when independent graph branches finish concurrently; graph
+    state itself remains append-only and is the source of operation outputs.
+    """
+
+    async def run(
+        self, plan: RuntimePlan, *, cancel: asyncio.Event | None = None
+    ) -> RuntimeOutcome:
+        try:
+            from langgraph.graph import END, START, StateGraph
+        except ImportError as error:
+            raise LangGraphUnavailableError(
+                "LangGraph is required for the W4 comparison adapter; "
+                "install the pinned comparison dependency before running it"
+            ) from error
+
+        # Validate the shared plan before handing control to the framework so
+        # duplicate IDs, unknown dependencies and cycles fail consistently with
+        # the imperative reference.
+        plan.ordered()
+        runner = _Runner(plan, "langgraph")
+        commit_lock = asyncio.Lock()
+        aborted = asyncio.Event()
+        graph = StateGraph(_GraphState)
+        names: dict[str, str] = {}
+
+        for index, node in enumerate(plan.nodes):
+            graph_name = f"operation_{index}"
+            names[node.spec.operation_id] = graph_name
+
+            async def execute(
+                state: _GraphState, *, current: RuntimeNode = node
+            ) -> dict[str, object]:
+                del state
+                if aborted.is_set():
+                    raise asyncio.CancelledError()
+                async with commit_lock:
+                    if aborted.is_set():
+                        raise asyncio.CancelledError()
+                    runner.reserve(current)
+                _, result, error = await runner.invoke(current, cancel)
+                if error is not None:
+                    aborted.set()
+                    raise error
+                assert result is not None
+                async with commit_lock:
+                    if aborted.is_set():
+                        raise asyncio.CancelledError()
+                    runner.complete(current, result)
+                return {
+                    "completed": (current.spec.operation_id,),
+                    "outputs": ((current.spec.operation_id, result.output_id),),
+                }
+
+            graph.add_node(graph_name, execute)
+
+        for node in plan.nodes:
+            current_name = names[node.spec.operation_id]
+            if node.depends_on:
+                for dependency in node.depends_on:
+                    graph.add_edge(names[dependency], current_name)
+            else:
+                graph.add_edge(START, current_name)
+
+        dependents = {
+            dependency for node in plan.nodes for dependency in node.depends_on
+        }
+        for node in plan.nodes:
+            if node.spec.operation_id not in dependents:
+                graph.add_edge(names[node.spec.operation_id], END)
+
+        compiled = graph.compile()
+        graph_task = asyncio.create_task(
+            compiled.ainvoke({"completed": (), "outputs": ()})
+        )
+        cancel_task = asyncio.create_task(cancel.wait()) if cancel is not None else None
+        try:
+            if cancel_task is None:
+                state = await graph_task
+            else:
+                done, _ = await asyncio.wait(
+                    {graph_task, cancel_task}, return_when=asyncio.FIRST_COMPLETED
+                )
+                if cancel_task in done and cancel is not None and cancel.is_set():
+                    aborted.set()
+                    graph_task.cancel()
+                    await asyncio.gather(graph_task, return_exceptions=True)
+                    runner.fail("cancelled")
+                    return runner.outcome()
+                state = graph_task.result()
+            runner.finish()
+            # The reducer output is deliberately read even though the runner
+            # keeps a sorted projection for the shared outcome shape.
+            runner.outputs = dict(state["outputs"])
+        except BaseException as error:
+            aborted.set()
+            if not graph_task.done():
+                graph_task.cancel()
+                await asyncio.gather(graph_task, return_exceptions=True)
+            if runner.ledger.state.state == "running":
+                runner.fail(
+                    "cancelled"
+                    if isinstance(
+                        error, (asyncio.CancelledError, LangGraphUnavailableError)
+                    )
+                    else "failed"
+                )
+            return runner.outcome()
+        finally:
+            if cancel_task is not None:
+                cancel_task.cancel()
+                await asyncio.gather(cancel_task, return_exceptions=True)
         return runner.outcome()
 
 
