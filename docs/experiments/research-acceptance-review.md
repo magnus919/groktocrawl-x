@@ -29,7 +29,7 @@ plan before W2. Prototype issues must state their boundaries and evidence gates.
 | [0070 evaluation](../adr/0070-evaluate-research-policy-and-runtime-separately.md) | A/B policy and B/C runtime comparisons with frozen manifests | Named reviewers, corpus, budgets, measured thresholds and paid-run authorization |
 | [0071 storage](../adr/0071-store-research-evidence-independently-of-sessions.md) | Review PostgreSQL bounded-byte authority as a separate storage choice | Real-database lifecycle/restore gates and pgvector/Qdrant comparison; no service selected by this packet |
 | [0072 clients](../adr/0072-expose-verified-research-through-an-experimental-protocol.md) | Experimental route family; progress then one audited result | Full schemas/limits and HTTP/CLI/MCP traces before shipping |
-| [0073 runtime](../adr/0073-compare-research-runtimes-under-one-policy.md) | Imperative reference versus one LangGraph comparison candidate | Candidate is not adopted runtime; W4 evidence and decision required |
+| [0073 runtime](../adr/0073-compare-research-runtimes-under-one-policy.md) | Imperative reference versus one LangGraph comparison candidate; optional adapter merged in PR #150 | Candidate is not adopted runtime; exact dependency pin, W1 baseline inputs, W4 evidence and decision remain required |
 | [0074 recovery](../adr/0074-define-research-recovery-before-selecting-infrastructure.md) | Review ownership/fencing/ambiguity target separately from technology | Timing/retention limits before W5; crash matrix and infrastructure decision before adoption |
 
 Storage acceptance can proceed separately when its recommendation is reviewed.
