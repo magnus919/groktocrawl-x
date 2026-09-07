@@ -25,16 +25,8 @@ the canonical checked knowledge and render manifest, exact source descriptors
 and bodies, all three audited output layers, the explicit provenance marker,
 receipt digest and retention deadline. Offline admission rechecks canonical
 bytes, source/body hashes, output mappings, knowledge history, render audits and
-publication eligibility without fetching a URL or invoking a model. This is an
-export and revalidation boundary only; cross-scope import, recipient authority,
-recovery ownership and production adoption remain open gates.
-
-The next W3 slice extends the shared trusted-server import lifecycle under proposed
-[ADR-0077](../adr/0077-trusted-consolidated-bundle-import.md). A schema-12 recipient
-reservation records the origin scope/root/operation, origin generation, bundle and
-context digests, quota charge, bounded grant and clamped retention. Commit and read
-require the origin to remain a live consolidated root with the same current operation;
-the bundle is admitted again before any write or read, and its digest is the idempotent
-receipt. Existing origin deletion and expiry collection therefore purge or deny the
-recipient copy. This remains an experimental trusted-server path; backup/restore,
-public authentication and production data movement are separate decisions.
+publication eligibility without fetching a URL or invoking a model. The bounded
+trusted-server import path is now implemented under [ADR-0077](../adr/0077-trusted-consolidated-bundle-import.md): recipient copies retain explicit origin
+authority, quota, clamped retention, idempotent receipts and deletion/expiry
+propagation. Backup/restore evidence, recovery ownership and production adoption
+remain open gates.
