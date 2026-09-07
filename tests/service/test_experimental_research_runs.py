@@ -16,6 +16,7 @@ def app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
     experimental._RUNS.clear()
     experimental._IDEMPOTENCY.clear()
+    experimental._SESSION_ATTACHMENTS.clear()
     value = FastAPI()
     value.include_router(experimental.router)
     return value
@@ -118,3 +119,36 @@ async def test_cancel_returns_one_cancelled_terminal(app: FastAPI) -> None:
         events = await client.get(created.json()["events_url"])
         assert events.text.count("event: cancelled") == 1
         assert "event: done" not in events.text
+
+
+@pytest.mark.asyncio
+async def test_session_attachment_is_idempotent_and_revision_guarded(app: FastAPI) -> None:
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "attach-1"},
+            json={"objective": "Attach the fictional pilot"},
+        )
+        admission = created.json()
+        status = await _wait_for_terminal(client, admission["run_id"])
+        assert status["state"] == "completed"
+
+        attached = await client.post(
+            "/experimental/research/v1/sessions/session-1/attachments",
+            json={"run_id": admission["run_id"], "expected_revision": 0},
+        )
+        assert attached.status_code == 200
+        assert attached.json()["revision"] == 1
+
+        duplicate = await client.post(
+            "/experimental/research/v1/sessions/session-1/attachments",
+            json={"run_id": admission["run_id"], "expected_revision": 1},
+        )
+        assert duplicate.status_code == 200
+        assert duplicate.json()["revision"] == 1
+
+        conflict = await client.post(
+            "/experimental/research/v1/sessions/session-1/attachments",
+            json={"run_id": admission["run_id"], "expected_revision": 0},
+        )
+        assert conflict.status_code == 409

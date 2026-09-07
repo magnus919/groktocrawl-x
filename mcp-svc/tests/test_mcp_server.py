@@ -129,15 +129,15 @@ class TestTransportSecurity:
 
 
 class TestToolDiscovery:
-    """VAL-MCP-B01: tools/list returns exactly 43 tools."""
+    """VAL-MCP-B01: tools/list returns exactly 44 tools."""
 
     async def test_tool_count(self):
-        """tools/list returns exactly 43 tools."""
+        """tools/list returns exactly 44 tools."""
         tools = await mcp.list_tools()
-        assert len(tools) == 43, f"Expected 43 tools, got {len(tools)}"
+        assert len(tools) == 44, f"Expected 44 tools, got {len(tools)}"
 
     async def test_all_tool_names(self):
-        """All 43 expected tool names are present."""
+        """All 44 expected tool names are present."""
         tools = await mcp.list_tools()
         names = {t.name for t in tools}
         expected = {
@@ -157,6 +157,7 @@ class TestToolDiscovery:
             "research_artifact",
             "research_evidence",
             "research_delete",
+            "research_attach",
             "agent",
             "get_agent_status",
             "cancel_agent",
@@ -552,6 +553,34 @@ class TestToolCallRouting:
         )
         result = await mcp.call_tool("research_artifact", {"artifact_id": "a-1"})
         assert "a-1" in str(result)
+
+    async def test_research_attach_passes_expected_revision(self, monkeypatch):
+        captured: dict[str, Any] = {}
+
+        async def _fake_attach(
+            session_id: str, run_id: str, expected_revision: int
+        ) -> dict:
+            captured.update(
+                session_id=session_id,
+                run_id=run_id,
+                expected_revision=expected_revision,
+            )
+            return {"session_id": session_id, "revision": 1}
+
+        monkeypatch.setattr(
+            __import__("mcp_server", fromlist=["_client"])._client,
+            "experimental_research_attach",
+            _fake_attach,
+        )
+        await mcp.call_tool(
+            "research_attach",
+            {"session_id": "s-1", "run_id": "run-1", "expected_revision": 0},
+        )
+        assert captured == {
+            "session_id": "s-1",
+            "run_id": "run-1",
+            "expected_revision": 0,
+        }
 
     async def test_scrape_passes_only_main_content(self, monkeypatch):
         """Scrape passes only_main_content=False through."""

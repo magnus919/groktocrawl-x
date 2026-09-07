@@ -69,6 +69,7 @@ GET /experimental/research/v1/artifact-sets/{artifact_set_id}
 GET /experimental/research/v1/artifacts/{artifact_id}
 GET /experimental/research/v1/research/{research_id}/evidence/{snapshot_id}
 DELETE /experimental/research/v1/research/{research_id}
+POST /experimental/research/v1/sessions/{session_id}/attachments
 <!-- api-inventory:end -->
 
 ## CLI commands

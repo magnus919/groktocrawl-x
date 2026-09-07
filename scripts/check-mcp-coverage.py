@@ -104,6 +104,7 @@ PATH_TO_MCP_TOOL: dict[str, str] = {
     "GET /experimental/research/v1/artifacts/{artifact_id}": "research_artifact",
     "GET /experimental/research/v1/research/{research_id}/evidence/{snapshot_id}": "research_evidence",
     "DELETE /experimental/research/v1/research/{research_id}": "research_delete",
+    "POST /experimental/research/v1/sessions/{session_id}/attachments": "research_attach",
 }
 
 
