@@ -112,5 +112,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0073 | [Compare Research Runtimes Under One Policy](0073-compare-research-runtimes-under-one-policy.md) | proposed |
 | 0074 | [Define Research Recovery Before Selecting Infrastructure](0074-define-research-recovery-before-selecting-infrastructure.md) | proposed |
 | 0075 | [Consolidate Research Interchange Contracts](0075-consolidate-research-interchange-contracts.md) | accepted for bounded experimental implementation |
+| 0076 | [Retain Model-Reviewed Consolidated Publications](0076-retain-model-reviewed-consolidated-publications.md) | proposed |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
