@@ -136,6 +136,91 @@ async def test_cancel_persists_durable_terminal_state(
         assert durable.state == "cancelled"
         release.set()
         await asyncio.sleep(0)
+        experimental._RUNS.clear()
+        recovered = await client.get(created.json()["status_url"])
+        assert recovered.status_code == 200
+        assert recovered.json()["state"] == "cancelled"
+        events = await client.get(created.json()["events_url"])
+        assert "event: cancelled" in events.text
+
+
+@pytest.mark.asyncio
+async def test_admitted_run_recovers_and_cancel_does_not_resurrect(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paused = asyncio.Event()
+
+    async def pause(_record: object) -> None:
+        await paused.wait()
+
+    monkeypatch.setattr(experimental, "_execute_run", pause)
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "x"},
+            json={"objective": "Recover admitted status"},
+        )
+        assert created.status_code == 202
+        run_id = created.json()["run_id"]
+        experimental._RUNS.clear()
+        recovered = await client.get(created.json()["status_url"])
+        assert recovered.status_code == 200
+        assert recovered.json()["state"] == "accepted"
+        cancelled = await client.post(f"{created.json()['status_url']}/cancel")
+        assert cancelled.status_code == 202
+        assert cancelled.json()["state"] == "cancelled"
+        experimental._RUNS.clear()
+        terminal = await client.get(f"/experimental/research/v1/runs/{run_id}")
+        assert terminal.status_code == 200
+        assert terminal.json()["state"] == "cancelled"
+        paused.set()
+
+
+@pytest.mark.asyncio
+async def test_running_run_reclaims_after_lease_loss(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+    real_example_journey = experimental.example_journey
+
+    class BlockedJourney:
+        def __init__(self, inner: object) -> None:
+            self.inner = inner
+
+        async def run(self) -> object:
+            started.set()
+            await release.wait()
+            return await self.inner.run()  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(
+        experimental,
+        "example_journey",
+        lambda **kwargs: BlockedJourney(real_example_journey(**kwargs)),
+    )
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "durable-lease-loss-1"},
+            json={"objective": "Reclaim running status"},
+        )
+        run_id = created.json()["run_id"]
+        await asyncio.wait_for(started.wait(), timeout=1)
+        original = experimental._RUNS[run_id]
+        assert original.durable_ledger is not None
+        original_task = original.task
+        assert original_task is not None
+        original.durable_ledger.redis.delete(original.durable_ledger._lease_key(run_id))
+        original_task.cancel()
+        await asyncio.gather(original_task, return_exceptions=True)
+        experimental._RUNS.clear()
+        started.clear()
+        recovered = await client.get(created.json()["status_url"])
+        assert recovered.status_code == 200
+        await asyncio.wait_for(started.wait(), timeout=1)
+        release.set()
+        status = await _wait_for_terminal(client, run_id)
+        assert status["state"] == "completed"
 
 
 @pytest.mark.asyncio
@@ -143,7 +228,7 @@ async def test_tampered_durable_artifact_projection_fails_closed(app: FastAPI) -
     async with await _client(app) as client:
         created = await client.post(
             "/experimental/research/v1/runs",
-            headers={"Idempotency-Key": "durable-tamper-1"},
+            headers={"Idempotency-Key": "x"},
             json={"objective": "Reject tampered artifact"},
         )
         admission = created.json()
