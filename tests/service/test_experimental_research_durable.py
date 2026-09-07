@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 
 import httpx
@@ -49,6 +50,14 @@ async def _wait_for_terminal(client: httpx.AsyncClient, run_id: str) -> dict:
     raise AssertionError("durable fixture run did not reach a terminal state")
 
 
+def _sse_events(body: str) -> list[dict]:
+    return [
+        json.loads(line.removeprefix("data: "))
+        for line in body.splitlines()
+        if line.startswith("data: ")
+    ]
+
+
 @pytest.mark.asyncio
 async def test_status_recovers_from_durable_terminal_projection(app: FastAPI) -> None:
     async with await _client(app) as client:
@@ -68,12 +77,24 @@ async def test_status_recovers_from_durable_terminal_projection(app: FastAPI) ->
         assert durable is not None
         assert durable.checkpoint_name == "terminal_projection"
         assert durable.terminal_payload is not None
+        original_events = (await client.get(admission["events_url"])).text
+        original_manifest = await client.get(status["result"]["manifest_url"])
+        original_artifact = await client.get(status["result"]["artifacts"]["summary"])
+        assert original_manifest.status_code == 200
+        assert original_artifact.status_code == 200
 
         experimental._RUNS.clear()
         recovered = await client.get(admission["status_url"])
         assert recovered.status_code == 200
         assert recovered.json()["state"] == "completed"
         assert recovered.json()["result"] == status["result"]
+        recovered_events = await client.get(admission["events_url"])
+        assert recovered_events.status_code == 200
+        assert _sse_events(recovered_events.text) == _sse_events(original_events)
+        recovered_manifest = await client.get(status["result"]["manifest_url"])
+        recovered_artifact = await client.get(status["result"]["artifacts"]["summary"])
+        assert recovered_manifest.json() == original_manifest.json()
+        assert recovered_artifact.content == original_artifact.content
 
 
 @pytest.mark.asyncio
@@ -115,3 +136,29 @@ async def test_cancel_persists_durable_terminal_state(
         assert durable.state == "cancelled"
         release.set()
         await asyncio.sleep(0)
+
+
+@pytest.mark.asyncio
+async def test_tampered_durable_artifact_projection_fails_closed(app: FastAPI) -> None:
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "durable-tamper-1"},
+            json={"objective": "Reject tampered artifact"},
+        )
+        admission = created.json()
+        status = await _wait_for_terminal(client, admission["run_id"])
+        assert status["state"] == "completed"
+
+        url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
+        ledger = DurableResearchLedger(url)
+        raw = ledger.redis.get(ledger._run_key(admission["run_id"]))
+        assert raw is not None
+        record = json.loads(raw)
+        artifact_id = status["result"]["artifacts"]["summary"].rsplit("/", 1)[-1]
+        record["terminal_payload"]["artifacts"][artifact_id]["body_b64"] = "dGFtcGVyZWQ="
+        ledger.redis.set(ledger._run_key(admission["run_id"]), json.dumps(record))
+
+        experimental._RUNS.clear()
+        artifact = await client.get(status["result"]["artifacts"]["summary"])
+        assert artifact.status_code == 503

@@ -6,6 +6,7 @@ durable execution, live-provider quality, or production authorization policy.
 """
 
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -22,11 +23,16 @@ from common.features import is_enabled
 
 from ..experimental.client_protocol import ProtocolEvent, ProtocolState, replay_after
 from ..experimental.consolidated_example import example_journey
-from ..experimental.durable_research import DurableResearchLedger, DurableRun
+from ..experimental.durable_research import (
+    DurableResearchError,
+    DurableResearchLedger,
+    DurableRun,
+)
 
 router = APIRouter()
 
 _ROUTE_PREFIX = "/experimental/research/v1"
+_MAX_DURABLE_TERMINAL_PAYLOAD_BYTES = 1_048_576
 
 
 class CreateResearchRunRequest(BaseModel):
@@ -65,6 +71,8 @@ class _RunRecord:
     durable_ledger: DurableResearchLedger | None = None
     durable_owner_id: str | None = None
     durable_generation: int | None = None
+    durable_manifest: bytes | None = None
+    durable_artifacts: dict[str, tuple[bytes, str]] = field(default_factory=dict)
 
 
 _RUNS: dict[str, _RunRecord] = {}
@@ -113,22 +121,111 @@ def _durable_ledger(request: Request) -> DurableResearchLedger:
     return ledger
 
 
+def _build_event(
+    record: _RunRecord,
+    event: Literal["accepted", "progress", "done", "error", "cancelled"],
+    state: ProtocolState,
+    **kwargs: Any,
+) -> ProtocolEvent:
+    return ProtocolEvent(
+        protocol_version="research/1",
+        run_id=record.run_id,
+        sequence=len(record.events) + 1,
+        event=event,
+        state=state,
+        **kwargs,
+    )
+
+
 def _event(
     record: _RunRecord,
     event: Literal["accepted", "progress", "done", "error", "cancelled"],
     state: ProtocolState,
     **kwargs: Any,
-) -> None:
-    record.events.append(
-        ProtocolEvent(
-            protocol_version="research/1",
-            run_id=record.run_id,
-            sequence=len(record.events) + 1,
-            event=event,
-            state=state,
-            **kwargs,
-        )
-    )
+) -> ProtocolEvent:
+    event_record = _build_event(record, event, state, **kwargs)
+    record.events.append(event_record)
+    return event_record
+
+
+def _decode_b64(value: Any, label: str) -> bytes:
+    if not isinstance(value, str):
+        raise DurableResearchError(f"durable {label} payload is invalid")
+    try:
+        return base64.b64decode(value.encode("ascii"), validate=True)
+    except (ValueError, UnicodeEncodeError) as exc:
+        raise DurableResearchError(f"durable {label} payload is invalid") from exc
+
+
+def _durable_artifact_payload(record: _RunRecord) -> dict[str, Any]:
+    if record.journey is None:
+        raise DurableResearchError("completed run has no fixture material")
+    manifest = record.journey.manifest_bytes
+    artifacts: dict[str, dict[str, str]] = {}
+    for report in record.journey.reports:
+        artifacts[report.artifact.artifact_id] = {
+            "body_b64": base64.b64encode(report.body).decode("ascii"),
+            "content_digest": report.artifact.content_digest,
+        }
+    payload = {
+        "manifest": {
+            "body_b64": base64.b64encode(manifest).decode("ascii"),
+            "content_digest": hashlib.sha256(manifest).hexdigest(),
+        },
+        "artifacts": artifacts,
+    }
+    encoded_size = len(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    if encoded_size > _MAX_DURABLE_TERMINAL_PAYLOAD_BYTES:
+        raise DurableResearchError("durable fixture payload exceeds its size bound")
+    return payload
+
+
+def _decode_durable_artifacts(
+    terminal: dict[str, Any],
+) -> tuple[bytes | None, dict[str, tuple[bytes, str]]]:
+    material = terminal.get("artifacts")
+    manifest_payload = terminal.get("manifest")
+    if material is None and manifest_payload is None:
+        return None, {}
+    if not isinstance(manifest_payload, dict) or not isinstance(material, dict):
+        raise DurableResearchError("durable artifact payload is invalid")
+    manifest = _decode_b64(manifest_payload.get("body_b64"), "manifest")
+    if hashlib.sha256(manifest).hexdigest() != manifest_payload.get("content_digest"):
+        raise DurableResearchError("durable manifest digest mismatch")
+    artifacts: dict[str, tuple[bytes, str]] = {}
+    for artifact_id, item in material.items():
+        if not isinstance(artifact_id, str) or not isinstance(item, dict):
+            raise DurableResearchError("durable artifact payload is invalid")
+        body = _decode_b64(item.get("body_b64"), "artifact")
+        digest = item.get("content_digest")
+        if not isinstance(digest, str) or hashlib.sha256(body).hexdigest() != digest:
+            raise DurableResearchError("durable artifact digest mismatch")
+        artifacts[artifact_id] = (body, digest)
+    return manifest, artifacts
+
+
+def _restore_events(durable: DurableRun) -> list[ProtocolEvent]:
+    terminal = durable.terminal_payload or {}
+    raw_events = terminal.get("events") or durable.payload.get("events") or []
+    if not isinstance(raw_events, list):
+        raise DurableResearchError("durable event history is invalid")
+    try:
+        return [ProtocolEvent.model_validate(item) for item in raw_events]
+    except (TypeError, ValueError) as exc:
+        raise DurableResearchError("durable event history is invalid") from exc
+
+
+def _durable_terminal_payload(
+    record: _RunRecord, terminal_event: ProtocolEvent
+) -> dict[str, Any]:
+    return {
+        "research_id": record.research_id,
+        "result": record.result,
+        "events": [
+            event.model_dump(mode="json") for event in (*record.events, terminal_event)
+        ],
+        **_durable_artifact_payload(record),
+    }
 
 
 def _record_projection(record: _RunRecord) -> dict[str, Any]:
@@ -159,7 +256,12 @@ def _find_run(run_id: str, request: Request) -> _RunRecord:
     if record is None and _durable_enabled():
         durable = _durable_ledger(request).get(run_id)
         if durable is not None:
-            record = _restore_durable_record(durable)
+            try:
+                record = _restore_durable_record(durable)
+            except DurableResearchError as exc:
+                raise HTTPException(
+                    status_code=503, detail="Durable research projection unavailable"
+                ) from exc
             record.durable_ledger = _durable_ledger(request)
             if record.scope_id != _scope_id(request):
                 raise HTTPException(status_code=404, detail="Research run not found")
@@ -197,6 +299,7 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
         ],
         state,
     )
+    manifest, artifacts = _decode_durable_artifacts(terminal)
     return _RunRecord(
         run_id=durable.run_id,
         research_id=str(payload.get("research_id", durable.run_id)),
@@ -205,6 +308,9 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
         request_digest=durable.request_digest,
         state=typed_state,
         result=terminal.get("result") if typed_state == "completed" else None,
+        events=_restore_events(durable),
+        durable_manifest=manifest,
+        durable_artifacts=artifacts,
         durable_ledger=None,
     )
 
@@ -275,12 +381,18 @@ async def _execute_run(record: _RunRecord) -> None:
             return
         record.journey = result
         record.result = _artifact_result(record)
+        terminal_event: ProtocolEvent | None = None
         if (
             record.durable_ledger is not None
             and record.durable_owner_id is not None
             and record.durable_generation is not None
         ):
+            terminal_event = _build_event(record, "done", "completed", result=record.result)
+            terminal_payload = _durable_terminal_payload(record, terminal_event)
             checkpoint_digest = hashlib.sha256(
+                json.dumps(terminal_payload, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+            result_digest = hashlib.sha256(
                 json.dumps(record.result, sort_keys=True).encode("utf-8")
             ).hexdigest()
             record.durable_ledger.checkpoint(
@@ -294,14 +406,14 @@ async def _execute_run(record: _RunRecord) -> None:
                 record.run_id,
                 record.durable_owner_id,
                 record.durable_generation,
-                checkpoint_digest,
-                terminal_payload={
-                    "research_id": record.research_id,
-                    "result": record.result,
-                },
+                result_digest,
+                terminal_payload=terminal_payload,
             )
         record.state = "completed"
-        _event(record, "done", "completed", result=record.result)
+        if terminal_event is not None:
+            record.events.append(terminal_event)
+        else:
+            _event(record, "done", "completed", result=record.result)
 
 
 def capability_document() -> dict[str, Any]:
@@ -361,11 +473,24 @@ async def create_experimental_research_run(
     digest = hashlib.sha256(payload.model_dump_json().encode()).hexdigest()
     existing = _IDEMPOTENCY.get((scope, key)) if durable is None else None
     if durable is not None:
+        selected_run_id = str(uuid4())
+        accepted_event = ProtocolEvent(
+            protocol_version="research/1",
+            run_id=selected_run_id,
+            sequence=1,
+            event="accepted",
+            state="accepted",
+        )
         admitted = durable.admit(
             scope,
             key,
             digest,
-            payload={"objective": payload.objective, "research_id": str(uuid4())},
+            run_id=selected_run_id,
+            payload={
+                "objective": payload.objective,
+                "research_id": str(uuid4()),
+                "events": [accepted_event.model_dump(mode="json")],
+            },
         )
         research_id = str(admitted.payload.get("research_id", str(uuid4())))
         record = _RUNS.get(admitted.run_id)
@@ -452,14 +577,27 @@ async def cancel_experimental_research_run(run_id: str, request: Request) -> dic
         if record.state in {"completed", "failed", "cancelled"}:
             return _record_projection(record)
         if record.durable_ledger is not None:
-            durable = record.durable_ledger.cancel(record.run_id)
+            terminal_event = _build_event(record, "cancelled", "cancelled")
+            terminal_payload = {
+                "research_id": record.research_id,
+                "events": [
+                    event.model_dump(mode="json")
+                    for event in (*record.events, terminal_event)
+                ],
+            }
+            durable = record.durable_ledger.cancel(
+                record.run_id, terminal_payload=terminal_payload
+            )
             if durable.state == "completed":
-                terminal = durable.terminal_payload or {}
-                record.state = "completed"
-                record.result = terminal.get("result")
+                recovered = _restore_durable_record(durable)
+                record.state = recovered.state
+                record.result = recovered.result
+                record.events = recovered.events
+                record.durable_manifest = recovered.durable_manifest
+                record.durable_artifacts = recovered.durable_artifacts
                 return _record_projection(record)
             record.state = "cancelled"
-            _event(record, "cancelled", "cancelled")
+            record.events.append(terminal_event)
             if record.task is not None and not record.task.done():
                 record.task.cancel()
             return _record_projection(record)
@@ -476,20 +614,54 @@ async def cancel_experimental_research_run(run_id: str, request: Request) -> dic
     return _record_projection(record)
 
 
+def _durable_read_records(request: Request) -> list[_RunRecord]:
+    """Hydrate retained durable records for opaque artifact URLs."""
+    if not _durable_enabled():
+        return []
+    ledger = _durable_ledger(request)
+    scope = _scope_id(request)
+    records: list[_RunRecord] = []
+    for durable in ledger.retained():
+        if durable.scope_id != scope:
+            continue
+        try:
+            record = _restore_durable_record(durable)
+        except DurableResearchError as exc:
+            raise HTTPException(
+                status_code=503, detail="Durable research projection unavailable"
+            ) from exc
+        record.durable_ledger = ledger
+        _RUNS.setdefault(record.run_id, record)
+        records.append(_RUNS[record.run_id])
+    return records
+
+
 @router.get(f"{_ROUTE_PREFIX}/artifact-sets/{{artifact_set_id}}")
 async def get_experimental_artifact_set(artifact_set_id: str, request: Request) -> dict[str, Any]:
     """Return the exact audited manifest for a completed fixture run."""
     _require_runs()
     scope = _scope_id(request)
-    for record in _RUNS.values():
-        if record.scope_id != scope or record.journey is None:
+    records = list(_RUNS.values())
+    records.extend(_durable_read_records(request))
+    for record in records:
+        if record.scope_id != scope or (
+            record.journey is None and record.durable_manifest is None
+        ):
             continue
-        manifest = record.journey.candidate.admitted.manifest
-        if manifest.artifact_set_id != artifact_set_id:
+        if record.journey is not None:
+            manifest_bytes = record.journey.manifest_bytes
+        else:
+            if record.result is None or record.result.get("artifact_set_id") != artifact_set_id:
+                continue
+            manifest_bytes = record.durable_manifest
+            if manifest_bytes is None:
+                continue
+        manifest_payload = json.loads(manifest_bytes)
+        if manifest_payload.get("artifact_set_id") != artifact_set_id:
             continue
         if record.deleted:
             raise HTTPException(status_code=410, detail="Artifact set deleted")
-        return json.loads(manifest.model_dump_json())
+        return manifest_payload
     raise HTTPException(status_code=404, detail="Artifact set not found")
 
 
@@ -498,21 +670,26 @@ async def get_experimental_artifact(artifact_id: str, request: Request) -> Respo
     """Return exact retained fixture bytes after scope and digest checks."""
     _require_runs()
     scope = _scope_id(request)
-    for record in _RUNS.values():
-        if record.scope_id != scope or record.journey is None:
-            continue
-        if not any(
-            report.artifact.artifact_id == artifact_id for report in record.journey.reports
-        ):
+    records = list(_RUNS.values())
+    records.extend(_durable_read_records(request))
+    for record in records:
+        if record.scope_id != scope:
             continue
         if record.deleted:
             raise HTTPException(status_code=410, detail="Artifact deleted")
-        for report in record.journey.reports:
-            if report.artifact.artifact_id == artifact_id:
-                body = report.body
-                if hashlib.sha256(body).hexdigest() != report.artifact.content_digest:
-                    raise HTTPException(status_code=503, detail="Artifact integrity unavailable")
-                return Response(body, media_type="text/markdown")
+        if record.journey is not None:
+            reports = {
+                report.artifact.artifact_id: (report.body, report.artifact.content_digest)
+                for report in record.journey.reports
+            }
+        else:
+            reports = record.durable_artifacts
+        artifact = reports.get(artifact_id)
+        if artifact is not None:
+            body, content_digest = artifact
+            if hashlib.sha256(body).hexdigest() != content_digest:
+                raise HTTPException(status_code=503, detail="Artifact integrity unavailable")
+            return Response(body, media_type="text/markdown")
     raise HTTPException(status_code=404, detail="Artifact not found")
 
 
