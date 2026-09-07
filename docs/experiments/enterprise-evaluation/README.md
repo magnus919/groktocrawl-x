@@ -32,6 +32,25 @@ The current reviewable proposal for that packet is
 preflight fail-closed until the corpus, isolation, limits and measured baseline are
 reviewed.
 
+## Exploratory self-check
+
+The bounded runner at
+[`scripts/run_exploratory_evaluation.py`](../../../scripts/run_exploratory_evaluation.py)
+answers and grades the 30 exposed candidate cases through the configured local
+OpenAI-compatible gateway. It records each answer, grade, model identity, latency,
+usage and failure in a new output directory. The answer and judge calls use the
+same configured model by default, so this is an exploratory self-check rather than
+independent evaluation evidence:
+
+```sh
+PYTHONPATH=. python3 scripts/run_exploratory_evaluation.py \
+  --corpus docs/experiments/enterprise-evaluation/corpus.json \
+  --output /tmp/groktocrawl-x-exploratory-$(date +%s)
+```
+
+The runner refuses an existing output directory, preserves failed attempts, keeps
+the W1 comparison gate closed, and does not treat the exposed cases as held-out.
+
 ## Review rubric and record
 
 For each anonymized answer, Hermes receives the exact question, complete source
