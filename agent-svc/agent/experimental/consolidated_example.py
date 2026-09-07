@@ -42,7 +42,12 @@ RENDERER = Renderer(
 )
 
 
-def example_context() -> KnowledgeContext:
+def example_context(
+    *,
+    scope_id: str = "fixture",
+    research_id: str = "enterprise-factory",
+    objective: str = "Explore delivery and governance evidence for an enterprise agentic software factory using fictional notes.",
+) -> KnowledgeContext:
     snapshots, evidence = [], []
     for index, body in enumerate(BODIES, 1):
         identity = f"source-{index}"
@@ -54,8 +59,8 @@ def example_context() -> KnowledgeContext:
                 "normalization_version": "utf8-exact/1",
                 "media_type": "text/plain",
                 "content_ref": {
-                    "scope_id": "fixture",
-                    "research_id": "enterprise-factory",
+                    "scope_id": scope_id,
+                    "research_id": research_id,
                     "snapshot_id": identity,
                 },
                 "content_digest": text_digest(body),
@@ -98,13 +103,13 @@ def example_context() -> KnowledgeContext:
     return KnowledgeContext.model_validate_json(
         json.dumps(
             {
-                "scope_id": "fixture",
-                "research_id": "enterprise-factory",
+                "scope_id": scope_id,
+                "research_id": research_id,
                 "revision_id": "revision-1",
                 "parent_revision_id": None,
                 "parent_digest": None,
                 "created_at": "2026-09-06T00:00:00Z",
-                "objective": "Explore delivery and governance evidence for an enterprise agentic software factory using fictional notes.",
+                "objective": objective,
                 "as_of": "2026-09-05T00:00:00Z",
                 "policy_version": "fixture-policy/1",
                 "snapshots": snapshots,
@@ -206,7 +211,9 @@ async def example_verifier(checked: KnowledgeCheckInput) -> ExecutionDecision:
     )
 
 
-async def example_renderer(knowledge: CheckedKnowledge) -> tuple[RenderedReport, ...]:
+async def example_renderer(
+    knowledge: CheckedKnowledge, *, artifact_set_id: str = "reports-1"
+) -> tuple[RenderedReport, ...]:
     reports = []
     for layer in ("summary", "analysis", "dossier"):
         text = f"# {layer.title()}\n\nEXPERIMENTAL FIXTURE — fictional sources and authored judgments.\n\nCoverage: partial. Enterprise-wide impact is unresolved.\n\n"
@@ -233,13 +240,13 @@ async def example_renderer(knowledge: CheckedKnowledge) -> tuple[RenderedReport,
         artifact = ManifestArtifact.model_validate_json(
             json.dumps(
                 {
-                    "artifact_id": f"report-{layer}",
+                    "artifact_id": f"{artifact_set_id}-{layer}",
                     "layer": layer,
                     "content_ref": {
-                        "scope_id": "fixture",
-                        "research_id": "enterprise-factory",
-                        "artifact_set_id": "reports-1",
-                        "artifact_id": f"report-{layer}",
+                        "scope_id": knowledge.context.scope_id,
+                        "research_id": knowledge.context.research_id,
+                        "artifact_set_id": artifact_set_id,
+                        "artifact_id": f"{artifact_set_id}-{layer}",
                     },
                     "content_digest": text_digest(text),
                     "content_bytes": len(text.encode()),
@@ -257,7 +264,10 @@ async def example_renderer(knowledge: CheckedKnowledge) -> tuple[RenderedReport,
 
 async def example_auditor(inspection: RenderInspection) -> ExecutionDecision:
     # Exact deterministic fixture expectation, including text outside mapped spans.
-    expected = await example_renderer(inspection.knowledge)
+    expected = await example_renderer(
+        inspection.knowledge,
+        artifact_set_id=inspection.checked_input.manifest_core.artifact_set_id,
+    )
     if inspection.outputs != tuple(r.body for r in expected):
         return ExecutionDecision(
             outcome="fail", reason="Fixture output differs, including caveats"
@@ -275,13 +285,19 @@ def example_journey(
     audit: RenderExecutor = example_auditor,
     acquisitions: Mapping[str, Acquire] | None = None,
     timeout_seconds: int = 30,
+    scope_id: str = "fixture",
+    research_id: str = "enterprise-factory",
+    objective: str = "Explore delivery and governance evidence for an enterprise agentic software factory using fictional notes.",
+    artifact_set_id: str = "reports-1",
     commit: Callable[
         [JourneyResult, KnowledgeExecutionLedger, RenderExecutionLedger],
         Awaitable[None],
     ]
     | None = None,
 ) -> ConsolidatedFixtureJourney:
-    context = example_context()
+    context = example_context(
+        scope_id=scope_id, research_id=research_id, objective=objective
+    )
     callbacks = {}
     for snapshot, body in zip(context.snapshots, BODIES, strict=True):
 
@@ -294,6 +310,31 @@ def example_journey(
             )
 
         callbacks[snapshot.snapshot_id] = acquire
+    if render is example_renderer:
+
+        async def render_with_identity(knowledge: CheckedKnowledge) -> tuple[RenderedReport, ...]:
+            return await example_renderer(knowledge, artifact_set_id=artifact_set_id)
+
+        render = render_with_identity
+
+    if audit is example_auditor:
+
+        async def audit_with_identity(inspection: RenderInspection) -> ExecutionDecision:
+            expected = await example_renderer(
+                inspection.knowledge,
+                artifact_set_id=inspection.checked_input.manifest_core.artifact_set_id,
+            )
+            if inspection.outputs != tuple(r.body for r in expected):
+                return ExecutionDecision(
+                    outcome="fail", reason="Fixture output differs, including caveats"
+                )
+            return ExecutionDecision(
+                outcome="pass",
+                reason="Exact authored fixture matched; no independent semantic review",
+            )
+
+        audit = audit_with_identity
+
     return ConsolidatedFixtureJourney(
         context=context,
         checks=example_checks(context),
@@ -304,7 +345,7 @@ def example_journey(
         render=render,
         auditor=REVIEWER,
         audit=audit,
-        artifact_set_id="reports-1",
+        artifact_set_id=artifact_set_id,
         clock=lambda: datetime(2026, 9, 7, tzinfo=UTC),
         timeout_seconds=timeout_seconds,
         commit=commit,

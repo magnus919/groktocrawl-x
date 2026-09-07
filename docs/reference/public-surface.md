@@ -60,6 +60,15 @@ POST /v2/session/{session_id}/export
 POST /v2/session/{session_id}/resolve
 POST /v2/session/{session_id}/step
 DELETE /v2/session/{session_id}
+GET /experimental/research/v1/capabilities
+POST /experimental/research/v1/runs
+GET /experimental/research/v1/runs/{run_id}
+GET /experimental/research/v1/runs/{run_id}/events
+POST /experimental/research/v1/runs/{run_id}/cancel
+GET /experimental/research/v1/artifact-sets/{artifact_set_id}
+GET /experimental/research/v1/artifacts/{artifact_id}
+GET /experimental/research/v1/research/{research_id}/evidence/{snapshot_id}
+DELETE /experimental/research/v1/research/{research_id}
 <!-- api-inventory:end -->
 
 ## CLI commands

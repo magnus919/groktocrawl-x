@@ -10,17 +10,20 @@ client surfaces. The machine-readable traces under
 and cancelled outcomes for cross-client parity checks.
 
 The opt-in `GET /experimental/research/v1/capabilities` adapter now exposes this
-boundary when `FEATURE_EXPERIMENTAL_RESEARCH=true`. It reports the contract and
-golden-trace stage, an unadvertised recovery mode, and unavailable run/artifact/
-evidence/session operations until their adapters are implemented. The flag is off
-by default and inherited `/v2` routes are unchanged.
+boundary when `FEATURE_EXPERIMENTAL_RESEARCH=true`. A second opt-in gate,
+`FEATURE_EXPERIMENTAL_RESEARCH_RUNS=true`, enables a fixture-backed process-local
+run/status/cancel/event adapter plus exact in-memory artifact and evidence reads.
+Its capabilities document advertises `fixture_run_adapter` and `process_local`
+recovery, so it makes no durable execution or live-provider claim. Session
+operations remain unavailable, the flags are off by default, and inherited `/v2`
+routes are unchanged.
 
 The tests cover completed, failed and cancelled terminal outcomes, duplicate replay
 deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
-violations. This is still a contract and golden-trace fixture, not a public route or
-a claim that the existing API has changed. W6 remains open until actual API/CLI/MCP
-adapters, authorization/deletion races and public-surface inventory are implemented
-and reviewed.
+violations. The run adapter is still a bounded fixture implementation, not
+production research. W6 remains open until CLI/MCP journey parity, session
+attachment, durable recovery, and the full authorization/deletion race matrix are
+implemented and reviewed.
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and

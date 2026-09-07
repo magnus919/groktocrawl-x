@@ -29,3 +29,13 @@ def test_capabilities_report_contract_only_stage(monkeypatch) -> None:
     assert payload["implementation_stage"] == "contract_and_golden_traces"
     assert payload["recovery_mode"] == "not_advertised"
     assert payload["operations"]["runs"]["available"] is False
+
+
+def test_capabilities_advertise_fixture_run_adapter_only_when_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH", "true")
+    monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
+    payload = _client().get("/experimental/research/v1/capabilities").json()
+    assert payload["implementation_stage"] == "fixture_run_adapter"
+    assert payload["recovery_mode"] == "process_local"
+    assert payload["operations"]["runs"]["available"] is True
+    assert payload["operations"]["sessions"]["available"] is False
