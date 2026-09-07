@@ -208,3 +208,63 @@ async def test_configured_route_denial_does_not_fallback():
             await adapter.verify(checked, Sources())
     assert calls == ["local"]
     assert adapter.usage == ()
+
+
+@pytest.mark.asyncio
+async def test_transport_unwraps_only_whole_json_fence_and_preserves_raw_digest():
+    import hashlib
+
+    raw = '```json\n{"outcome":"pass"}\n```'
+
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "model": "local",
+                "choices": [{"finish_reason": "stop", "message": {"content": raw}}],
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        transport = ReviewTransport(
+            client, base_url="https://gateway.invalid/v1", api_key="test"
+        )
+        reply = await transport(ReviewRequest("review", b"{}", "local", 32))
+    assert reply.content == b'{"outcome":"pass"}'
+    assert reply.raw_content_digest == hashlib.sha256(raw.encode()).hexdigest()
+
+
+@pytest.mark.asyncio
+async def test_fenced_response_with_extra_prose_is_not_salvaged():
+    raw = 'Here is my answer:\n```json\n{"outcome":"pass"}\n```'
+
+    def handler(request):
+        return httpx.Response(
+            200,
+            json={
+                "model": "local",
+                "choices": [{"finish_reason": "stop", "message": {"content": raw}}],
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        reply = await ReviewTransport(
+            client, base_url="https://gateway.invalid/v1", api_key="test"
+        )(ReviewRequest("review", b"{}", "local", 32))
+    assert reply.content == raw.encode()  # Strict admission will reject this.
+
+
+@pytest.mark.asyncio
+async def test_review_schema_disallows_assessment_label_for_structural_check():
+    async def complete(request):
+        payload = json.loads(request.payload)
+        assert payload["response_schema"]["properties"]["outcome"]["enum"] == [
+            "pass",
+            "fail",
+            "indeterminate",
+        ]
+        return reply_for(request, outcome="supported")
+
+    adapter, checked, sources = configured(complete)
+    with pytest.raises(ValueError, match="no judgment accepted"):
+        await adapter.verify(checked, sources)
