@@ -1,6 +1,6 @@
 # GroktoCrawl X: experimental research architecture plan
 
-- Status: planning; runtime work has not started
+- Status: bounded experimental runtime and contract work underway; replacement decision remains open
 - Accountable owner and architecture decider: Magnus Hedemark (`magnus919`)
 - Date: 2026-09-04
 - Repository: [magnus919/groktocrawl-x](https://github.com/magnus919/groktocrawl-x)
@@ -181,7 +181,7 @@ gate.
 | W3 | [Retention and reuse](https://github.com/magnus919/groktocrawl-x/milestone/1) | [#108 export](https://github.com/magnus919/groktocrawl-x/issues/108), [#109 import](https://github.com/magnus919/groktocrawl-x/issues/109) | Bounded export/import resolved by merged [PR #107](https://github.com/magnus919/groktocrawl-x/pull/107) and [PR #114](https://github.com/magnus919/groktocrawl-x/pull/114); backup/restore evidence remains open |
 | W4 | [Runtime comparison](https://github.com/magnus919/groktocrawl-x/milestone/2) | [#110](https://github.com/magnus919/groktocrawl-x/issues/110) | Harness merged by [PR #115](https://github.com/magnus919/groktocrawl-x/pull/115); W1 baseline and paired measurement remain open |
 | W5 | [Durable execution and recovery](https://github.com/magnus919/groktocrawl-x/milestone/3) | [#111](https://github.com/magnus919/groktocrawl-x/issues/111) | Contract fixture merged by [PR #118](https://github.com/magnus919/groktocrawl-x/pull/118); durable implementation and crash matrix remain open |
-| W6 | [Verified client protocols](https://github.com/magnus919/groktocrawl-x/milestone/4) | [#112](https://github.com/magnus919/groktocrawl-x/issues/112) | Contract fixture in progress; public adapters and golden traces remain open |
+| W6 | [Verified client protocols](https://github.com/magnus919/groktocrawl-x/milestone/4) | [#112](https://github.com/magnus919/groktocrawl-x/issues/112) | Contract fixture in [PR #119](https://github.com/magnus919/groktocrawl-x/pull/119); public adapters and golden traces remain open |
 | W7 | [Evaluation and adoption decision](https://github.com/magnus919/groktocrawl-x/milestone/5) | [#103](https://github.com/magnus919/groktocrawl-x/issues/103), [#113](https://github.com/magnus919/groktocrawl-x/issues/113) | Open |
 
 ## Slice acceptance details
