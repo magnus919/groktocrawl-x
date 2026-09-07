@@ -254,3 +254,29 @@ async def test_real_journey_cannot_publish_after_negative_model_review(reject):
             complete=complete,
             scope_id="test-scope",
         )
+
+
+def test_fixture_entry_point_still_rejects_model_reviewers():
+    from agent.experimental.consolidated_example import example_journey
+    from agent.experimental.consolidated_journey import ConsolidatedFixtureJourney
+    from agent.experimental.model_review import ModelReviewAdapter
+
+    async def complete(request):
+        raise AssertionError("must not dispatch")
+
+    fixture = example_journey()
+    adapter = ModelReviewAdapter(provider="test", model="local", complete=complete)
+    with pytest.raises(ValueError, match="requires fixture reviewers"):
+        ConsolidatedFixtureJourney(
+            context=fixture._context,
+            checks=fixture._checks,
+            acquisitions=fixture._acquire,
+            verifier=adapter.reviewer,
+            verify=fixture._verify,
+            renderer=fixture._renderer,
+            render=fixture._render,
+            auditor=adapter.reviewer,
+            audit=fixture._audit,
+            artifact_set_id=fixture._artifact_set_id,
+            clock=fixture._clock,
+        )
