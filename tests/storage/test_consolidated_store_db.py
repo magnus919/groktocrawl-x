@@ -3,9 +3,15 @@
 import asyncio
 import unittest
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import test_research_import_db as legacy
+from agent.experimental.canonical import admit_canonical_json
+from agent.experimental.consolidated_bundle import (
+    CONSOLIDATED_BUNDLE_SCHEMA,
+    admit_consolidated_bundle,
+)
 from agent.experimental.consolidated_example import (
     BODIES,
     example_context,
@@ -116,6 +122,31 @@ class ConsolidatedTests(unittest.IsolatedAsyncioTestCase):
             await self.store.reserve_consolidated(
                 self.scope, self.root, 1, 100000, example_context()
             )
+
+    async def test_export_round_trip_preserves_exact_consolidated_material(self):
+        await self.run_journey()
+        bundle = await self.store.export_consolidated(
+            self.scope, self.root, self.op
+        )
+        self.assertEqual(
+            admit_canonical_json(
+                bundle.data, schema_version=CONSOLIDATED_BUNDLE_SCHEMA
+            ).data,
+            bundle.data,
+        )
+        self.assertEqual(
+            (
+                await admit_consolidated_bundle(
+                    bundle.data,
+                    expected_digest=bundle.digest,
+                    scope=self.scope,
+                    root=self.root,
+                    operation=self.op,
+                    now=datetime.now(UTC),
+                )
+            ).data,
+            bundle.data,
+        )
 
     async def test_cancel_releases_only_pending_reservation(self):
         await self.store.cancel_consolidated(self.scope, self.root, self.op)

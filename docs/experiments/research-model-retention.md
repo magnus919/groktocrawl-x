@@ -18,3 +18,13 @@ model review; no model publication was retained. A future successful candidate m
 run the migration, stage exact source snapshots, and commit through the same fenced
 transaction. Failed or indeterminate checks cannot be converted into a retained
 success.
+
+The retained consolidated publication can now be exported as the versioned
+`retained-consolidated-bundle-prototype/1` format. The bounded bundle contains
+the canonical checked knowledge and render manifest, exact source descriptors
+and bodies, all three audited output layers, the explicit provenance marker,
+receipt digest and retention deadline. Offline admission rechecks canonical
+bytes, source/body hashes, output mappings, knowledge history, render audits and
+publication eligibility without fetching a URL or invoking a model. This is an
+export and revalidation boundary only; cross-scope import, recipient authority,
+recovery ownership and production adoption remain open gates.

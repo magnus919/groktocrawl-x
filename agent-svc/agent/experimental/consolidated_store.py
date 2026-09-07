@@ -5,8 +5,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from uuid import UUID
 
-from .canonical import MAX_BYTES, admit_canonical_json
+from .canonical import MAX_BYTES, CanonicalDocument, admit_canonical_json
 from .checked_knowledge import CHECKED_SCHEMA, CheckedKnowledge, admit_checked_history
+from .consolidated_bundle import build_consolidated_bundle
 from .consolidated_journey import JourneyResult, RenderedReport
 from .consolidated_storage_material import (
     RetainedConsolidated,
@@ -338,3 +339,26 @@ class ConsolidatedStore(ResearchImportStore):
             )
             _check_eligibility(admitted)
             return retained
+
+    async def export_consolidated(
+        self, scope: UUID, root: UUID, operation: UUID
+    ) -> CanonicalDocument:
+        """Export the exact retained consolidated publication for offline reuse."""
+        retained = await self.read_consolidated(scope, root, operation)
+        async with self._transaction(read=True) as conn:
+            await self._require_consolidated(conn)
+            row = await (
+                await conn.execute(
+                    "SELECT expires_at FROM research_staging.roots WHERE scope_id=%s AND root_id=%s AND NOT deleted AND expires_at>now() AND revision_format='consolidated' AND current_consolidated=%s",
+                    (scope, root, operation),
+                )
+            ).fetchone()
+            if row is None:
+                raise StorageConflictError("consolidated export root unavailable")
+            return await build_consolidated_bundle(
+                retained,
+                scope=scope,
+                root=root,
+                operation=operation,
+                retained_until=row["expires_at"],
+            )
