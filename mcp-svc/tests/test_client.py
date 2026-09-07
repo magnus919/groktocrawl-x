@@ -806,6 +806,27 @@ class TestAllTools:
 class TestExpandedSurface:
     """Verify the expanded client surface hits the right endpoints."""
 
+    def test_experimental_research_capabilities_uses_unversioned_route(self):
+        client = _make_matched_client(
+            {
+                (
+                    "GET",
+                    "/experimental/research/v1/capabilities",
+                ): _json_handler(
+                    {
+                        "protocol_version": "research/1",
+                        "implementation_stage": "contract_and_golden_traces",
+                        "recovery_mode": "not_advertised",
+                        "operations": {},
+                    }
+                )
+            }
+        )
+
+        result = asyncio.run(client.experimental_research_capabilities())
+
+        assert result["protocol_version"] == "research/1"
+
     def test_create_agent_creates_without_polling(self):
         call_count = 0
 
