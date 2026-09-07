@@ -14,17 +14,18 @@ boundary when `FEATURE_EXPERIMENTAL_RESEARCH=true`. A second opt-in gate,
 `FEATURE_EXPERIMENTAL_RESEARCH_RUNS=true`, enables a fixture-backed process-local
 run/status/cancel/event adapter plus exact in-memory artifact and evidence reads.
 Its capabilities document advertises `fixture_run_adapter` and `process_local`
-recovery, so it makes no durable execution or live-provider claim. Session
-session attachment is now available in `attachment_only` mode; the flags are off by default, and inherited `/v2`
+recovery, so it makes no durable execution or live-provider claim. Session attachment is now available in `attachment_only` mode; the flags are off by default, and inherited `/v2`
 routes are unchanged.
 
 The tests cover completed, failed and cancelled terminal outcomes, duplicate replay
 deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
-violations. The run adapter is still a bounded fixture implementation, not
+violations. The run adapter tests also cover foreign-scope reads and mutations plus
+deleting a root while execution is still running; a late completion remains tombstoned
+from status, events, artifacts and session attachment. The run adapter is still a bounded fixture implementation, not
 production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130)
-and remains subject to hosted review. W6 remains open until session attachment,
-durable recovery, and the full authorization/deletion race matrix are implemented
-and reviewed.
+and remains subject to hosted review. W6 remains open until durable recovery and the full authorization/deletion race
+matrix are implemented and reviewed; bounded scope-isolation and deletion-tombstone
+evidence is under review in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133).
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and
