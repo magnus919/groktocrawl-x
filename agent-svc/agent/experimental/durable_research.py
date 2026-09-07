@@ -42,6 +42,9 @@ class DurableRun:
     owner_generation: int
     attempt_id: str | None
     result_digest: str | None
+    checkpoint_name: str | None
+    checkpoint_digest: str | None
+    terminal_payload: dict[str, Any] | None
     retry_deadline_ms: int
     created_at_ms: int
     payload: dict[str, Any]
@@ -57,6 +60,9 @@ class DurableRun:
             owner_generation=int(record["owner_generation"]),
             attempt_id=record.get("attempt_id"),
             result_digest=record.get("result_digest"),
+            checkpoint_name=record.get("checkpoint_name"),
+            checkpoint_digest=record.get("checkpoint_digest"),
+            terminal_payload=record.get("terminal_payload"),
             retry_deadline_ms=int(record["retry_deadline_ms"]),
             created_at_ms=int(record["created_at_ms"]),
             payload=dict(record.get("payload") or {}),
@@ -123,11 +129,24 @@ if lease ~= ARGV[1] or record.owner_id .. ':' .. record.owner_generation ~= ARGV
 if record.state ~= 'running' then return {-3, record.state} end
 record.state = 'completed'
 record.result_digest = ARGV[2]
+record.terminal_payload = cjson.decode(ARGV[3])
 record.owner_id = false
 record.lease_expires_at_ms = false
-redis.call('SET', KEYS[1], cjson.encode(record), 'PX', ARGV[3])
+redis.call('SET', KEYS[1], cjson.encode(record), 'PX', ARGV[4])
 redis.call('DEL', KEYS[2])
 return {1, 'completed'}
+"""
+
+_CHECKPOINT_SCRIPT = """
+local raw = redis.call('GET', KEYS[1])
+local lease = redis.call('GET', KEYS[2])
+if not raw or lease ~= ARGV[1] then return 0 end
+local record = cjson.decode(raw)
+if record.state ~= 'running' or record.owner_id .. ':' .. record.owner_generation ~= ARGV[1] then return 0 end
+record.checkpoint_name = ARGV[2]
+record.checkpoint_digest = ARGV[3]
+redis.call('SET', KEYS[1], cjson.encode(record), 'PX', ARGV[4])
+return 1
 """
 
 _CANCEL_SCRIPT = """
@@ -210,6 +229,9 @@ class DurableResearchLedger:
             "owner_generation": 0,
             "attempt_id": None,
             "result_digest": None,
+            "checkpoint_name": None,
+            "checkpoint_digest": None,
+            "terminal_payload": None,
             "retry_deadline_ms": created_at + self.retry_window_ms,
             "created_at_ms": created_at,
             "payload": payload or {},
@@ -272,7 +294,41 @@ class DurableResearchLedger:
         if int(result) != 1:
             raise LeaseLostError("heartbeat rejected by the fencing authority")
 
-    def commit_result(self, run_id: str, owner_id: str, generation: int, result_digest: str) -> DurableRun:
+    def checkpoint(
+        self,
+        run_id: str,
+        owner_id: str,
+        generation: int,
+        name: str,
+        checkpoint_digest: str,
+    ) -> DurableRun:
+        """Persist the last completed boundary while the owner lease is live."""
+        result = self.redis.eval(
+            _CHECKPOINT_SCRIPT,
+            2,
+            self._run_key(run_id),
+            self._lease_key(run_id),
+            f"{owner_id}:{generation}",
+            name,
+            checkpoint_digest,
+            str(self.retention_ms),
+        )
+        if int(result) != 1:
+            raise LeaseLostError("checkpoint rejected by the fencing authority")
+        snapshot = self.get(run_id)
+        if snapshot is None:
+            raise DurableResearchError("checkpointed run disappeared before read")
+        return snapshot
+
+    def commit_result(
+        self,
+        run_id: str,
+        owner_id: str,
+        generation: int,
+        result_digest: str,
+        *,
+        terminal_payload: dict[str, Any] | None = None,
+    ) -> DurableRun:
         """Commit one terminal receipt, rejecting stale owners and cancellation."""
         token = f"{owner_id}:{generation}"
         result = self.redis.eval(
@@ -282,6 +338,7 @@ class DurableResearchLedger:
             self._lease_key(run_id),
             token,
             result_digest,
+            json.dumps(terminal_payload or {}, separators=(",", ":")),
             str(self.retention_ms),
         )
         code, detail = int(result[0]), str(result[1])

@@ -10,8 +10,10 @@ The `RecoveryLedger` fixture covers stale-owner rejection, idempotent receipts,
 conflicting receipts, cancellation/publication races, and exact receipt binding at
 publication. The opt-in `DurableResearchLedger` merged in [PR #135](https://github.com/magnus919/groktocrawl-x/pull/135) adds a Valkey-backed bounded
 implementation for admission, lease expiry/reclaim, monotonic fencing, persisted
-cancellation, and terminal receipt commits. Its tests exercise a new ledger
-instance after lease loss, including stale-owner rejection and late cancellation.
+cancellation, checkpoints, and terminal receipt commits with a recoverable projection
+payload. Its tests exercise a new ledger
+instance after lease loss, including stale-owner rejection, checkpoint persistence, terminal projection
+persistence, and late cancellation.
 This is still a recovery implementation slice, not a production deployment: it
 does not yet recover the public research route, persist checkpoints or artifacts,
 reconcile provider ambiguity, or provide backup/restore evidence. W5 remains open
