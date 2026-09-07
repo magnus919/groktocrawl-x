@@ -18,8 +18,8 @@ from redis import Redis
 @pytest.fixture
 def ledger() -> DurableResearchLedger:
     url = os.environ.get("DURABLE_RESEARCH_REDIS_URL")
-    if not url:
-        pytest.skip("DURABLE_RESEARCH_REDIS_URL is not configured")
+    if url is None:
+        raise RuntimeError("DURABLE_RESEARCH_REDIS_URL is required")
     redis = Redis.from_url(url, decode_responses=True)
     redis.flushdb()
     return DurableResearchLedger(

@@ -11,6 +11,18 @@ jobs:
   fast-tests:
     name: Fast Tests
     runs-on: ubuntu-latest
+    env:
+      DURABLE_RESEARCH_REDIS_URL: redis://127.0.0.1:6379/15
+    services:
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v7
         with:
