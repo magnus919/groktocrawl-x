@@ -80,6 +80,7 @@ DELETE /v2/session/{session_id}
 - monitor
 - parse
 - parse-upload
+- research
 - scrape
 - search
 <!-- cli-inventory:end -->
