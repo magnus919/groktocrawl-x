@@ -8,7 +8,7 @@ retry relationships, and an explicit at-least-once network-effect boundary.
 
 The `RecoveryLedger` fixture covers stale-owner rejection, idempotent receipts,
 conflicting receipts, cancellation/publication races, and exact receipt binding at
-publication. The opt-in `DurableResearchLedger` adds a Valkey-backed bounded
+publication. The opt-in `DurableResearchLedger` merged in [PR #135](https://github.com/magnus919/groktocrawl-x/pull/135) adds a Valkey-backed bounded
 implementation for admission, lease expiry/reclaim, monotonic fencing, persisted
 cancellation, and terminal receipt commits. Its tests exercise a new ledger
 instance after lease loss, including stale-owner rejection and late cancellation.
