@@ -436,9 +436,18 @@ def compare_outcomes(
     if not values:
         raise ValueError("at least one runtime outcome is required")
     reference = values[0]
+    reference_accounting = reference.accounting.model_dump(mode="json")
+    reference_accounting["operations"] = sorted(
+        reference_accounting["operations"], key=lambda item: item["operation_id"]
+    )
     failures = []
     for candidate in values[1:]:
-        if candidate.accounting != reference.accounting:
+        candidate_accounting = candidate.accounting.model_dump(mode="json")
+        candidate_accounting["operations"] = sorted(
+            candidate_accounting["operations"],
+            key=lambda item: item["operation_id"],
+        )
+        if candidate_accounting != reference_accounting:
             failures.append(f"{candidate.runtime}: accounting differs")
         if candidate.outputs != reference.outputs:
             failures.append(f"{candidate.runtime}: outputs differ")
