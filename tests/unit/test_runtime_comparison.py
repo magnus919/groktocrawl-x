@@ -140,6 +140,62 @@ async def test_langgraph_runtime_requires_the_optional_comparison_dependency():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is optional until W4 measurement is authorized",
+    owner="repository-maintainer",
+    issue="#110",
+    classification="retained",
+    environment="LangGraph package is not installed in the default test lane",
+)
+async def test_langgraph_runtime_matches_reference_for_parallel_join():
+    current = plan(
+        node("slow", delay=0.02),
+        node("fast", delay=0.001),
+        node("join", depends_on=("slow", "fast")),
+    )
+    imperative = await ImperativeRuntime().run(current)
+    langgraph = await LangGraphRuntime().run(current)
+    assert compare_outcomes((imperative, langgraph)) == ()
+    assert langgraph.outputs == (
+        ("fast", "out-fast"),
+        ("join", "out-join"),
+        ("slow", "out-slow"),
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is optional until W4 measurement is authorized",
+    owner="repository-maintainer",
+    issue="#110",
+    classification="retained",
+    environment="LangGraph package is not installed in the default test lane",
+)
+async def test_langgraph_runtime_cancellation_preserves_unsettled_reservation():
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def work() -> ScriptResult:
+        started.set()
+        await release.wait()
+        return ScriptResult(output_id="out-wait", actual=Budget(sources=1))
+
+    current = plan(RuntimeNode(spec("wait"), work))
+    cancel = asyncio.Event()
+    task = asyncio.create_task(LangGraphRuntime().run(current, cancel=cancel))
+    await started.wait()
+    cancel.set()
+    outcome = await task
+    release.set()
+    assert outcome.accounting.state == "cancelled"
+    assert outcome.accounting.reserved.sources == 1
+    assert outcome.outputs == ()
+    assert all(event.kind != "completed" for event in outcome.events)
+
+
+@pytest.mark.asyncio
 async def test_langgraph_runtime_reports_a_missing_dependency_without_mutation():
     if importlib.util.find_spec("langgraph") is None:
         with pytest.raises(LangGraphUnavailableError):

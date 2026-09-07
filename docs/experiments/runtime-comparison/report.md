@@ -15,8 +15,19 @@ stable join, cancellation with unsettled reservations, cyclic-graph rejection
 and over-budget receipt failure. These are conformance controls, not quality or
 performance evidence.
 
+## Optional framework smoke evidence
+
+On 2026-09-07, an isolated `uv run --with langgraph==0.6.11` environment ran
+the W4 unit suite with **10 passed and 0 skipped**. The real LangGraph adapter
+matched the imperative reference for a parallel branch/join case after
+canonical operation-ID mapping, and cancellation preserved the unsettled
+reservation without publishing a late output. The run used scripted local
+callbacks, no provider spend, and no LangGraph checkpoint or store. It is a
+framework conformance smoke result, not a paired performance measurement,
+recovery proof, quality claim, or adoption decision.
+
 The [manifest](manifest.json) records the optional LangGraph dependency
-specifier, but requires an exact version pin before measurement. It still
+specifier and the exact version used by this smoke run. It still
 records zero paired measurements and `baseline_frozen: false`. W1 has not yet
 approved the corpus, reviewer, baseline bounds or uncertainty plan required by
 ADR-0073. Therefore no runtime adoption decision is made here. The imperative
