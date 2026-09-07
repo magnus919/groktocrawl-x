@@ -73,3 +73,37 @@ budgets across stages, real verification/rendering/publication and API/CLI deliv
 still need integration. Its local tests use scripted model responses and do not
 establish real-model quality. The default completion model is the selected `local`
 alias; there are no implicit retries or alternate-model fallbacks.
+
+## First query-to-reports runner
+
+The experimental `run_query()` now joins one search and up to three acquisitions
+with construction, five check categories, deterministic three-layer presentation,
+and a model audit of every complete output. Exact acquired source bytes are reused
+for checks. Required negative or indeterminate judgments prevent successful output;
+they are not retried until a favorable answer appears. This initial policy does not
+yet deepen or reconcile disagreements. It supports captured-document historical
+claims; unknown publication/effective dates cannot establish current freshness.
+
+A separate `ConsolidatedJourney` accepts registered model/tool reviewers. The
+existing `ConsolidatedFixtureJourney` keeps its fixture-only guard. Production routes
+and the fixture-only PostgreSQL writer are unchanged. A successful model journey
+returns an ephemeral candidate and files, not durable publication authority.
+
+Configure `SEARXNG_URL`, `SCRAPER_URL`, `LLM_BASE_URL` and `LLM_API_KEY` in the
+process environment for reachable services. The runner requests model alias `local`:
+
+```sh
+PYTHONPATH=.:agent-svc .venv/bin/python scripts/run-research-pilot.py \
+  'What evidence supports enterprise agentic software-factory productivity claims?' \
+  /tmp/my-new-real-research
+```
+
+The directory must be new. `summary.md`, `analysis.md`, `dossier.md`, canonical
+knowledge and manifest are written only after successful checks. `usage.json`
+records dispatched calls and reported token/model metadata, including uncertain
+or failed calls; unknown usage is not zero cost. The bounded pilot uses lightweight
+scraping and fails on acquisition warnings, barriers or empty content. It makes at
+most 64 model calls, does not silently fall back to another model, and has a
+180-second cooperative query deadline. This script is an experimental developer
+entry point; public API/CLI/MCP integration, retained publication, targeted follow-up
+and comparative evaluation remain roadmap work.

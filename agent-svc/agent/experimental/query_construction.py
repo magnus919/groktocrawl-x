@@ -190,7 +190,7 @@ async def construct_research(
                 "parent_revision_id": None,
                 "parent_digest": None,
                 "created_at": now.isoformat().replace("+00:00", "Z"),
-                "as_of": None,
+                "as_of": now.isoformat().replace("+00:00", "Z"),
                 "objective": objective,
                 "policy_version": "real-research-pilot/1",
                 "snapshots": [s.model_dump(mode="json") for s in snapshots],

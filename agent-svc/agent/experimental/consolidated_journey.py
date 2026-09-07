@@ -7,11 +7,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import uuid4
 
+from pydantic import TypeAdapter
+
 from .canonical import MAX_BYTES, admit_canonical_json
 from .checked_knowledge import CHECKED_SCHEMA, CheckedKnowledge, entities
 from .context_sources import ResolvedContextSource, admit_knowledge_context
 from .knowledge import text_digest
-from .knowledge_checks import CheckAssessment, FixtureReviewer, KnowledgeCheckInput
+from .knowledge_checks import CheckAssessment, KnowledgeCheckInput, Reviewer
 from .knowledge_context import CONTEXT_SCHEMA, ContentReference, KnowledgeContext
 from .knowledge_execution import CheckExecutor, ExecutedCheck, KnowledgeExecutionLedger
 from .manifest_outputs import ResolvedOutput
@@ -132,12 +134,14 @@ def _knowledge(
     return CheckedKnowledge.model_validate_json(json.dumps(payload))
 
 
-class ConsolidatedFixtureJourney:
-    """Trusted fixture callbacks, root revision only, single use, no retries/spend.
+class ConsolidatedJourney:
+    """Trusted registered callbacks, root revision only, single use, no retries.
 
     Callbacks may perform only their caller-authorized work. This orchestration
     provides no sandbox or task recovery; caller cancellation and deadline propagate.
     """
+
+    _require_fixture = False
 
     def __init__(
         self,
@@ -145,11 +149,11 @@ class ConsolidatedFixtureJourney:
         context: KnowledgeContext,
         checks: tuple[KnowledgeCheckInput, ...],
         acquisitions: Mapping[str, Acquire],
-        verifier: FixtureReviewer,
+        verifier: Reviewer,
         verify: CheckExecutor,
         renderer: Renderer,
         render: Render,
-        auditor: FixtureReviewer,
+        auditor: Reviewer,
         audit: RenderExecutor,
         artifact_set_id: str,
         clock: Callable[[], datetime],
@@ -189,8 +193,12 @@ class ConsolidatedFixtureJourney:
         self._checks = tuple(
             KnowledgeCheckInput.model_validate_json(i.model_dump_json()) for i in checks
         )
-        self._verifier = FixtureReviewer.model_validate_json(verifier.model_dump_json())
-        self._auditor = FixtureReviewer.model_validate_json(auditor.model_dump_json())
+        self._verifier: Reviewer = TypeAdapter(Reviewer).validate_json(verifier.model_dump_json())
+        self._auditor: Reviewer = TypeAdapter(Reviewer).validate_json(auditor.model_dump_json())
+        if self._require_fixture and (
+            self._verifier.kind != "fixture" or self._auditor.kind != "fixture"
+        ):
+            raise ValueError("fixture journey requires fixture reviewers")
         if any(
             i.context != self._context or i.reviewer != self._verifier
             for i in self._checks
@@ -362,7 +370,7 @@ class ConsolidatedFixtureJourney:
             render_execution=render_owner,
         )
         self._live()
-        if not candidate.fixture_only:
+        if self._require_fixture and not candidate.fixture_only:
             raise ValueError("fixture journey cannot promote reviewer provenance")
         result = JourneyResult(
             candidate,
@@ -376,3 +384,9 @@ class ConsolidatedFixtureJourney:
             await self._commit(result, knowledge_owner, render_owner)
             self._live()
         return result
+
+
+class ConsolidatedFixtureJourney(ConsolidatedJourney):
+    """Compatibility entry point: live model/tool reviewers remain forbidden."""
+
+    _require_fixture = True
