@@ -11,8 +11,8 @@
   "reviewers": {
     "design_author": "Codex implementation agent",
     "separate_ai_reviewer": "local Hermes one-shot fresh session",
-    "human_calibration_and_adjudication": "Magnus; no human labels collected yet",
-    "independence_caveat": "Separate invocation does not establish different model family, training independence or human review."
+    "human_calibration_and_adjudication": "Magnus; 12 exposed calibration cases human-confirmed in calibration/human-confirmation.json",
+    "independence_caveat": "The confirmation approves an assistant pre-review and does not establish a blinded independent judge study or human review of held-out outputs."
   },
   "thresholds": {
     "hard_invariant_violations_allowed": 0,
