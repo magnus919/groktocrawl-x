@@ -28,9 +28,13 @@ async def _client(app: FastAPI) -> httpx.AsyncClient:
     )
 
 
-async def _wait_for_terminal(client: httpx.AsyncClient, run_id: str) -> dict:
+async def _wait_for_terminal(
+    client: httpx.AsyncClient, run_id: str, headers: dict[str, str] | None = None
+) -> dict:
     for _ in range(100):
-        response = await client.get(f"/experimental/research/v1/runs/{run_id}")
+        response = await client.get(
+            f"/experimental/research/v1/runs/{run_id}", headers=headers
+        )
         payload = response.json()
         if payload["state"] in {"completed", "failed", "cancelled"}:
             return payload
@@ -152,3 +156,103 @@ async def test_session_attachment_is_idempotent_and_revision_guarded(app: FastAP
             json={"run_id": admission["run_id"], "expected_revision": 0},
         )
         assert conflict.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_run_scope_blocks_foreign_reads_and_mutations(app: FastAPI) -> None:
+    owner = {"Authorization": "Bearer owner"}
+    foreign = {"Authorization": "Bearer foreign"}
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={**owner, "Idempotency-Key": "scope-1"},
+            json={"objective": "Check scope isolation"},
+        )
+        admission = created.json()
+        run_id = admission["run_id"]
+
+        assert (
+            await client.get(admission["status_url"], headers=foreign)
+        ).status_code == 404
+        assert (
+            await client.get(admission["events_url"], headers=foreign)
+        ).status_code == 404
+        assert (
+            await client.post(f"{admission['status_url']}/cancel", headers=foreign)
+        ).status_code == 404
+
+        status = await _wait_for_terminal(client, run_id, headers=owner)
+        assert status["state"] == "completed"
+        result = status["result"]
+        assert (
+            await client.get(result["manifest_url"], headers=foreign)
+        ).status_code == 404
+        assert (
+            await client.delete(
+                f"/experimental/research/v1/research/{result['research_id']}",
+                headers=foreign,
+            )
+        ).status_code == 404
+
+        attached = await client.post(
+            "/experimental/research/v1/sessions/scope-session/attachments",
+            headers=owner,
+            json={"run_id": run_id, "expected_revision": 0},
+        )
+        assert attached.status_code == 200
+        foreign_attachment = await client.post(
+            "/experimental/research/v1/sessions/scope-session/attachments",
+            headers=foreign,
+            json={"run_id": run_id, "expected_revision": 0},
+        )
+        assert foreign_attachment.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_deletion_tombstone_wins_over_late_completion(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gate = asyncio.Event()
+    original_factory = experimental.example_journey
+
+    def delayed_factory(**kwargs):
+        journey = original_factory(**kwargs)
+        original_run = journey.run
+
+        async def delayed_run():
+            await gate.wait()
+            return await original_run()
+
+        journey.run = delayed_run
+        return journey
+
+    monkeypatch.setattr(experimental, "example_journey", delayed_factory)
+    async with await _client(app) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "delete-race-1"},
+            json={"objective": "Check deletion race"},
+        )
+        admission = created.json()
+        run_id = admission["run_id"]
+        await asyncio.sleep(0)
+        record = experimental._RUNS[run_id]
+        assert record.state == "running"
+
+        deleted = await client.delete(
+            f"/experimental/research/v1/research/{admission['research_id']}"
+        )
+        assert deleted.status_code == 202
+        gate.set()
+        await asyncio.wait_for(record.task, timeout=2)
+        assert record.state == "completed"
+        assert record.deleted is True
+
+        assert (await client.get(admission["status_url"])).status_code == 410
+        assert (await client.get(admission["events_url"])).status_code == 410
+        assert (await client.get(record.result["manifest_url"])).status_code == 410
+        attached = await client.post(
+            "/experimental/research/v1/sessions/deleted-session/attachments",
+            json={"run_id": run_id, "expected_revision": 0},
+        )
+        assert attached.status_code == 410
