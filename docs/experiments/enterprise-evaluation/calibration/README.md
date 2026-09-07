@@ -17,6 +17,9 @@ confirmation. `review-presentation.json` maps case numbers to the pinned inputs.
 
 The original [worksheet.md](worksheet.md) and [worksheet.json](worksheet.json)
 remain unchanged as the detailed input record.
+An assistant first-pass is recorded separately in
+[assistant-review.md](assistant-review.md) to reduce mechanical review work; it is
+not a human label record and does not complete calibration.
 The twelve cases have 18 fixed subquestions, six topic groups and a pinned source
 corpus. `manifest.json` identifies exact candidate and worksheet inputs. No human
 labels or Hermes outcome labels have been collected. The prior Hermes review was
