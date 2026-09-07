@@ -1,9 +1,9 @@
 """Valkey-backed ownership ledger for the bounded W5 recovery adapter.
 
-This module persists admission, ownership, fencing, cancellation, and terminal
-receipt state. It deliberately stores receipt identities rather than provider
-payloads: artifact publication remains owned by the research stores, and an
-ambiguous external effect is never treated as a successful result.
+This module persists admission, ownership, fencing, cancellation, terminal
+receipt state, and bounded fixture terminal payloads. It does not claim to be a
+general artifact store: production-sized bytes and provider payloads remain
+outside this experimental adapter.
 """
 
 from __future__ import annotations
@@ -155,6 +155,7 @@ if not raw then return {-1, 'missing'} end
 local record = cjson.decode(raw)
 if record.state == 'completed' or record.state == 'cancelled' or record.state == 'failed' then return {1, record.state} end
 record.state = 'cancelled'
+record.terminal_payload = cjson.decode(ARGV[2])
 record.owner_id = false
 record.lease_expires_at_ms = false
 record.cancel_requested = true
@@ -355,7 +356,12 @@ class DurableResearchLedger:
             raise DurableResearchError("committed run disappeared before read")
         return snapshot
 
-    def cancel(self, run_id: str) -> DurableRun:
+    def cancel(
+        self,
+        run_id: str,
+        *,
+        terminal_payload: dict[str, Any] | None = None,
+    ) -> DurableRun:
         """Persist cancellation before any worker can publish a result."""
         result = self.redis.eval(
             _CANCEL_SCRIPT,
@@ -363,6 +369,7 @@ class DurableResearchLedger:
             self._run_key(run_id),
             self._lease_key(run_id),
             str(self.retention_ms),
+            json.dumps(terminal_payload or {}, separators=(",", ":")),
         )
         if int(result[0]) == -1:
             raise DurableResearchError("run is missing")
@@ -381,4 +388,13 @@ class DurableResearchLedger:
             if self.redis.exists(self._lease_key(snapshot.run_id)):
                 continue
             runs.append(snapshot)
+        return sorted(runs, key=lambda item: item.created_at_ms)
+
+    def retained(self) -> list[DurableRun]:
+        """Return retained run projections for bounded terminal read recovery."""
+        runs: list[DurableRun] = []
+        for run_id in self.redis.smembers(self._index_key()):
+            snapshot = self.get(str(run_id))
+            if snapshot is not None:
+                runs.append(snapshot)
         return sorted(runs, key=lambda item: item.created_at_ms)

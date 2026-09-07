@@ -29,7 +29,7 @@ production research. CLI/MCP journey parity is implemented in [PR #130](https://
 and remains subject to hosted review. W6 remains open until durable recovery and the full authorization/deletion race
 matrix are implemented and reviewed; bounded scope-isolation and deletion-tombstone
 evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133). The
-durable status-recovery and cancellation route slice is merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); it does not yet claim artifact-byte or event-history recovery.
+durable status-recovery and cancellation route slice is merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact-byte and terminal event-history recovery is under review in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). It does not yet claim provider-effect or production artifact-store recovery.
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and

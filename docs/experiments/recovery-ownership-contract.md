@@ -16,8 +16,8 @@ instance after lease loss, including stale-owner rejection, checkpoint persisten
 persistence, and late cancellation.
 This is still a recovery implementation slice, not a production deployment. The
 experimental route now wires durable status recovery and persisted cancellation through
-[PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); artifact bytes, SSE
-history, provider ambiguity reconciliation and backup/restore evidence remain open. W5 remains open
+[PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact bytes and
+terminal event history are under review in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). Provider ambiguity reconciliation, backup/restore evidence and the complete crash matrix remain open. W5 remains open
 until the declared crash/cancel matrix is exercised against the selected execution
 path and the resulting ADR decision is reviewed.
 
