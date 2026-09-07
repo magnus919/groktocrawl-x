@@ -13,6 +13,7 @@ from pydantic import Field, model_validator
 from .knowledge import Identity, Record
 
 Seconds = float
+ProviderOutcome = Literal["confirmed", "absent", "unknown"]
 
 
 class RecoveryContract(Record):
@@ -109,6 +110,27 @@ class RecoveryLedger:
         if operation.state != "running":
             raise ValueError("only a running attempt can become unknown")
         operation.state = "outcome_unknown"
+
+    def reconcile_unknown(
+        self,
+        logical_operation_id: str,
+        generation: int,
+        outcome: ProviderOutcome,
+        receipt_digest: str | None = None,
+    ) -> str:
+        """Resolve an ambiguous provider attempt without inventing success."""
+        operation = self._owned(logical_operation_id, generation)
+        if operation.state != "outcome_unknown":
+            raise ValueError("only an unknown attempt can be reconciled")
+        if outcome == "confirmed":
+            if receipt_digest is None:
+                raise ValueError("confirmed outcome requires a receipt digest")
+            operation.receipt_digest = receipt_digest
+            operation.state = "receipt"
+        elif outcome == "absent":
+            operation.attempt_id = None
+            operation.state = "dispatch_intent"
+        return operation.state
 
     def cancel(self, logical_operation_id: str, generation: int) -> str:
         operation = self._owned(logical_operation_id, generation)
