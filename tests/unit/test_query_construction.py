@@ -13,7 +13,7 @@ TEXT = "Pilot lead time fell. Causation is unproven."
 
 def proposal():
     return {
-        "schema_version": "research-construction/2",
+        "schema_version": "research-construction/3",
         "evidence": [
             {
                 "evidence_id": "e1",
@@ -29,17 +29,8 @@ def proposal():
                 "kind": "source_statement",
                 "qualifiers": ["One captured pilot note"],
                 "temporal_scope": "historical",
-            }
-        ],
-        "relationships": [
-            {
-                "relationship_id": "r1",
-                "kind": "supports",
-                "source_id": "e1",
-                "target_id": "c1",
-                "rationale": "The captured text states both facts.",
-                "rule": None,
-                "assumptions": [],
+                "supported_by": ["e1"],
+                "contradicted_by": [],
             }
         ],
         "questions": [

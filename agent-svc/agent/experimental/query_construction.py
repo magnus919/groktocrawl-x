@@ -19,7 +19,6 @@ from .knowledge_context import (
     ContentReference,
     ContextConflict,
     ContextQuestion,
-    ContextRelationship,
     KnowledgeContext,
     ReferencedSnapshot,
     ScopedClaim,
@@ -38,13 +37,12 @@ use source statements about the captured document with historical temporal scope
 Do not invent dates, evidence or verification. Include exactly one question with
 question_id 'question-root', question equal to the supplied objective, answered or
 unresolved status, and a report_claim_id describing the answer or uncertainty.
-Prefer a small set of specific source-backed claims. Every support/contradiction
-relationship MUST have an evidence_id as source_id and a claim_id as target_id;
-never use a claim as the source of a supports or contradicts edge. Every reported
-claim needs supporting evidence. A derived_from edge instead has the inference
-claim as source_id and its premise claim as target_id, with a stated rule and
-assumptions. Contradicts edges require a matching conflict record and an unresolved
-question. Do not invent logical relationships just because two claims share a topic.
+Prefer a small set of specific source-backed claims. For each claim, supported_by
+and contradicted_by contain evidence IDs from your evidence selections, never claim
+IDs. Do not create graph edges: the server builds them from these selections.
+Use source_statement claims to report what the captured source says, preserving
+scope and limitations; do not invent causal inferences. Contradicting evidence
+requires a matching conflict record and an unresolved question.
 Return only JSON matching the supplied schema. No tools, markdown fences or prose."""
 
 
@@ -55,11 +53,16 @@ class ExtractedEvidence(StrictRecord):
     end_line: int = Field(ge=1, le=10_000)
 
 
+class ExtractedClaim(ScopedClaim):
+    kind: Literal["source_statement"]
+    supported_by: tuple[Identity, ...] = Field(min_length=1, max_length=100)
+    contradicted_by: tuple[Identity, ...] = Field(max_length=100)
+
+
 class ConstructedContent(StrictRecord):
-    schema_version: Literal["research-construction/2"]
+    schema_version: Literal["research-construction/3"]
     evidence: tuple[ExtractedEvidence, ...] = Field(max_length=100)
-    claims: tuple[ScopedClaim, ...] = Field(min_length=1, max_length=20)
-    relationships: tuple[ContextRelationship, ...] = Field(max_length=100)
+    claims: tuple[ExtractedClaim, ...] = Field(min_length=1, max_length=6)
     questions: tuple[ContextQuestion, ...] = Field(min_length=1, max_length=1)
     conflicts: tuple[ContextConflict, ...] = Field(max_length=20)
 
@@ -171,7 +174,7 @@ async def construct_research(
     if owner is not None and owner.cancelling():
         raise asyncio.CancelledError
     document = admit_canonical_json(
-        reply.content, schema_version="research-construction/2"
+        reply.content, schema_version="research-construction/3"
     )
     content = ConstructedContent.model_validate_json(document.data)
     question = content.questions[0]
@@ -198,6 +201,26 @@ async def construct_research(
                 "quote_digest": text_digest(quote),
             }
         )
+    edges: list[dict[str, object]] = []
+    for claim in content.claims:
+        for kind, identities in (
+            ("supports", claim.supported_by),
+            ("contradicts", claim.contradicted_by),
+        ):
+            if len(set(identities)) != len(identities):
+                raise ValueError("claim repeats an evidence selection")
+            for evidence_id in identities:
+                edges.append(
+                    {
+                        "relationship_id": str(uuid4()),
+                        "kind": kind,
+                        "source_id": evidence_id,
+                        "target_id": claim.claim_id,
+                        "rationale": "Construction selected this passage; assessment is recorded separately.",
+                        "rule": None,
+                        "assumptions": [],
+                    }
+                )
     now = clock()
     offset = now.utcoffset()
     if offset is None or offset.total_seconds() != 0:
@@ -207,6 +230,13 @@ async def construct_research(
             {
                 **content.model_dump(mode="json", exclude={"schema_version"}),
                 "evidence": located,
+                "claims": [
+                    c.model_dump(
+                        mode="json", exclude={"supported_by", "contradicted_by"}
+                    )
+                    for c in content.claims
+                ],
+                "relationships": edges,
                 "scope_id": scope_id,
                 "research_id": research_id,
                 "revision_id": revision_id,

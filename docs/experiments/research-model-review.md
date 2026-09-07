@@ -61,7 +61,7 @@ the underlying provider model unconfirmed. The configured adapter now defaults t
 
 `construct_research()` takes a question and up to eight already captured sources,
 then makes one bounded model call through the same configured completion transport.
-The model proposes claims, numbered source-line ranges, relationships, the answer or
+The model proposes claims, numbered source-line ranges, claim-to-evidence selections, the answer or
 unresolved status, and conflicts. The server assigns scope/research/revision/source
 identities, captured content hashes and quote locations. Missing or out-of-range source selections,
 altered questions, invalid relationships and additional authority fields fail
@@ -119,10 +119,19 @@ SHA-256 digest of original response content, and the pilot usage trace records i
 The original failed probes remain retained separately; this is a transport fix,
 not a favorable retry of a scored evaluation case.
 
-The construction draft protocol is now `research-construction/2`: a live development
+The construction draft protocol introduced numbered lines in `research-construction/2`: a live development
 probe paraphrased a requested exact quote, so the model now selects inclusive
 one-based source line ranges. The server extracts the complete original text and
 computes character offsets and hashes. Repeated text is unambiguous because its
 line range identifies the occurrence. Invalid ranges fail; semantic support still
 requires executed review. Earlier draft-protocol probes remain historical diagnostics,
 not converted or relabeled as successful runs.
+
+The current draft protocol is `research-construction/3`. Live development responses
+also confused graph-edge roles, so the model now supplies up to six source-statement
+claims with `supported_by` and `contradicted_by` evidence IDs. Application code builds
+the existing supports/contradicts graph records, and normal knowledge admission
+rejects foreign evidence or invalid conflict references. This first policy does not
+ask the model to invent derivation graphs. Source meaning still requires review;
+valid structure does not certify support. The consolidated knowledge contract is
+unchanged, and earlier construction drafts are not retained-format migrations.
