@@ -157,7 +157,7 @@ async def test_admitted_run_recovers_and_cancel_does_not_resurrect(
     async with await _client(app) as client:
         created = await client.post(
             "/experimental/research/v1/runs",
-            headers={"Idempotency-Key": "durable-admission-loss-1"},
+            headers={"Idempotency-Key": "x"},
             json={"objective": "Recover admitted status"},
         )
         assert created.status_code == 202
@@ -228,7 +228,7 @@ async def test_tampered_durable_artifact_projection_fails_closed(app: FastAPI) -
     async with await _client(app) as client:
         created = await client.post(
             "/experimental/research/v1/runs",
-            headers={"Idempotency-Key": "durable-tamper-1"},
+            headers={"Idempotency-Key": "x"},
             json={"objective": "Reject tampered artifact"},
         )
         admission = created.json()
