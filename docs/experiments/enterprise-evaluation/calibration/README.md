@@ -20,9 +20,13 @@ remain unchanged as the detailed input record.
 An assistant first-pass is recorded separately in
 [assistant-review.md](assistant-review.md) to reduce mechanical review work; it is
 not a human label record and does not complete calibration.
+Magnus approved that first-pass for this experiment; the confirmation and
+hash-linked detailed labels are recorded in
+[human-confirmation.json](human-confirmation.json). This is human confirmation of
+an assistant pre-review, not a blinded independent judge study.
 The twelve cases have 18 fixed subquestions, six topic groups and a pinned source
 corpus. `manifest.json` identifies exact candidate and worksheet inputs. No human
-labels or Hermes outcome labels have been collected. The prior Hermes review was
+held-out labels or Hermes outcome labels have been collected. The prior Hermes review was
 of the design, not these answers.
 
 Candidate answers are deliberately authored calibration probes with mixed quality.

@@ -1,6 +1,6 @@
 {
   "schema_version": "enterprise-calibration-manifest/1",
-  "status": "awaiting_human_labels",
+  "status": "human_confirmation_recorded",
   "selected_case_ids": [
     "delivery-01",
     "delivery-07",
@@ -18,7 +18,9 @@
   "cases": 12,
   "required_subquestions": 18,
   "topics": 6,
-  "human_labels_collected": 0,
+  "human_labels_collected": 12,
+  "human_label_record": "human-confirmation.json",
+  "human_label_method": "Magnus confirmed the assistant pre-review in chat; this is not a blinded independent judge study",
   "hermes_outcome_labels_collected": 0,
   "actual_arm_outputs": 0,
   "candidate_origin": "Codex-authored probes",
