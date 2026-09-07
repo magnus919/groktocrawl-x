@@ -1,6 +1,7 @@
 """HTTP client for the GroktoCrawl agent-svc API."""
 
 import asyncio
+import base64
 import ipaddress
 import logging
 import os
@@ -979,6 +980,83 @@ class GroktocrawlClient:
     async def experimental_research_capabilities(self) -> dict:
         """Return opt-in experimental research protocol capabilities."""
         return await self._get("/experimental/research/v1/capabilities")
+
+    async def experimental_research_create(
+        self, objective: str, idempotency_key: str, webhook: str | None = None
+    ) -> dict:
+        """Admit one experimental fixture-backed research run."""
+        body: dict[str, Any] = {"objective": objective}
+        if webhook is not None:
+            body["webhook"] = webhook
+        return await self._request_with_headers(
+            "POST",
+            "/experimental/research/v1/runs",
+            body,
+            {"Idempotency-Key": idempotency_key},
+        )
+
+    async def _request_with_headers(
+        self,
+        method: str,
+        path: str,
+        json_data: dict | None,
+        headers: dict[str, str],
+    ) -> dict:
+        client = await self._client_ctx()
+        try:
+            response = await client.request(method, path, json=json_data, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as exc:
+            return self._error_result(
+                f"HTTP {exc.response.status_code}: {_extract_response_detail(exc.response)}",
+                status_code=exc.response.status_code,
+            )
+        except Exception as exc:
+            return self._error_result(str(exc))
+
+    async def experimental_research_status(self, run_id: str) -> dict:
+        return await self._get(f"/experimental/research/v1/runs/{run_id}")
+
+    async def experimental_research_cancel(self, run_id: str) -> dict:
+        return await self._post(f"/experimental/research/v1/runs/{run_id}/cancel")
+
+    async def experimental_research_artifact_set(self, artifact_set_id: str) -> dict:
+        return await self._get(
+            f"/experimental/research/v1/artifact-sets/{artifact_set_id}"
+        )
+
+    async def experimental_research_artifact(self, artifact_id: str) -> dict:
+        """Return exact artifact bytes as a typed base64 projection for MCP."""
+        client = await self._client_ctx()
+        path = f"/experimental/research/v1/artifacts/{artifact_id}"
+        try:
+            response = await client.get(path)
+            response.raise_for_status()
+            return {
+                "artifact_id": artifact_id,
+                "content_type": response.headers.get("content-type", "text/markdown"),
+                "content_base64": base64.b64encode(response.content).decode("ascii"),
+            }
+        except httpx.HTTPStatusError as exc:
+            return self._error_result(
+                f"HTTP {exc.response.status_code}: {_extract_response_detail(exc.response)}",
+                status_code=exc.response.status_code,
+            )
+        except Exception as exc:
+            return self._error_result(str(exc))
+
+    async def experimental_research_evidence(
+        self, research_id: str, snapshot_id: str
+    ) -> dict:
+        return await self._get(
+            f"/experimental/research/v1/research/{research_id}/evidence/{snapshot_id}"
+        )
+
+    async def experimental_research_delete(self, research_id: str) -> dict:
+        return await self._delete(
+            f"/experimental/research/v1/research/{research_id}"
+        )
 
     async def browser_create(self, ttl: int = 300) -> dict:
         """Create a browser session."""

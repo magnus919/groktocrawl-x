@@ -806,6 +806,57 @@ class TestAllTools:
 class TestExpandedSurface:
     """Verify the expanded client surface hits the right endpoints."""
 
+    def test_experimental_research_create_sends_idempotency_key(self):
+        captured: dict[str, Any] = {}
+
+        def _handler(request: httpx.Request) -> httpx.Response:
+            captured["path"] = request.url.path
+            captured["key"] = request.headers.get("idempotency-key")
+            return httpx.Response(
+                202,
+                json={"run_id": "run-1", "state": "accepted"},
+                request=request,
+            )
+
+        client = GroktocrawlClient(base_url="http://test:8080", api_key=None)
+        client._client = httpx.AsyncClient(
+            base_url=client._base_url,
+            headers=client._headers(),
+            transport=httpx.MockTransport(_handler),
+        )
+
+        result = asyncio.run(
+            client.experimental_research_create("objective", "stable-key")
+        )
+
+        assert result["run_id"] == "run-1"
+        assert captured == {
+            "path": "/experimental/research/v1/runs",
+            "key": "stable-key",
+        }
+
+    def test_experimental_research_artifact_returns_exact_bytes(self):
+        client = GroktocrawlClient(base_url="http://test:8080", api_key=None)
+
+        def _handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                content=b"# exact artifact",
+                headers={"content-type": "text/markdown"},
+                request=request,
+            )
+
+        client._client = httpx.AsyncClient(
+            base_url=client._base_url,
+            headers=client._headers(),
+            transport=httpx.MockTransport(_handler),
+        )
+        result = asyncio.run(client.experimental_research_artifact("a-1"))
+
+        assert result["artifact_id"] == "a-1"
+        assert result["content_type"] == "text/markdown"
+        assert result["content_base64"]
+
     def test_experimental_research_capabilities_uses_unversioned_route(self):
         client = _make_matched_client(
             {

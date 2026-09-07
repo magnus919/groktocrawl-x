@@ -96,6 +96,14 @@ PATH_TO_MCP_TOOL: dict[str, str] = {
     "POST /v2/scrape": "scrape",
     "POST /v2/search": "search",
     "GET /experimental/research/v1/capabilities": "research_capabilities",
+    "POST /experimental/research/v1/runs": "research_create",
+    "GET /experimental/research/v1/runs/{run_id}": "research_status",
+    "GET /experimental/research/v1/runs/{run_id}/events": "research_status",
+    "POST /experimental/research/v1/runs/{run_id}/cancel": "research_cancel",
+    "GET /experimental/research/v1/artifact-sets/{artifact_set_id}": "research_show",
+    "GET /experimental/research/v1/artifacts/{artifact_id}": "research_artifact",
+    "GET /experimental/research/v1/research/{research_id}/evidence/{snapshot_id}": "research_evidence",
+    "DELETE /experimental/research/v1/research/{research_id}": "research_delete",
 }
 
 
