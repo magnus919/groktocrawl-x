@@ -1,6 +1,6 @@
 {
   "schema_version": "runtime-comparison-manifest/1",
-  "status": "conformance_harness_ready_measurement_pending",
+  "status": "paired_measurement_recorded_decision_pending",
   "scope": "magnus919/groktocrawl-x only",
   "issue": 110,
   "adr": "0073",
@@ -31,11 +31,15 @@
     "quality_claim_authorized": false
   },
   "measurement": {
-    "paired_repetitions": 0,
-    "cold_runs": 0,
-    "warm_runs": 0,
+    "paired_repetitions": 30,
+    "cold_runs": 90,
+    "warm_runs": 90,
     "baseline_frozen": false,
-    "reason": "W1 comparative preflight and baseline evidence remain open"
+    "seed": 20260908,
+    "workloads": ["serial", "fanout_join", "wide_join"],
+    "conformance_failures": 0,
+    "evidence": "docs/experiments/evidence/runtime-comparison/2026-09-08/",
+    "reason": "W1 packet design is approved and incumbent observations are recorded; held-out eligibility, bounds review, and adoption decision remain open"
   },
   "hard_invariants": [
     "stable operation identity and input digest",
