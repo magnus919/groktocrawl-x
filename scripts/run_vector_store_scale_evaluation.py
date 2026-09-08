@@ -23,6 +23,7 @@ from scripts.run_vector_store_evaluation import (
     QdrantStore,
     QueryCase,
     VectorRecord,
+    _ranking_matches,
     reference_search,
 )
 
@@ -70,7 +71,7 @@ def _timed(function: Callable[[], Any]) -> tuple[Any, float]:
 
 def _query_gate(records: list[VectorRecord], query: QueryCase, actual: list[dict[str, Any]]) -> bool:
     expected = reference_search(records, query)
-    return [row["id"] for row in expected] == [row["id"] for row in actual]
+    return _ranking_matches(expected, actual)
 
 
 def _mixed_load(
