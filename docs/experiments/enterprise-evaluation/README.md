@@ -62,6 +62,12 @@ still only a harness and prompt check: 24 of 30 cases were graded, six failed at
 the output-contract layer, and the exposed corpus cannot support a quality or
 replacement claim.
 
+The corrected follow-up run is recorded in
+[`exploratory-local-2026-09-08/evaluation-summary.md`](exploratory-local-2026-09-08/evaluation-summary.md).
+It verifies failure-stage and call-budget accounting: 23 of 30 cases were graded,
+seven failed, and all 54 attempted model calls were counted. The additional run
+still remains exploratory and does not authorize a comparison.
+
 ## Review rubric and record
 
 For each anonymized answer, Hermes receives the exact question, complete source
