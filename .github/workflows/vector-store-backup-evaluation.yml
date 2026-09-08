@@ -75,14 +75,14 @@ jobs:
           docker compose -f compose.vector-evaluation.yml exec -T vector-eval-postgres \
             pg_dump -U vector_eval -d vector_eval --format=custom --no-owner --no-acl \
             > vector-backup-out/postgres.dump
-          chmod -R a+rw vector-backup-out
-          python - <<'PY'
+          docker exec "$RUNNER_ID" python - <<'PY'
           import hashlib, json
           from pathlib import Path
-          path = Path("vector-backup-out/postgres.dump")
-          packet = json.loads(Path("vector-backup-out/backup.json").read_text())
-          packet["postgres_backup"].update({"bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
-          Path("vector-backup-out/backup.json").write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
+          dump = Path("/out/postgres.dump")
+          packet_path = Path("/out/backup.json")
+          packet = json.loads(packet_path.read_text())
+          packet["postgres_backup"].update({"bytes": dump.stat().st_size, "sha256": hashlib.sha256(dump.read_bytes()).hexdigest()})
+          packet_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
           PY
 
       - name: Write deletion authority manifest
@@ -102,10 +102,10 @@ jobs:
           docker compose -f compose.vector-evaluation.yml exec -T vector-restore-postgres \
             pg_restore -U vector_eval -d vector_restore --no-owner --no-acl < vector-backup-out/postgres.dump
           restore_finished=$(date +%s%3N)
-          python - <<PY
+          docker exec "$RUNNER_ID" python - <<PY
           import json
           from pathlib import Path
-          path = Path("vector-backup-out/backup.json")
+          path = Path("/out/backup.json")
           packet = json.loads(path.read_text())
           packet["postgres_restore"] = {"duration_ms": int("$restore_finished") - int("$restore_started")}
           path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n")
