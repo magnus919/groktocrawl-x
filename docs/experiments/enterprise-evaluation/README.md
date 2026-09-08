@@ -68,6 +68,12 @@ It verifies failure-stage and call-budget accounting: 23 of 30 cases were graded
 seven failed, and all 54 attempted model calls were counted. The additional run
 still remains exploratory and does not authorize a comparison.
 
+The proposed input contract for the next gate is documented in
+[`heldout-packet-contract.md`](heldout-packet-contract.md), with a fail-closed
+validator at [`scripts/validate_heldout_packet.py`](../../../scripts/validate_heldout_packet.py).
+It checks uniqueness, source integrity, adverse-case coverage and an explicit
+access/isolation record, but it does not claim that a hash proves independence.
+
 ## Review rubric and record
 
 For each anonymized answer, Hermes receives the exact question, complete source
