@@ -75,6 +75,7 @@ jobs:
           docker compose -f compose.vector-evaluation.yml exec -T vector-eval-postgres \
             pg_dump -U vector_eval -d vector_eval --format=custom --no-owner --no-acl \
             > vector-backup-out/postgres.dump
+          chmod -R a+rw vector-backup-out
           python - <<'PY'
           import hashlib, json
           from pathlib import Path
