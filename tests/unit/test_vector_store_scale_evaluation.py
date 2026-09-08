@@ -47,6 +47,14 @@ def test_corpus_and_queries_are_deterministic():
     assert all(len(record.vector) == 3 for record in first)
 
 
+def test_corpus_supports_inherited_embedding_dimension():
+    records = vector_scale_eval.make_corpus(4, dimension=1024)
+
+    assert all(len(record.vector) == 1024 for record in records)
+    assert records == vector_scale_eval.make_corpus(4, dimension=1024)
+    assert all(abs(sum(value * value for value in record.vector) - 1.0) < 1e-9 for record in records)
+
+
 def test_fake_provider_passes_bounded_scale_and_mixed_load():
     result = vector_scale_eval._run_provider(
         "fake", FakeStore, [20], workers=2, operations=8, cleanup=True

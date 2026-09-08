@@ -17,6 +17,11 @@ on:
         required: false
         default: 3
         type: number
+      dimension:
+        description: Vector dimension (1024 matches the inherited BGE-M3 default)
+        required: false
+        default: 3
+        type: number
 
 permissions:
   contents: read
@@ -31,6 +36,7 @@ jobs:
       VECTOR_EVAL_RUN_ID: ${{ inputs.run_id || format('scale-{0}', github.run_id) }}
       VECTOR_EVAL_SIZES: ${{ inputs.sizes || '100,500,1000' }}
       VECTOR_EVAL_ROUNDS: ${{ inputs.rounds || 3 }}
+      VECTOR_EVAL_DIMENSION: ${{ inputs.dimension || 3 }}
     steps:
       - name: Check out fork
         uses: actions/checkout@v5
@@ -52,6 +58,7 @@ jobs:
             -e VECTOR_EVAL_RUN_ID \
             -e VECTOR_EVAL_SIZES \
             -e VECTOR_EVAL_ROUNDS \
+            -e VECTOR_EVAL_DIMENSION \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -v "$GITHUB_WORKSPACE/vector-scale-out:/out" \
             -w /workspace python:3.12-slim sleep 2400)
@@ -81,6 +88,7 @@ jobs:
                   --sizes "$VECTOR_EVAL_SIZES" \
                   --workers 4 \
                   --operations 80 \
+                  --dimension "$VECTOR_EVAL_DIMENSION" \
                   --allow-isolated-database \
                   --output "/out/${provider}-round-${round}.json"
               done

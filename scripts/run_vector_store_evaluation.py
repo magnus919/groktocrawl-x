@@ -172,7 +172,14 @@ class QdrantStore:
 
     name = "qdrant"
 
-    def __init__(self, url: str, collection: str, *, create: bool = True) -> None:
+    def __init__(
+        self,
+        url: str,
+        collection: str,
+        *,
+        create: bool = True,
+        dimension: int = DIMENSION,
+    ) -> None:
         from qdrant_client import QdrantClient, models
 
         self._models = models
@@ -182,7 +189,7 @@ class QdrantStore:
             self._client.recreate_collection(
                 collection_name=collection,
                 vectors_config=models.VectorParams(
-                    size=DIMENSION, distance=models.Distance.COSINE
+                    size=dimension, distance=models.Distance.COSINE
                 ),
             )
 
@@ -247,7 +254,14 @@ class PostgresStore:
 
     name = "pgvector"
 
-    def __init__(self, dsn: str, table: str, *, create: bool = True) -> None:
+    def __init__(
+        self,
+        dsn: str,
+        table: str,
+        *,
+        create: bool = True,
+        dimension: int = DIMENSION,
+    ) -> None:
         import psycopg
 
         self._conn = psycopg.connect(dsn, autocommit=True)
@@ -260,7 +274,7 @@ class PostgresStore:
                 f"""CREATE TABLE {self._schema}.{self._table} (
                     id text PRIMARY KEY,
                     scope text NOT NULL,
-                    embedding vector({DIMENSION}) NOT NULL,
+                    embedding vector({dimension}) NOT NULL,
                     deleted boolean NOT NULL DEFAULT false
                 )"""
             )
