@@ -36,13 +36,18 @@ jobs:
           qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
           eval_network=$(docker inspect "$qdrant_container" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
           echo "::add-mask::$VECTOR_EVAL_POSTGRES_PASSWORD"
-          docker run --rm --network "$eval_network" \
+          runner=$(docker run -d --network bridge \
             -e VECTOR_EVAL_POSTGRES_PASSWORD \
             -e VECTOR_EVAL_RUN_ID \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -v "$GITHUB_WORKSPACE/vector-evaluation-out:/out" \
-            -w /workspace \
-            python:3.12-slim sh -ceu '
+            -w /workspace python:3.12-slim sleep 600)
+          cleanup_runner() {
+            docker rm -f "$runner" >/dev/null 2>&1 || true
+          }
+          trap cleanup_runner EXIT
+          docker network connect "$eval_network" "$runner"
+          docker exec "$runner" sh -ceu '
               python -m pip install --disable-pip-version-check --no-cache-dir \
                 "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
               run_id_args=()
