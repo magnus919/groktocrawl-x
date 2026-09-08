@@ -1,0 +1,107 @@
+name: Vector Store Scale Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Optional stable identifier for this isolated scale run
+        required: false
+        type: string
+      sizes:
+        description: Comma-separated synthetic corpus sizes
+        required: false
+        default: 100,500,1000
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Measure bounded scale and mixed load
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: groktocrawl-x-vector-scale-${{ github.run_id }}
+      VECTOR_EVAL_POSTGRES_PASSWORD: vector-scale-${{ github.run_id }}-${{ github.run_attempt }}
+      VECTOR_EVAL_RUN_ID: ${{ inputs.run_id || format('scale-{0}', github.run_id) }}
+      VECTOR_EVAL_SIZES: ${{ inputs.sizes || '100,500,1000' }}
+    steps:
+      - name: Check out fork
+        uses: actions/checkout@v5
+
+      - name: Validate isolated Compose file
+        run: docker compose -f compose.vector-evaluation.yml --profile vector-eval config --quiet
+
+      - name: Start isolated vector services
+        run: docker compose -f compose.vector-evaluation.yml --profile vector-eval up -d --wait vector-eval-qdrant vector-eval-postgres
+
+      - name: Create private evaluation runner
+        run: |
+          mkdir -p vector-scale-out
+          qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
+          eval_network=$(docker inspect "$qdrant_container" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
+          echo "::add-mask::$VECTOR_EVAL_POSTGRES_PASSWORD"
+          runner=$(docker run -d --network bridge \
+            -e VECTOR_EVAL_POSTGRES_PASSWORD \
+            -e VECTOR_EVAL_RUN_ID \
+            -e VECTOR_EVAL_SIZES \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -v "$GITHUB_WORKSPACE/vector-scale-out:/out" \
+            -w /workspace python:3.12-slim sleep 2400)
+          echo "$runner" > runner-id
+          docker network connect "$eval_network" "$runner"
+          echo "RUNNER_ID=$runner" >> "$GITHUB_ENV"
+
+      - name: Run bounded scale and mixed-load probes
+        run: |
+          docker exec "$RUNNER_ID" sh -ceu '
+            python -m pip install --disable-pip-version-check --no-cache-dir \
+              "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
+            for provider in qdrant pgvector; do
+              python scripts/run_vector_store_scale_evaluation.py \
+                --provider "$provider" \
+                --qdrant-url http://vector-eval-qdrant:6333 \
+                --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
+                --run-id "$VECTOR_EVAL_RUN_ID" \
+                --sizes "$VECTOR_EVAL_SIZES" \
+                --workers 4 \
+                --operations 80 \
+                --allow-isolated-database \
+                --output "/out/${provider}.json"
+            done
+          '
+
+      - name: Capture isolated container resource snapshot
+        run: |
+          docker stats --no-stream --no-trunc \
+            $(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant vector-eval-postgres) \
+            > vector-scale-out/docker-stats.txt
+
+      - name: Enforce scale and mixed-load gates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for provider in ("qdrant", "pgvector"):
+              result = json.loads(Path(f"vector-scale-out/{provider}.json").read_text())
+              assert result["production_change"] is False
+              assert result["qdrant_removal"] is False
+              assert result["ok"] is True, result
+              assert all(item["ok"] for item in result["sizes"]), result
+              assert all(item["mixed_load"]["failed_operations"] == 0 for item in result["sizes"]), result
+          print("scale and mixed-load gates passed")
+          PY
+
+      - name: Upload scale evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: vector-store-scale-evaluation-${{ github.run_id }}
+          path: vector-scale-out/
+          if-no-files-found: warn
+
+      - name: Stop isolated vector services
+        if: always()
+        run: |
+          docker rm -f "$RUNNER_ID" >/dev/null 2>&1 || true
+          docker compose -f compose.vector-evaluation.yml --profile vector-eval down --volumes --remove-orphans --timeout 30
