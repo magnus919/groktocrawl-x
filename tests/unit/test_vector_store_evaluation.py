@@ -52,6 +52,45 @@ def test_reference_and_in_memory_store_enforce_soft_delete():
     assert result_ids == ["doc-002", "doc-003"]
 
 
+def test_postgres_upsert_batches_records_in_one_transaction():
+    calls = []
+
+    class Context:
+        def __init__(self, value):
+            self.value = value
+
+        def __enter__(self):
+            return self.value
+
+        def __exit__(self, *_args):
+            return False
+
+    class Cursor:
+        def executemany(self, statement, parameters):
+            calls.append((statement, parameters))
+
+    class Connection:
+        def transaction(self):
+            return Context(None)
+
+        def cursor(self):
+            return Context(Cursor())
+
+    store = vector_eval.PostgresStore.__new__(vector_eval.PostgresStore)
+    store._conn = Connection()
+    store._schema = "evaluation"
+    store._table = "vectors"
+    records = list(vector_eval.CORPUS[:3])
+
+    store.upsert(records)
+
+    assert len(calls) == 1
+    statement, parameters = calls[0]
+    assert "INSERT INTO evaluation.vectors" in statement
+    assert len(parameters) == len(records)
+    assert parameters[0][0] == records[0].record_id
+
+
 def test_gates_fail_closed_for_missing_or_wrong_results():
     evidence = {
         "ok": True,
