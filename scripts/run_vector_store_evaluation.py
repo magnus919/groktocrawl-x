@@ -270,14 +270,23 @@ class PostgresStore:
             )
 
     def upsert(self, records: list[VectorRecord]) -> None:
-        for record in records:
-            self._conn.execute(
-                f"""INSERT INTO {self._schema}.{self._table} (id, scope, embedding, deleted)
-                VALUES (%s, %s, %s::vector, %s)
-                ON CONFLICT (id) DO UPDATE SET scope = EXCLUDED.scope,
-                    embedding = EXCLUDED.embedding, deleted = EXCLUDED.deleted""",
-                (record.record_id, record.scope, _vector_literal(record.vector), record.deleted),
+        if not records:
+            return
+        statement = f"""INSERT INTO {self._schema}.{self._table} (id, scope, embedding, deleted)
+            VALUES (%s, %s, %s::vector, %s)
+            ON CONFLICT (id) DO UPDATE SET scope = EXCLUDED.scope,
+                embedding = EXCLUDED.embedding, deleted = EXCLUDED.deleted"""
+        parameters = [
+            (
+                record.record_id,
+                record.scope,
+                _vector_literal(record.vector),
+                record.deleted,
             )
+            for record in records
+        ]
+        with self._conn.transaction(), self._conn.cursor() as cursor:
+            cursor.executemany(statement, parameters)
 
     def search(self, query: QueryCase) -> list[dict[str, Any]]:
         rows = self._conn.execute(
