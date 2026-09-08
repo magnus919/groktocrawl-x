@@ -108,6 +108,13 @@ Qdrant and pgvector passed all six bounded scenarios. This closes only the
 failure-replay sub-gate; scale/footprint, sustained-load, provider migration/
 rollback and reversible-cutover evidence remain open.
 
+The manual [`Vector Store Scale Evaluation`](../../../.github/workflows/vector-store-scale-evaluation.yml)
+workflow is the next gate. It runs deterministic 100/500/1000-record fixture
+sizes with four workers and 80 mixed operations per provider, records p50/p95/p99
+latency and errors, and captures a container resource snapshot. It is a
+component-level isolated benchmark: the sizes and workload are evidence inputs,
+not production demand or capacity targets.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
