@@ -37,6 +37,12 @@ jobs:
       - name: Start isolated vector services
         run: docker compose -f compose.vector-evaluation.yml --profile vector-eval up -d --wait
 
+      - name: Verify host endpoints
+        run: |
+          docker compose -f compose.vector-evaluation.yml --profile vector-eval ps
+          docker compose -f compose.vector-evaluation.yml --profile vector-eval port vector-eval-qdrant 6333
+          curl --fail --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:16333/readyz
+
       - name: Run comparison harness
         env:
           VECTOR_EVAL_RUN_ID: ${{ inputs.run_id }}
