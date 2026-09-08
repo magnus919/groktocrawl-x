@@ -22,45 +22,41 @@ jobs:
       - name: Check out fork
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install evaluation clients
-        run: python -m pip install --disable-pip-version-check --no-cache-dir \
-          "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
-
       - name: Validate isolated Compose file
         run: docker compose -f compose.vector-evaluation.yml --profile vector-eval config --quiet
 
       - name: Start isolated vector services
         run: docker compose -f compose.vector-evaluation.yml --profile vector-eval up -d --wait
 
-      - name: Verify host endpoints
-        run: |
-          docker compose -f compose.vector-evaluation.yml --profile vector-eval ps
-          qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
-          docker inspect "$qdrant_container" --format '{{json .HostConfig.PortBindings}}'
-          curl --fail --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:16333/readyz
-
       - name: Run comparison harness
         env:
           VECTOR_EVAL_RUN_ID: ${{ inputs.run_id }}
         run: |
           mkdir -p vector-evaluation-out
+          qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
+          eval_network=$(docker inspect "$qdrant_container" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{end}}')
           echo "::add-mask::$VECTOR_EVAL_POSTGRES_PASSWORD"
-          run_id_args=()
-          if [ -n "${VECTOR_EVAL_RUN_ID:-}" ]; then
-            run_id_args=(--run-id "$VECTOR_EVAL_RUN_ID")
-          fi
-          python scripts/run_vector_store_evaluation.py \
-            --qdrant-url http://127.0.0.1:16333 \
-            --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@127.0.0.1:15432/vector_eval" \
-            --allow-isolated-database \
-            --cleanup \
-            "${run_id_args[@]}" \
-            --output vector-evaluation-out/evaluation.json
+          docker run --rm --network "$eval_network" \
+            -e VECTOR_EVAL_POSTGRES_PASSWORD \
+            -e VECTOR_EVAL_RUN_ID \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -v "$GITHUB_WORKSPACE/vector-evaluation-out:/out" \
+            -w /workspace \
+            python:3.12-slim sh -ceu '
+              python -m pip install --disable-pip-version-check --no-cache-dir \
+                "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
+              run_id_args=()
+              if [ -n "${VECTOR_EVAL_RUN_ID:-}" ]; then
+                run_id_args=(--run-id "$VECTOR_EVAL_RUN_ID")
+              fi
+              python scripts/run_vector_store_evaluation.py \
+                --qdrant-url http://vector-eval-qdrant:6333 \
+                --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
+                --allow-isolated-database \
+                --cleanup \
+                "${run_id_args[@]}" \
+                --output /out/evaluation.json
+            '
 
       - name: Enforce fixture gates
         run: |

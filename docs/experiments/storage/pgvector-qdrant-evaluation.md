@@ -55,9 +55,11 @@ Qdrant collection, or claim production performance.
 
 The fork also provides a manual [`Vector Store Evaluation`](../../../.github/workflows/vector-store-evaluation.yml)
 workflow. Run it from the repository Actions page when a hosted Docker runner
-is available; it uploads the JSON packet and fails closed if either candidate
-has provider errors or violates a fixture gate. Review that packet before
-adding workload rounds or proposing an ADR change.
+is available; it runs the harness inside the private Compose network (so the
+comparison does not depend on runner host-port behavior), uploads the JSON
+packet, and fails closed if either candidate has provider errors or violates a
+fixture gate. Review that packet before adding workload rounds or proposing an
+ADR change.
 
 ## Measures and gates
 
