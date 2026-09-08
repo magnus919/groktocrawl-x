@@ -1,6 +1,6 @@
 # Held-out packet contract
 
-Status: **validation contract only; no packet is frozen and no comparison is authorized**.
+Status: **packet isolated and eligible for this experiment; no comparison is authorized**.
 
 The future W1 packet is a separate directory with two files:
 
@@ -27,7 +27,10 @@ python3 scripts/validate_heldout_packet.py \
 ```
 
 The validator returns a candidate validation report and always leaves
-`held_out_eligible` false. Magnus must review the curator, access history and
-isolation mechanism and explicitly approve the packet before a separate step can
-mark it eligible. If the isolation claim cannot be supported, keep the packet
-exploratory and do not use it as held-out evidence.
+`held_out_eligible` false. That is deliberate: a hash and a structural check
+cannot prove independence. A separate named-review approval record must bind the
+reviewer, access-log digest, corpus digest, and isolation method before the
+packet can be marked eligible. The 2026-09-08 approval is summarized in
+[w1-heldout-approval-2026-09-08.md](w1-heldout-approval-2026-09-08.md); the raw
+approval record and packet remain outside the repository. Eligibility does not
+authorize a scored comparison or production adoption.
