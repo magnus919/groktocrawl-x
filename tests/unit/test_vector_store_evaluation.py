@@ -64,3 +64,19 @@ def test_gates_fail_closed_for_missing_or_wrong_results():
     assert gates["top_k_alpha-x"] is False
     assert gates["scope_alpha-x"] is False
     assert gates["deleted_doc_absent"] is False
+
+
+def test_ranking_gate_allows_order_changes_inside_score_ties():
+    expected = [
+        {"id": "doc-004", "score": 1.0},
+        {"id": "doc-005", "score": 0.0},
+        {"id": "doc-006", "score": 0.0},
+    ]
+    actual = [
+        {"id": "doc-004", "score": 1.0},
+        {"id": "doc-006", "score": 0.0},
+        {"id": "doc-005", "score": 0.0},
+    ]
+
+    assert vector_eval._ranking_matches(expected, actual)
+    assert not vector_eval._ranking_matches(expected, [actual[1], actual[0], actual[2]])
