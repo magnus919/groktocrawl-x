@@ -90,6 +90,12 @@ production migration or removal of Qdrant.
 The successful hosted rehearsal is preserved in the [fresh-target backup/restore
 evidence packet](../evidence/storage-vector-evaluation/2026-09-08-backup-restore/).
 
+The deterministic [failure-injection fixture packet](../evidence/storage-vector-evaluation/2026-09-08-failure-injection/)
+checks the fail-closed contract for write timeouts, partial writes, malformed
+search results, interrupted restore/migration, and deletion acknowledgement
+timeouts. It is provider-independent contract evidence only; hosted replay
+against isolated Qdrant and pgvector services remains required.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
