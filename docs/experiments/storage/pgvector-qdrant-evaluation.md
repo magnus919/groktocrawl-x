@@ -28,6 +28,31 @@ Run each workload in cold and warm conditions with the same host limits and rese
 
 The workload manifest must pin corpus and embedding hashes, vector dimension, distance metric, filter fields, row/point counts, concurrency, request mix, timeouts, cache state, randomization seed and stop conditions. Every workload keeps its full failure record; timeouts and malformed responses are failed trials.
 
+## First harness
+
+The opt-in Compose file [`compose.vector-evaluation.yml`](../../../compose.vector-evaluation.yml)
+starts a private PostgreSQL+pgvector service and a separate Qdrant service on
+loopback-only ports. It is intentionally a different Compose project from the
+application stack. With Docker Compose v2 and a private password:
+
+```sh
+export VECTOR_EVAL_POSTGRES_PASSWORD='use-a-private-value'
+docker compose -f compose.vector-evaluation.yml --profile vector-eval up -d --wait
+python scripts/run_vector_store_evaluation.py \
+  --qdrant-url http://127.0.0.1:16333 \
+  --postgres-dsn 'postgresql://vector_eval:use-a-private-value@127.0.0.1:15432/vector_eval' \
+  --allow-isolated-database \
+  --cleanup \
+  --output /tmp/groktocrawl-x-vector-evaluation.json
+docker compose -f compose.vector-evaluation.yml --profile vector-eval down
+```
+
+The harness uses a synthetic 3-dimensional corpus, a unique collection/table
+per run, filtered searches for two scopes, duplicate replay and a soft-delete
+check. It records provider failures instead of retrying them. The output is an
+evaluation artifact only: it does not select a backend, alter the inherited
+Qdrant collection, or claim production performance.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
