@@ -51,7 +51,11 @@ The harness uses a synthetic 3-dimensional corpus, a unique collection/table
 per run, filtered searches for two scopes, duplicate replay and a soft-delete
 check. It records provider failures instead of retrying them. The output is an
 evaluation artifact only: it does not select a backend, alter the inherited
-Qdrant collection, or claim production performance.
+Qdrant collection, or claim production performance. By default it runs one
+round. `--rounds N` repeats the workload against the same initialized provider
+resources, preserving each round in the artifact and aggregating latency and
+gate results. The first round follows provider initialization; later rounds
+are warm passes and must not be presented as cold-start measurements.
 
 The fork also provides a manual [`Vector Store Evaluation`](../../../.github/workflows/vector-store-evaluation.yml)
 workflow. Run it from the repository Actions page when a hosted Docker runner

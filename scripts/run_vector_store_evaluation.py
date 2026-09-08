@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-SCHEMA_VERSION = "vector-store-evaluation/1"
+SCHEMA_VERSION = "vector-store-evaluation/2"
 DIMENSION = 3
 
 
@@ -401,6 +401,38 @@ def _ranking_matches(
     )
 
 
+def _summarize_evidence(
+    store_name: str, rounds: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Combine repeated rounds without hiding an individual round failure."""
+    metrics: dict[str, list[float]] = {}
+    errors: list[dict[str, Any]] = []
+    for round_evidence in rounds:
+        for workload, values in round_evidence["metrics_ms"].items():
+            metrics.setdefault(workload, []).extend(values)
+        errors.extend(
+            {"round": round_evidence["round"], **error}
+            for error in round_evidence["errors"]
+        )
+    gates = {
+        gate: all(round_evidence["gates"].get(gate, False) for round_evidence in rounds)
+        for gate in rounds[0]["gates"]
+    }
+    return {
+        "name": store_name,
+        "ok": not errors and all(gates.values()),
+        "errors": errors,
+        "rounds": rounds,
+        "gates": gates,
+        "metrics_ms": metrics,
+        "latency_summary_ms": {
+            key: _percentiles(values) for key, values in metrics.items()
+        },
+        "searches": rounds[-1]["searches"],
+        "post_delete": rounds[-1].get("post_delete", {}),
+    }
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     if not args.allow_isolated_database:
         raise SystemExit("refusing provider access without --allow-isolated-database")
@@ -415,18 +447,23 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         ]
         candidates = []
         for store in stores:
-            evidence = evaluate_store(store, records)
-            evidence["gates"] = _check_gates(evidence, records)
-            evidence["latency_summary_ms"] = {
-                key: _percentiles(values)
-                for key, values in evidence["metrics_ms"].items()
-            }
-            candidates.append(evidence)
+            rounds = []
+            for round_number in range(1, args.rounds + 1):
+                round_evidence = evaluate_store(store, records)
+                round_evidence["round"] = round_number
+                round_evidence["gates"] = _check_gates(round_evidence, records)
+                round_evidence["latency_summary_ms"] = {
+                    key: _percentiles(values)
+                    for key, values in round_evidence["metrics_ms"].items()
+                }
+                rounds.append(round_evidence)
+            candidates.append(_summarize_evidence(store.name, rounds))
         return {
             "schema_version": SCHEMA_VERSION,
             "run_id": run_id,
             "created_at": datetime.now(UTC).isoformat(),
             "manifest": _manifest(),
+            "rounds": args.rounds,
             "candidates": candidates,
             "decision": "evaluation_only",
             "production_change": False,
@@ -443,9 +480,17 @@ def main() -> int:
     parser.add_argument("--postgres-dsn", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--run-id")
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        default=1,
+        help="number of repeated rounds per provider (first round starts from a fresh store)",
+    )
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--allow-isolated-database", action="store_true")
     args = parser.parse_args()
+    if args.rounds < 1:
+        parser.error("--rounds must be at least 1")
     result = run(args)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")

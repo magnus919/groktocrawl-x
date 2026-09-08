@@ -17,7 +17,7 @@ def test_manifest_is_pinned_and_deterministic():
     second = vector_eval._manifest()
 
     assert first == second
-    assert first["schema_version"] == "vector-store-evaluation/1"
+    assert first["schema_version"] == "vector-store-evaluation/2"
     assert first["dimension"] == 3
     assert first["record_count"] == 6
     assert len(first["corpus_sha256"]) == 64
@@ -80,3 +80,31 @@ def test_ranking_gate_allows_order_changes_inside_score_ties():
 
     assert vector_eval._ranking_matches(expected, actual)
     assert not vector_eval._ranking_matches(expected, [actual[1], actual[0], actual[2]])
+
+
+def test_repeated_round_summary_fails_closed_when_any_round_fails():
+    round_one = {
+        "round": 1,
+        "errors": [],
+        "metrics_ms": {"filtered_search": [1.0]},
+        "searches": [],
+        "gates": {"provider_ok": True, "scope_alpha-x": True},
+        "post_delete": {},
+    }
+    round_two = {
+        "round": 2,
+        "errors": [{"workload": "filtered_search", "error": "timeout"}],
+        "metrics_ms": {"filtered_search": [2.0]},
+        "searches": [],
+        "gates": {"provider_ok": False, "scope_alpha-x": False},
+        "post_delete": {},
+    }
+
+    summary = vector_eval._summarize_evidence("fixture", [round_one, round_two])
+
+    assert summary["ok"] is False
+    assert summary["gates"] == {"provider_ok": False, "scope_alpha-x": False}
+    assert summary["latency_summary_ms"]["filtered_search"]["p50"] == 2.0
+    assert summary["errors"] == [
+        {"round": 2, "workload": "filtered_search", "error": "timeout"}
+    ]
