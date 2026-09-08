@@ -17,7 +17,7 @@ def test_manifest_is_pinned_and_deterministic():
     second = vector_eval._manifest()
 
     assert first == second
-    assert first["schema_version"] == "vector-store-evaluation/2"
+    assert first["schema_version"] == "vector-store-evaluation/3"
     assert first["dimension"] == 3
     assert first["record_count"] == 6
     assert len(first["corpus_sha256"]) == 64
@@ -112,3 +112,28 @@ def test_repeated_round_summary_fails_closed_when_any_round_fails():
     assert summary["errors"] == [
         {"round": 2, "workload": "filtered_search", "error": "timeout"}
     ]
+
+
+def test_concurrency_workload_uses_independent_clients_and_reports_mix():
+    class FakeStore:
+        name = "fixture"
+
+        def upsert(self, records):
+            del records
+
+        def search(self, query):
+            return vector_eval.reference_search(list(vector_eval.CORPUS), query)
+
+        def close(self, cleanup):
+            del cleanup
+
+    result = vector_eval.evaluate_concurrency(
+        FakeStore, list(vector_eval.CORPUS), workers=2, operations=8
+    )
+
+    assert result["ok"] is True
+    assert result["successful_operations"] == 8
+    assert result["failed_operations"] == 0
+    assert result["metrics_ms"].keys() == {"upsert", "search"}
+    assert result["throughput_ops_s"] > 0
+    assert result["latency_summary_ms"]["search"]["p99"] >= 0

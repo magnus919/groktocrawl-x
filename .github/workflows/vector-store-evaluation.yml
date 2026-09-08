@@ -17,6 +17,16 @@ on:
         required: false
         default: false
         type: boolean
+      concurrency_workers:
+        description: Independent clients for the optional mixed workload (0 disables it)
+        required: false
+        default: "0"
+        type: string
+      concurrency_operations:
+        description: Total mixed operations per provider when concurrency is enabled
+        required: false
+        default: "40"
+        type: string
 
 permissions:
   contents: read
@@ -43,6 +53,8 @@ jobs:
           VECTOR_EVAL_RUN_ID: ${{ inputs.run_id }}
           VECTOR_EVAL_ROUNDS: ${{ inputs.rounds }}
           VECTOR_EVAL_FRESH_EACH_ROUND: ${{ inputs.fresh_each_round }}
+          VECTOR_EVAL_CONCURRENCY_WORKERS: ${{ inputs.concurrency_workers }}
+          VECTOR_EVAL_CONCURRENCY_OPERATIONS: ${{ inputs.concurrency_operations }}
         run: |
           mkdir -p vector-evaluation-out
           qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
@@ -53,6 +65,8 @@ jobs:
             -e VECTOR_EVAL_RUN_ID \
             -e VECTOR_EVAL_ROUNDS \
             -e VECTOR_EVAL_FRESH_EACH_ROUND \
+            -e VECTOR_EVAL_CONCURRENCY_WORKERS \
+            -e VECTOR_EVAL_CONCURRENCY_OPERATIONS \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -v "$GITHUB_WORKSPACE/vector-evaluation-out:/out" \
             -w /workspace python:3.12-slim sleep 600)
@@ -68,6 +82,10 @@ jobs:
             if [ "${VECTOR_EVAL_FRESH_EACH_ROUND:-false}" = "true" ]; then
               fresh_args="--fresh-each-round"
             fi
+            concurrency_args=""
+            if [ "${VECTOR_EVAL_CONCURRENCY_WORKERS:-0}" -gt 0 ]; then
+              concurrency_args="--concurrency-workers ${VECTOR_EVAL_CONCURRENCY_WORKERS} --concurrency-operations ${VECTOR_EVAL_CONCURRENCY_OPERATIONS}"
+            fi
               if [ -n "${VECTOR_EVAL_RUN_ID:-}" ]; then
                 python scripts/run_vector_store_evaluation.py \
                   --qdrant-url http://vector-eval-qdrant:6333 \
@@ -77,6 +95,7 @@ jobs:
                   --rounds "$VECTOR_EVAL_ROUNDS" \
                   --run-id "$VECTOR_EVAL_RUN_ID" \
                   $fresh_args \
+                  $concurrency_args \
                   --output /out/evaluation.json
               else
                 python scripts/run_vector_store_evaluation.py \
@@ -86,6 +105,7 @@ jobs:
                   --cleanup \
                   --rounds "$VECTOR_EVAL_ROUNDS" \
                   $fresh_args \
+                  $concurrency_args \
                   --output /out/evaluation.json
               fi
             '
