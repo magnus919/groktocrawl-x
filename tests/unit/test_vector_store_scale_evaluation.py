@@ -71,3 +71,40 @@ def test_query_gate_allows_provider_order_inside_exact_score_ties():
     ]
 
     assert vector_scale_eval._query_gate(records, query, actual)
+
+
+def test_query_gate_allows_equivalent_item_at_tied_cutoff():
+    records = [
+        vector_scale_eval.VectorRecord("a", "scope", (1.0, 0.0, 0.0)),
+        vector_scale_eval.VectorRecord("b", "scope", (0.8, 0.2, 0.0)),
+        vector_scale_eval.VectorRecord("c", "scope", (0.0, 1.0, 0.0)),
+        vector_scale_eval.VectorRecord("d", "scope", (0.0, 1.0, 0.0)),
+    ]
+    query = vector_scale_eval.QueryCase("q", "scope", (1.0, 0.0, 0.0), limit=3)
+    actual = [
+        {"id": "a", "score": 1.0},
+        {"id": "b", "score": vector_scale_eval.cosine_similarity(records[1].vector, query.vector)},
+        {"id": "d", "score": 0.0},
+    ]
+
+    assert vector_scale_eval._query_gate(records, query, actual)
+
+
+def test_query_gate_rejects_wrong_scope_or_missing_strictly_better_result():
+    records = [
+        vector_scale_eval.VectorRecord("a", "scope", (1.0, 0.0, 0.0)),
+        vector_scale_eval.VectorRecord("b", "scope", (0.8, 0.2, 0.0)),
+        vector_scale_eval.VectorRecord("c", "scope", (0.0, 1.0, 0.0)),
+        vector_scale_eval.VectorRecord("foreign", "other", (1.0, 0.0, 0.0)),
+    ]
+    query = vector_scale_eval.QueryCase("q", "scope", (1.0, 0.0, 0.0), limit=3)
+
+    assert not vector_scale_eval._query_gate(
+        records,
+        query,
+        [
+            {"id": "foreign", "score": 1.0},
+            {"id": "b", "score": 0.97},
+            {"id": "c", "score": 0.0},
+        ],
+    )

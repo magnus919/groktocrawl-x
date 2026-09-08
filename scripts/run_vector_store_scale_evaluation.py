@@ -12,6 +12,7 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,7 @@ from scripts.run_vector_store_evaluation import (
     QdrantStore,
     QueryCase,
     VectorRecord,
-    _ranking_matches,
+    cosine_similarity,
     reference_search,
 )
 
@@ -69,9 +70,46 @@ def _timed(function: Callable[[], Any]) -> tuple[Any, float]:
     return result, (time.perf_counter() - started) * 1000
 
 
-def _query_gate(records: list[VectorRecord], query: QueryCase, actual: list[dict[str, Any]]) -> bool:
+def _query_gate(
+    records: list[VectorRecord],
+    query: QueryCase,
+    actual: list[dict[str, Any]],
+    tolerance: float = 1e-5,
+) -> bool:
+    """Accept any valid member of a score tie at the top-k cutoff."""
     expected = reference_search(records, query)
-    return _ranking_matches(expected, actual)
+    if len(actual) != len(expected):
+        return False
+    eligible = {
+        record.record_id: cosine_similarity(record.vector, query.vector)
+        for record in records
+        if record.scope == query.scope and not record.deleted
+    }
+    actual_ids = [str(row.get("id")) for row in actual]
+    if len(set(actual_ids)) != len(actual_ids) or any(
+        record_id not in eligible for record_id in actual_ids
+    ):
+        return False
+    for row, record_id in zip(actual, actual_ids, strict=True):
+        if not isinstance(row.get("score"), (int, float)):
+            return False
+        if abs(float(row["score"]) - eligible[record_id]) > tolerance:
+            return False
+    actual_scores = [float(row["score"]) for row in actual]
+    if any(
+        later > earlier + tolerance
+        for earlier, later in pairwise(actual_scores)
+    ):
+        return False
+    if not expected:
+        return True
+    cutoff = float(expected[-1]["score"])
+    strictly_better = {
+        record_id for record_id, score in eligible.items() if score > cutoff + tolerance
+    }
+    return strictly_better.issubset(actual_ids) and all(
+        score >= cutoff - tolerance for score in actual_scores
+    )
 
 
 def _mixed_load(
