@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight-draft/1",
-  "status": "blocked_pending_review_and_baseline",
+  "status": "blocked_pending_bounds_and_authorization",
   "comparison_authorized": false,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -356,6 +356,27 @@
     "approval_record": "private packet approval.json; sanitized summary docs/experiments/enterprise-evaluation/w1-heldout-approval-2026-09-08.md",
     "comparison_authorized": false,
     "production_adoption": false
+  },
+  "baseline_observation": {
+    "status": "incumbent_answer_run_complete",
+    "arm": "A",
+    "commit": "34b4975bc7baaf25510ed34029b957f95b59de70",
+    "model_alias": "local",
+    "external_provider_budget_usd": 0,
+    "cases_attempted": 30,
+    "valid_answers": 29,
+    "malformed_or_failed_answers": 1,
+    "prompt_tokens": 5944,
+    "completion_tokens": 2444,
+    "total_tokens": 8388,
+    "answer_latency_ms": {
+      "p50": 6424,
+      "p95": 8283
+    },
+    "quality_score": null,
+    "comparison_authorized": false,
+    "production_adoption": false,
+    "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
     "freeze numerical quality, latency, resource and budget bounds from the incumbent observations",
