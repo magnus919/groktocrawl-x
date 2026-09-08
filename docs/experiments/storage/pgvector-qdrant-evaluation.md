@@ -78,6 +78,15 @@ without recreating the collection or table, and verifies retrieval plus
 deletion continuity. It is restart evidence only; it does not replace the
 backup/restore rehearsal or establish recovery authority.
 
+The manual [`Vector Store Backup Evaluation`](../../../.github/workflows/vector-store-backup-evaluation.yml)
+workflow creates a Qdrant collection snapshot and a PostgreSQL custom-format
+`pg_dump`, restores each into fresh isolated services, applies the checked-in
+deletion authority manifest, and verifies retrieval and deletion continuity.
+It records backup bytes and hashes, restore timing, the manifest hash, and
+provider failures as evidence. A successful rehearsal proves only that this
+fixture can be recovered with the tested procedure; it does not authorize
+production migration or removal of Qdrant.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
