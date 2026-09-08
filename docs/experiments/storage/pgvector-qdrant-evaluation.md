@@ -72,6 +72,12 @@ workload with one provider client per worker; they are incompatible with fresh
 rounds and remain disabled by default. Review that packet before proposing an
 ADR change.
 
+The separate manual [`Vector Store Restart Evaluation`](../../../.github/workflows/vector-store-restart-evaluation.yml)
+workflow seeds both isolated providers, restarts their containers, reconnects
+without recreating the collection or table, and verifies retrieval plus
+deletion continuity. It is restart evidence only; it does not replace the
+backup/restore rehearsal or establish recovery authority.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
