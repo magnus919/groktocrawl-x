@@ -12,6 +12,11 @@ on:
         required: false
         default: "3"
         type: string
+      fresh_each_round:
+        description: Recreate provider resources for every round
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -37,6 +42,7 @@ jobs:
         env:
           VECTOR_EVAL_RUN_ID: ${{ inputs.run_id }}
           VECTOR_EVAL_ROUNDS: ${{ inputs.rounds }}
+          VECTOR_EVAL_FRESH_EACH_ROUND: ${{ inputs.fresh_each_round }}
         run: |
           mkdir -p vector-evaluation-out
           qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
@@ -46,6 +52,7 @@ jobs:
             -e VECTOR_EVAL_POSTGRES_PASSWORD \
             -e VECTOR_EVAL_RUN_ID \
             -e VECTOR_EVAL_ROUNDS \
+            -e VECTOR_EVAL_FRESH_EACH_ROUND \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -v "$GITHUB_WORKSPACE/vector-evaluation-out:/out" \
             -w /workspace python:3.12-slim sleep 600)
@@ -57,6 +64,10 @@ jobs:
           docker exec "$runner" sh -ceu '
             python -m pip install --disable-pip-version-check --no-cache-dir \
               "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
+            fresh_args=""
+            if [ "${VECTOR_EVAL_FRESH_EACH_ROUND:-false}" = "true" ]; then
+              fresh_args="--fresh-each-round"
+            fi
               if [ -n "${VECTOR_EVAL_RUN_ID:-}" ]; then
                 python scripts/run_vector_store_evaluation.py \
                   --qdrant-url http://vector-eval-qdrant:6333 \
@@ -65,6 +76,7 @@ jobs:
                   --cleanup \
                   --rounds "$VECTOR_EVAL_ROUNDS" \
                   --run-id "$VECTOR_EVAL_RUN_ID" \
+                  $fresh_args \
                   --output /out/evaluation.json
               else
                 python scripts/run_vector_store_evaluation.py \
@@ -73,6 +85,7 @@ jobs:
                   --allow-isolated-database \
                   --cleanup \
                   --rounds "$VECTOR_EVAL_ROUNDS" \
+                  $fresh_args \
                   --output /out/evaluation.json
               fi
             '
