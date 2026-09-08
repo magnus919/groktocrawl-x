@@ -115,6 +115,15 @@ latency and errors, and captures a container resource snapshot. It is a
 component-level isolated benchmark: the sizes and workload are evidence inputs,
 not production demand or capacity targets.
 
+The first successful hosted run is preserved in the [2026-09-08 scale evidence
+packet](../evidence/storage-vector-evaluation/2026-09-08-scale-r3/). Both
+providers passed the corrected correctness gates and completed 240 mixed
+operations without a recorded failure. The packet is a pass with gaps: the
+current Qdrant bulk path is batched while the pgvector bulk path commits rows
+individually, and the resource capture is one post-run snapshot. Equivalent
+write batching, representative dimensions and scale, sustained-load resource
+series, migration/rollback, and reversible cutover remain open.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
