@@ -111,6 +111,11 @@ def _vector_literal(vector: tuple[float, ...]) -> str:
     return "[" + ",".join(format(value, ".17g") for value in vector) + "]"
 
 
+def _qdrant_point_id(record_id: str) -> int:
+    """Map a fixture ID to Qdrant's supported unsigned integer point ID."""
+    return int.from_bytes(hashlib.sha256(record_id.encode()).digest()[:8], "big")
+
+
 def _manifest() -> dict[str, Any]:
     corpus_payload = [
         {
@@ -182,9 +187,13 @@ class QdrantStore:
             collection_name=self._collection,
             points=[
                 self._models.PointStruct(
-                    id=record.record_id,
+                    id=_qdrant_point_id(record.record_id),
                     vector=list(record.vector),
-                    payload={"scope": record.scope, "deleted": record.deleted},
+                    payload={
+                        "record_id": record.record_id,
+                        "scope": record.scope,
+                        "deleted": record.deleted,
+                    },
                 )
                 for record in records
             ],
@@ -192,9 +201,9 @@ class QdrantStore:
         )
 
     def search(self, query: QueryCase) -> list[dict[str, Any]]:
-        points = self._client.search(
+        response = self._client.query_points(
             collection_name=self._collection,
-            query_vector=list(query.vector),
+            query=list(query.vector),
             query_filter=self._models.Filter(
                 must=[
                     self._models.FieldCondition(
@@ -207,13 +216,19 @@ class QdrantStore:
             ),
             limit=query.limit,
         )
-        return [{"id": str(point.id), "score": float(point.score)} for point in points]
+        return [
+            {
+                "id": str((point.payload or {}).get("record_id", point.id)),
+                "score": float(point.score),
+            }
+            for point in response.points
+        ]
 
     def delete(self, record_id: str) -> None:
         self._client.set_payload(
             collection_name=self._collection,
             payload={"deleted": True},
-            points=[record_id],
+            points=[_qdrant_point_id(record_id)],
             wait=True,
         )
 

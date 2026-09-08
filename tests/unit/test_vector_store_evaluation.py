@@ -23,6 +23,15 @@ def test_manifest_is_pinned_and_deterministic():
     assert len(first["corpus_sha256"]) == 64
 
 
+def test_qdrant_point_ids_are_supported_and_stable():
+    first = vector_eval._qdrant_point_id("doc-001")
+    second = vector_eval._qdrant_point_id("doc-002")
+
+    assert first == vector_eval._qdrant_point_id("doc-001")
+    assert first != second
+    assert 0 <= first < 2**64
+
+
 def test_reference_search_filters_scope_and_ranks_cosine():
     results = vector_eval.reference_search(list(vector_eval.CORPUS), vector_eval.QUERIES[0])
 
