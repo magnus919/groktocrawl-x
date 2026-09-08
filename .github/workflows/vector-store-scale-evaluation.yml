@@ -12,6 +12,11 @@ on:
         required: false
         default: 100,500,1000
         type: string
+      rounds:
+        description: Paired repetitions against fresh provider resources
+        required: false
+        default: 3
+        type: number
 
 permissions:
   contents: read
@@ -25,6 +30,7 @@ jobs:
       VECTOR_EVAL_POSTGRES_PASSWORD: vector-scale-${{ github.run_id }}-${{ github.run_attempt }}
       VECTOR_EVAL_RUN_ID: ${{ inputs.run_id || format('scale-{0}', github.run_id) }}
       VECTOR_EVAL_SIZES: ${{ inputs.sizes || '100,500,1000' }}
+      VECTOR_EVAL_ROUNDS: ${{ inputs.rounds || 3 }}
     steps:
       - name: Check out fork
         uses: actions/checkout@v5
@@ -45,6 +51,7 @@ jobs:
             -e VECTOR_EVAL_POSTGRES_PASSWORD \
             -e VECTOR_EVAL_RUN_ID \
             -e VECTOR_EVAL_SIZES \
+            -e VECTOR_EVAL_ROUNDS \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -v "$GITHUB_WORKSPACE/vector-scale-out:/out" \
             -w /workspace python:3.12-slim sleep 2400)
@@ -57,17 +64,26 @@ jobs:
           docker exec "$RUNNER_ID" sh -ceu '
             python -m pip install --disable-pip-version-check --no-cache-dir \
               "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
-            for provider in qdrant pgvector; do
-              python scripts/run_vector_store_scale_evaluation.py \
-                --provider "$provider" \
-                --qdrant-url http://vector-eval-qdrant:6333 \
-                --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
-                --run-id "$VECTOR_EVAL_RUN_ID" \
-                --sizes "$VECTOR_EVAL_SIZES" \
-                --workers 4 \
-                --operations 80 \
-                --allow-isolated-database \
-                --output "/out/${provider}.json"
+            case "$VECTOR_EVAL_ROUNDS" in
+              ""|*[!0-9]*) echo "rounds must be an integer" >&2; exit 2 ;;
+            esac
+            [ "$VECTOR_EVAL_ROUNDS" -ge 1 ] && [ "$VECTOR_EVAL_ROUNDS" -le 10 ] || {
+              echo "rounds must be between 1 and 10" >&2
+              exit 2
+            }
+            for round in $(seq 1 "$VECTOR_EVAL_ROUNDS"); do
+              for provider in qdrant pgvector; do
+                python scripts/run_vector_store_scale_evaluation.py \
+                  --provider "$provider" \
+                  --qdrant-url http://vector-eval-qdrant:6333 \
+                  --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
+                  --run-id "${VECTOR_EVAL_RUN_ID}-round-${round}" \
+                  --sizes "$VECTOR_EVAL_SIZES" \
+                  --workers 4 \
+                  --operations 80 \
+                  --allow-isolated-database \
+                  --output "/out/${provider}-round-${round}.json"
+              done
             done
           '
 
@@ -81,14 +97,18 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           for provider in ("qdrant", "pgvector"):
-              result = json.loads(Path(f"vector-scale-out/{provider}.json").read_text())
-              assert result["production_change"] is False
-              assert result["qdrant_removal"] is False
-              assert result["ok"] is True, result
-              assert all(item["ok"] for item in result["sizes"]), result
-              assert all(item["mixed_load"]["failed_operations"] == 0 for item in result["sizes"]), result
+              paths = sorted(Path("vector-scale-out").glob(f"{provider}-round-*.json"))
+              assert len(paths) == int(os.environ["VECTOR_EVAL_ROUNDS"]), paths
+              for path in paths:
+                  result = json.loads(path.read_text())
+                  assert result["production_change"] is False
+                  assert result["qdrant_removal"] is False
+                  assert result["ok"] is True, result
+                  assert all(item["ok"] for item in result["sizes"]), result
+                  assert all(item["mixed_load"]["failed_operations"] == 0 for item in result["sizes"]), result
           print("scale and mixed-load gates passed")
           PY
 

@@ -5,11 +5,21 @@ import sys
 from pathlib import Path
 
 SCRIPT = Path(__file__).parents[2] / "scripts" / "run_vector_store_scale_evaluation.py"
+WORKFLOW = Path(__file__).parents[2] / ".github/workflows/vector-store-scale-evaluation.yml"
 SPEC = importlib.util.spec_from_file_location("vector_scale_eval", SCRIPT)
 assert SPEC and SPEC.loader
 vector_scale_eval = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = vector_scale_eval
 SPEC.loader.exec_module(vector_scale_eval)
+
+
+def test_hosted_workflow_runs_paired_repetitions_by_default():
+    workflow = WORKFLOW.read_text()
+
+    assert "default: 3" in workflow
+    assert 'for round in $(seq 1 "$VECTOR_EVAL_ROUNDS")' in workflow
+    assert '${provider}-round-${round}.json' in workflow
+    assert 'len(paths) == int(os.environ["VECTOR_EVAL_ROUNDS"])' in workflow
 
 
 class FakeStore:
