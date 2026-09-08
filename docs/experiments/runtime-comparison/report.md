@@ -36,7 +36,14 @@ overhead in this harness, including one retained first-run outlier, while both
 adapters produced equivalent accounting and outputs.
 
 The measurement is not a quality result, checkpoint/recovery proof, or production
-selection. `baseline_frozen` remains false because the W1 packet still needs named
-isolation review and numerical bounds review. The imperative implementation remains
-the reference and LangGraph remains an experimental candidate until ADR-0073 is
-decided with the remaining W5/W6 evidence.
+selection. A second repeated measurement is recorded in
+[`docs/experiments/evidence/runtime-comparison/2026-09-09/`](../evidence/runtime-comparison/2026-09-09/).
+It uses a new fixed seed and repeats the same 30-per-workload cold/warm design;
+all 360 additional records again conformed. The fresh-process cold lane shows
+LangGraph graph-construction overhead (p50 181–194 ms versus 0.8–1.7 ms for the
+imperative reference); the warm lane shows p50 3.3–5.1 ms versus 0.7–1.5 ms.
+These are fixture observations, not end-to-end product bounds. `baseline_frozen`
+remains false because the W1 numerical bounds and scoring protocol are still
+unresolved. The imperative implementation remains the reference and LangGraph
+remains an experimental candidate until ADR-0073 is decided with the remaining
+W5/W6 evidence.
