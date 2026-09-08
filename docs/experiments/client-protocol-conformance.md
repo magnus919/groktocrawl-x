@@ -25,11 +25,10 @@ deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
 violations. The run adapter tests also cover foreign-scope reads and mutations plus
 deleting a root while execution is still running; a late completion remains tombstoned
 from status, events, artifacts and session attachment. The run adapter is still a bounded fixture implementation, not
-production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130)
-and remains subject to hosted review. W6 remains open until durable recovery and the full authorization/deletion race
+production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130). W6 remains open until durable recovery and the full authorization/deletion race
 matrix are implemented and reviewed; bounded scope-isolation and deletion-tombstone
 evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133). The
-durable status-recovery and cancellation route slice is merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact-byte and terminal event-history recovery is under review in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). It does not yet claim provider-effect or production artifact-store recovery.
+durable status-recovery and cancellation route slice is merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact-byte and terminal event-history recovery is merged in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). It does not yet claim provider-effect or production artifact-store recovery.
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and
