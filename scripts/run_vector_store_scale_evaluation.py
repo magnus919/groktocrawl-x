@@ -43,16 +43,24 @@ def _percentiles(values: list[float]) -> dict[str, float] | None:
     }
 
 
-def _vector(index: int) -> tuple[float, float, float]:
+def _vector(index: int, dimension: int = 3) -> tuple[float, ...]:
     """Generate deterministic, non-zero vectors without external embeddings."""
-    values = ((index * 17) % 101 + 1, (index * 31) % 101 + 1, (index * 47) % 101 + 1)
+    values = tuple(
+        (index * (17 + coordinate * 14 + (2 if coordinate >= 2 else 0))) % 101
+        + 1
+        for coordinate in range(dimension)
+    )
     magnitude = math.sqrt(sum(value * value for value in values))
     return tuple(value / magnitude for value in values)
 
 
-def make_corpus(size: int) -> list[VectorRecord]:
+def make_corpus(size: int, dimension: int = 3) -> list[VectorRecord]:
     return [
-        VectorRecord(f"scale-{index:05d}", f"scope-{index % 4}", _vector(index))
+        VectorRecord(
+            f"scale-{index:05d}",
+            f"scope-{index % 4}",
+            _vector(index, dimension),
+        )
         for index in range(size)
     ]
 
@@ -170,11 +178,12 @@ def _run_provider(
     workers: int,
     operations: int,
     cleanup: bool,
+    dimension: int = 3,
 ) -> dict[str, Any]:
     scale_results: list[dict[str, Any]] = []
     resource_names: list[str] = []
     for size in sizes:
-        records = make_corpus(size)
+        records = make_corpus(size, dimension)
         queries = make_queries(records)
         resource_suffix = f"size_{size}"
         store = factory(resource_suffix, True)
@@ -238,13 +247,25 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 args.qdrant_url,
                 f"groktocrawl_x_scale_{safe_id}_{suffix}",
                 create=create,
+                dimension=args.dimension,
             )
     else:
         def factory(suffix: str, create: bool) -> Any:
             return PostgresStore(
-                args.postgres_dsn, f"scale_{safe_id}_{suffix}", create=create
+                args.postgres_dsn,
+                f"scale_{safe_id}_{suffix}",
+                create=create,
+                dimension=args.dimension,
             )
-    result = _run_provider(args.provider, factory, args.sizes, args.workers, args.operations, args.cleanup)
+    result = _run_provider(
+        args.provider,
+        factory,
+        args.sizes,
+        args.workers,
+        args.operations,
+        args.cleanup,
+        args.dimension,
+    )
     result.update({
         "schema_version": SCHEMA_VERSION,
         "run_id": args.run_id,
@@ -254,8 +275,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "workers": args.workers,
             "operations": args.operations,
             "random_seed": 0,
-            "embedding_model": "fixture-vector-3d-v1",
-            "dimension": 3,
+            "embedding_model": f"deterministic-fixture-vector-{args.dimension}d-v1",
+            "dimension": args.dimension,
             "distance": "cosine",
             "corpus_family": "deterministic synthetic scale corpus",
         },
@@ -276,6 +297,7 @@ def main() -> int:
     parser.add_argument("--sizes", default="100,500,1000")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--operations", type=int, default=80)
+    parser.add_argument("--dimension", type=int, default=3)
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--allow-isolated-database", action="store_true")
     args = parser.parse_args()
@@ -284,6 +306,8 @@ def main() -> int:
         parser.error("--sizes must contain integers >= 4")
     if args.workers < 1 or args.operations < 1:
         parser.error("--workers and --operations must be positive")
+    if args.dimension < 1 or args.dimension > 2000:
+        parser.error("--dimension must be between 1 and 2000")
     result = run(args)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
