@@ -40,6 +40,8 @@ jobs:
       - name: Verify host endpoints
         run: |
           docker compose -f compose.vector-evaluation.yml --profile vector-eval ps
+          qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
+          docker inspect "$qdrant_container" --format '{{json .HostConfig.PortBindings}}'
           curl --fail --retry 30 --retry-delay 2 --retry-connrefused http://127.0.0.1:16333/readyz
 
       - name: Run comparison harness
