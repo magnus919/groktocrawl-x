@@ -352,8 +352,7 @@ def _check_gates(
         expected = reference_search(records, query)
         actual = by_query.get(query.query_id, [])
         expected_ids = [item["id"] for item in expected]
-        actual_ids = [item["id"] for item in actual]
-        checks[f"top_k_{query.query_id}"] = actual_ids == expected_ids
+        checks[f"top_k_{query.query_id}"] = _ranking_matches(expected, actual)
         checks[f"scope_{query.query_id}"] = all(
             item["id"] in expected_ids for item in actual
         )
@@ -372,6 +371,34 @@ def _percentiles(values: list[float]) -> dict[str, float] | None:
         "p95": ordered[min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1)],
         "mean": statistics.fmean(ordered),
     }
+
+
+def _ranking_matches(
+    expected: list[dict[str, Any]], actual: list[dict[str, Any]], tolerance: float = 1e-5
+) -> bool:
+    """Compare ranked results while allowing arbitrary order inside score ties."""
+    if len(expected) != len(actual):
+        return False
+
+    def groups(results: list[dict[str, Any]]) -> list[tuple[float, set[str]]]:
+        output: list[tuple[float, set[str]]] = []
+        for result in results:
+            score = float(result["score"])
+            if output and abs(score - output[-1][0]) <= tolerance:
+                output[-1][1].add(str(result["id"]))
+            else:
+                output.append((score, {str(result["id"])}))
+        return output
+
+    expected_groups = groups(expected)
+    actual_groups = groups(actual)
+    return len(expected_groups) == len(actual_groups) and all(
+        abs(expected_group[0] - actual_group[0]) <= tolerance
+        and expected_group[1] == actual_group[1]
+        for expected_group, actual_group in zip(
+            expected_groups, actual_groups, strict=True
+        )
+    )
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
