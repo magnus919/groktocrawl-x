@@ -102,6 +102,12 @@ retains provider errors and raw JSON evidence, and fails closed if a provider
 reports success after an injected failure. It is opt-in, destroys only its
 private evaluation resources, and does not change the application stack.
 
+The first successful provider replay is preserved in the [2026-09-08 evidence
+packet](../evidence/storage-vector-evaluation/2026-09-08-provider-fault/). Both
+Qdrant and pgvector passed all six bounded scenarios. This closes only the
+failure-replay sub-gate; scale/footprint, sustained-load, provider migration/
+rollback and reversible-cutover evidence remain open.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
