@@ -176,7 +176,7 @@ def main() -> int:
         result["qdrant_backup"] = snapshot
         result["postgres_backup"] = {
             "managed_by": "pg_dump",
-            "path": str(args.backup_dir / f"{table}.dump"),
+            "path": str(args.backup_dir / "postgres.dump"),
         }
     else:
         if (
