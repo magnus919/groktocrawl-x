@@ -66,8 +66,11 @@ fixture gate. The workflow defaults to three repeated warm rounds; override the
 `rounds` input when a different bounded sample is needed. Set
 `fresh_each_round=true` for repeated provider initialization; that mode
 recreates the isolated collection and table before every round and still does
-not model restart or recovery. Review that packet before adding concurrency or
-recovery workloads, or proposing an ADR change.
+not model restart or recovery. The optional `concurrency_workers` and
+`concurrency_operations` inputs run a bounded mixed search/idempotent-upsert
+workload with one provider client per worker; they are incompatible with fresh
+rounds and remain disabled by default. Review that packet before proposing an
+ADR change.
 
 ## Measures and gates
 

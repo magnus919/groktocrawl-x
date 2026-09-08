@@ -22,12 +22,13 @@ import json
 import math
 import statistics
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-SCHEMA_VERSION = "vector-store-evaluation/2"
+SCHEMA_VERSION = "vector-store-evaluation/3"
 DIMENSION = 3
 
 
@@ -171,16 +172,19 @@ class QdrantStore:
 
     name = "qdrant"
 
-    def __init__(self, url: str, collection: str) -> None:
+    def __init__(self, url: str, collection: str, *, create: bool = True) -> None:
         from qdrant_client import QdrantClient, models
 
         self._models = models
         self._client = QdrantClient(url=url)
         self._collection = collection
-        self._client.recreate_collection(
-            collection_name=collection,
-            vectors_config=models.VectorParams(size=DIMENSION, distance=models.Distance.COSINE),
-        )
+        if create:
+            self._client.recreate_collection(
+                collection_name=collection,
+                vectors_config=models.VectorParams(
+                    size=DIMENSION, distance=models.Distance.COSINE
+                ),
+            )
 
     def upsert(self, records: list[VectorRecord]) -> None:
         self._client.upsert(
@@ -243,26 +247,27 @@ class PostgresStore:
 
     name = "pgvector"
 
-    def __init__(self, dsn: str, table: str) -> None:
+    def __init__(self, dsn: str, table: str, *, create: bool = True) -> None:
         import psycopg
 
         self._conn = psycopg.connect(dsn, autocommit=True)
         self._schema = "groktocrawl_x_vector_eval"
         self._table = table
-        self._conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-        self._conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self._schema}")
-        self._conn.execute(
-            f"""CREATE TABLE {self._schema}.{self._table} (
-                id text PRIMARY KEY,
-                scope text NOT NULL,
-                embedding vector({DIMENSION}) NOT NULL,
-                deleted boolean NOT NULL DEFAULT false
-            )"""
-        )
-        self._conn.execute(
-            f"CREATE INDEX {self._table}_hnsw ON {self._schema}.{self._table} "
-            "USING hnsw (embedding vector_cosine_ops)"
-        )
+        if create:
+            self._conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            self._conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self._schema}")
+            self._conn.execute(
+                f"""CREATE TABLE {self._schema}.{self._table} (
+                    id text PRIMARY KEY,
+                    scope text NOT NULL,
+                    embedding vector({DIMENSION}) NOT NULL,
+                    deleted boolean NOT NULL DEFAULT false
+                )"""
+            )
+            self._conn.execute(
+                f"CREATE INDEX {self._table}_hnsw ON {self._schema}.{self._table} "
+                "USING hnsw (embedding vector_cosine_ops)"
+            )
 
     def upsert(self, records: list[VectorRecord]) -> None:
         for record in records:
@@ -343,6 +348,78 @@ def evaluate_store(store: VectorStore, records: list[VectorRecord]) -> dict[str,
     return evidence
 
 
+def evaluate_concurrency(
+    store_factory: Any,
+    records: list[VectorRecord],
+    workers: int,
+    operations: int,
+) -> dict[str, Any]:
+    """Run a deterministic mixed search/upsert workload with one client per worker."""
+    started = time.perf_counter()
+    results: list[dict[str, Any]] = []
+
+    def worker(worker_id: int) -> list[dict[str, Any]]:
+        store = store_factory()
+        worker_results: list[dict[str, Any]] = []
+        try:
+            for operation in range(worker_id, operations, workers):
+                workload = "upsert" if operation % 4 == 0 else "search"
+                record = records[operation % len(records)]
+                query = QUERIES[operation % len(QUERIES)]
+                try:
+                    _, duration = _timed(
+                        lambda record=record, workload=workload, query=query: store.upsert(
+                            [record]
+                        )
+                        if workload == "upsert"
+                        else store.search(query)
+                    )
+                    worker_results.append(
+                        {"workload": workload, "duration_ms": duration, "ok": True}
+                    )
+                except Exception as error:  # pragma: no cover - provider-specific
+                    worker_results.append(
+                        {
+                            "workload": workload,
+                            "duration_ms": None,
+                            "ok": False,
+                            "error": str(error),
+                        }
+                    )
+        finally:
+            store.close(False)
+        return worker_results
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for worker_results in executor.map(worker, range(workers)):
+            results.extend(worker_results)
+
+    metrics: dict[str, list[float]] = {}
+    errors: list[dict[str, Any]] = []
+    for result in results:
+        if result["ok"]:
+            metrics.setdefault(result["workload"], []).append(result["duration_ms"])
+        else:
+            errors.append(
+                {"workload": result["workload"], "error": result["error"]}
+            )
+    elapsed = time.perf_counter() - started
+    successful = sum(1 for result in results if result["ok"])
+    return {
+        "workers": workers,
+        "operations": operations,
+        "successful_operations": successful,
+        "failed_operations": len(errors),
+        "throughput_ops_s": successful / elapsed if elapsed else 0.0,
+        "errors": errors,
+        "metrics_ms": metrics,
+        "latency_summary_ms": {
+            workload: _percentiles(values) for workload, values in metrics.items()
+        },
+        "ok": not errors and successful == operations,
+    }
+
+
 def _check_gates(
     evidence: dict[str, Any], records: list[VectorRecord]
 ) -> dict[str, bool]:
@@ -369,6 +446,7 @@ def _percentiles(values: list[float]) -> dict[str, float] | None:
     return {
         "p50": ordered[len(ordered) // 2],
         "p95": ordered[min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1)],
+        "p99": ordered[min(len(ordered) - 1, math.ceil(len(ordered) * 0.99) - 1)],
         "mean": statistics.fmean(ordered),
     }
 
@@ -439,8 +517,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     run_id = args.run_id or datetime.now(UTC).strftime("run_%Y%m%dT%H%M%SZ")
     safe_id = "".join(character if character.isalnum() else "_" for character in run_id)
     records = list(CORPUS)
+    if args.fresh_each_round and args.concurrency_workers:
+        raise SystemExit("--concurrency-workers requires warm_reuse resources")
     stores: list[VectorStore] = []
     rounds_by_name: dict[str, list[dict[str, Any]]] = {"qdrant": [], "pgvector": []}
+    resource_names: dict[str, str] = {}
 
     def run_round(round_number: int, current_stores: list[VectorStore]) -> None:
         for store in current_stores:
@@ -455,9 +536,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     def create_stores(round_number: int) -> list[VectorStore]:
         suffix = f"_{round_number}" if args.fresh_each_round else ""
+        resource_names.update(
+            qdrant=f"groktocrawl_x_eval_{safe_id}{suffix}",
+            pgvector=f"vectors_{safe_id}{suffix}",
+        )
         return [
-            QdrantStore(args.qdrant_url, f"groktocrawl_x_eval_{safe_id}{suffix}"),
-            PostgresStore(args.postgres_dsn, f"vectors_{safe_id}{suffix}"),
+            QdrantStore(args.qdrant_url, resource_names["qdrant"]),
+            PostgresStore(args.postgres_dsn, resource_names["pgvector"]),
         ]
 
     try:
@@ -474,10 +559,27 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             stores = create_stores(0)
             for round_number in range(1, args.rounds + 1):
                 run_round(round_number, stores)
+        concurrency_by_name: dict[str, dict[str, Any]] = {}
+        if args.concurrency_workers:
+            factories = {
+                "qdrant": lambda: QdrantStore(
+                    args.qdrant_url, resource_names["qdrant"], create=False
+                ),
+                "pgvector": lambda: PostgresStore(
+                    args.postgres_dsn, resource_names["pgvector"], create=False
+                ),
+            }
+            for name, factory in factories.items():
+                concurrency_by_name[name] = evaluate_concurrency(
+                    factory, records, args.concurrency_workers, args.concurrency_operations
+                )
         candidates = [
             _summarize_evidence(name, rounds)
             for name, rounds in rounds_by_name.items()
         ]
+        for candidate in candidates:
+            if candidate["name"] in concurrency_by_name:
+                candidate["concurrency"] = concurrency_by_name[candidate["name"]]
         return {
             "schema_version": SCHEMA_VERSION,
             "run_id": run_id,
@@ -485,6 +587,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "manifest": _manifest(),
             "rounds": args.rounds,
             "round_mode": "fresh" if args.fresh_each_round else "warm_reuse",
+            "concurrency": {
+                "workers": args.concurrency_workers,
+                "operations": args.concurrency_operations,
+            }
+            if args.concurrency_workers
+            else None,
             "candidates": candidates,
             "decision": "evaluation_only",
             "production_change": False,
@@ -512,11 +620,27 @@ def main() -> int:
         action="store_true",
         help="recreate each provider resource before every round for cold-start evidence",
     )
+    parser.add_argument(
+        "--concurrency-workers",
+        type=int,
+        default=0,
+        help="number of independent clients for the optional mixed workload (0 disables it)",
+    )
+    parser.add_argument(
+        "--concurrency-operations",
+        type=int,
+        default=40,
+        help="total mixed search/upsert operations per provider",
+    )
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--allow-isolated-database", action="store_true")
     args = parser.parse_args()
     if args.rounds < 1:
         parser.error("--rounds must be at least 1")
+    if args.concurrency_workers < 0:
+        parser.error("--concurrency-workers cannot be negative")
+    if args.concurrency_operations < 1:
+        parser.error("--concurrency-operations must be at least 1")
     result = run(args)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
