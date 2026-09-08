@@ -23,6 +23,10 @@ def test_manifest_is_pinned_and_deterministic():
     assert len(first["corpus_sha256"]) == 64
 
 
+def test_round_mode_is_explicit_in_cli_contract():
+    assert "--fresh-each-round" in vector_eval.main.__code__.co_consts
+
+
 def test_qdrant_point_ids_are_supported_and_stable():
     first = vector_eval._qdrant_point_id("doc-001")
     second = vector_eval._qdrant_point_id("doc-002")

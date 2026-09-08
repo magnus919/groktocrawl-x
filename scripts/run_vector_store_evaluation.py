@@ -440,30 +440,51 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     safe_id = "".join(character if character.isalnum() else "_" for character in run_id)
     records = list(CORPUS)
     stores: list[VectorStore] = []
-    try:
-        stores = [
-            QdrantStore(args.qdrant_url, f"groktocrawl_x_eval_{safe_id}"),
-            PostgresStore(args.postgres_dsn, f"vectors_{safe_id}"),
+    rounds_by_name: dict[str, list[dict[str, Any]]] = {"qdrant": [], "pgvector": []}
+
+    def run_round(round_number: int, current_stores: list[VectorStore]) -> None:
+        for store in current_stores:
+            round_evidence = evaluate_store(store, records)
+            round_evidence["round"] = round_number
+            round_evidence["gates"] = _check_gates(round_evidence, records)
+            round_evidence["latency_summary_ms"] = {
+                key: _percentiles(values)
+                for key, values in round_evidence["metrics_ms"].items()
+            }
+            rounds_by_name[store.name].append(round_evidence)
+
+    def create_stores(round_number: int) -> list[VectorStore]:
+        suffix = f"_{round_number}" if args.fresh_each_round else ""
+        return [
+            QdrantStore(args.qdrant_url, f"groktocrawl_x_eval_{safe_id}{suffix}"),
+            PostgresStore(args.postgres_dsn, f"vectors_{safe_id}{suffix}"),
         ]
-        candidates = []
-        for store in stores:
-            rounds = []
+
+    try:
+        if args.fresh_each_round:
             for round_number in range(1, args.rounds + 1):
-                round_evidence = evaluate_store(store, records)
-                round_evidence["round"] = round_number
-                round_evidence["gates"] = _check_gates(round_evidence, records)
-                round_evidence["latency_summary_ms"] = {
-                    key: _percentiles(values)
-                    for key, values in round_evidence["metrics_ms"].items()
-                }
-                rounds.append(round_evidence)
-            candidates.append(_summarize_evidence(store.name, rounds))
+                stores = create_stores(round_number)
+                try:
+                    run_round(round_number, stores)
+                finally:
+                    for store in stores:
+                        store.close(args.cleanup)
+                    stores = []
+        else:
+            stores = create_stores(0)
+            for round_number in range(1, args.rounds + 1):
+                run_round(round_number, stores)
+        candidates = [
+            _summarize_evidence(name, rounds)
+            for name, rounds in rounds_by_name.items()
+        ]
         return {
             "schema_version": SCHEMA_VERSION,
             "run_id": run_id,
             "created_at": datetime.now(UTC).isoformat(),
             "manifest": _manifest(),
             "rounds": args.rounds,
+            "round_mode": "fresh" if args.fresh_each_round else "warm_reuse",
             "candidates": candidates,
             "decision": "evaluation_only",
             "production_change": False,
@@ -485,6 +506,11 @@ def main() -> int:
         type=int,
         default=1,
         help="number of repeated rounds per provider (first round starts from a fresh store)",
+    )
+    parser.add_argument(
+        "--fresh-each-round",
+        action="store_true",
+        help="recreate each provider resource before every round for cold-start evidence",
     )
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--allow-isolated-database", action="store_true")

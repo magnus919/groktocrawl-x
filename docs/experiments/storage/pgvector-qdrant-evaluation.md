@@ -63,8 +63,11 @@ is available; it runs the harness inside the private Compose network (so the
 comparison does not depend on runner host-port behavior), uploads the JSON
 packet, and fails closed if either candidate has provider errors or violates a
 fixture gate. The workflow defaults to three repeated warm rounds; override the
-`rounds` input when a different bounded sample is needed. Review that packet
-before adding concurrency or recovery workloads, or proposing an ADR change.
+`rounds` input when a different bounded sample is needed. Set
+`fresh_each_round=true` for repeated provider initialization; that mode
+recreates the isolated collection and table before every round and still does
+not model restart or recovery. Review that packet before adding concurrency or
+recovery workloads, or proposing an ADR change.
 
 ## Measures and gates
 
