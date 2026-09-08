@@ -118,9 +118,12 @@ single authoritative PostgreSQL store for bounded evidence and metadata, subject
 to review and real-database validation. It also requires evaluating PostgreSQL +
 pgvector as a replacement for Qdrant, with retrieval parity, concurrent-load,
 footprint and reversible-cutover gates before retaining two permanent databases.
-The concrete comparison plan is tracked in [issue #163](https://github.com/magnus919/groktocrawl-x/issues/163)
+The concrete comparison plan was tracked in [issue #163](https://github.com/magnus919/groktocrawl-x/issues/163),
+which is now closed for the completed bounded fixture, repeat-round, concurrency,
+restart and fresh-target restore packets. The remaining failure-injection,
+migration, footprint and reversible-cutover gates are tracked in [issue #201](https://github.com/magnus919/groktocrawl-x/issues/201)
 and [the pgvector/Qdrant evaluation plan](storage/pgvector-qdrant-evaluation.md).
-The first successful bounded fixture packet is recorded in the [storage evaluation evidence](evidence/storage-vector-evaluation/2026-09-08/); the first three-round packet is in [the repeated-round evidence](evidence/storage-vector-evaluation/2026-09-08-rounds-3/). The fresh-resource packet is in [the fresh-round evidence](evidence/storage-vector-evaluation/2026-09-08-fresh-3/). The first mixed-concurrency packet is in [the concurrency evidence](evidence/storage-vector-evaluation/2026-09-08-concurrency-4x40/). The provider-restart packet is in [the restart evidence](evidence/storage-vector-evaluation/2026-09-08-restart/). The fresh-target backup/restore packet is in [the backup/restore evidence](evidence/storage-vector-evaluation/2026-09-08-backup-restore/).
+The first successful bounded fixture packet is recorded in the [storage evaluation evidence](evidence/storage-vector-evaluation/2026-09-08/); the first three-round packet is in [the repeated-round evidence](evidence/storage-vector-evaluation/2026-09-08-rounds-3/). The fresh-resource packet is in [the fresh-round evidence](evidence/storage-vector-evaluation/2026-09-08-fresh-3/). The first mixed-concurrency packet is in [the concurrency evidence](evidence/storage-vector-evaluation/2026-09-08-concurrency-4x40/). The provider-restart packet is in [the restart evidence](evidence/storage-vector-evaluation/2026-09-08-restart/). The fresh-target backup/restore packet is in [the backup/restore evidence](evidence/storage-vector-evaluation/2026-09-08-backup-restore/). These packets are repeatability and recovery evidence, not a storage selection; the remaining decision gates are tracked in #201.
 D6 has an accepted client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
 [wire examples and confirmation scenarios](research-client-protocol.md). It recommends
