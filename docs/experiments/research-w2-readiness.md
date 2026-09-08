@@ -35,7 +35,7 @@ recorded below.
 | ADR-0069: verification and publication eligibility | Input-bound support/freshness/conflict records plus exact three-layer audit binding; assessment alone cannot publish | Fixture verdicts can be wrong. No demonstrated entailment, caveat preservation or unbiased semantic audit beyond hand-authored cases. |
 | ADR-0069: revision identity and append-only records | `revisions.py`; typed introductions, immutable IDs across removal/reintroduction, historical/current record separation | Bounded complete linear history is persisted and portable through same-authority bundles. Authorship is not authenticated; declared novel/replacement semantics cannot be inferred. |
 | ADR-0069: complete versioned IR | Separate structure, verification, publication and revision prototype formats implement substantial parts | Consolidated schema/examples and compatibility policy are not frozen as `knowledge-ir/1`. Claim-to-assessment links currently live in an explicit envelope mapping. Retained envelopes use JCS; inner fixture hashes retain their original rules. The consolidated IR and render-manifest layouts remain open. |
-| ADR-0070: separate policy/runtime comparisons, frozen evidence, negative controls | Inherited deterministic regression baseline is pinned in `research-preflight.json`; fixture contract negative tests are executable | Synthetic design and reviewer roles are recorded below; held-out corpus, human calibration, executable arm definitions and comparison thresholds remain unresolved. Current fixture tests are not a completed A/B/C study. |
+| ADR-0070: separate policy/runtime comparisons, frozen evidence, negative controls | Inherited deterministic regression baseline is pinned in `research-preflight.json`; fixture contract negative tests are executable; the sealed W1 packet is eligible and the incumbent answer observation is recorded in [the baseline input record](enterprise-evaluation/w1-baseline-inputs-2026-09-08.md) | Human semantic labels, executable candidate arm definitions, numerical bounds, and comparison authorization remain unresolved. Current fixture tests are not a completed A/B/C study. |
 | ADR-0072: verified final output distinct from progress, stable identity and coverage | Internal controller final outcome, same-revision artifacts and complete/partial/insufficient coverage | No experimental HTTP/SSE, CLI/MCP, reconnect/replay or authorization implementation. Public delivery remains later W6 work. |
 
 Implementation paths above are under `agent-svc/agent/experimental/`; test paths are
@@ -51,8 +51,8 @@ before moving beyond the bounded fixture scope.
 
 | Required input or decision | Proposed reviewable action | Decision owner / constraint |
 |---|---|---|
-| Target research workload and corpus | Choose a representative domain/question mix; freeze separate development and held-out source snapshots/questions, denominators and expected negative/abstention categories | Magnus selected enterprise agentic engineering/software factories. A synthetic calibration design is linked below; no sealed held-out corpus exists yet. |
-| Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus authorized Hermes as a separate AI reviewer and retains human calibration/adjudication. No human calibration labels are collected yet. |
+| Target research workload and corpus | Choose a representative domain/question mix; freeze separate development and held-out source snapshots/questions, denominators and expected negative/abstention categories | Magnus selected enterprise agentic engineering/software factories. The 30-case packet is sealed, validated and isolation-approved; raw contents remain private. |
+| Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus authorized Hermes as a separate AI reviewer and retains human calibration/adjudication. Held-out output labels are not collected yet; one-human limitations remain explicit. |
 | Measurement thresholds and resources | Record quality/latency/resource regression bounds with rationale, hardware, run budgets, seeds/order and uncertainty plan | Must be explicit before applicable comparisons. Existing protocol minima are not measured results or an authorized series. |
 | Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. See the current field/version review below; isolated storage exploration is already accepted. |
 | Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | Current external-provider budget is zero. No provider work is authorized here. |
@@ -61,16 +61,17 @@ before moving beyond the bounded fixture scope.
 The authoritative unresolved fields remain in
 [`research-preflight.json`](research-preflight.json). Null means unresolved; this
 checkpoint does not fill them with permissive defaults, promote the regression
-baseline or authorize comparisons. A useful next step is a concrete frozen-design
-packet for the selected workload, not another unconnected implementation slice.
+baseline or authorize comparisons. The packet and observed incumbent baseline are
+now frozen inputs; the next step is to resolve the semantic grading, bounds and
+execution-control fields as one reviewable decision packet.
 
 ## Evaluation design follow-up
 
 Magnus supplied the domain and reviewer direction after this checkpoint. See the
 [enterprise evaluation design](enterprise-evaluation/README.md), tracked in issue
 [#33](https://github.com/magnus919/groktocrawl-x/issues/33). The synthetic calibration
-corpus and separate Hermes design review do not resolve the held-out, human
-calibration, measured-baseline or comparative-execution gates.
+corpus and separate Hermes design review do not resolve the human calibration,
+measured bounds or comparative-execution gates.
 
 ## Canonical admission implementation
 

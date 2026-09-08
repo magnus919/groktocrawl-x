@@ -1,7 +1,7 @@
 # W1 incumbent baseline — 2026-09-08
 
-Status: **incumbent answer run complete; held-out eligibility and comparison remain
-blocked pending named isolation review and bounds approval**.
+Status: **incumbent answer run complete; held-out eligibility approved; comparison
+remains blocked pending bounds and protocol approval**.
 
 Magnus approved the W1 packet proposal in [issue #116](https://github.com/magnus919/groktocrawl-x/issues/116#issuecomment-5587198116).
 The separate packet was curated by a Hermes one-shot process in a private mode-700
@@ -20,9 +20,9 @@ The structural validator passed the candidate packet without exposing its conten
 | Template families | 6 |
 | Adverse/abstention cases | 6 (20%) |
 | Candidate corpus digest | `sha256:659200d31ea23b17dc497b658c6c44db277005ed91a74fb962b10c6cebbf27c3` |
-| Access-log digest | `sha256:4111ebc3eff395fd0eb77064acb9d5907e9d0c2e3225eedfb6d0af68c858dd7d` |
+| Access-log digest after named review | `sha256:41e0d1be2c6ae5a8e35a628c5cb0c8bc7ec7d4dfce875bf98634b9817957d155` |
 | Structural result | `candidate_validation_passed` |
-| Held-out eligibility | `false` until the named reviewer accepts the access/isolation record |
+| Held-out eligibility | `true` after the named reviewer accepted the access/isolation record |
 
 The validator also found no case-ID or normalized-question overlap with the exposed
 development corpus. A digest proves integrity, not independence; the eligibility
@@ -52,8 +52,9 @@ bound, runtime comparison, or adoption conclusion is inferred from this run.
 
 ## Next gate
 
-The packet remains private while the named reviewer checks the curator, access log,
-and isolation method. After that review, freeze the packet digest and measured
-baseline bounds in `research-preflight.json`, then run the paired quality and runtime
-series under the approved protocol. Failed, timed-out, and malformed trials remain
-in every denominator.
+The packet remains private after the named reviewer accepted the curator, access log,
+and isolation method. The frozen input record is in
+[w1-baseline-inputs-2026-09-08.md](w1-baseline-inputs-2026-09-08.md). Numerical
+bounds, candidate arm identities, execution limits and the scoring protocol still
+need review before a paired quality or runtime series can be authorized. Failed,
+timed-out, and malformed trials remain in every denominator.
