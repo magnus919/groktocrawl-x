@@ -50,6 +50,9 @@ PYTHONPATH=. python3 scripts/run_exploratory_evaluation.py \
 
 The runner refuses an existing output directory, preserves failed attempts, keeps
 the W1 comparison gate closed, and does not treat the exposed cases as held-out.
+Each failed case records its stage (`answer_request`, `answer_validation`,
+`grade_request`, or `grade_validation`), and every attempted model call counts
+against the fixed call budget. The runner does not silently retry a scored case.
 
 The first local execution is recorded in
 [`exploratory-local-2026-09-07/evaluation-summary.md`](exploratory-local-2026-09-07/evaluation-summary.md).

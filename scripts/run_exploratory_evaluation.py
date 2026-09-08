@@ -263,9 +263,11 @@ async def run(args: argparse.Namespace) -> int:
                 "started_at": started,
                 "source_ids": case["source_ids"],
             }
+            failure_stage = "answer_request"
             try:
-                if calls + 2 > MAX_CALLS:
+                if calls >= MAX_CALLS:
                     raise ValueError("model-call budget exhausted")
+                calls += 1
                 answer_completion = await complete(
                     client,
                     base_url=base_url,
@@ -273,8 +275,12 @@ async def run(args: argparse.Namespace) -> int:
                     model=args.model,
                     prompt=answer_prompt(case, bundle),
                 )
-                calls += 1
+                failure_stage = "answer_validation"
                 answer = validate_answer(answer_completion.payload, case["source_ids"])
+                failure_stage = "grade_request"
+                if calls >= MAX_CALLS:
+                    raise ValueError("model-call budget exhausted")
+                calls += 1
                 grade_completion = await complete(
                     client,
                     base_url=base_url,
@@ -282,7 +288,7 @@ async def run(args: argparse.Namespace) -> int:
                     model=args.judge_model,
                     prompt=grade_prompt(case, bundle, answer),
                 )
-                calls += 1
+                failure_stage = "grade_validation"
                 grade = validate_grade(grade_completion.payload, case)
                 entry.update(
                     status="graded",
@@ -298,7 +304,12 @@ async def run(args: argparse.Namespace) -> int:
                     judge_usage=grade_completion.usage,
                 )
             except Exception as exc:  # retain every failed attempt as an outcome
-                entry.update(status="failed", error_type=type(exc).__name__, error=str(exc))
+                entry.update(
+                    status="failed",
+                    failure_stage=failure_stage,
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                )
             results.append(entry)
             (output / "results.jsonl").write_text(
                 "".join(json.dumps(item, sort_keys=True) + "\n" for item in results)
