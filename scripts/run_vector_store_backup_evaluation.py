@@ -124,9 +124,7 @@ def _evidence(store, deletion_ids: list[str]) -> dict:
         "errors": [],
         "ok": True,
     }
-    evidence["gates"] = _check_gates(
-        {"name": store.name, "searches": before, "post_delete": after[0]}, list(CORPUS)
-    )
+    evidence["gates"] = _check_gates(evidence, list(CORPUS))
     return evidence
 
 
