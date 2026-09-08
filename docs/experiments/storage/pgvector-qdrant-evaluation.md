@@ -124,6 +124,14 @@ individually, and the resource capture is one post-run snapshot. Equivalent
 write batching, representative dimensions and scale, sustained-load resource
 series, migration/rollback, and reversible cutover remain open.
 
+The follow-up [transaction-batched packet](../evidence/storage-vector-evaluation/2026-09-08-scale-batched-r1/)
+also passed every correctness gate and reduced pgvector bulk-write time by
+putting each record set in one transaction. It remains an intermediate result:
+PostgreSQL `executemany` issues repeated statements while Qdrant receives one
+native batch, the run was not repeated, and isolated tail measurements varied.
+A PostgreSQL-native bulk path and repeated rounds remain required before using
+write or tail-latency measurements in the decision.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
