@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from scripts import run_exploratory_evaluation as evaluator
 from scripts.run_exploratory_evaluation import (
     answer_prompt,
     grade_prompt,
@@ -53,3 +55,29 @@ def test_validate_grade_requires_fixed_subquestion_denominator():
             },
             case,
         )
+
+
+@pytest.mark.asyncio
+async def test_run_records_failed_call_stage_and_dispatch_count(tmp_path, monkeypatch):
+    async def fail_before_response(*args, **kwargs):
+        raise ValueError("malformed model response")
+
+    monkeypatch.setattr(evaluator, "complete", fail_before_response)
+    monkeypatch.setenv("LLM_BASE_URL", "http://fixture/v1")
+    output = tmp_path / "exploratory"
+    result = await evaluator.run(
+        SimpleNamespace(
+            corpus=CORPUS,
+            output=output,
+            limit=1,
+            model="local",
+            judge_model="local",
+        )
+    )
+
+    assert result == 0
+    row = json.loads((output / "results.jsonl").read_text())
+    manifest = json.loads((output / "manifest.json").read_text())
+    assert row["status"] == "failed"
+    assert row["failure_stage"] == "answer_request"
+    assert manifest["calls_dispatched"] == 1
