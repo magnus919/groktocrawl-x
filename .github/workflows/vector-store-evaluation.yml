@@ -48,19 +48,24 @@ jobs:
           trap cleanup_runner EXIT
           docker network connect "$eval_network" "$runner"
           docker exec "$runner" sh -ceu '
-              python -m pip install --disable-pip-version-check --no-cache-dir \
-                "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
-              run_id_args=()
+            python -m pip install --disable-pip-version-check --no-cache-dir \
+              "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
               if [ -n "${VECTOR_EVAL_RUN_ID:-}" ]; then
-                run_id_args=(--run-id "$VECTOR_EVAL_RUN_ID")
+                python scripts/run_vector_store_evaluation.py \
+                  --qdrant-url http://vector-eval-qdrant:6333 \
+                  --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
+                  --allow-isolated-database \
+                  --cleanup \
+                  --run-id "$VECTOR_EVAL_RUN_ID" \
+                  --output /out/evaluation.json
+              else
+                python scripts/run_vector_store_evaluation.py \
+                  --qdrant-url http://vector-eval-qdrant:6333 \
+                  --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
+                  --allow-isolated-database \
+                  --cleanup \
+                  --output /out/evaluation.json
               fi
-              python scripts/run_vector_store_evaluation.py \
-                --qdrant-url http://vector-eval-qdrant:6333 \
-                --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
-                --allow-isolated-database \
-                --cleanup \
-                "${run_id_args[@]}" \
-                --output /out/evaluation.json
             '
 
       - name: Enforce fixture gates
