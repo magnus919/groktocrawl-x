@@ -132,6 +132,14 @@ native batch, the run was not repeated, and isolated tail measurements varied.
 A PostgreSQL-native bulk path and repeated rounds remain required before using
 write or tail-latency measurements in the decision.
 
+The [three-round native-bulk packet](../evidence/storage-vector-evaluation/2026-09-08-scale-native-repeated-r1/)
+closes those two measurement-shape gaps for the bounded fixture. Both providers
+passed all correctness gates and 720 mixed operations without a failure. Qdrant
+had lower bulk-upsert latency in every round; pgvector had lower filtered-search
+latency in every round. The packet still uses only synthetic 3-dimensional
+vectors, at most 1,000 records and short mixed workloads. Representative scale,
+sustained resource measurements, migration/rollback and cutover remain open.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
