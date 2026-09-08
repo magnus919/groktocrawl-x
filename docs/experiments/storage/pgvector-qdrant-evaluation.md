@@ -62,8 +62,9 @@ workflow. Run it from the repository Actions page when a hosted Docker runner
 is available; it runs the harness inside the private Compose network (so the
 comparison does not depend on runner host-port behavior), uploads the JSON
 packet, and fails closed if either candidate has provider errors or violates a
-fixture gate. Review that packet before adding workload rounds or proposing an
-ADR change.
+fixture gate. The workflow defaults to three repeated warm rounds; override the
+`rounds` input when a different bounded sample is needed. Review that packet
+before adding concurrency or recovery workloads, or proposing an ADR change.
 
 ## Measures and gates
 

@@ -7,6 +7,11 @@ on:
         description: Optional stable identifier for the isolated fixture run
         required: false
         type: string
+      rounds:
+        description: Repeated warm rounds after provider initialization
+        required: false
+        default: "3"
+        type: string
 
 permissions:
   contents: read
@@ -31,6 +36,7 @@ jobs:
       - name: Run comparison harness
         env:
           VECTOR_EVAL_RUN_ID: ${{ inputs.run_id }}
+          VECTOR_EVAL_ROUNDS: ${{ inputs.rounds }}
         run: |
           mkdir -p vector-evaluation-out
           qdrant_container=$(docker compose -f compose.vector-evaluation.yml --profile vector-eval ps -q vector-eval-qdrant)
@@ -39,6 +45,7 @@ jobs:
           runner=$(docker run -d --network bridge \
             -e VECTOR_EVAL_POSTGRES_PASSWORD \
             -e VECTOR_EVAL_RUN_ID \
+            -e VECTOR_EVAL_ROUNDS \
             -v "$GITHUB_WORKSPACE:/workspace:ro" \
             -v "$GITHUB_WORKSPACE/vector-evaluation-out:/out" \
             -w /workspace python:3.12-slim sleep 600)
@@ -56,6 +63,7 @@ jobs:
                   --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
                   --allow-isolated-database \
                   --cleanup \
+                  --rounds "$VECTOR_EVAL_ROUNDS" \
                   --run-id "$VECTOR_EVAL_RUN_ID" \
                   --output /out/evaluation.json
               else
@@ -64,6 +72,7 @@ jobs:
                   --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@vector-eval-postgres:5432/vector_eval" \
                   --allow-isolated-database \
                   --cleanup \
+                  --rounds "$VECTOR_EVAL_ROUNDS" \
                   --output /out/evaluation.json
               fi
             '
