@@ -27,10 +27,16 @@ framework conformance smoke result, not a paired performance measurement,
 recovery proof, quality claim, or adoption decision.
 
 The [manifest](manifest.json) records the optional LangGraph dependency
-specifier and the exact version used by this smoke run. It still
-records zero paired measurements and `baseline_frozen: false`. W1 has not yet
-approved the corpus, reviewer, baseline bounds or uncertainty plan required by
-ADR-0073. Therefore no runtime adoption decision is made here. The imperative
-implementation remains the reference, the LangGraph adapter remains an
-experimental candidate, and paired cold/warm measurement is the next W4 gate
-after W1 baseline acceptance.
+specifier and the exact version used by the smoke run. After W1 packet approval,
+the first paired fixture measurement was recorded in
+[`docs/experiments/evidence/runtime-comparison/2026-09-08/`](../evidence/runtime-comparison/2026-09-08/):
+30 paired repetitions across three workloads in each first-run and repeated-state
+lane, with zero conformance failures. LangGraph added measurable scheduling
+overhead in this harness, including one retained first-run outlier, while both
+adapters produced equivalent accounting and outputs.
+
+The measurement is not a quality result, checkpoint/recovery proof, or production
+selection. `baseline_frozen` remains false because the W1 packet still needs named
+isolation review and numerical bounds review. The imperative implementation remains
+the reference and LangGraph remains an experimental candidate until ADR-0073 is
+decided with the remaining W5/W6 evidence.
