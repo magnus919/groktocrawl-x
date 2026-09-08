@@ -1,0 +1,84 @@
+name: Vector Store Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Optional stable identifier for the isolated fixture run
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Compare Qdrant and pgvector
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: groktocrawl-x-vector-eval-${{ github.run_id }}
+      VECTOR_EVAL_POSTGRES_PASSWORD: vector-eval-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out fork
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install evaluation clients
+        run: python -m pip install --disable-pip-version-check --no-cache-dir \
+          "psycopg[binary]==3.3.5" "qdrant-client>=1.13.0,<1.20.0"
+
+      - name: Validate isolated Compose file
+        run: docker compose -f compose.vector-evaluation.yml --profile vector-eval config --quiet
+
+      - name: Start isolated vector services
+        run: docker compose -f compose.vector-evaluation.yml --profile vector-eval up -d --wait
+
+      - name: Run comparison harness
+        env:
+          VECTOR_EVAL_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          mkdir -p vector-evaluation-out
+          echo "::add-mask::$VECTOR_EVAL_POSTGRES_PASSWORD"
+          run_id_args=()
+          if [ -n "${VECTOR_EVAL_RUN_ID:-}" ]; then
+            run_id_args=(--run-id "$VECTOR_EVAL_RUN_ID")
+          fi
+          python scripts/run_vector_store_evaluation.py \
+            --qdrant-url http://127.0.0.1:16333 \
+            --postgres-dsn "postgresql://vector_eval:${VECTOR_EVAL_POSTGRES_PASSWORD}@127.0.0.1:15432/vector_eval" \
+            --allow-isolated-database \
+            --cleanup \
+            "${run_id_args[@]}" \
+            --output vector-evaluation-out/evaluation.json
+
+      - name: Enforce fixture gates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("vector-evaluation-out/evaluation.json").read_text())
+          assert result["decision"] == "evaluation_only"
+          assert result["production_change"] is False
+          assert result["qdrant_removal"] is False
+          for candidate in result["candidates"]:
+              assert candidate["ok"], candidate
+              assert all(candidate["gates"].values()), candidate
+          print("fixture gates passed for", [c["name"] for c in result["candidates"]])
+          PY
+
+      - name: Upload comparison artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: vector-store-evaluation-${{ github.run_id }}
+          path: vector-evaluation-out/
+          if-no-files-found: warn
+
+      - name: Stop isolated vector services
+        if: always()
+        run: docker compose -f compose.vector-evaluation.yml --profile vector-eval down --volumes --remove-orphans --timeout 30

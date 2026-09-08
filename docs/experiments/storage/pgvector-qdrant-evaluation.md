@@ -53,6 +53,12 @@ check. It records provider failures instead of retrying them. The output is an
 evaluation artifact only: it does not select a backend, alter the inherited
 Qdrant collection, or claim production performance.
 
+The fork also provides a manual [`Vector Store Evaluation`](../../../.github/workflows/vector-store-evaluation.yml)
+workflow. Run it from the repository Actions page when a hosted Docker runner
+is available; it uploads the JSON packet and fails closed if either candidate
+has provider errors or violates a fixture gate. Review that packet before
+adding workload rounds or proposing an ADR change.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
