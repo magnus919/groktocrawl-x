@@ -8,7 +8,9 @@ services:
       POSTGRES_USER: vector_eval
       POSTGRES_PASSWORD: ${VECTOR_EVAL_POSTGRES_PASSWORD:?Set VECTOR_EVAL_POSTGRES_PASSWORD to a private value}
     ports:
-      - "127.0.0.1:${VECTOR_EVAL_POSTGRES_PORT:-15432}:5432"
+      - target: 5432
+        published: "${VECTOR_EVAL_POSTGRES_PORT:-15432}"
+        host_ip: 127.0.0.1
     volumes:
       - vector_eval_postgres_data:/var/lib/postgresql/data
     networks: [vector_eval_private]
@@ -26,7 +28,9 @@ services:
     platform: linux/amd64
     profiles: [vector-eval]
     ports:
-      - "127.0.0.1:${VECTOR_EVAL_QDRANT_PORT:-16333}:6333"
+      - target: 6333
+        published: "${VECTOR_EVAL_QDRANT_PORT:-16333}"
+        host_ip: 127.0.0.1
     volumes:
       - vector_eval_qdrant_data:/qdrant/storage
     networks: [vector_eval_private]
