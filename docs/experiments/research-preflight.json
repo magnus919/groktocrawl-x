@@ -343,5 +343,23 @@
     "legacy_readers_preserved": true,
     "comparison_authorized": false,
     "production_adoption": false
-  }
+  },
+  "held_out_packet": {
+    "status": "eligible_after_named_isolation_review",
+    "cases": 30,
+    "adverse_or_abstention_cases": 6,
+    "topic_categories": 6,
+    "template_families": 6,
+    "corpus_sha256": "sha256:659200d31ea23b17dc497b658c6c44db277005ed91a74fb962b10c6cebbf27c3",
+    "access_log_sha256": "sha256:41e0d1be2c6ae5a8e35a628c5cb0c8bc7ec7d4dfce875bf98634b9817957d155",
+    "validator_status": "candidate_validation_passed",
+    "approval_record": "private packet approval.json; sanitized summary docs/experiments/enterprise-evaluation/w1-heldout-approval-2026-09-08.md",
+    "comparison_authorized": false,
+    "production_adoption": false
+  },
+  "remaining_gate_summary": [
+    "freeze numerical quality, latency, resource and budget bounds from the incumbent observations",
+    "freeze scoring, ordering, seeds, hardware limits and uncertainty rules",
+    "obtain explicit comparison authorization before running candidate arms"
+  ]
 }
