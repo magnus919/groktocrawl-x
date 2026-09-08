@@ -1,11 +1,21 @@
 # W1 comparison packet proposal
 
-Status: **draft for review; not frozen and not authorized for comparison runs**.
+Status: **approved for packet freeze; the comparison remains blocked until a
+separately sealed packet and incumbent baseline review are complete**.
+
+On 2026-09-08 Magnus Hedemark approved this packet proposal. The approval covers
+the proposed question shape, topic balance, adverse-case minimum, local `local`
+inference route, zero external provider spend, incumbent-first run order, and
+fail-closed treatment of failed, timed-out, and malformed trials. It authorizes
+the implementation agent to freeze the packet design and prepare the incumbent
+baseline. It does not by itself establish held-out independence, authorize a
+scored comparison, or make an adoption or production decision.
 
 This is the next decision packet for the experimental fork. It turns the remaining
 W1 work into a small set of choices instead of asking the maintainer to fill in
 technical fields one at a time. The current preflight remains fail-closed until the
-choices below are reviewed and written into the pinned manifest.
+separately sealed packet, access record, and incumbent baseline review are written
+into the pinned manifest.
 
 ## Already decided
 
@@ -64,13 +74,17 @@ five stochastic trials per held-out question per arm and thirty paired repetitio
 per runtime workload. Failed, timed-out and malformed outputs remain results; they
 are not silently dropped.
 
-## Decisions still needed before freezing
+## Implementation work before the comparison gate can open
 
-- approve or revise the 30-question shape and topic balance;
-- identify the source curator and the isolation/sealing method;
-- approve the exact hardware and service limits for the local run;
-- approve the randomization seed and cold/warm cache policy;
-- review the incumbent pilot results before setting regression bounds.
+- curate 30 new questions and their source bundles outside the tuning corpus;
+- record the curator, every access event, sealing time, and the isolation method;
+- validate the packet against the exposed corpus and retain the validation digest;
+- record the local hardware/service limits, randomization seed, and cold/warm cache
+  policy within the approved zero-spend envelope;
+- run the incumbent reference first and bring its measured bounds back for review
+  before any paired runtime or quality comparison.
 
-Nothing in this proposal changes `research-preflight.json`; unresolved fields remain
-`null` until these decisions are made.
+`research-preflight.json` remains blocked until those implementation artifacts and
+the baseline review exist. A digest alone cannot establish independence; the named
+reviewer must still inspect the access and isolation record before the packet can be
+marked eligible.
