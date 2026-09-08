@@ -51,6 +51,14 @@ PYTHONPATH=. python3 scripts/run_exploratory_evaluation.py \
 The runner refuses an existing output directory, preserves failed attempts, keeps
 the W1 comparison gate closed, and does not treat the exposed cases as held-out.
 
+The first local execution is recorded in
+[`exploratory-local-2026-09-07/evaluation-summary.md`](exploratory-local-2026-09-07/evaluation-summary.md).
+It reached the internal `gpuslut01` LiteLLM gateway through the existing GroktoCrawl
+agent container and used the `local` alias for both answer and judge calls. It is
+still only a harness and prompt check: 24 of 30 cases were graded, six failed at
+the output-contract layer, and the exposed corpus cannot support a quality or
+replacement claim.
+
 ## Review rubric and record
 
 For each anonymized answer, Hermes receives the exact question, complete source

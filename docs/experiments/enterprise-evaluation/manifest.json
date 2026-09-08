@@ -24,7 +24,19 @@
   },
   "series_external_provider_budget_usd": 0,
   "hermes_design_review_authorized": true,
-  "execution_status": "not_run",
+  "execution_status": "exploratory_local_self_check_recorded_2026-09-07",
+  "exploratory_execution": {
+    "record": "exploratory-local-2026-09-07/evaluation-summary.md",
+    "gateway_host": "gpuslut01",
+    "gateway_base_url": "http://gpuslut01:4000/v1",
+    "model": "local",
+    "judge_model": "local",
+    "cases_attempted": 30,
+    "graded": 24,
+    "failed": 6,
+    "comparison_authorized": false,
+    "held_out": false
+  },
   "sources": 24,
   "exposure": {
     "author": "all current source/question/expectation material",
