@@ -55,3 +55,19 @@ def test_percentiles_keep_tail_measurements():
     assert summary["p50"] == 3.0
     assert summary["p95"] == 4.0
     assert summary["p99"] == 4.0
+
+
+def test_query_gate_allows_provider_order_inside_exact_score_ties():
+    records = [
+        vector_scale_eval.VectorRecord("a", "scope", (1.0, 0.0, 0.0)),
+        vector_scale_eval.VectorRecord("b", "scope", (1.0, 0.0, 0.0)),
+        vector_scale_eval.VectorRecord("c", "scope", (0.0, 1.0, 0.0)),
+    ]
+    query = vector_scale_eval.QueryCase("q", "scope", (1.0, 0.0, 0.0))
+    actual = [
+        {"id": "b", "score": 1.0},
+        {"id": "a", "score": 1.0},
+        {"id": "c", "score": 0.0},
+    ]
+
+    assert vector_scale_eval._query_gate(records, query, actual)
