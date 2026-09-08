@@ -118,6 +118,8 @@ single authoritative PostgreSQL store for bounded evidence and metadata, subject
 to review and real-database validation. It also requires evaluating PostgreSQL +
 pgvector as a replacement for Qdrant, with retrieval parity, concurrent-load,
 footprint and reversible-cutover gates before retaining two permanent databases.
+The concrete comparison plan is tracked in [issue #163](https://github.com/magnus919/groktocrawl-x/issues/163)
+and [the pgvector/Qdrant evaluation plan](storage/pgvector-qdrant-evaluation.md).
 D6 has an accepted client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
 [wire examples and confirmation scenarios](research-client-protocol.md). It recommends
