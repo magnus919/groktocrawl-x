@@ -1,7 +1,7 @@
 # W1 held-out isolation approval
 
-Status: **isolation approved for the experimental evaluation; scored comparison
-still blocked**.
+Status: **isolation was approved for the incumbent run; post-review exposure now
+prevents using this packet for a later candidate comparison**.
 
 On 2026-09-08, Magnus Hedemark reviewed and approved the private packet's
 curator, access history, and isolation method. The packet is therefore eligible
@@ -37,3 +37,18 @@ committed here. The next gate is to freeze the numerical quality, latency,
 resource, budget, ordering, and uncertainty rules against this baseline before
 running the candidate arms. The fork remains an explicitly experimental,
 separate project and makes no mainline replacement claim.
+
+## Post-review exposure — 2026-09-09
+
+After the incumbent run, the Codex implementation agent reviewed every private
+case to produce the primary semantic baseline. The access log now records
+`implementation_visible=true` with digest
+`sha256:d6b31f8e034981e5c6a308b3d79da69a3afcc93e28e000d9ad899f935ad82107`.
+The validator consequently returns `candidate_validation_failed` for future
+held-out use. This does not invalidate the incumbent observation or its use for
+calibration and bound setting. It does mean a candidate implemented after this
+review cannot be compared against these cases as if they were still unseen.
+
+Freeze candidate B without case-specific tuning, then curate and seal a fresh
+independent packet for the scored A/B comparison. The original approval remains
+an accurate record of the pre-run isolation decision at its recorded digest.

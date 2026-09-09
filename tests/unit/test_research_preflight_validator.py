@@ -21,7 +21,8 @@ def test_current_draft_fails_closed_with_unresolved_gate_diagnostics():
     errors = MODULE.validate_manifest(draft(), Path(__file__).parents[2])
     assert errors
     assert "comparison_authorized is false" in errors
-    assert "comparison_preflight.development_corpus is unresolved" in errors
+    assert "arms.B.commit is unresolved" in errors
+    assert "arms.B.policy is unresolved" in errors
 
 
 def test_missing_file_pin_is_rejected_without_reading_arbitrary_paths():
