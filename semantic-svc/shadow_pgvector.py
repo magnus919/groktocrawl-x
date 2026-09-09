@@ -230,12 +230,26 @@ class PgvectorShadowStore:
             )
 
     def delete(self, point_id: int) -> None:
+        self.delete_many([point_id])
+
+    def delete_many(self, point_ids: Sequence[int]) -> None:
+        if not point_ids:
+            return
         with self._lock:
             self._connect().execute(
                 f"""UPDATE {self.config.schema}.{self.config.table}
-                SET deleted=true, updated_at=now() WHERE point_id=%s""",
-                (point_id,),
+                SET deleted=true, updated_at=now() WHERE point_id = ANY(%s)""",
+                (list(point_ids),),
             )
+
+    def active_ids(self, *, model: str) -> set[int]:
+        with self._lock:
+            rows = self._connect().execute(
+                f"""SELECT point_id FROM {self.config.schema}.{self.config.table}
+                WHERE model=%s AND deleted=false""",
+                (model,),
+            )
+            return {int(row[0]) for row in rows.fetchall()}
 
     def search(
         self, vector: Sequence[float], *, model: str, limit: int

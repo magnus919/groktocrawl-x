@@ -150,3 +150,36 @@ def test_schema_initialization_runs_once_per_connection():
 
     assert len(connection.calls) == 4
     assert "point_id numeric(20, 0)" in connection.calls[2][0]
+
+
+def test_active_ids_and_batch_delete_share_one_connection():
+    class _Rows:
+        def fetchall(self):
+            return [(1,), (2,)]
+
+    class _Connection:
+        def __init__(self):
+            self.calls = []
+
+        def execute(self, statement, parameters=None):
+            self.calls.append((statement, parameters))
+            return _Rows()
+
+    config = shadow.ShadowConfig(
+        mode="shadow_pgvector",
+        dsn="postgresql://shadow",
+        schema="shadow",
+        table="pages",
+        sample_rate=0.1,
+        score_tolerance=0.0001,
+        timeout_seconds=2,
+    )
+    store = shadow.PgvectorShadowStore(config, dimension=2)
+    connection = _Connection()
+    store._connection = connection
+
+    assert store.active_ids(model="v1") == {1, 2}
+    store.delete_many([1, 2])
+
+    assert connection.calls[0][1] == ("v1",)
+    assert connection.calls[1][1] == ([1, 2],)
