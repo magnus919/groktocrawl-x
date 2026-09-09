@@ -112,7 +112,7 @@ jobs:
             }
             for round in $(seq 1 "$VECTOR_EVAL_ROUNDS"); do
               for provider in qdrant pgvector; do
-                printf '%s,start,%s,%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$round" "$provider" \
+                printf "%s,start,%s,%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$round" "$provider" \
                   >> /out/workload-phases.csv
                 python scripts/run_vector_store_scale_evaluation.py \
                   --provider "$provider" \
@@ -126,7 +126,7 @@ jobs:
                   --batch-size "$VECTOR_EVAL_BATCH_SIZE" \
                   --allow-isolated-database \
                   --output "/out/${provider}-round-${round}.json"
-                printf '%s,finish,%s,%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$round" "$provider" \
+                printf "%s,finish,%s,%s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$round" "$provider" \
                   >> /out/workload-phases.csv
               done
             done
@@ -144,12 +144,14 @@ jobs:
       - name: Enforce scale and mixed-load gates
         run: |
           python - <<'PY'
+          import csv
           import json
           import os
           from pathlib import Path
+          rounds = int(os.environ["VECTOR_EVAL_ROUNDS"])
           for provider in ("qdrant", "pgvector"):
               paths = sorted(Path("vector-scale-out").glob(f"{provider}-round-*.json"))
-              assert len(paths) == int(os.environ["VECTOR_EVAL_ROUNDS"]), paths
+              assert len(paths) == rounds, paths
               for path in paths:
                   result = json.loads(path.read_text())
                   assert result["production_change"] is False
@@ -157,6 +159,11 @@ jobs:
                   assert result["ok"] is True, result
                   assert all(item["ok"] for item in result["sizes"]), result
                   assert all(item["mixed_load"]["failed_operations"] == 0 for item in result["sizes"]), result
+          with Path("vector-scale-out/workload-phases.csv").open(newline="") as handle:
+              phases = list(csv.DictReader(handle))
+          assert len(phases) == rounds * 4, phases
+          assert {row["event"] for row in phases} == {"start", "finish"}, phases
+          assert {row["provider"] for row in phases} == {"qdrant", "pgvector"}, phases
           print("scale and mixed-load gates passed")
           PY
 
