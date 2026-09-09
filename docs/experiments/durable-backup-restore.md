@@ -19,18 +19,40 @@ The hosted run passed the W5 recovery matrix, integration tests, PostgreSQL stor
 probes, twin contracts and the fail-closed Runtime Gate. The focused local suite
 reported 10 passed before the PR was opened.
 
-## Authority boundary
+The successor PostgreSQL artifact-authority rehearsal is recorded separately:
 
-The Valkey durable ledger is authoritative for admitted run identity, idempotency
+- Runtime CI run: [34404714550](https://github.com/magnus919/groktocrawl-x/actions/runs/34404714550)
+- Tested commit: `2a3336b94460acafdb51c9c1405a68d9e072cf44`
+- PostgreSQL Storage Probes job: [102644869244](https://github.com/magnus919/groktocrawl-x/actions/runs/34404714550/job/102644869244)
+- Integration job: [102644869124](https://github.com/magnus919/groktocrawl-x/actions/runs/34404714550/job/102644869124)
+- Runtime Gate: passed
+- Run conclusion: `success` on 2026-09-09
+
+That run restored PostgreSQL and Valkey together into fresh targets. It verified
+exact artifact digests for a completed run, durable deletion for a deleted run,
+and safe reclaim plus reconciliation for a PostgreSQL commit interrupted before
+its Valkey terminal projection. Replaying the PostgreSQL commit remained
+idempotent.
+
+## Superseded bounded authority boundary
+
+The first rehearsal used the following boundary. The Valkey durable ledger was
+authoritative for admitted run identity, idempotency
 receipts, ownership generation, checkpoints, terminal state, retention and deletion
 tombstones. The fixture route's bounded terminal payload is authoritative for the
 published manifest, artifact bytes and terminal event history. The execution
 process-local map is only a projection and may be discarded.
 
-The current terminal payload remains bounded by the route's 1 MiB encoded limit and
-each manifest/artifact body is checked against its SHA-256 digest. A production-sized
-artifact store is still an open W5 decision; no external object store is implied by
-this packet.
+That terminal payload was bounded by the route's 1 MiB encoded limit and each
+manifest/artifact body was checked against its SHA-256 digest. A production-sized
+artifact store was still an open W5 decision at that point.
+
+PR [#244](https://github.com/magnus919/groktocrawl-x/pull/244) superseded that
+experimental boundary behind a fourth opt-in gate. PostgreSQL now owns the
+complete manifest and artifact bytes in one digest-checked transaction. Valkey
+retains bounded execution state and matching identities, digests, and pointers.
+PR [#247](https://github.com/magnus919/groktocrawl-x/pull/247) proved the combined
+restore boundary described above. No external object store is implied.
 
 ## Snapshot contract
 
@@ -54,6 +76,7 @@ receipts and deletion tombstones remain retained with their original TTL bounds.
 | Deletion before backup | Tombstone survives restore and text-bearing reads fail closed | Local and hosted W5 validation passed |
 | Altered snapshot digest or value | Restore rejects before changing the target | Local and hosted W5 validation passed |
 | Non-empty target without explicit replacement | Restore rejects rather than overwriting state | Local and hosted W5 validation passed |
+| PostgreSQL and Valkey restored together | Completed bytes and pointers match; deletion persists; interrupted publication reconciles once | Hosted successor validation passed |
 
 The hosted packet must record the commit, Valkey version/configuration, namespace,
 retention settings, target state, counts, elapsed restore time and any excluded
@@ -62,9 +85,8 @@ encrypted-backup or cross-version recovery.
 
 ## Remaining W5 decision
 
-The experiment still needs an explicit production artifact-authority decision. The
-current bounded inline payload is sufficient for fixture evidence and recovery
-contract tests. Before production adoption, compare an external artifact store or
-PostgreSQL-backed artifact authority against the stated size, retention, integrity,
-backup, migration and operational requirements. Do not close W5 or accept ADR-0074
-from this rehearsal alone.
+The PostgreSQL artifact-authority implementation and combined restore gate have
+passed for the experiment. W5 still needs the parent decision on durable execution
+ownership and the broader W6 client journey before this architecture can be called
+a replacement candidate. This evidence does not accept ADR-0074, claim production
+disaster recovery, or change mainline GroktoCrawl.
