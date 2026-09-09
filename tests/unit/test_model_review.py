@@ -144,6 +144,41 @@ async def test_transport_uses_alias_and_rejects_nonfinal_results(finish):
                 await transport(request)
     assert len(calls) == 1
     assert calls[0]["model"] == "local"
+    assert calls[0]["response_format"] == {"type": "json_object"}
+
+
+@pytest.mark.asyncio
+async def test_transport_requests_strict_schema_when_supplied():
+    calls = []
+
+    def handler(request):
+        calls.append(json.loads(request.content))
+        return httpx.Response(
+            200,
+            json={
+                "model": "local",
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": "{}"}}
+                ],
+            },
+        )
+
+    schema = {
+        "type": "object",
+        "properties": {"outcome": {"enum": ["pass", "fail"]}},
+    }
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        await ReviewTransport(
+            client, base_url="https://gateway.invalid/v1", api_key="test"
+        )(ReviewRequest("review", b"{}", "local", 32, schema))
+    assert calls[0]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "experimental_research_response",
+            "strict": True,
+            "schema": schema,
+        },
+    }
 
 
 @pytest.mark.asyncio

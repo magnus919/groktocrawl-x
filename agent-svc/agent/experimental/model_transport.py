@@ -36,7 +36,18 @@ class ReviewTransport:
             ],
             "stream": False,
             "max_tokens": request.max_output_tokens,
-            "response_format": {"type": "json_object"},
+            "response_format": (
+                {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "experimental_research_response",
+                        "strict": True,
+                        "schema": request.response_schema,
+                    },
+                }
+                if request.response_schema is not None
+                else {"type": "json_object"}
+            ),
         }
         try:
             async with self._client.stream(
