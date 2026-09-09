@@ -76,8 +76,6 @@ services:
     depends_on:
       research-postgres:
         condition: service_healthy
-      research-valkey:
-        condition: service_healthy
     environment:
       PGHOST: research-postgres
       PGDATABASE: research_experiment

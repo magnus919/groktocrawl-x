@@ -1067,6 +1067,7 @@ jobs:
         run: |
           set -eu
           restore_dir=$(mktemp -d "$RUNNER_TEMP/combined-authority.XXXXXX")
+          docker compose up -d --wait research-valkey
           docker compose run --rm -T storage-adapter combined-authority-seed > "$restore_dir/seed.json"
           docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$restore_dir/backup.sql"
           docker compose exec -T research-postgres createdb -U research_owner research_combined_authority_restore
