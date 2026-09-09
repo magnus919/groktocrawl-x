@@ -167,6 +167,12 @@ Both providers passed target-schema, reconciliation, cutover, deletion-continuit
 and rollback gates. Application-level shadow operation and the final operational
 surface decision remain open.
 
+The [operational-surface comparison](vector-operational-surface.md) finds that
+pgvector simplifies the deployment only if PostgreSQL is also adopted as the
+artifact authority. It recommends an experimental shadow-pgvector pilot while
+Qdrant remains authoritative, with shared-database interference and application-
+level reconciliation as the next gates.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
