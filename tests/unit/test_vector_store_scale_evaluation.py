@@ -75,6 +75,20 @@ def test_percentiles_keep_tail_measurements():
     assert summary["p99"] == 4.0
 
 
+def test_bulk_upsert_uses_equal_bounded_record_batches():
+    batch_sizes = []
+
+    class Store:
+        def upsert(self, records):
+            batch_sizes.append(len(records))
+
+    vector_scale_eval._upsert_in_batches(
+        Store(), vector_scale_eval.make_corpus(2501), batch_size=1000
+    )
+
+    assert batch_sizes == [1000, 1000, 501]
+
+
 def test_query_gate_allows_provider_order_inside_exact_score_ties():
     records = [
         vector_scale_eval.VectorRecord("a", "scope", (1.0, 0.0, 0.0)),
