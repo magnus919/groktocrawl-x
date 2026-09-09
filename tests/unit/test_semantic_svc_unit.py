@@ -143,6 +143,49 @@ class TestHealthReadiness:
         temporary_client.get_collections.assert_called_once_with()
         temporary_client.close.assert_called_once_with()
 
+    @pytest.mark.asyncio
+    async def test_ready_returns_503_when_qdrant_serving_store_is_down(
+        self, monkeypatch
+    ):
+        import json
+        from types import SimpleNamespace
+
+        import app
+
+        monkeypatch.setattr(app, "_models_ready", True)
+        monkeypatch.setattr(app, "SHADOW_CONFIG", SimpleNamespace(serving=False))
+        monkeypatch.setattr(app, "_is_qdrant_ready", lambda: False)
+
+        response = await app.readiness()
+
+        assert response.status_code == 503
+        assert json.loads(response.body) == {
+            "status": "starting",
+            "models": "loaded",
+            "qdrant": "unavailable",
+        }
+
+    @pytest.mark.asyncio
+    async def test_ready_uses_pgvector_as_serving_dependency(self, monkeypatch):
+        import json
+        from types import SimpleNamespace
+
+        import app
+
+        monkeypatch.setattr(app, "_models_ready", True)
+        monkeypatch.setattr(app, "SHADOW_CONFIG", SimpleNamespace(serving=True))
+        monkeypatch.setattr(app, "_is_pgvector_ready", lambda: False)
+        monkeypatch.setattr(app, "_is_qdrant_ready", lambda: True)
+
+        unavailable = await app.readiness()
+        assert unavailable.status_code == 503
+        assert json.loads(unavailable.body)["pgvector"] == "unavailable"
+
+        monkeypatch.setattr(app, "_is_pgvector_ready", lambda: True)
+        recovered = await app.readiness()
+        assert recovered.status_code == 200
+        assert json.loads(recovered.body)["pgvector"] == "ready"
+
 
 # ── Tests: _url_hash ──────────────────────────────────────────────
 

@@ -571,7 +571,12 @@ async def metrics_middleware(request: Request, call_next):
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, str]:
+    """Report liveness and component detail without failing legacy probes."""
+    return await _readiness_payload()
+
+
+async def _readiness_payload() -> dict[str, str]:
     if not _models_ready:
         return {"status": "starting", "models": "loading"}
 
@@ -594,6 +599,13 @@ async def health():
         "models": "loaded",
         "qdrant": "ready" if qdrant_ready else "unavailable",
     }
+
+
+@app.get("/ready")
+async def readiness() -> JSONResponse:
+    """Return a failing HTTP status while the active serving path is unavailable."""
+    payload = await _readiness_payload()
+    return JSONResponse(payload, status_code=200 if payload["status"] == "ok" else 503)
 
 
 @app.post("/embed", response_model=EmbedResponse)
