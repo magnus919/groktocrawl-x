@@ -1,6 +1,6 @@
 {
   "schema_version": "runtime-comparison-manifest/1",
-  "status": "paired_measurement_recorded_decision_pending",
+  "status": "retain_imperative_recommendation_pending_decider_review",
   "scope": "magnus919/groktocrawl-x only",
   "issue": 110,
   "adr": "0073",
@@ -14,7 +14,7 @@
     {
       "id": "graph-candidate",
       "implementation": "agent.experimental.runtime_comparison.LangGraphRuntime",
-      "implementation_status": "implemented as an optional adapter; measurement and dependency pin remain pending",
+      "implementation_status": "implemented and measured as an optional adapter; production adoption is not recommended",
       "framework": "LangGraph",
       "dependency": {
         "name": "langgraph",
@@ -39,7 +39,7 @@
     "workloads": ["serial", "fanout_join", "wide_join"],
     "conformance_failures": 0,
     "evidence": "docs/experiments/evidence/runtime-comparison/2026-09-08/",
-    "reason": "W1 packet design and isolation eligibility are approved; repeated cold/warm observations are recorded; bounds review and adoption decision remain open",
+    "reason": "Repeated cold/warm observations are recorded with zero conformance failures; LangGraph showed no engineering benefit sufficient to justify adoption, so the imperative runtime is recommended pending decider review",
     "additional_measurement": {
       "date": "2026-09-09",
       "seed": 20260909,
@@ -51,6 +51,12 @@
       "quality_claim_authorized": false,
       "production_adoption": false
     }
+  },
+  "recommendation": {
+    "runtime": "imperative",
+    "langgraph_disposition": "retain optional comparison adapter only",
+    "basis": "equivalent conformance, measurable framework overhead, and no demonstrated reduction in policy, recovery, or operational complexity",
+    "review_required": true
   },
   "hard_invariants": [
     "stable operation identity and input digest",

@@ -43,7 +43,29 @@ all 360 additional records again conformed. The fresh-process cold lane shows
 LangGraph graph-construction overhead (p50 181–194 ms versus 0.8–1.7 ms for the
 imperative reference); the warm lane shows p50 3.3–5.1 ms versus 0.7–1.5 ms.
 These are fixture observations, not end-to-end product bounds. `baseline_frozen`
-remains false because the W1 numerical bounds and scoring protocol are still
-unresolved. The imperative implementation remains the reference and LangGraph
-remains an experimental candidate until ADR-0073 is decided with the remaining
-W5/W6 evidence.
+remains false because the W1 numerical quality and resource bounds are still
+unresolved.
+
+## Engineering assessment
+
+The recommendation is to retain the typed imperative runtime and keep LangGraph
+only as an optional comparison adapter. Across two seeds, both runtimes produced
+equivalent terminal state, outputs, budgets, and accounting in 720 retained run
+records with zero conformance failures. LangGraph therefore proved it can express
+the workflow, but it did not improve a measured product or engineering outcome.
+
+The candidate added graph construction and scheduling overhead in every workload.
+Its second-run fresh-process p50 was 181–194 ms, compared with 0.8–1.7 ms for the
+imperative runtime. Its warm p50 was 3.3–5.1 ms, compared with 0.7–1.5 ms. Those
+small absolute costs would be hidden by real model and network time, so latency is
+not the deciding objection. The deciding point is that the adapter still relies on
+the same application-owned budget ledger, receipts, cancellation rules, durable
+ownership, and publication gates. It adds a framework and another state model
+without removing the hard parts of this architecture.
+
+This recommendation does not claim LangGraph is unsuitable in general. Reconsider
+it if a concrete workflow requires dynamic branching or checkpoint behavior that
+the imperative controller cannot implement clearly, and compare that case under a
+new frozen protocol. Pydantic Graph is not added as a third arm because ADR-0073
+bounded this study to one framework candidate and LangGraph exposed no unmet need
+that another graph framework would resolve.
