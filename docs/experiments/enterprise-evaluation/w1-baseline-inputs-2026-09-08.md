@@ -1,6 +1,7 @@
 # W1 baseline inputs — 2026-09-08
 
-Status: **baseline inputs frozen for review; scored comparison remains unauthorized**.
+Status: **baseline inputs and primary semantic review complete; scored comparison
+remains unauthorized**.
 
 This record fixes the inputs that are already supported by the isolated packet
 and incumbent run. It does not fill unresolved execution fields with defaults.
@@ -35,22 +36,27 @@ The private incumbent run attempted all 30 cases through the local route:
 - 5,944 prompt tokens and 2,444 completion tokens, 8,388 total reported tokens;
 - answer latency p50 6,424 ms and p95 8,283 ms.
 
-These values describe the observed baseline run. They are not acceptance bounds,
-quality scores, or evidence that a candidate is better.
+The [primary semantic review](w1-incumbent-semantic-review-2026-09-09.md) subsequently
+graded all 30 outcomes. It observed 70.1% strict assertion support, 72.9% required
+coverage, 70.1% citation correctness, and one critical authorization finding. Those
+results establish the incumbent reference and proposed comparison bounds; they do
+not show that a candidate is better.
 
 ## Still required before execution authorization
 
 The following fields remain deliberately unresolved and continue to block a scored
 series in `research-preflight.json`:
 
-1. semantic grading and adjudication protocol, including the provisional one-human
-   limitation;
-2. quality, latency, resource, and per-run budget bounds derived from the observed
-   baseline and reviewed before candidate execution;
-3. candidate B/C commits and policy/runtime versions;
-4. hardware, cache, model settings, paired order, and stochastic seed;
-5. question-level uncertainty calculation and stop mechanism; and
-6. explicit comparison authorization.
+1. freeze candidate B and independently curate a fresh held-out packet because
+   primary baseline review exposed the original packet to the implementation agent;
+2. human adjudication of the critical incumbent finding and the provisional
+   one-human limitation;
+3. review of the proposed quality, latency, resource, and per-run bounds derived
+   from the observed baseline;
+4. candidate B commit and policy version; the B/C runtime identity is already pinned
+   separately in the W4 packet; and
+5. explicit comparison authorization after the candidate identity and human
+   dispositions are pinned.
 
 The minimum design remains five stochastic trials per held-out question per arm and
 30 paired repetitions per runtime workload. Those are protocol minima, not an

@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight-draft/1",
-  "status": "blocked_pending_bounds_and_authorization",
+  "status": "blocked_pending_candidate_identity_adjudication_and_authorization",
   "comparison_authorized": false,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -10,8 +10,9 @@
     "A": {
       "status": "not_executed_for_comparison",
       "upstream_commit": "34b4975bc7baaf25510ed34029b957f95b59de70",
-      "policy": "incumbent",
-      "compatible_comparison_fixture_commit": null
+      "policy": "incumbent answer policy at pinned upstream commit",
+      "compatible_comparison_fixture_commit": null,
+      "commit": "34b4975bc7baaf25510ed34029b957f95b59de70"
     },
     "B": {
       "status": "not_implemented",
@@ -20,11 +21,13 @@
       "runtime": "typed imperative reference"
     },
     "C": {
-      "status": "not_implemented",
-      "commit": null,
-      "policy_version": null,
-      "runtime": "LangGraph comparison candidate",
-      "runtime_version": null
+      "status": "runtime_comparison_complete_not_a_quality_arm",
+      "commit": "62e8c99",
+      "policy": "fixture-policy/1 shared with imperative runtime",
+      "runtime": "LangGraph comparison adapter",
+      "runtime_version": "langgraph==0.6.11",
+      "disposition": "not recommended; optional comparison adapter only",
+      "report": "docs/experiments/runtime-comparison/report.md"
     }
   },
   "existing_regression_evidence": {
@@ -212,7 +215,7 @@
     },
     {
       "path": "uv.lock",
-      "sha256": "f4af47fefee2fcd5ca0f70cdda8d235ef8bf19a067bf7fbf6550f3895bc46951"
+      "sha256": "4c383538479287eedaf4ffde5f2044f29972897a256e07f9b57fa3d1bc42648a"
     },
     {
       "path": "scripts/run_answer_evals.py",
@@ -288,19 +291,91 @@
     }
   ],
   "comparison_preflight": {
-    "development_corpus": null,
-    "held_out_corpus": null,
-    "required_question_denominators": null,
-    "semantic_rubric": null,
-    "primary_reviewer": null,
-    "adjudicating_reviewer": null,
-    "hardware_and_limits": null,
-    "paired_order_and_seeds": null,
-    "quality_regression_bounds": null,
-    "latency_regression_bounds": null,
-    "resource_regression_bounds": null,
-    "per_operation_and_run_budgets": null,
-    "sample_uncertainty_plan": null,
+    "development_corpus": {
+      "path": "docs/experiments/enterprise-evaluation/corpus.json",
+      "sha256": "d3d1821b54783fa831247ea66f362c4a0abacb733c1532ccdb4267be8a7076af",
+      "held_out_eligible": false
+    },
+    "held_out_corpus": {
+      "status": "original_packet_calibration_only_after_implementation_agent_review",
+      "cases": 30,
+      "corpus_sha256": "sha256:659200d31ea23b17dc497b658c6c44db277005ed91a74fb962b10c6cebbf27c3",
+      "post_review_access_log_sha256": "sha256:d6b31f8e034981e5c6a308b3d79da69a3afcc93e28e000d9ad899f935ad82107",
+      "held_out_eligible_for_future_candidate": false,
+      "replacement_packet": "required after candidate B freeze"
+    },
+    "required_question_denominators": {
+      "cases": 30,
+      "required_subquestions": 85,
+      "adverse_or_abstention_cases": 6,
+      "failed_or_empty_outcomes_retained": 2
+    },
+    "semantic_rubric": "docs/experiments/enterprise-evaluation/README.md#review-rubric-and-record",
+    "primary_reviewer": {
+      "name": "Codex implementation agent",
+      "kind": "ai",
+      "status": "complete_provisional",
+      "review_sha256": "sha256:33523098685f45b6d38fdc4df884b3e3273b7c8625486ce9ce16b61b42136800",
+      "report": "docs/experiments/enterprise-evaluation/w1-incumbent-semantic-review-2026-09-09.md"
+    },
+    "adjudicating_reviewer": {
+      "name": "Magnus Hedemark",
+      "kind": "human",
+      "status": "pending_critical_finding_and_candidate_disagreements"
+    },
+    "hardware_and_limits": {
+      "runner_host": "current local macOS arm64 host",
+      "inference_route": "home-lab LiteLLM local alias on gpuslut01",
+      "comparison_rule": "same runner host, service state, model route, and cache policy for paired arms; record exact versions at execution",
+      "cold_warm_policy": "quality study uses fresh independent calls; no response reuse; provider cache-token counts retained when reported"
+    },
+    "paired_order_and_seeds": {
+      "seed": 20260909,
+      "order": "shuffle arm order within every case and trial; retain the generated schedule before dispatch",
+      "provider_seed": "record support or absence; do not simulate determinism"
+    },
+    "quality_regression_bounds": {
+      "status": "proposed_for_decider_review",
+      "hard_critical_findings_allowed": 0,
+      "paired_95pct_interval_must_not_show_regression": [
+        "strict_support",
+        "required_coverage",
+        "citation_correctness"
+      ],
+      "maximum_point_regression": 0.02,
+      "improvement_claim_requires": {
+        "minimum_point_gain": 0.05,
+        "minimum_metrics_meeting_gain": 2
+      }
+    },
+    "latency_regression_bounds": {
+      "status": "proposed_for_decider_review",
+      "p50_ms_max": 8030,
+      "p95_ms_max": 10354,
+      "multiplier_over_incumbent": 1.25
+    },
+    "resource_regression_bounds": {
+      "status": "proposed_for_decider_review",
+      "maximum_per_question_median_multiplier": 3.0,
+      "exception_requires": "established paired quality improvement and explicit final acceptance"
+    },
+    "per_operation_and_run_budgets": {
+      "answer_timeout_seconds": 30,
+      "retries_per_scored_call": 0,
+      "maximum_source_cards_per_case": 3,
+      "maximum_total_tokens_per_call": 6000,
+      "maximum_calls_per_arm": 150,
+      "maximum_calls_series": 300,
+      "external_provider_budget_usd": 0,
+      "stop_mechanism": "runner refuses dispatch after any call, token, time, route, or case-accounting ceiling and retains the stopped outcome"
+    },
+    "sample_uncertainty_plan": {
+      "status": "proposed_for_decider_review",
+      "trials_per_case_per_arm": 5,
+      "resamples": 10000,
+      "unit": "paired question",
+      "report_topic_families_separately": true
+    },
     "recovery_timing_and_retention_limits": null
   },
   "missing_value_rule": "null means unresolved and blocks the applicable comparison; never default to permissive values",
@@ -320,7 +395,8 @@
     "separate_ai_reviewer": "Hermes via local one-shot CLI",
     "human_calibration_and_adjudication": "Magnus; 12 exposed calibration cases human-confirmed in docs/experiments/enterprise-evaluation/calibration/human-confirmation.json; no held-out labels",
     "held_out_status": "No sealed held-out set; candidate calibration questions exposed to author/reviewer",
-    "numerical_performance_bounds": "Pending measured baseline and review under ADR-0070"
+    "numerical_performance_bounds": "Pending measured baseline and review under ADR-0070",
+    "independent_ai_review_status": "local-only Hermes route timed out; two fallback-routed outputs excluded before scoring"
   },
   "storage_exploration": {
     "status": "approved_bounded_experimental_exploration",
@@ -345,17 +421,19 @@
     "production_adoption": false
   },
   "held_out_packet": {
-    "status": "eligible_after_named_isolation_review",
+    "status": "calibration_only_after_primary_review_exposure",
     "cases": 30,
     "adverse_or_abstention_cases": 6,
     "topic_categories": 6,
     "template_families": 6,
     "corpus_sha256": "sha256:659200d31ea23b17dc497b658c6c44db277005ed91a74fb962b10c6cebbf27c3",
-    "access_log_sha256": "sha256:41e0d1be2c6ae5a8e35a628c5cb0c8bc7ec7d4dfce875bf98634b9817957d155",
+    "access_log_sha256": "sha256:d6b31f8e034981e5c6a308b3d79da69a3afcc93e28e000d9ad899f935ad82107",
     "validator_status": "candidate_validation_passed",
     "approval_record": "private packet approval.json; sanitized summary docs/experiments/enterprise-evaluation/w1-heldout-approval-2026-09-08.md",
     "comparison_authorized": false,
-    "production_adoption": false
+    "production_adoption": false,
+    "held_out_eligible_for_future_candidate": false,
+    "replacement_packet_required": true
   },
   "baseline_observation": {
     "status": "incumbent_answer_run_complete",
@@ -373,14 +451,36 @@
       "p50": 6424,
       "p95": 8283
     },
-    "quality_score": null,
+    "quality_score": {
+      "status": "primary_review_complete_provisional",
+      "strict_support": {
+        "numerator": 54,
+        "denominator": 77,
+        "rate": 0.7012987013
+      },
+      "required_coverage": {
+        "credit": 62.0,
+        "denominator": 85,
+        "rate": 0.7294117647
+      },
+      "citation_correctness": {
+        "numerator": 54,
+        "denominator": 77,
+        "rate": 0.7012987013
+      },
+      "critical_findings": 1,
+      "ready_to_use_cases": 10,
+      "needs_fix_cases": 15,
+      "do_not_use_cases": 5,
+      "report": "docs/experiments/enterprise-evaluation/w1-incumbent-semantic-review-2026-09-09.md"
+    },
     "comparison_authorized": false,
     "production_adoption": false,
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "freeze numerical quality, latency, resource and budget bounds from the incumbent observations",
-    "freeze scoring, ordering, seeds, hardware limits and uncertainty rules",
-    "obtain explicit comparison authorization before running candidate arms"
+    "freeze the exact evidence-first policy arm commit, then independently curate a fresh held-out packet",
+    "adjudicate the incumbent critical finding and review the proposed bounds",
+    "obtain explicit comparison authorization after the manifest points to the replacement packet"
   ]
 }
