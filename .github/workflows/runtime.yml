@@ -1061,6 +1061,8 @@ jobs:
           name: retained-storage-capacity-result
           path: capacity-results/
           if-no-files-found: warn
+      - name: Exercise atomic PostgreSQL artifact authority
+        run: docker compose run --rm -T storage-adapter artifact-authority
       - name: Stop isolated project while preserving volume
         if: always()
         run: docker compose down --timeout 30
