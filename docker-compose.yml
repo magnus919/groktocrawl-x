@@ -223,6 +223,13 @@ services:
       # own getenv default; bump both sides together.
       - QDRANT_QUERY_TIMEOUT=${QDRANT_QUERY_TIMEOUT:-10}
       - QDRANT_CLIENT_TIMEOUT=${QDRANT_CLIENT_TIMEOUT:-10}
+      # Optional fail-open comparison path. Qdrant remains authoritative;
+      # PostgreSQL receives mirrored writes and sampled search comparisons.
+      - VECTOR_STORE_MODE=${VECTOR_STORE_MODE:-qdrant}
+      - PGVECTOR_SHADOW_DSN=${PGVECTOR_SHADOW_DSN:-}
+      - PGVECTOR_SHADOW_SAMPLE_RATE=${PGVECTOR_SHADOW_SAMPLE_RATE:-0.1}
+      - PGVECTOR_SHADOW_SCORE_TOLERANCE=${PGVECTOR_SHADOW_SCORE_TOLERANCE:-0.0001}
+      - PGVECTOR_SHADOW_TIMEOUT_SECONDS=${PGVECTOR_SHADOW_TIMEOUT_SECONDS:-2}
     volumes:
       - hf-cache:/root/.cache/huggingface
     depends_on:

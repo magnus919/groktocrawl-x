@@ -183,6 +183,10 @@ The configuration inventory follows `.env.sample`; unlisted implementation-only 
 - MCP_TARGETED_SENSITIVE_ALLOWED
 - NEAR_DUP_MODE
 - NEAR_DUP_THRESHOLD
+- PGVECTOR_SHADOW_DSN
+- PGVECTOR_SHADOW_SAMPLE_RATE
+- PGVECTOR_SHADOW_SCORE_TOLERANCE
+- PGVECTOR_SHADOW_TIMEOUT_SECONDS
 - QDRANT_CLIENT_TIMEOUT
 - QDRANT_QUERY_TIMEOUT
 - QDRANT_URL
@@ -228,5 +232,6 @@ The configuration inventory follows `.env.sample`; unlisted implementation-only 
 - SESSION_TTL
 - VALKEY_URL
 - VECTOR_INDEX_MAX_DOCS
+- VECTOR_STORE_MODE
 - WEBHOOK_SECRET
 <!-- env-inventory:end -->

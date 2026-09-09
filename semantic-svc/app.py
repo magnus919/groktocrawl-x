@@ -34,8 +34,9 @@ import logging
 import math
 import os
 import time
+from collections.abc import Callable
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import inference as inference_module
 import numpy as np
@@ -56,6 +57,7 @@ from models import (
     RerankResult,
 )
 from qdrant_client import QdrantClient, models
+from shadow_pgvector import PgvectorShadowStore, ShadowConfig
 
 if TYPE_CHECKING:
     from sentence_transformers import CrossEncoder, SentenceTransformer
@@ -153,6 +155,7 @@ async def lifespan(app: FastAPI):
     _embed_model = None
     _rerank_model = None
     await _inference_manager.shutdown()
+    _shadow_store.close()
 
 
 app = FastAPI(title="semantic-svc", lifespan=lifespan)
@@ -216,6 +219,52 @@ QDRANT_QUERY_TIMEOUT = float(os.getenv("QDRANT_QUERY_TIMEOUT", "10"))
 QDRANT_CLIENT_TIMEOUT = math.ceil(
     float(os.getenv("QDRANT_CLIENT_TIMEOUT", str(QDRANT_QUERY_TIMEOUT)))
 )
+SHADOW_CONFIG = ShadowConfig.from_env()
+_shadow_store = PgvectorShadowStore(SHADOW_CONFIG, EMBED_DIM)
+
+
+async def _run_shadow_operation(operation: str, function: Callable[[], Any]) -> Any:
+    """Run a bounded shadow operation without changing Qdrant outcomes."""
+    if not SHADOW_CONFIG.enabled:
+        return None
+    outcome = "success"
+    try:
+
+        def execute() -> Any:
+            _shadow_store.ensure_schema()
+            return function()
+
+        return await asyncio.wait_for(
+            asyncio.to_thread(execute), timeout=SHADOW_CONFIG.timeout_seconds
+        )
+    except Exception:
+        outcome = "failure"
+        logger.warning("pgvector shadow %s failed", operation, exc_info=True)
+        return None
+    finally:
+        METRICS.counter(
+            "groktocrawl_pgvector_shadow_operations_total",
+            "Pgvector shadow operations by type and outcome",
+            ["operation", "outcome"],
+        ).inc({"operation": operation, "outcome": outcome})
+
+
+def _schedule_shadow_operation(operation: str, function: Callable[[], Any]) -> None:
+    """Schedule fail-open shadow work under the service task tracker."""
+    if not SHADOW_CONFIG.enabled:
+        return
+    app.state.task_tracker.create_background_task(
+        _run_shadow_operation(operation, function)
+    )
+
+
+def _create_background_task(coro) -> asyncio.Task:
+    """Track route background work when the application lifespan is active."""
+    tracker = getattr(app.state, "task_tracker", None)
+    if tracker is not None:
+        return tracker.create_background_task(coro)
+    return asyncio.create_task(coro)
+
 
 # ── Migration state (in-memory, lost on restart) ──────────────────
 # For restart-surviving state, store in Valkey or a known Qdrant point.
