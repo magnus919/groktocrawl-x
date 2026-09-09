@@ -40,11 +40,10 @@ not a performance or recovery verdict for this repository.
 
 ## Decision Outcome
 
-Recommend **B as the reference implementation and LangGraph as the single C
-candidate for W4**. This selects a comparison candidate, not the adopted runtime.
-Do not add a third runtime without an explicit ADR-0070 protocol revision. Keep
-inherited behavior as arm A. Before implementation, accept the required D1/D2/D6
-contracts and freeze W1's baseline/manifest; this draft does not authorize a rewrite.
+Retain **B, the typed imperative controller, as the experimental architecture's
+runtime**. Keep the LangGraph adapter as optional comparison code and do not add it
+to the production image or runtime dependency set. Do not add a third runtime
+without an explicit ADR-0070 protocol revision. Keep inherited behavior as arm A.
 
 Both adapters invoke the same policy functions and operation interfaces. Runtime
 code owns scheduling only; it cannot modify prompts, source ranking, verification
@@ -102,6 +101,15 @@ imperative reference, revise within the approved protocol, or report inconclusiv
 A successful graph checkpoint test does not establish ADR-0074 recovery conformance.
 No provider spend is authorized; scripted local fixtures are the initial lane.
 
+Two paired fixture series now cover 30 repetitions of three workloads in cold and
+warm lanes with different fixed seeds. All 720 retained records conformed. LangGraph
+added measurable construction and scheduling overhead and did not replace the
+application-owned policy, budget, receipt, cancellation, recovery, or publication
+logic. Because the adoption rule requires a demonstrated engineering benefit, the
+evidence supports retaining the imperative controller. Numerical W1 quality bounds
+remain a separate policy/model evaluation gate and are not needed to infer a quality
+difference between runtimes that intentionally used identical scripted operations.
+
 ## Inherited Decision Impact
 
 | ADR | Proposed relationship and scope |
@@ -125,7 +133,8 @@ that cost. A negative or inconclusive result is useful and must be retained.
 
 ## Confirmation
 
-Magnus owns the decision and reviews the manifest and engineering assessment. The
+Magnus owns the decision and must review this recommendation before the ADR status
+changes from proposed. The
 W4 implementer owns CI conformance cases, with zero budget, identity, publication
 or cancellation violations. Missing cases/results block adoption. Archive commit,
 fixture/dependency versions, raw distributions, failed controls and exclusions in
@@ -141,3 +150,6 @@ state migration change; retire with a successor ADR and preserved evidence.
 - [ADR-0070](0070-evaluate-research-policy-and-runtime-separately.md)
 - [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md)
 - [ADR-0074](0074-define-research-recovery-before-selecting-infrastructure.md)
+- [W4 runtime comparison report](../experiments/runtime-comparison/report.md)
+- [First paired measurement](../experiments/evidence/runtime-comparison/2026-09-08/)
+- [Repeated paired measurement](../experiments/evidence/runtime-comparison/2026-09-09/)
