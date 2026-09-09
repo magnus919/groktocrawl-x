@@ -162,6 +162,10 @@ state during backfill and coexistence, validates scoped retrieval before and
 after cutover, and routes back to the source generation. Qdrant uses atomic
 collection-alias updates; PostgreSQL uses a transactional route record. This is
 an evaluation mechanism only and does not change the application storage path.
+The first hosted rehearsal is preserved in the [migration evidence packet](../evidence/storage-vector-evaluation/2026-09-09-migration-r1/).
+Both providers passed target-schema, reconciliation, cutover, deletion-continuity,
+and rollback gates. Application-level shadow operation and the final operational
+surface decision remain open.
 
 ## Measures and gates
 
