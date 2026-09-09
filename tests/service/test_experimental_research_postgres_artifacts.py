@@ -8,6 +8,8 @@ import importlib.util
 import json
 import os
 import runpy
+import sys
+import types
 from pathlib import Path
 from uuid import UUID
 
@@ -256,12 +258,17 @@ async def test_recovered_bytes_match_http_sse_cli_and_mcp(
 
         summary_id = summary_url.rsplit("/", 1)[-1]
 
-        cli_ns = runpy.run_path(
-            str(Path(__file__).resolve().parents[2] / "groktocrawl")
-        )
+        cli_path = Path("/app/w6-fixtures/groktocrawl")
+        if not cli_path.is_file():
+            cli_path = Path(__file__).resolve().parents[2] / "groktocrawl"
+        cli_ns = runpy.run_path(str(cli_path))
         cli_client = cli_ns["Client"](server="http://test")
         cli_response = httpx.Response(200, content=recovered_bytes)
-        monkeypatch.setattr("requests.get", lambda *args, **kwargs: cli_response)
+        monkeypatch.setitem(
+            sys.modules,
+            "requests",
+            types.SimpleNamespace(get=lambda *args, **kwargs: cli_response),
+        )
         assert (
             cli_client.experimental_research_artifact_bytes(summary_id)
             == original_bytes
