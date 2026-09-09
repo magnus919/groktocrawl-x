@@ -1,6 +1,6 @@
 {
   "schema_version": "runtime-comparison-manifest/1",
-  "status": "retain_imperative_recommendation_pending_decider_review",
+  "status": "current_workflow_reference_selected_future_substrate_open",
   "scope": "magnus919/groktocrawl-x only",
   "issue": 110,
   "adr": "0073",
@@ -39,7 +39,7 @@
     "workloads": ["serial", "fanout_join", "wide_join"],
     "conformance_failures": 0,
     "evidence": "docs/experiments/evidence/runtime-comparison/2026-09-08/",
-    "reason": "Repeated cold/warm observations are recorded with zero conformance failures; LangGraph showed no engineering benefit sufficient to justify adoption, so the imperative runtime is recommended pending decider review",
+    "reason": "Repeated cold/warm observations are recorded with zero conformance failures; the imperative runtime remains the current-workflow reference while issue 245 evaluates LangGraph's future-facing research capabilities",
     "additional_measurement": {
       "date": "2026-09-09",
       "seed": 20260909,
@@ -53,9 +53,9 @@
     }
   },
   "recommendation": {
-    "runtime": "imperative",
-    "langgraph_disposition": "retain optional comparison adapter only",
-    "basis": "equivalent conformance, measurable framework overhead, and no demonstrated reduction in policy, recovery, or operational complexity",
+    "runtime": "imperative current-workflow reference",
+    "langgraph_disposition": "retain candidate adapter and evaluate future capabilities in issue 245",
+    "basis": "equivalent current-workflow conformance with measurable overhead; persistence, interrupts, adaptive planning, subgraphs, recovery, and state forks remain untested",
     "review_required": true
   },
   "hard_invariants": [

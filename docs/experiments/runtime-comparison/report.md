@@ -48,11 +48,12 @@ unresolved.
 
 ## Engineering assessment
 
-The recommendation is to retain the typed imperative runtime and keep LangGraph
-only as an optional comparison adapter. Across two seeds, both runtimes produced
+The bounded-workflow recommendation is to retain the typed imperative runtime as
+the reference and keep LangGraph as an optional candidate. Across two seeds, both runtimes produced
 equivalent terminal state, outputs, budgets, and accounting in 720 retained run
 records with zero conformance failures. LangGraph therefore proved it can express
-the workflow, but it did not improve a measured product or engineering outcome.
+the current workflow, but it did not improve a measured product or engineering
+outcome in this comparison.
 
 The candidate added graph construction and scheduling overhead in every workload.
 Its second-run fresh-process p50 was 181–194 ms, compared with 0.8–1.7 ms for the
@@ -63,9 +64,10 @@ the same application-owned budget ledger, receipts, cancellation rules, durable
 ownership, and publication gates. It adds a framework and another state model
 without removing the hard parts of this architecture.
 
-This recommendation does not claim LangGraph is unsuitable in general. Reconsider
-it if a concrete workflow requires dynamic branching or checkpoint behavior that
-the imperative controller cannot implement clearly, and compare that case under a
-new frozen protocol. Pydantic Graph is not added as a third arm because ADR-0073
-bounded this study to one framework candidate and LangGraph exposed no unmet need
-that another graph framework would resolve.
+This comparison did not exercise the features most likely to justify a graph
+substrate: adaptive replanning, specialist subgraphs, human interrupts, checkpoint
+recovery, or forks from prior state. Issue #245 adds those future-facing scenarios.
+The long-term decision remains open until that evidence shows whether LangGraph
+lets the platform safely build materially better research experiences as models and
+search tools improve. Pydantic Graph is not added as a third arm because ADR-0073
+bounds this study to one framework candidate until that need is established.
