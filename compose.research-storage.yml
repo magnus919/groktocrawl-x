@@ -1,7 +1,7 @@
 # Independent opt-in exploration; never merge into the inherited Compose stack.
 services:
   research-postgres:
-    image: postgres:17.11-bookworm
+    image: pgvector/pgvector:pg17
     profiles: [storage]
     environment:
       POSTGRES_DB: research_experiment
@@ -68,6 +68,7 @@ services:
     secrets: [research_password]
     volumes:
       - ./tests/storage:/probes:ro
+      - ./semantic-svc:/semantic:ro
     networks: [research_private]
     entrypoint: [sh, /probes/probe.sh]
     command: [adapter]
