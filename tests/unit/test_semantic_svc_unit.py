@@ -959,7 +959,8 @@ class TestSearchVectorQdrantBoundary:
         from models import VectorSearchRequest, VectorSearchResponse
 
         class _Hit:
-            def __init__(self, url, title, score):
+            def __init__(self, point_id, url, title, score):
+                self.id = point_id
                 self.payload = {"url": url, "title": title}
                 self.score = score
 
@@ -967,8 +968,8 @@ class TestSearchVectorQdrantBoundary:
             def query_points(self, **kwargs):
                 class _Resp:
                     points = [
-                        _Hit("https://a.com", "A", 0.91),
-                        _Hit("https://b.com", "B", 0.82),
+                        _Hit(1, "https://a.com", "A", 0.91),
+                        _Hit(2, "https://b.com", "B", 0.82),
                     ]
 
                 return _Resp()
@@ -980,3 +981,83 @@ class TestSearchVectorQdrantBoundary:
         assert isinstance(resp, VectorSearchResponse)
         assert [r.url for r in resp.results] == ["https://a.com", "https://b.com"]
         assert [r.score for r in resp.results] == [0.91, 0.82]
+
+    @pytest.mark.asyncio
+    async def test_shadow_comparison_is_scheduled_without_delaying_response(
+        self, monkeypatch
+    ):
+        """Enabled shadow mode captures comparison work after Qdrant succeeds."""
+        from types import SimpleNamespace
+
+        from models import VectorSearchRequest
+
+        class _Hit:
+            id = 1
+            payload = {"url": "https://a.com", "title": "A"}
+            score = 0.91
+
+        class _OkQdrant:
+            def query_points(self, **kwargs):
+                return SimpleNamespace(points=[_Hit()])
+
+        router_search = self._ready_router(monkeypatch, _OkQdrant())
+        scheduled = []
+
+        def _capture(coro):
+            scheduled.append(coro)
+
+        monkeypatch.setattr(
+            router_search,
+            "SHADOW_CONFIG",
+            SimpleNamespace(enabled=True, sample_rate=1, score_tolerance=0.0001),
+        )
+        monkeypatch.setattr(router_search, "_create_background_task", _capture)
+
+        response = await router_search.search_vector(
+            VectorSearchRequest(query="herbs", limit=5)
+        )
+
+        assert [result.url for result in response.results] == ["https://a.com"]
+        assert len(scheduled) == 2
+        for coro in scheduled:
+            coro.close()
+
+
+class TestPgvectorShadowIndexWiring:
+    @pytest.mark.asyncio
+    async def test_single_index_mirrors_only_after_qdrant_success(self, monkeypatch):
+        """The authoritative write completes before shadow work is scheduled."""
+        import app as app_module
+        import numpy as np
+        import router_index
+        from models import IndexRequest
+
+        events = []
+
+        class _Qdrant:
+            def retrieve(self, *args, **kwargs):
+                return []
+
+            def upsert(self, *args, **kwargs):
+                events.append("qdrant")
+
+        class _Model:
+            def encode(self, text, **kwargs):
+                return np.array([0.1, 0.2, 0.3])
+
+        def _schedule(operation, function):
+            events.append(operation)
+
+        monkeypatch.setattr(app_module, "_models_ready", True)
+        monkeypatch.setattr(router_index, "_ensure_qdrant", _async_return(_Qdrant()))
+        monkeypatch.setattr(router_index, "_get_embed_model", lambda: _Model())
+        monkeypatch.setattr(router_index, "_get_active_model", lambda: "v_bge-m3")
+        monkeypatch.setattr(router_index, "_schedule_shadow_operation", _schedule)
+        monkeypatch.setattr(router_index, "_evict_if_needed", _async_return(None))
+
+        response = await router_index.index_page(
+            IndexRequest(url="https://example.com", title="Example", content="body")
+        )
+
+        assert response.status == "indexed"
+        assert events == ["qdrant", "upsert"]

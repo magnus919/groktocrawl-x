@@ -6,7 +6,9 @@ records failures through its caller instead of changing request outcomes.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import os
 import threading
 from collections.abc import Mapping, Sequence
@@ -18,6 +20,16 @@ def _vector_literal(vector: Sequence[float]) -> str:
     return "[" + ",".join(format(float(value), ".17g") for value in vector) + "]"
 
 
+def should_sample(key: str, rate: float) -> bool:
+    """Make stable sampling decisions without retaining the sampled query."""
+    if rate <= 0:
+        return False
+    if rate >= 1:
+        return True
+    bucket = int.from_bytes(hashlib.sha256(key.encode()).digest()[:8], "big")
+    return bucket / (2**64) < rate
+
+
 @dataclass(frozen=True)
 class ShadowConfig:
     mode: str
@@ -26,6 +38,7 @@ class ShadowConfig:
     table: str
     sample_rate: float
     score_tolerance: float
+    timeout_seconds: float
 
     @property
     def enabled(self) -> bool:
@@ -45,6 +58,9 @@ class ShadowConfig:
         tolerance = float(os.getenv("PGVECTOR_SHADOW_SCORE_TOLERANCE", "0.0001"))
         if tolerance < 0:
             raise ValueError("PGVECTOR_SHADOW_SCORE_TOLERANCE must be non-negative")
+        timeout = float(os.getenv("PGVECTOR_SHADOW_TIMEOUT_SECONDS", "2"))
+        if timeout <= 0:
+            raise ValueError("PGVECTOR_SHADOW_TIMEOUT_SECONDS must be positive")
         return cls(
             mode=mode,
             dsn=dsn,
@@ -52,6 +68,7 @@ class ShadowConfig:
             table="pages",
             sample_rate=sample_rate,
             score_tolerance=tolerance,
+            timeout_seconds=timeout,
         )
 
 
@@ -61,6 +78,16 @@ class ShadowSearchResult:
     url: str
     title: str
     score: float
+
+
+@dataclass(frozen=True)
+class ShadowRecord:
+    point_id: int
+    url: str
+    title: str
+    vector: Sequence[float]
+    model: str
+    payload: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -109,24 +136,34 @@ class PgvectorShadowStore:
         self.dimension = dimension
         self._connection: Any | None = None
         self._lock = threading.Lock()
+        self._schema_ready = False
 
     def _connect(self) -> Any:
         if self._connection is None:
             import psycopg
 
-            self._connection = psycopg.connect(self.config.dsn, autocommit=True)
+            connect_timeout = max(1, math.ceil(self.config.timeout_seconds))
+            statement_timeout_ms = max(1, int(self.config.timeout_seconds * 1000))
+            self._connection = psycopg.connect(
+                self.config.dsn,
+                autocommit=True,
+                connect_timeout=connect_timeout,
+                options=f"-c statement_timeout={statement_timeout_ms}",
+            )
         return self._connection
 
     def ensure_schema(self) -> None:
         if not self.config.enabled:
             return
         with self._lock:
+            if self._schema_ready:
+                return
             connection = self._connect()
             connection.execute("CREATE EXTENSION IF NOT EXISTS vector")
             connection.execute(f"CREATE SCHEMA IF NOT EXISTS {self.config.schema}")
             connection.execute(
                 f"""CREATE TABLE IF NOT EXISTS {self.config.schema}.{self.config.table} (
-                    point_id bigint PRIMARY KEY,
+                    point_id numeric(20, 0) PRIMARY KEY,
                     url text NOT NULL,
                     title text NOT NULL,
                     embedding vector({self.dimension}) NOT NULL,
@@ -141,6 +178,7 @@ class PgvectorShadowStore:
                 f"ON {self.config.schema}.{self.config.table} "
                 "USING hnsw (embedding vector_cosine_ops)"
             )
+            self._schema_ready = True
 
     def upsert(
         self,
@@ -152,28 +190,43 @@ class PgvectorShadowStore:
         model: str,
         payload: Mapping[str, Any],
     ) -> None:
-        if len(vector) != self.dimension:
+        self.upsert_many([ShadowRecord(point_id, url, title, vector, model, payload)])
+
+    def upsert_many(self, records: Sequence[ShadowRecord]) -> None:
+        if not records:
+            return
+        if any(len(record.vector) != self.dimension for record in records):
             raise ValueError(
                 "shadow vector dimension does not match configured dimension"
+            )
+        values_sql = ",".join(
+            ["(%s, %s, %s, %s::vector, %s, %s::jsonb, false, now())"] * len(records)
+        )
+        parameters: list[Any] = []
+        for record in records:
+            parameters.extend(
+                (
+                    record.point_id,
+                    record.url,
+                    record.title,
+                    _vector_literal(record.vector),
+                    record.model,
+                    json.dumps(
+                        dict(record.payload), separators=(",", ":"), sort_keys=True
+                    ),
+                )
             )
         with self._lock:
             connection = self._connect()
             connection.execute(
                 f"""INSERT INTO {self.config.schema}.{self.config.table}
                     (point_id, url, title, embedding, model, payload, deleted, updated_at)
-                    VALUES (%s, %s, %s, %s::vector, %s, %s::jsonb, false, now())
+                    VALUES {values_sql}
                     ON CONFLICT (point_id) DO UPDATE SET
                       url=EXCLUDED.url, title=EXCLUDED.title,
                       embedding=EXCLUDED.embedding, model=EXCLUDED.model,
                       payload=EXCLUDED.payload, deleted=false, updated_at=now()""",
-                (
-                    point_id,
-                    url,
-                    title,
-                    _vector_literal(vector),
-                    model,
-                    json.dumps(dict(payload), separators=(",", ":"), sort_keys=True),
-                ),
+                parameters,
             )
 
     def delete(self, point_id: int) -> None:
@@ -215,3 +268,4 @@ class PgvectorShadowStore:
             if self._connection is not None:
                 self._connection.close()
                 self._connection = None
+                self._schema_ready = False

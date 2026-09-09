@@ -10,18 +10,59 @@ import app as app_module
 from app import (
     COLLECTION_NAME,
     QDRANT_QUERY_TIMEOUT,
+    SHADOW_CONFIG,
+    _create_background_task,
     _ensure_qdrant,
     _get_active_model,
     _get_embed_model,
+    _run_shadow_operation,
+    _shadow_store,
     run_inference,
 )
 from fastapi import APIRouter, HTTPException
+from metrics import METRICS
 from models import VectorSearchRequest, VectorSearchResponse, VectorSearchResult
 from router_index import _track_access
+from shadow_pgvector import compare_results, should_sample
 
 logger = logging.getLogger(__name__)
 
 router_search = APIRouter()
+
+
+async def _compare_shadow_results(
+    query_embedding: list[float], active_model: str, limit: int, hits: list
+) -> None:
+    """Compare pgvector with Qdrant without retaining query text or serving it."""
+    shadow_results = await _run_shadow_operation(
+        "search",
+        lambda: _shadow_store.search(query_embedding, model=active_model, limit=limit),
+    )
+    if shadow_results is None:
+        outcome = "failure"
+    else:
+        comparison = compare_results(
+            [(int(hit.id), float(hit.score)) for hit in hits],
+            shadow_results,
+            score_tolerance=SHADOW_CONFIG.score_tolerance,
+        )
+        outcome = "match" if comparison.matches else "mismatch"
+        if comparison.maximum_score_delta is not None:
+            METRICS.histogram(
+                "groktocrawl_pgvector_shadow_score_delta",
+                "Maximum score delta per Qdrant and pgvector comparison",
+            ).observe({}, comparison.maximum_score_delta)
+        if not comparison.matches:
+            logger.info(
+                "pgvector shadow mismatch: authoritative_ids=%s shadow_ids=%s",
+                comparison.authoritative_ids,
+                comparison.shadow_ids,
+            )
+    METRICS.counter(
+        "groktocrawl_pgvector_shadow_comparisons_total",
+        "Pgvector search comparisons by outcome",
+        ["outcome"],
+    ).inc({"outcome": outcome})
 
 
 @router_search.post("/vector", response_model=VectorSearchResponse)
@@ -86,6 +127,11 @@ async def search_vector(body: VectorSearchRequest):
 
     # Fire-and-forget access tracking (Phase 3)
     if hits:
-        asyncio.ensure_future(_track_access(qdrant, hits))
+        _create_background_task(_track_access(qdrant, hits))
+
+    if SHADOW_CONFIG.enabled and should_sample(body.query, SHADOW_CONFIG.sample_rate):
+        _create_background_task(
+            _compare_shadow_results(query_embedding, active_nv, body.limit, hits)
+        )
 
     return VectorSearchResponse(results=results)

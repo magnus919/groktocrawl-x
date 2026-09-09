@@ -20,6 +20,8 @@ from app import (
     _migration,
     _named_vector_name,
     _now_iso,
+    _schedule_shadow_operation,
+    _shadow_store,
     _url_hash,
     run_inference,
 )
@@ -39,6 +41,7 @@ from retention import (
     _compute_retention_score,
     _evict_if_needed,
 )
+from shadow_pgvector import ShadowRecord
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +205,18 @@ async def index_page(body: IndexRequest):
         ],
     )
 
+    _schedule_shadow_operation(
+        "upsert",
+        lambda: _shadow_store.upsert(
+            point_id=point_id,
+            url=body.url,
+            title=body.title,
+            vector=embedding,
+            model=active_nv,
+            payload=payload,
+        ),
+    )
+
     await _evict_if_needed(qdrant)
 
     return IndexResponse(status="indexed", url_hash=point_id)
@@ -258,6 +273,7 @@ async def index_batch(body: IndexBatchRequest):
                 )
 
     points = []
+    shadow_records: list[ShadowRecord] = []
     for page, embedding in zip(body.pages, embeddings, strict=False):
         point_id = _url_hash(page.url)
         existing_payload = None
@@ -305,9 +321,23 @@ async def index_batch(body: IndexBatchRequest):
                 payload=payload,
             )
         )
+        shadow_records.append(
+            ShadowRecord(
+                point_id=point_id,
+                url=page.url,
+                title=page.title,
+                vector=embedding,
+                model=active_nv,
+                payload=payload,
+            )
+        )
 
     # Single batch upsert via Qdrant gRPC
     qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+
+    _schedule_shadow_operation(
+        "upsert_batch", lambda: _shadow_store.upsert_many(shadow_records)
+    )
 
     METRICS.counter(
         "groktocrawl_index_batch_pages_total",
@@ -327,6 +357,7 @@ async def delete_index(url_hash: int):
         COLLECTION_NAME,
         points_selector=models.PointIdsList(points=[url_hash]),
     )
+    _schedule_shadow_operation("delete", lambda: _shadow_store.delete(url_hash))
     return {"status": "deleted"}
 
 
