@@ -1063,6 +1063,26 @@ jobs:
           if-no-files-found: warn
       - name: Exercise atomic PostgreSQL artifact authority
         run: docker compose run --rm -T storage-adapter artifact-authority
+      - name: Rehearse combined PostgreSQL and Valkey authority restore
+        run: |
+          set -eu
+          restore_dir=$(mktemp -d "$RUNNER_TEMP/combined-authority.XXXXXX")
+          docker compose run --rm -T storage-adapter combined-authority-seed > "$restore_dir/seed.json"
+          docker compose exec -T research-postgres pg_dump -U research_owner -d research_experiment --no-owner --no-privileges > "$restore_dir/backup.sql"
+          docker compose exec -T research-postgres createdb -U research_owner research_combined_authority_restore
+          docker compose exec -T research-postgres psql -X -U research_owner -d research_combined_authority_restore --set=ON_ERROR_STOP=1 --single-transaction < "$restore_dir/backup.sql"
+          docker compose run --rm -T \
+            -e PGDATABASE=research_combined_authority_restore \
+            -e RESTORE_VALKEY_URL=redis://research-valkey:6379/14 \
+            storage-adapter combined-authority-verify \
+            < "$restore_dir/seed.json" > combined-authority-restore-result.json
+          cat combined-authority-restore-result.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload combined authority restore result
+        uses: actions/upload-artifact@v7
+        with:
+          name: combined-authority-restore-result
+          path: combined-authority-restore-result.json
+          if-no-files-found: error
       - name: Stop isolated project while preserving volume
         if: always()
         run: docker compose down --timeout 30
