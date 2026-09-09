@@ -177,7 +177,14 @@ passed response-equivalence, fail-open, exact reconciliation, and bounded
 shared-database correctness checks. It also measured two normal mismatches from
 asynchronous write lag. The evaluation therefore continues with Qdrant as the
 authority until sustained mixed traffic quantifies that lag and a reviewed ADR
-defines any serving cutover.
+defines any serving cutover. The follow-up
+[sustained lag packet](../evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/)
+recorded 360 matching normal comparisons, bounded all shadow write completion
+within 75 ms, passed 40 concurrent retained-artifact tests, preserved the served
+response during a PostgreSQL outage, and reconciled exact parity afterward.
+[ADR-0079](../../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md)
+therefore proposes a reversible experimental pgvector cutover with Qdrant kept as
+the rollback target until the application rehearsal passes.
 
 ## Measures and gates
 

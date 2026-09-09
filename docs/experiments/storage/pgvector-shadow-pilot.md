@@ -14,7 +14,11 @@ The first run is preserved in the
 It passed response-equivalence, fail-open, reconciliation, and bounded
 shared-database correctness checks. Two ordinary comparisons also exposed the
 expected lag from asynchronous shadow writes. Keep Qdrant authoritative while
-that lag is measured under sustained mixed traffic.
+that lag is measured under sustained mixed traffic. The follow-up
+[sustained lag packet](../evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/)
+recorded 360 matching comparisons, bounded all 240 shadow writes within 75 ms,
+and restored exact parity after an outage. It supports the reversible cutover
+design proposed in [ADR-0079](../../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md).
 
 ## Preconditions
 
