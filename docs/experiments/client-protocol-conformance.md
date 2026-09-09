@@ -30,11 +30,23 @@ The tests cover completed, failed and cancelled terminal outcomes, duplicate rep
 deduplication, sequence gaps, foreign cursors and no-terminal/terminal-order
 violations. The run adapter tests also cover foreign-scope reads and mutations plus
 deleting a root while execution is still running; a late completion remains tombstoned
-from status, events, artifacts and session attachment. The run adapter is still a bounded fixture implementation, not
-production research. CLI/MCP journey parity is implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130). W6 remains open until durable recovery and the full authorization/deletion race
-matrix are implemented and reviewed; bounded scope-isolation and deletion-tombstone
+from status, events, artifacts and session attachment. The run adapter is still a
+bounded fixture implementation, not production research. CLI/MCP journey parity is
+implemented in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130).
+Bounded scope-isolation and deletion-tombstone
 evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133). The
-durable status-recovery and cancellation route slice is merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact-byte and terminal event-history recovery is merged in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). PostgreSQL artifact authority and combined PostgreSQL/Valkey backup evidence remain W5 gates; this adapter does not claim provider-effect recovery or production readiness.
+durable status-recovery and cancellation route slice is merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact-byte and terminal event-history recovery is merged in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142). PostgreSQL artifact authority and combined PostgreSQL/Valkey backup evidence passed in W5; this adapter does not claim real-provider effect recovery or production readiness.
+
+[PR #251](https://github.com/magnus919/groktocrawl-x/pull/251) completes the W6
+recovered-client gate. After clearing all process-local route state, one completed
+run was recovered through Valkey and PostgreSQL and produced matching HTTP status,
+manifest identity, exact artifact bytes, terminal SSE replay, CLI download bytes,
+and decoded MCP bytes. The same journey retained foreign-scope denial and deletion
+tombstones after another simulated restart. Hosted Runtime CI run
+[34416888418](https://github.com/magnus919/groktocrawl-x/actions/runs/34416888418)
+passed Integration Tests, PostgreSQL Storage Probes, Twin Contracts, and Runtime
+Gate. W6 is complete for the bounded experimental route. Live-provider quality,
+production authorization, and production readiness remain W7 concerns.
 
 See [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 the [proposed client protocol](research-client-protocol.md), and
