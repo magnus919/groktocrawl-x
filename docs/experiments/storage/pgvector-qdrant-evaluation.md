@@ -171,7 +171,13 @@ The [operational-surface comparison](vector-operational-surface.md) finds that
 pgvector simplifies the deployment only if PostgreSQL is also adopted as the
 artifact authority. It recommends an experimental shadow-pgvector pilot while
 Qdrant remains authoritative, with shared-database interference and application-
-level reconciliation as the next gates.
+level reconciliation as the next gates. The first
+[application shadow packet](../evidence/storage-vector-evaluation/2026-09-09-application-shadow-pilot/)
+passed response-equivalence, fail-open, exact reconciliation, and bounded
+shared-database correctness checks. It also measured two normal mismatches from
+asynchronous write lag. The evaluation therefore continues with Qdrant as the
+authority until sustained mixed traffic quantifies that lag and a reviewed ADR
+defines any serving cutover.
 
 ## Measures and gates
 
