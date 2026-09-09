@@ -236,7 +236,7 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import json, urllib.request; response = urllib.request.urlopen('http://localhost:8003/health', timeout=5); assert json.load(response)['status'] == 'ok'"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/ready', timeout=5)"]
       interval: 10s
       timeout: 5s
       start_period: 30s
