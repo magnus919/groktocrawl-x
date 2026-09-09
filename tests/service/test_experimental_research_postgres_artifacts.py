@@ -90,6 +90,11 @@ def authority_app(monkeypatch: pytest.MonkeyPatch):
     url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ.get("VALKEY_URL")
     if url is None:
         raise RuntimeError("DURABLE_RESEARCH_REDIS_URL or VALKEY_URL is required")
+    # The older durable-route suite flushes database 15. Give each xdist worker
+    # a separate database so fixture cleanup cannot delete another test's run.
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "local")
+    database = 14 if worker == "local" else 10 + int(worker.removeprefix("gw"))
+    url = f"{url.rsplit('/', 1)[0]}/{database}"
     for name in (
         "EXPERIMENTAL_RESEARCH",
         "EXPERIMENTAL_RESEARCH_RUNS",
