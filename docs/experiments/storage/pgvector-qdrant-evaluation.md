@@ -155,6 +155,14 @@ memory was higher; pgvector showed lower median p50 latency but wider throughput
 and tail-latency variation. The sequential 33-98 second component phases remain
 too short and narrow to establish production capacity.
 
+The manual [`Vector Store Migration Evaluation`](../../../.github/workflows/vector-store-migration-evaluation.yml)
+rehearses an expand/cutover/rollback sequence in isolated provider namespaces.
+It creates parallel three- and four-dimensional generations, preserves deletion
+state during backfill and coexistence, validates scoped retrieval before and
+after cutover, and routes back to the source generation. Qdrant uses atomic
+collection-alias updates; PostgreSQL uses a transactional route record. This is
+an evaluation mechanism only and does not change the application storage path.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
