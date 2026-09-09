@@ -19,10 +19,12 @@ def test_hosted_workflow_runs_paired_repetitions_by_default():
     assert "default: 3" in workflow
     assert 'for round in $(seq 1 "$VECTOR_EVAL_ROUNDS")' in workflow
     assert '${provider}-round-${round}.json' in workflow
-    assert 'len(paths) == int(os.environ["VECTOR_EVAL_ROUNDS"])' in workflow
+    assert 'rounds = int(os.environ["VECTOR_EVAL_ROUNDS"])' in workflow
+    assert "assert len(paths) == rounds" in workflow
     assert 'VECTOR_EVAL_OPERATIONS: ${{ inputs.operations || 80 }}' in workflow
     assert "docker-stats-series.csv" in workflow
     assert "workload-phases.csv" in workflow
+    assert "assert len(phases) == rounds * 4" in workflow
 
 
 class FakeStore:
