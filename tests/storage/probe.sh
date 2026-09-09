@@ -2,7 +2,7 @@
 # Only synthetic transport probes. Never an application migration or pilot gate.
 set -eu
 case "${1:-}" in
-  consolidated-restore-seed|consolidated-restore-delete|consolidated-restore-verify|consolidated|capacity-workload|capacity-verify|write|read|cleanup|admission|adapter|shadow|revision|publication|rerender|export|import|expiry|research-import|research-publication-state|research-export|research-publication|research|research-state|import-state|publication-state|revision-state|source-state|restore-seed|restore-delete|restore-verify) phase=$1 ;;
+  artifact-authority|consolidated-restore-seed|consolidated-restore-delete|consolidated-restore-verify|consolidated|capacity-workload|capacity-verify|write|read|cleanup|admission|adapter|shadow|revision|publication|rerender|export|import|expiry|research-import|research-publication-state|research-export|research-publication|research|research-state|import-state|publication-state|revision-state|source-state|restore-seed|restore-delete|restore-verify) phase=$1 ;;
   *) echo 'Expected a documented storage test phase' >&2; exit 2 ;;
 esac
 umask 077
@@ -19,6 +19,7 @@ unset password
 case "$phase" in
 consolidated-restore-*) python /probes/restore_consolidated.py "${phase#consolidated-restore-}"; exit ;;
 consolidated) python /probes/test_consolidated_store_db.py; exit ;;
+artifact-authority) python /probes/test_artifact_authority_db.py; exit ;;
 capacity-workload) python /probes/capacity_workload.py; exit ;;
 capacity-verify) python /probes/capacity_verify.py; exit ;;
 admission) python /probes/test_storage_admission_db.py; exit ;;

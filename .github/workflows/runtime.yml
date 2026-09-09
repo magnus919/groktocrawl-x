@@ -961,6 +961,9 @@ jobs:
       - name: Verify bounded storage connection admission
         run: docker compose run --rm -T storage-adapter admission
 
+      - name: Exercise atomic PostgreSQL artifact authority
+        run: docker compose run --rm -T storage-adapter artifact-authority
+
       - name: Rehearse backup restore and post-backup deletion
         run: |
           set -eu
