@@ -1,11 +1,11 @@
 # Define Research Recovery Before Selecting Infrastructure
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-04
 - Scope: experimental research D5 / W5; `magnus919/groktocrawl-x` only
 - Plan: issue [#11](https://github.com/magnus919/groktocrawl-x/issues/11)
-- Supersedes: none while proposed; intended partial replacement of ADR-0047 below
+- Supersedes: ADR-0047 for the opt-in experimental research route only
 
 ## Context and Problem Statement
 
@@ -42,12 +42,20 @@ Neither library removes this application's effect-boundary responsibility.
 
 ## Decision Outcome
 
-Recommend **the following recovery contract before selecting an implementation**.
-Keep Temporal, Valkey-native and graph-plus-owner candidates open. Include a
-PostgreSQL-native candidate if D3's storage recommendation is accepted, to evaluate
-whether it avoids another permanent service. This does not select PostgreSQL,
-Temporal or LangGraph, and does not make Valkey the experiment's predetermined
-answer. Candidate selection must include the full operating footprint and the
+Adopt the recovery contract below and select the bounded Valkey-native ledger as
+the execution owner for the opt-in experimental research route. PostgreSQL is the
+artifact authority selected by the successor work in ADR-0078; Valkey owns admitted
+run identity, leases, fencing generations, idempotency receipts, cancellation,
+checkpoints, retry state, and compact terminal projections. Reconciliation bridges
+an authoritative PostgreSQL publication to its Valkey projection after interruption.
+
+This selection does not bind research orchestration to Valkey. Imperative,
+LangGraph, or another future orchestrator must operate through the same execution
+and artifact contracts. Temporal remains a future alternative if measured workflow
+or operating requirements outgrow the bounded ledger. A PostgreSQL-native execution
+ledger is not selected because the passing implementation already isolates the two
+authority roles and proves their combined restore behavior without adding a new
+service. Candidate evidence includes the complete operating footprint and the
 [crash matrix](../experiments/research-execution-confirmation.md).
 
 ### Recovery target and boundary
@@ -148,10 +156,9 @@ must not redirect unfinished experimental runs into inherited `/v2` processing.
 | 0038 | Retain inherited crawl execution; no crawler migration included |
 | 0063, 0066 | Retain session mutation contracts; independent durable research ownership is separate |
 
-Keep accepted bodies/status unchanged while proposed. Acceptance must name exact
-experimental scope and update predecessor successor links. An infrastructure
-selection needs a further decision supported by measurements, not a status change
-that quietly installs a favored candidate.
+The accepted scope is only the opt-in experimental route. Inherited `/v2` endpoints
+keep ADR-0047's restart limitation. Any migration of those endpoints or replacement
+of Valkey requires a new decision supported by measurements.
 
 ## Consequences
 
@@ -176,7 +183,18 @@ Escalate failures to the decision owner. Instrumentation failures are indetermin
 exceptions need scope, compensating controls, approver and expiry and cannot waive
 publication/access invariants. Revisit after a recovery incident, adapter ambiguity,
 retention/version change or topology change. Retire only with a successor contract
-and retained test history. No executed recovery evidence accompanies this draft.
+and retained test history.
+
+The bounded Valkey owner passed admission replay, fencing, checkpoint and terminal
+recovery, cancellation races, provider ambiguity, the complete declared crash
+matrix, and backup/restore. PRs #135, #137, #139, #142, #144, #146, and #148 contain
+the incremental implementation evidence. PR #244 moved artifact bytes to
+PostgreSQL while preserving compact Valkey projections. Runtime CI run
+[34404714550](https://github.com/magnus919/groktocrawl-x/actions/runs/34404714550)
+then passed the combined PostgreSQL/Valkey restore rehearsal, including completed,
+deleted, and interrupted-publication states. These fixtures cannot prove every
+possible failure schedule or production disaster recovery; incidents, new side
+effects, topology changes, and retention changes trigger review.
 
 ## Links
 
