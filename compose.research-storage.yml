@@ -3,6 +3,9 @@ services:
   research-valkey:
     image: valkey/valkey:8-alpine
     profiles: [storage]
+    # Skip the root entrypoint's ownership repair: this probe deliberately drops
+    # every capability, and the world-writable tmpfs is the only writable path.
+    user: valkey
     networks: [research_private]
     healthcheck:
       test: [CMD, valkey-cli, ping]
