@@ -54,6 +54,8 @@ experimental fork. It does not authorize removal of Qdrant, change production,
 or claim that this fork replaces mainline. The health body correctly reported
 `status: starting` during PostgreSQL loss, while the HTTP health response remained
 200; operators must currently inspect the body rather than use status code alone.
+Issue [#237](https://github.com/magnus919/groktocrawl-x/issues/237) tracks a
+separate liveness/readiness contract and provider-loss recovery check.
 
 ## Packet contents
 
