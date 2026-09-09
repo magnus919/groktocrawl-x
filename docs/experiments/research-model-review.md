@@ -2,7 +2,7 @@
 
 The full replacement roadmap is authorized under [issue #103](https://github.com/magnus919/groktocrawl-x/issues/103).
 This slice connects a question to source acquisition, unverified knowledge
-construction, executed model checks, three reports and a whole-report model audit.
+construction, batched model checks, three reports and an exact deterministic render audit.
 It is an experimental developer runner. Public API/CLI/MCP delivery, retained
 model publication, targeted follow-up and comparative evaluation remain unfinished.
 
@@ -21,8 +21,9 @@ PYTHONPATH=.:agent-svc .venv/bin/python scripts/run-research-pilot.py \
 The directory must be new. The runner performs one search, acquires at most three
 sources using lightweight scraping, and fails on acquisition barriers, warnings or
 empty content. The query deadline is 180 seconds; cancellation is cooperative.
-There are no automatic retries or alternate-model fallbacks. The model-call ceiling
-is 64, with separate request/response byte and output-token-request limits. Actual
+There are no automatic retries or alternate-model fallbacks. A successful candidate
+uses two model calls: construction and one ordered review batch. The model-call ceiling
+remains 64, with separate request/response byte and output-token-request limits. Actual
 provider usage is observed rather than assumed to equal the requested ceiling.
 
 After successful checks, it writes `summary.md`, `analysis.md`, `dossier.md`,
@@ -35,7 +36,7 @@ These files are not a retained PostgreSQL publication or a quality-comparison re
 ## Model work and server-owned identity
 
 `construct_research()` accepts captured sources from trusted acquisition callbacks.
-The internal `research-construction/4` draft asks the model for up to six specific
+The internal `research-construction/4` draft asks the model for up to three dense
 source-statement claims, source-line selections, support/contradiction selections,
 answer status and conflict descriptions. References are one-based positions in
 bounded arrays. The model does not create scope, research, revision, evidence, claim,
@@ -50,12 +51,14 @@ The initial policy supports statements about captured documents with historical
 scope. Current-freshness checks cannot pass from unknown dates. Construction returns
 unverified knowledge, never model-authored verification or human approval.
 
-`ModelReviewAdapter` validates exact source bytes before each knowledge review and
-sends the complete check context and source text. It accepts a strict decision bound
-to the exact input digest. Structural, conflict/coverage, assessment, support and
-freshness checks execute through the existing ledgers. A deterministic renderer
-creates the three report layers from assessed claims. The render auditor receives
-all three complete bodies and the pinned checked knowledge, including unmapped text.
+`ModelReviewAdapter` validates exact source bytes and sends the frozen context once
+for an ordered batch of structural, conflict/coverage, assessment, support and
+freshness decisions. The gateway constrains the response schema; the server requires
+every check index in order, validates each check-specific outcome, and binds accepted
+decisions back to their full input digests. The existing ledgers still execute every
+individual check. A deterministic renderer creates the three report layers from
+assessed claims. A separately identified tool auditor regenerates all three layers
+and requires every output byte and descriptor to match before publication eligibility.
 Required negative or indeterminate judgments prevent successful publication eligibility.
 
 `ConsolidatedJourney` accepts registered model/tool reviewers. The compatibility
@@ -98,18 +101,18 @@ claiming improvement over the incumbent.
 
 ### Latest development result
 
-The complete local suite passed 3,305 tests (seven skipped). The latest live
-`local` probe used the consolidated-storage guide at commit
-`b1e4fed414d3f5a8b46d43a74fced74c57ada33b` as one captured public source.
-Construction and structural review completed, but conflict/coverage review returned
-`conflicted`, outside the permitted `pass`/`fail`/`indeterminate` outcomes. The adapter
-rejected the decision after three calls and 30.87 seconds; no reports or successful
-manifest were produced. This is an unresolved model-contract reliability limitation,
-not evidence of successful end-to-end research or an incumbent quality improvement.
+The schema-constrained transport returned an allowed label in a bounded live `local`
+probe. In a complete synthetic-source journey, construction completed in 8.19 seconds
+and the ordered semantic batch completed in 44.87 seconds. The former model render
+audit then timed out at 90 seconds. That redundant model audit has been replaced by
+the exact deterministic audit described above. A later run varied: construction took
+24.62 seconds and the batch timed out at 90 seconds. The gateway then returned HTTP
+502 even for a one-field schema probe, and direct SSH to `gpuslut01` timed out.
 
-Earlier development attempts also rejected null answer references and invalid
-check outcomes. Required-answer and check-specific schema instructions preserve
-strict admission, but prompting alone has not established reliable compliance.
-The next live-readiness work must address this explicitly and retain failed trials;
-it must not translate invalid labels into passing judgments or retry selectively
-until a favorable result appears. No full search/scraper CLI run is claimed here.
+These retained failures show that invalid-label generation is addressed, but the
+candidate is not frozen or live-ready. No complete manifest has yet been produced,
+and observed latency already exceeds the proposed W1 bound. The next probe must wait
+for a healthy local backend, exercise the two-call candidate without retries, and
+record the terminal outcome. A successful run would establish only functional
+viability; comparative quality and replacement claims still require the fresh blind
+packet and paired study.

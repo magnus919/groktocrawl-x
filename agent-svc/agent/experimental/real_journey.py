@@ -2,15 +2,17 @@
 
 import json
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from .checked_knowledge import CheckedKnowledge
 from .consolidated_journey import ConsolidatedJourney, JourneyResult, RenderedReport
 from .knowledge import text_digest
-from .knowledge_checks import KnowledgeCheckInput, ModelReviewer
+from .knowledge_checks import KnowledgeCheckInput, ModelReviewer, ToolReviewer
 from .knowledge_context import KnowledgeContext
+from .knowledge_execution import ExecutionDecision
 from .model_review import Complete, ModelReviewAdapter
 from .query_construction import CapturedSource, construct_research
+from .render_execution import RenderInspection
 from .render_manifest import ManifestArtifact, Renderer
 
 
@@ -134,7 +136,7 @@ async def render_research(
             + "\n".join(s.canonical_url for s in context.snapshots)
             + "\n"
         )
-        identity = str(uuid4())
+        identity = str(uuid5(NAMESPACE_URL, f"{artifact_set_id}:{layer}"))
         artifact = ManifestArtifact.model_validate_json(
             json.dumps(
                 {
@@ -171,7 +173,10 @@ async def research_from_sources(
         objective, sources, complete=complete, scope_id=scope_id, model=model
     )
     adapter = ModelReviewAdapter(
-        provider="configured-litellm", model=model, complete=complete
+        provider="configured-litellm",
+        model=model,
+        complete=complete,
+        timeout_seconds=90,
     )
     identity = str(uuid4())
     callbacks = {}
@@ -185,13 +190,39 @@ async def research_from_sources(
     async def verify(checked):
         return await adapter.verify(checked, constructed)
 
+    checks = review_plan(constructed.context, adapter.reviewer)
+
     async def render(knowledge):
         return await render_research(knowledge, identity)
 
+    auditor = ToolReviewer(
+        kind="tool",
+        identity="deterministic-research-render-audit",
+        version="1",
+        configuration_digest=text_digest("assessed-claim-pyramid/1"),
+    )
+
+    async def audit(inspection: RenderInspection) -> ExecutionDecision:
+        expected = await render_research(inspection.knowledge, identity)
+        expected_artifacts = tuple(report.artifact for report in expected)
+        if (
+            expected_artifacts != inspection.checked_input.manifest_core.artifacts
+            or tuple(report.body for report in expected) != inspection.outputs
+        ):
+            return ExecutionDecision(
+                outcome="fail",
+                reason="Rendered reports differ from the pinned deterministic renderer.",
+            )
+        return ExecutionDecision(
+            outcome="pass",
+            reason="Every report byte and descriptor matches the pinned deterministic renderer.",
+        )
+
     try:
+        await adapter.prepare(checks, constructed)
         return await ConsolidatedJourney(
             context=constructed.context,
-            checks=review_plan(constructed.context, adapter.reviewer),
+            checks=checks,
             acquisitions=callbacks,
             verifier=adapter.reviewer,
             verify=verify,
@@ -201,8 +232,8 @@ async def research_from_sources(
                 configuration_digest=text_digest("assessed-claim-pyramid/1"),
             ),
             render=render,
-            auditor=adapter.reviewer,
-            audit=adapter.audit,
+            auditor=auditor,
+            audit=audit,
             artifact_set_id=identity,
             clock=lambda: datetime.now(UTC),
             timeout_seconds=120,
