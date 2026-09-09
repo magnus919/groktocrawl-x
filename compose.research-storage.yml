@@ -10,7 +10,7 @@ services:
       timeout: 3s
       retries: 30
     read_only: true
-    tmpfs: ['/data:size=32m,mode=700']
+    tmpfs: ['/data:size=32m,mode=1777']
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     mem_limit: 128m
@@ -47,8 +47,6 @@ services:
     depends_on:
       research-postgres:
         condition: service_healthy
-      research-valkey:
-        condition: service_healthy
     environment:
       PGHOST: research-postgres
       PGDATABASE: research_experiment
@@ -77,6 +75,8 @@ services:
     user: ${RESEARCH_PROBE_UID:?Set the password file owner UID with id -u}
     depends_on:
       research-postgres:
+        condition: service_healthy
+      research-valkey:
         condition: service_healthy
     environment:
       PGHOST: research-postgres
