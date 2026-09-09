@@ -249,6 +249,32 @@ async def _run_shadow_operation(operation: str, function: Callable[[], Any]) -> 
         ).inc({"operation": operation, "outcome": outcome})
 
 
+async def _run_required_pgvector_operation(
+    operation: str, function: Callable[[], Any]
+) -> Any:
+    """Run a bounded pgvector serving operation or return a stable 503."""
+    outcome = "success"
+    try:
+
+        def execute() -> Any:
+            _shadow_store.ensure_schema()
+            return function()
+
+        return await asyncio.wait_for(
+            asyncio.to_thread(execute), timeout=SHADOW_CONFIG.timeout_seconds
+        )
+    except Exception:
+        outcome = "failure"
+        logger.exception("pgvector serving %s failed", operation)
+        raise HTTPException(503, "Vector index unavailable")
+    finally:
+        METRICS.counter(
+            "groktocrawl_pgvector_serving_operations_total",
+            "Pgvector serving operations by type and outcome",
+            ["operation", "outcome"],
+        ).inc({"operation": operation, "outcome": outcome})
+
+
 def _schedule_shadow_operation(operation: str, function: Callable[[], Any]) -> None:
     """Schedule fail-open shadow work under the service task tracker."""
     if not SHADOW_CONFIG.enabled:
@@ -404,6 +430,16 @@ def _is_qdrant_ready() -> bool:
     return True
 
 
+def _is_pgvector_ready() -> bool:
+    """Return whether the configured pgvector store is reachable."""
+    try:
+        _shadow_store.ensure_schema()
+        _shadow_store.count(model=_get_active_model())
+    except Exception:
+        return False
+    return True
+
+
 def _named_vector_name(model_name: str) -> str:
     """Short name for a named vector (e.g., 'BAAI/bge-m3' -> 'v_bge-m3')."""
     short = model_name.split("/")[-1].lower()
@@ -540,6 +576,18 @@ async def health():
         return {"status": "starting", "models": "loading"}
 
     loop = asyncio.get_running_loop()
+    if SHADOW_CONFIG.serving:
+        pgvector_ready, qdrant_ready = await asyncio.gather(
+            loop.run_in_executor(None, _is_pgvector_ready),
+            loop.run_in_executor(None, _is_qdrant_ready),
+        )
+        return {
+            "status": "ok" if pgvector_ready else "starting",
+            "models": "loaded",
+            "vector_store": "pgvector",
+            "pgvector": "ready" if pgvector_ready else "unavailable",
+            "qdrant": "rollback_ready" if qdrant_ready else "unavailable",
+        }
     qdrant_ready = await loop.run_in_executor(None, _is_qdrant_ready)
     return {
         "status": "ok" if qdrant_ready else "starting",

@@ -32,6 +32,16 @@ def test_shadow_mode_requires_dsn(monkeypatch):
         shadow.ShadowConfig.from_env()
 
 
+def test_pgvector_mode_is_enabled_for_serving(monkeypatch):
+    monkeypatch.setenv("VECTOR_STORE_MODE", "pgvector")
+    monkeypatch.setenv("PGVECTOR_SHADOW_DSN", "postgresql://serving")
+
+    config = shadow.ShadowConfig.from_env()
+
+    assert config.enabled is True
+    assert config.serving is True
+
+
 def test_shadow_sample_rate_is_bounded(monkeypatch):
     monkeypatch.setenv("VECTOR_STORE_MODE", "shadow_pgvector")
     monkeypatch.setenv("PGVECTOR_SHADOW_DSN", "postgresql://shadow")

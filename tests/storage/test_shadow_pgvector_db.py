@@ -9,7 +9,7 @@ from shadow_pgvector import PgvectorShadowStore, ShadowConfig, ShadowRecord
 
 def main() -> None:
     config = ShadowConfig(
-        mode="shadow_pgvector",
+        mode="pgvector",
         dsn=(
             f"postgresql://{os.environ['PGUSER']}@{os.environ['PGHOST']}:5432/"
             f"{os.environ['PGDATABASE']}"
@@ -45,11 +45,13 @@ def main() -> None:
             ]
         )
         assert store.active_ids(model="v_fixture") == {large_id, 2}
+        assert store.count(model="v_fixture") == 2
         results = store.search([1.0, 0.0, 0.0], model="v_fixture", limit=2)
         assert [result.point_id for result in results] == [large_id, 2]
         assert results[0].score > results[1].score
         store.delete_many([large_id])
         assert store.active_ids(model="v_fixture") == {2}
+        assert store.count(model="v_fixture") == 1
     finally:
         store.close()
 

@@ -13,6 +13,7 @@ from app import (
     EMBED_DIM,
     EMBED_MODEL_NAME,
     MAX_DOCS,
+    SHADOW_CONFIG,
     _ensure_qdrant,
     _get_active_model,
     _get_embed_model,
@@ -20,6 +21,7 @@ from app import (
     _migration,
     _named_vector_name,
     _now_iso,
+    _run_required_pgvector_operation,
     _schedule_shadow_operation,
     _shadow_store,
     _url_hash,
@@ -205,17 +207,20 @@ async def index_page(body: IndexRequest):
         ],
     )
 
-    _schedule_shadow_operation(
-        "upsert",
-        lambda: _shadow_store.upsert(
+    def shadow_write():
+        return _shadow_store.upsert(
             point_id=point_id,
             url=body.url,
             title=body.title,
             vector=embedding,
             model=active_nv,
             payload=payload,
-        ),
-    )
+        )
+
+    if SHADOW_CONFIG.serving:
+        await _run_required_pgvector_operation("upsert", shadow_write)
+    else:
+        _schedule_shadow_operation("upsert", shadow_write)
 
     await _evict_if_needed(qdrant)
 
@@ -335,9 +340,13 @@ async def index_batch(body: IndexBatchRequest):
     # Single batch upsert via Qdrant gRPC
     qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
-    _schedule_shadow_operation(
-        "upsert_batch", lambda: _shadow_store.upsert_many(shadow_records)
-    )
+    def shadow_batch_write():
+        return _shadow_store.upsert_many(shadow_records)
+
+    if SHADOW_CONFIG.serving:
+        await _run_required_pgvector_operation("upsert_batch", shadow_batch_write)
+    else:
+        _schedule_shadow_operation("upsert_batch", shadow_batch_write)
 
     METRICS.counter(
         "groktocrawl_index_batch_pages_total",
@@ -353,19 +362,29 @@ async def index_batch(body: IndexBatchRequest):
 async def delete_index(url_hash: int):
     """Remove a page from the vector index by URL hash."""
     qdrant = await _ensure_qdrant()
+    if SHADOW_CONFIG.serving:
+        await _run_required_pgvector_operation(
+            "delete", lambda: _shadow_store.delete(url_hash)
+        )
     qdrant.delete(
         COLLECTION_NAME,
         points_selector=models.PointIdsList(points=[url_hash]),
     )
-    _schedule_shadow_operation("delete", lambda: _shadow_store.delete(url_hash))
+    if not SHADOW_CONFIG.serving:
+        _schedule_shadow_operation("delete", lambda: _shadow_store.delete(url_hash))
     return {"status": "deleted"}
 
 
 @router_index.get("/stats", response_model=IndexStatsResponse)
 async def index_stats():
     """Return index size and configuration."""
-    qdrant = await _ensure_qdrant()
-    count = qdrant.count(COLLECTION_NAME).count
+    if SHADOW_CONFIG.serving:
+        count = await _run_required_pgvector_operation(
+            "count", lambda: _shadow_store.count(model=_get_active_model())
+        )
+    else:
+        qdrant = await _ensure_qdrant()
+        count = qdrant.count(COLLECTION_NAME).count
     METRICS.gauge(
         "groktocrawl_index_docs_total", "Current document count in the vector index"
     ).set(value=float(count))
@@ -375,8 +394,13 @@ async def index_stats():
 @router_index.get("/model", response_model=ModelInfoResponse)
 async def index_model():
     """Return current embedding model config and migration state."""
-    qdrant = await _ensure_qdrant()
-    count = qdrant.count(COLLECTION_NAME).count
+    if SHADOW_CONFIG.serving:
+        count = await _run_required_pgvector_operation(
+            "count", lambda: _shadow_store.count(model=_get_active_model())
+        )
+    else:
+        qdrant = await _ensure_qdrant()
+        count = qdrant.count(COLLECTION_NAME).count
     return ModelInfoResponse(
         current_model=EMBED_MODEL_NAME,
         current_dim=EMBED_DIM,

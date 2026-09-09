@@ -15,6 +15,7 @@ from app import (
     _ensure_qdrant,
     _get_active_model,
     _get_embed_model,
+    _run_required_pgvector_operation,
     _run_shadow_operation,
     _shadow_store,
     run_inference,
@@ -77,7 +78,6 @@ async def search_vector(body: VectorSearchRequest):
         raise HTTPException(
             503, "Models are still loading — please retry in a few seconds"
         )
-    qdrant = await _ensure_qdrant()
     model = _get_embed_model()
 
     query_embedding = await run_inference(
@@ -88,6 +88,24 @@ async def search_vector(body: VectorSearchRequest):
     loop = asyncio.get_running_loop()
 
     active_nv = _get_active_model()
+
+    if SHADOW_CONFIG.serving:
+        pgvector_results = await _run_required_pgvector_operation(
+            "search",
+            lambda: _shadow_store.search(
+                query_embedding, model=active_nv, limit=body.limit
+            ),
+        )
+        return VectorSearchResponse(
+            results=[
+                VectorSearchResult(
+                    url=result.url, title=result.title, score=result.score
+                )
+                for result in pgvector_results
+            ]
+        )
+
+    qdrant = await _ensure_qdrant()
 
     # Qdrant query_points() is a blocking call. Run it off the event loop
     # with a bounded timeout so a slow or unhealthy index degrades to a
