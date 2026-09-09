@@ -147,6 +147,14 @@ records Qdrant had lower median ingestion time, filtered-search p50 and higher
 mixed throughput, while pgvector had the tighter search p95. The short mixed
 workload and final-only resource snapshot do not establish sustained capacity.
 
+The [sustained workload packet](../evidence/storage-vector-evaluation/2026-09-09-scale-1024d-sustained-r2/)
+extends the 10,000-record case to 5,000 mixed operations in each of three rounds
+and captures phase-attributed container samples. Both providers completed 15,000
+operations without a failure. Qdrant throughput was steadier and its sampled
+memory was higher; pgvector showed lower median p50 latency but wider throughput
+and tail-latency variation. The sequential 33-98 second component phases remain
+too short and narrow to establish production capacity.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
