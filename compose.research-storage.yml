@@ -1,5 +1,25 @@
 # Independent opt-in exploration; never merge into the inherited Compose stack.
 services:
+  research-valkey:
+    image: valkey/valkey:8-alpine
+    profiles: [storage]
+    # Skip the root entrypoint's ownership repair: this probe deliberately drops
+    # every capability, and the world-writable tmpfs is the only writable path.
+    user: valkey
+    networks: [research_private]
+    healthcheck:
+      test: [CMD, valkey-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    read_only: true
+    tmpfs: ['/data:size=32m,mode=1777']
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+
   research-postgres:
     image: pgvector/pgvector:pg17
     profiles: [storage]
@@ -65,6 +85,7 @@ services:
       PGUSER: research_owner
       PYTHONPATH: /app
       PYTHONDONTWRITEBYTECODE: '1'
+      VALKEY_URL: redis://research-valkey:6379/13
     secrets: [research_password]
     volumes:
       - ./tests/storage:/probes:ro
