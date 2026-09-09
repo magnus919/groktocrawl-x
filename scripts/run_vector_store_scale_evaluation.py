@@ -78,6 +78,11 @@ def _timed(function: Callable[[], Any]) -> tuple[Any, float]:
     return result, (time.perf_counter() - started) * 1000
 
 
+def _upsert_in_batches(store: Any, records: list[VectorRecord], batch_size: int) -> None:
+    for start in range(0, len(records), batch_size):
+        store.upsert(records[start : start + batch_size])
+
+
 def _query_gate(
     records: list[VectorRecord],
     query: QueryCase,
@@ -179,6 +184,7 @@ def _run_provider(
     operations: int,
     cleanup: bool,
     dimension: int = 3,
+    batch_size: int = 1000,
 ) -> dict[str, Any]:
     scale_results: list[dict[str, Any]] = []
     resource_names: list[str] = []
@@ -192,7 +198,11 @@ def _run_provider(
         search_latencies: list[float] = []
         query_results: list[dict[str, Any]] = []
         try:
-            _, bulk_ms = _timed(lambda store=store, records=records: store.upsert(records))
+            _, bulk_ms = _timed(
+                lambda store=store, records=records: _upsert_in_batches(
+                    store, records, batch_size
+                )
+            )
             _, replay_ms = _timed(
                 lambda store=store, records=records, size=size: store.upsert(
                     records[: min(10, size)]
@@ -265,6 +275,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         args.operations,
         args.cleanup,
         args.dimension,
+        args.batch_size,
     )
     result.update({
         "schema_version": SCHEMA_VERSION,
@@ -277,6 +288,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "random_seed": 0,
             "embedding_model": f"deterministic-fixture-vector-{args.dimension}d-v1",
             "dimension": args.dimension,
+            "batch_size": args.batch_size,
             "distance": "cosine",
             "corpus_family": "deterministic synthetic scale corpus",
         },
@@ -298,6 +310,7 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--operations", type=int, default=80)
     parser.add_argument("--dimension", type=int, default=3)
+    parser.add_argument("--batch-size", type=int, default=1000)
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--allow-isolated-database", action="store_true")
     args = parser.parse_args()
@@ -308,6 +321,8 @@ def main() -> int:
         parser.error("--workers and --operations must be positive")
     if args.dimension < 1 or args.dimension > 2000:
         parser.error("--dimension must be between 1 and 2000")
+    if args.batch_size < 1 or args.batch_size > 10000:
+        parser.error("--batch-size must be between 1 and 10000")
     result = run(args)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
