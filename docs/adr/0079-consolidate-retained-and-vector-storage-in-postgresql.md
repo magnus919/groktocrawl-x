@@ -85,9 +85,11 @@ to Qdrant and record the failed gate.
 The proposal is supported by the indexed packets in the
 [pgvector/Qdrant evaluation](../experiments/storage/pgvector-qdrant-evaluation.md),
 the [first application pilot](../experiments/evidence/storage-vector-evaluation/2026-09-09-application-shadow-pilot/),
-and the [sustained lag packet](../experiments/evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/).
-Acceptance requires review of this ADR. Implementation and cutover evidence are
-separate gates; the measurements above do not make pgvector the current backend.
+the [sustained lag packet](../experiments/evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/),
+and the [application cutover and rollback packet](../experiments/evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/).
+The application gate has passed. Acceptance still requires review of this ADR
+and a declared rollback window; the measurements do not change production or
+remove Qdrant.
 
 ## Links
 

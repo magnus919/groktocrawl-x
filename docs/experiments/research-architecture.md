@@ -175,8 +175,11 @@ recorded 360 matching comparisons, bounded all 240 shadow write completions with
 75 ms, passed concurrent retained-artifact checks, and restored exact parity after
 an outage. It supports the reversible experimental cutover proposed in
 [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md);
-Qdrant remains authoritative until that ADR is reviewed and the application
-cutover and rollback rehearsal passes.
+The subsequent
+[application serving packet](evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/)
+passed pinned response parity, synchronous mutation, provider-outage, concurrent
+shared-database, and rollback checks. Qdrant remains the rollback target until
+ADR-0079 is reviewed and an explicit experimental rollback window completes.
 D6 has an accepted client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
 [wire examples and confirmation scenarios](research-client-protocol.md). It recommends
