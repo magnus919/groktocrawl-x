@@ -40,10 +40,13 @@ not a performance or recovery verdict for this repository.
 
 ## Decision Outcome
 
-Retain **B, the typed imperative controller, as the experimental architecture's
-runtime**. Keep the LangGraph adapter as optional comparison code and do not add it
-to the production image or runtime dependency set. Do not add a third runtime
-without an explicit ADR-0070 protocol revision. Keep inherited behavior as arm A.
+The first comparison establishes **B, the typed imperative controller, as the
+reference for the bounded current workflow**. It does not settle the substrate for
+future research capabilities. Keep the working LangGraph adapter as an optional
+candidate and do not add it to the production image or runtime dependency set until
+the future-capability experiment in issue #245 is complete. Do not add a third
+runtime without an explicit ADR-0070 protocol revision. Keep inherited behavior as
+arm A.
 
 Both adapters invoke the same policy functions and operation interfaces. Runtime
 code owns scheduling only; it cannot modify prompts, source ranking, verification
@@ -105,10 +108,13 @@ Two paired fixture series now cover 30 repetitions of three workloads in cold an
 warm lanes with different fixed seeds. All 720 retained records conformed. LangGraph
 added measurable construction and scheduling overhead and did not replace the
 application-owned policy, budget, receipt, cancellation, recovery, or publication
-logic. Because the adoption rule requires a demonstrated engineering benefit, the
-evidence supports retaining the imperative controller. Numerical W1 quality bounds
-remain a separate policy/model evaluation gate and are not needed to infer a quality
-difference between runtimes that intentionally used identical scripted operations.
+logic in this deliberately bounded comparison. That evidence supports the imperative
+controller for today's workflow, but the comparison disabled persistence and did not
+exercise adaptive replanning, specialist subgraphs, human interrupts, checkpoint
+recovery, or alternate-path forks. Issue #245 must test those capabilities before a
+long-term substrate decision. Numerical W1 quality bounds remain a separate
+policy/model evaluation gate and are not needed to infer a quality difference between
+runtimes that intentionally used identical scripted operations.
 
 ## Inherited Decision Impact
 
@@ -129,7 +135,9 @@ implementation scope and any successor links in a later decision.
 The experiment can attribute runtime benefits without rewriting policy twice.
 Shared interfaces and two adapters cost engineering time; deterministic fixtures
 still cannot establish real-model quality. Keeping only two runtime arms bounds
-that cost. A negative or inconclusive result is useful and must be retained.
+that cost. The optional adapter preserves a tested path toward more adaptive
+research without binding client contracts or artifact authority to LangGraph. A
+negative or inconclusive result is useful and must be retained.
 
 ## Confirmation
 
@@ -141,7 +149,9 @@ fixture/dependency versions, raw distributions, failed controls and exclusions i
 the W4 report. Run contracts on every adapter/policy change; rerun measured comparisons
 when their inputs change. Exceptions require a named approver, reason and expiry;
 never waive hard publication/access invariants. Review after a reducer, runtime or
-state migration change; retire with a successor ADR and preserved evidence.
+state migration change; retire with a successor ADR and preserved evidence. The
+next review must include issue #245's future-capability evidence and judge user
+value, extensibility, and recovery complexity rather than scheduler latency alone.
 
 ## Links
 
