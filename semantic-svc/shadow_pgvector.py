@@ -42,16 +42,22 @@ class ShadowConfig:
 
     @property
     def enabled(self) -> bool:
-        return self.mode == "shadow_pgvector"
+        return self.mode in {"shadow_pgvector", "pgvector"}
+
+    @property
+    def serving(self) -> bool:
+        return self.mode == "pgvector"
 
     @classmethod
     def from_env(cls) -> ShadowConfig:
         mode = os.getenv("VECTOR_STORE_MODE", "qdrant").strip().lower()
-        if mode not in {"qdrant", "shadow_pgvector"}:
-            raise ValueError("VECTOR_STORE_MODE must be qdrant or shadow_pgvector")
+        if mode not in {"qdrant", "shadow_pgvector", "pgvector"}:
+            raise ValueError(
+                "VECTOR_STORE_MODE must be qdrant, shadow_pgvector, or pgvector"
+            )
         dsn = os.getenv("PGVECTOR_SHADOW_DSN", "").strip()
-        if mode == "shadow_pgvector" and not dsn:
-            raise ValueError("PGVECTOR_SHADOW_DSN is required in shadow_pgvector mode")
+        if mode in {"shadow_pgvector", "pgvector"} and not dsn:
+            raise ValueError("PGVECTOR_SHADOW_DSN is required when pgvector is enabled")
         sample_rate = float(os.getenv("PGVECTOR_SHADOW_SAMPLE_RATE", "0.1"))
         if not 0.0 <= sample_rate <= 1.0:
             raise ValueError("PGVECTOR_SHADOW_SAMPLE_RATE must be between 0 and 1")
@@ -139,7 +145,13 @@ class PgvectorShadowStore:
         self._schema_ready = False
 
     def _connect(self) -> Any:
-        if self._connection is None:
+        if (
+            self._connection is None
+            or getattr(self._connection, "closed", False)
+            or getattr(self._connection, "broken", False)
+        ):
+            if self._connection is not None:
+                self._connection.close()
             import psycopg
 
             connect_timeout = max(1, math.ceil(self.config.timeout_seconds))
@@ -250,6 +262,19 @@ class PgvectorShadowStore:
                 (model,),
             )
             return {int(row[0]) for row in rows.fetchall()}
+
+    def count(self, *, model: str) -> int:
+        with self._lock:
+            row = (
+                self._connect()
+                .execute(
+                    f"""SELECT count(*) FROM {self.config.schema}.{self.config.table}
+                WHERE model=%s AND deleted=false""",
+                    (model,),
+                )
+                .fetchone()
+            )
+            return int(row[0])
 
     def search(
         self, vector: Sequence[float], *, model: str, limit: int

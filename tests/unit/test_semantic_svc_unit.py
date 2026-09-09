@@ -1009,7 +1009,12 @@ class TestSearchVectorQdrantBoundary:
         monkeypatch.setattr(
             router_search,
             "SHADOW_CONFIG",
-            SimpleNamespace(enabled=True, sample_rate=1, score_tolerance=0.0001),
+            SimpleNamespace(
+                enabled=True,
+                serving=False,
+                sample_rate=1,
+                score_tolerance=0.0001,
+            ),
         )
         monkeypatch.setattr(router_search, "_create_background_task", _capture)
 
@@ -1021,6 +1026,38 @@ class TestSearchVectorQdrantBoundary:
         assert len(scheduled) == 2
         for coro in scheduled:
             coro.close()
+
+    @pytest.mark.asyncio
+    async def test_pgvector_serving_does_not_query_qdrant(self, monkeypatch):
+        """The cutover mode serves the required pgvector adapter result."""
+        from types import SimpleNamespace
+
+        from models import VectorSearchRequest
+        from shadow_pgvector import ShadowSearchResult
+
+        class _ForbiddenQdrant:
+            def query_points(self, **kwargs):
+                raise AssertionError("pgvector serving reached Qdrant")
+
+        router_search = self._ready_router(monkeypatch, _ForbiddenQdrant())
+
+        async def _serve(operation, function):
+            assert operation == "search"
+            return [ShadowSearchResult(1, "https://pg.example", "PG", 0.93)]
+
+        monkeypatch.setattr(
+            router_search,
+            "SHADOW_CONFIG",
+            SimpleNamespace(enabled=True, serving=True),
+        )
+        monkeypatch.setattr(router_search, "_run_required_pgvector_operation", _serve)
+
+        response = await router_search.search_vector(
+            VectorSearchRequest(query="herbs", limit=5)
+        )
+
+        assert [result.url for result in response.results] == ["https://pg.example"]
+        assert response.results[0].score == 0.93
 
 
 class TestPgvectorShadowIndexWiring:
@@ -1106,3 +1143,57 @@ class TestPgvectorShadowIndexWiring:
 
         assert response.status == "indexed"
         assert events == ["qdrant", "upsert"]
+
+    @pytest.mark.asyncio
+    async def test_pgvector_serving_waits_for_required_write(self, monkeypatch):
+        """Cutover mode acknowledges only after Qdrant and pgvector are updated."""
+        from types import SimpleNamespace
+
+        import app as app_module
+        import numpy as np
+        import router_index
+        from models import IndexRequest
+
+        events = []
+
+        class _Qdrant:
+            def retrieve(self, *args, **kwargs):
+                return []
+
+            def upsert(self, *args, **kwargs):
+                events.append("qdrant")
+
+        class _Model:
+            def encode(self, text, **kwargs):
+                return np.array([0.1, 0.2, 0.3])
+
+        class _Pgvector:
+            def upsert(self, **kwargs):
+                events.append("pgvector")
+
+        async def _required(operation, function):
+            events.append(operation)
+            function()
+
+        monkeypatch.setattr(app_module, "_models_ready", True)
+        monkeypatch.setattr(
+            router_index, "SHADOW_CONFIG", SimpleNamespace(serving=True)
+        )
+        monkeypatch.setattr(router_index, "_ensure_qdrant", _async_return(_Qdrant()))
+        monkeypatch.setattr(router_index, "_get_embed_model", lambda: _Model())
+        monkeypatch.setattr(router_index, "_get_active_model", lambda: "v_bge-m3")
+        monkeypatch.setattr(router_index, "_shadow_store", _Pgvector())
+        monkeypatch.setattr(router_index, "_run_required_pgvector_operation", _required)
+        monkeypatch.setattr(
+            router_index,
+            "_schedule_shadow_operation",
+            lambda *args: pytest.fail("serving write was scheduled"),
+        )
+        monkeypatch.setattr(router_index, "_evict_if_needed", _async_return(None))
+
+        response = await router_index.index_page(
+            IndexRequest(url="https://example.com", title="Example", content="body")
+        )
+
+        assert response.status == "indexed"
+        assert events == ["qdrant", "upsert", "pgvector"]
