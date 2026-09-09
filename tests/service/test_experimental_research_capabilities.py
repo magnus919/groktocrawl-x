@@ -31,7 +31,9 @@ def test_capabilities_report_contract_only_stage(monkeypatch) -> None:
     assert payload["operations"]["runs"]["available"] is False
 
 
-def test_capabilities_advertise_fixture_run_adapter_only_when_enabled(monkeypatch) -> None:
+def test_capabilities_advertise_fixture_run_adapter_only_when_enabled(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
     payload = _client().get("/experimental/research/v1/capabilities").json()
@@ -42,10 +44,22 @@ def test_capabilities_advertise_fixture_run_adapter_only_when_enabled(monkeypatc
     assert payload["operations"]["sessions"]["mode"] == "attachment_only"
 
 
-def test_capabilities_advertise_valkey_fenced_recovery_when_enabled(monkeypatch) -> None:
+def test_capabilities_advertise_valkey_fenced_recovery_when_enabled(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_DURABLE", "true")
     payload = _client().get("/experimental/research/v1/capabilities").json()
     assert payload["implementation_stage"] == "durable_fixture_run_adapter"
     assert payload["recovery_mode"] == "valkey_fenced"
+
+
+def test_capabilities_advertise_postgres_artifact_authority(monkeypatch) -> None:
+    monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH", "true")
+    monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
+    monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_DURABLE", "true")
+    monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_POSTGRES_ARTIFACTS", "true")
+    payload = _client().get("/experimental/research/v1/capabilities").json()
+    assert payload["implementation_stage"] == "postgres_artifact_authority_adapter"
+    assert payload["recovery_mode"] == "postgres_artifacts_valkey_fenced"

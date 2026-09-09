@@ -76,6 +76,33 @@ class ArtifactAuthority(SourceStore):
                 )
             await conn.execute(migration.read_text(), prepare=False)
 
+    async def migrate_deletion_fence(self) -> None:
+        migration = (
+            Path(__file__).with_name("migrations") / "014_artifact_deletion_fence.sql"
+        )
+        async with self._transaction(bootstrap=True) as conn:
+            await conn.execute(
+                "LOCK TABLE research_staging.schema_version IN ACCESS EXCLUSIVE MODE"
+            )
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 13}]:
+                raise StorageConflictError(
+                    "artifact deletion migration requires schema 13"
+                )
+            await conn.execute(migration.read_text(), prepare=False)
+
+    async def ensure_scope(self, scope: UUID) -> None:
+        """Idempotently provision the server-derived experimental scope."""
+        async with self._transaction() as conn:
+            await conn.execute(
+                "INSERT INTO research_staging.scopes(scope_id,quota) VALUES (%s,%s) ON CONFLICT (scope_id) DO NOTHING",
+                (scope, 1024 * 1024 * 1024),
+            )
+
     @staticmethod
     def _validate(
         manifest: bytes, artifacts: Mapping[str, tuple[str, bytes]]
@@ -125,12 +152,12 @@ class ArtifactAuthority(SourceStore):
                     "SELECT version FROM research_staging.schema_version"
                 )
             ).fetchall()
-            if version != [{"version": 13}]:
+            if version != [{"version": 14}]:
                 raise StorageConflictError("artifact authority schema unavailable")
             prior = await (
                 await conn.execute(
-                    "SELECT research_id,artifact_set_id,set_digest,deleted FROM research_staging.research_artifact_sets WHERE scope_id=%s AND run_id=%s FOR UPDATE",
-                    (scope, run),
+                    "SELECT research_id,artifact_set_id,set_digest,deleted FROM research_staging.research_artifact_sets WHERE scope_id=%s AND (research_id=%s OR run_id=%s) FOR UPDATE",
+                    (scope, research, run),
                 )
             ).fetchone()
             if prior is not None:
@@ -237,16 +264,39 @@ class ArtifactAuthority(SourceStore):
                 raise StorageConflictError("artifact set unavailable")
             return await self._read(conn, scope, row["research_id"])
 
+    async def find_run(self, scope: UUID, run: UUID) -> RetainedArtifactSet | None:
+        """Return a committed set for reconciliation, or None when absent/deleted."""
+        async with self._transaction(read=True) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT research_id FROM research_staging.research_artifact_sets WHERE scope_id=%s AND run_id=%s AND NOT deleted AND expires_at>now()",
+                    (scope, run),
+                )
+            ).fetchone()
+            if row is None:
+                return None
+            return await self._read(conn, scope, row["research_id"])
+
     async def delete(self, scope: UUID, research: UUID) -> None:
         async with self._transaction() as conn:
             row = await (
                 await conn.execute(
-                    "UPDATE research_staging.research_artifact_sets SET deleted=true,manifest=NULL WHERE scope_id=%s AND research_id=%s AND NOT deleted RETURNING research_id",
+                    "SELECT deleted FROM research_staging.research_artifact_sets WHERE scope_id=%s AND research_id=%s FOR UPDATE",
                     (scope, research),
                 )
             ).fetchone()
             if row is None:
-                raise StorageConflictError("artifact set unavailable")
+                await conn.execute(
+                    "INSERT INTO research_staging.research_artifact_sets(scope_id,research_id,manifest,manifest_digest,set_digest,total_bytes,deleted) VALUES (%s,%s,NULL,%s,%s,0,true)",
+                    (scope, research, "0" * 64, "0" * 64),
+                )
+                return
+            if row["deleted"]:
+                return
+            await conn.execute(
+                "UPDATE research_staging.research_artifact_sets SET deleted=true,manifest=NULL WHERE scope_id=%s AND research_id=%s",
+                (scope, research),
+            )
             await conn.execute(
                 "DELETE FROM research_staging.research_artifacts WHERE scope_id=%s AND research_id=%s",
                 (scope, research),
