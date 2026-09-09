@@ -13,7 +13,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, cast
-from uuid import uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
@@ -21,13 +21,19 @@ from pydantic import BaseModel, Field
 
 from common.features import is_enabled
 
+from ..experimental.artifact_authority import (
+    ArtifactAuthority,
+    RetainedArtifactSet,
+)
 from ..experimental.client_protocol import ProtocolEvent, ProtocolState, replay_after
 from ..experimental.consolidated_example import example_journey
 from ..experimental.durable_research import (
+    DurableConflictError,
     DurableResearchError,
     DurableResearchLedger,
     DurableRun,
 )
+from ..experimental.source_store import StorageConflictError
 
 router = APIRouter()
 
@@ -73,12 +79,15 @@ class _RunRecord:
     durable_generation: int | None = None
     durable_manifest: bytes | None = None
     durable_artifacts: dict[str, tuple[bytes, str]] = field(default_factory=dict)
+    artifact_authority: ArtifactAuthority | None = None
+    authority_set_digest: str | None = None
 
 
 _RUNS: dict[str, _RunRecord] = {}
 _IDEMPOTENCY: dict[tuple[str, str], tuple[str, str]] = {}
 _SESSION_ATTACHMENTS: dict[tuple[str, str], tuple[int, str]] = {}
 _DURABLE_LEDGERS: dict[str, DurableResearchLedger] = {}
+_ARTIFACT_AUTHORITIES: dict[str, ArtifactAuthority] = {}
 
 
 def _scope_id(request: Request) -> str:
@@ -99,11 +108,37 @@ def _require_feature(feature: str = "experimental_research") -> None:
 def _require_runs() -> None:
     _require_feature()
     if not is_enabled("experimental_research_runs"):
-        raise HTTPException(status_code=404, detail="Experimental research runs disabled")
+        raise HTTPException(
+            status_code=404, detail="Experimental research runs disabled"
+        )
 
 
 def _durable_enabled() -> bool:
     return is_enabled("experimental_research_durable")
+
+
+def _artifact_authority_enabled() -> bool:
+    return _durable_enabled() and is_enabled("experimental_research_postgres_artifacts")
+
+
+def _scope_uuid(scope_id: str) -> UUID:
+    return uuid5(NAMESPACE_URL, f"groktocrawl-x:research-scope:{scope_id}")
+
+
+def _artifact_authority(request: Request) -> ArtifactAuthority:
+    dsn = getattr(request.app.state, "research_postgres_dsn", None) or os.environ.get(
+        "DURABLE_RESEARCH_POSTGRES_DSN"
+    )
+    if not dsn:
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL experimental artifact authority unavailable",
+        )
+    authority = _ARTIFACT_AUTHORITIES.get(dsn)
+    if authority is None:
+        authority = ArtifactAuthority(dsn)
+        _ARTIFACT_AUTHORITIES[dsn] = authority
+    return authority
 
 
 def _durable_ledger(request: Request) -> DurableResearchLedger:
@@ -216,20 +251,86 @@ def _restore_events(durable: DurableRun) -> list[ProtocolEvent]:
 
 
 def _durable_terminal_payload(
-    record: _RunRecord, terminal_event: ProtocolEvent
+    record: _RunRecord,
+    terminal_event: ProtocolEvent,
+    retained: RetainedArtifactSet | None = None,
 ) -> dict[str, Any]:
-    return {
+    projected_result = dict(record.result or {})
+    if retained is not None:
+        projected_result.pop("summary", None)
+    projected_events = []
+    for event in (*record.events, terminal_event):
+        value = event.model_dump(mode="json")
+        if retained is not None and event.event == "done":
+            value["result"] = projected_result
+        projected_events.append(value)
+    payload = {
         "research_id": record.research_id,
-        "result": record.result,
-        "events": [
-            event.model_dump(mode="json") for event in (*record.events, terminal_event)
-        ],
-        **_durable_artifact_payload(record),
+        "result": projected_result,
+        "events": projected_events,
     }
+    if retained is None:
+        terminal = {**payload, **_durable_artifact_payload(record)}
+    else:
+        terminal = {
+            **payload,
+            "artifact_authority": {
+                "schema_version": "postgres-artifact-authority/1",
+                "scope_id": str(retained.scope_id),
+                "research_id": str(retained.research_id),
+                "run_id": str(retained.run_id),
+                "artifact_set_id": str(retained.artifact_set_id),
+                "manifest_digest": retained.manifest_digest,
+                "set_digest": retained.set_digest,
+                "artifacts": {
+                    item.layer: {
+                        "artifact_id": item.artifact_id,
+                        "content_digest": item.content_digest,
+                    }
+                    for item in retained.artifacts
+                },
+            },
+        }
+    if (
+        len(json.dumps(terminal, separators=(",", ":")).encode("utf-8"))
+        > _MAX_DURABLE_TERMINAL_PAYLOAD_BYTES
+    ):
+        raise DurableResearchError("durable terminal projection exceeds its size bound")
+    return terminal
+
+
+async def _hydrate_authority_record(record: _RunRecord) -> None:
+    """Restore the public summary from PostgreSQL without copying it into Valkey."""
+    if (
+        record.state != "completed"
+        or record.result is None
+        or "summary" in record.result
+        or record.artifact_authority is None
+        or record.authority_set_digest is None
+    ):
+        return
+    try:
+        retained = await record.artifact_authority.read(
+            _scope_uuid(record.scope_id), UUID(record.research_id)
+        )
+    except StorageConflictError as exc:
+        raise HTTPException(
+            status_code=503, detail="Artifact authority unavailable"
+        ) from exc
+    if retained.set_digest != record.authority_set_digest:
+        raise HTTPException(status_code=503, detail="Artifact integrity unavailable")
+    summary = next(item for item in retained.artifacts if item.layer == "summary")
+    record.result["summary"] = summary.body.decode("utf-8")
+    if record.events and record.events[-1].event == "done":
+        record.events[-1] = record.events[-1].model_copy(
+            update={"result": record.result}
+        )
 
 
 def _record_projection(record: _RunRecord) -> dict[str, Any]:
-    terminal = record.events[-1] if record.events and record.events[-1].terminal else None
+    terminal = (
+        record.events[-1] if record.events and record.events[-1].terminal else None
+    )
     return {
         "protocol_version": "research/1",
         "run_id": record.run_id,
@@ -263,10 +364,15 @@ def _find_run(run_id: str, request: Request) -> _RunRecord:
                     status_code=503, detail="Durable research projection unavailable"
                 ) from exc
             record.durable_ledger = _durable_ledger(request)
+            if _artifact_authority_enabled():
+                record.artifact_authority = _artifact_authority(request)
             if record.scope_id != _scope_id(request):
                 raise HTTPException(status_code=404, detail="Research run not found")
             _RUNS[run_id] = record
-            if durable.state in {"admitted", "running"}:
+            if (
+                durable.state in {"admitted", "running"}
+                and record.artifact_authority is None
+            ):
                 record.task = asyncio.create_task(_execute_run(record))
     if record is None or record.scope_id != _scope_id(request):
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -305,6 +411,13 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
         state,
     )
     manifest, artifacts = _decode_durable_artifacts(terminal)
+    authority_pointer = terminal.get("artifact_authority")
+    authority_set_digest = (
+        authority_pointer.get("set_digest")
+        if isinstance(authority_pointer, dict)
+        and isinstance(authority_pointer.get("set_digest"), str)
+        else None
+    )
     return _RunRecord(
         run_id=durable.run_id,
         research_id=str(payload.get("research_id", durable.run_id)),
@@ -316,6 +429,7 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
         events=_restore_events(durable),
         durable_manifest=manifest,
         durable_artifacts=artifacts,
+        authority_set_digest=authority_set_digest,
         durable_ledger=None,
         deleted=deleted,
     )
@@ -324,7 +438,9 @@ def _restore_durable_record(durable: DurableRun) -> _RunRecord:
 def _artifact_result(record: _RunRecord) -> dict[str, Any]:
     journey = record.journey
     manifest = journey.candidate.admitted.manifest
-    summary = next(report for report in journey.reports if report.artifact.layer == "summary")
+    summary = next(
+        report for report in journey.reports if report.artifact.layer == "summary"
+    )
     return {
         "research_id": record.research_id,
         "ir_revision_id": manifest.revision_id,
@@ -337,6 +453,81 @@ def _artifact_result(record: _RunRecord) -> dict[str, Any]:
             for report in journey.reports
         },
     }
+
+
+def _retained_artifact_result(retained: RetainedArtifactSet) -> dict[str, Any]:
+    manifest = json.loads(retained.manifest)
+    summary = next(item for item in retained.artifacts if item.layer == "summary")
+    return {
+        "research_id": str(retained.research_id),
+        "ir_revision_id": manifest["revision_id"],
+        "artifact_set_id": str(retained.artifact_set_id),
+        "summary": summary.body.decode("utf-8"),
+        "coverage": manifest["coverage"],
+        "manifest_url": f"{_ROUTE_PREFIX}/artifact-sets/{retained.artifact_set_id}",
+        "artifacts": {
+            item.layer: f"{_ROUTE_PREFIX}/artifacts/{item.artifact_id}"
+            for item in retained.artifacts
+        },
+    }
+
+
+async def _reconcile_authority(record: _RunRecord) -> None:
+    """Project an already committed PostgreSQL result into Valkey after loss."""
+    if (
+        record.state not in {"accepted", "running"}
+        or record.artifact_authority is None
+        or record.durable_ledger is None
+    ):
+        return
+    retained = await record.artifact_authority.find_run(
+        _scope_uuid(record.scope_id), UUID(record.run_id)
+    )
+    if retained is None:
+        if record.task is None:
+            record.task = asyncio.create_task(_execute_run(record))
+        return
+    try:
+        claimed = record.durable_ledger.claim(
+            record.run_id,
+            owner_id=f"reconciler:{uuid4()}",
+            attempt_id=f"reconcile:{uuid4()}",
+        )
+    except DurableConflictError:
+        # A live owner still holds the lease. Leave the committed PostgreSQL
+        # result in place and let a later status/SSE request reconcile it once
+        # that lease has expired.
+        return
+    if claimed.owner_id is None:
+        raise DurableResearchError("reconciliation owner unavailable")
+    record.durable_owner_id = claimed.owner_id
+    record.durable_generation = claimed.owner_generation
+    record.result = _retained_artifact_result(retained)
+    record.authority_set_digest = retained.set_digest
+    terminal_event = _build_event(record, "done", "completed", result=record.result)
+    terminal_payload = _durable_terminal_payload(record, terminal_event, retained)
+    checkpoint_digest = hashlib.sha256(
+        json.dumps(terminal_payload, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    result_digest = hashlib.sha256(
+        json.dumps(record.result, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    record.durable_ledger.checkpoint(
+        record.run_id,
+        claimed.owner_id,
+        claimed.owner_generation,
+        "terminal_projection",
+        checkpoint_digest,
+    )
+    record.durable_ledger.commit_result(
+        record.run_id,
+        claimed.owner_id,
+        claimed.owner_generation,
+        result_digest,
+        terminal_payload=terminal_payload,
+    )
+    record.state = "completed"
+    record.events.append(terminal_event)
 
 
 async def _execute_run(record: _RunRecord) -> None:
@@ -361,7 +552,9 @@ async def _execute_run(record: _RunRecord) -> None:
             scope_id=record.scope_id,
             research_id=record.research_id,
             objective=record.objective,
-            artifact_set_id=str(uuid4()),
+            artifact_set_id=str(
+                uuid5(NAMESPACE_URL, f"groktocrawl-x:artifact-set:{record.run_id}")
+            ),
         )
         result = await journey.run()
     except asyncio.CancelledError:
@@ -393,8 +586,30 @@ async def _execute_run(record: _RunRecord) -> None:
             and record.durable_owner_id is not None
             and record.durable_generation is not None
         ):
-            terminal_event = _build_event(record, "done", "completed", result=record.result)
-            terminal_payload = _durable_terminal_payload(record, terminal_event)
+            terminal_event = _build_event(
+                record, "done", "completed", result=record.result
+            )
+            retained = None
+            if record.artifact_authority is not None:
+                manifest = result.candidate.admitted.manifest
+                retained = await record.artifact_authority.commit(
+                    _scope_uuid(record.scope_id),
+                    UUID(record.research_id),
+                    UUID(record.run_id),
+                    UUID(manifest.artifact_set_id),
+                    result.manifest_bytes,
+                    {
+                        report.artifact.layer: (
+                            report.artifact.artifact_id,
+                            report.body,
+                        )
+                        for report in result.reports
+                    },
+                )
+                record.authority_set_digest = retained.set_digest
+            terminal_payload = _durable_terminal_payload(
+                record, terminal_event, retained
+            )
             checkpoint_digest = hashlib.sha256(
                 json.dumps(terminal_payload, sort_keys=True).encode("utf-8")
             ).hexdigest()
@@ -429,12 +644,16 @@ def capability_document() -> dict[str, Any]:
     return {
         "protocol_version": "research/1",
         "route_prefix": _ROUTE_PREFIX,
-        "implementation_stage": "durable_fixture_run_adapter"
+        "implementation_stage": "postgres_artifact_authority_adapter"
+        if durable and _artifact_authority_enabled()
+        else "durable_fixture_run_adapter"
         if durable
         else "fixture_run_adapter"
         if runs_available
         else "contract_and_golden_traces",
-        "recovery_mode": "valkey_fenced"
+        "recovery_mode": "postgres_artifacts_valkey_fenced"
+        if durable and _artifact_authority_enabled()
+        else "valkey_fenced"
         if durable
         else "process_local"
         if runs_available
@@ -445,9 +664,18 @@ def capability_document() -> dict[str, Any]:
         },
         "operations": {
             "capabilities": {"available": True},
-            "runs": {"available": runs_available, "reason": None if runs_available else "public_adapters_pending"},
-            "artifacts": {"available": runs_available, "reason": None if runs_available else "public_adapters_pending"},
-            "evidence": {"available": runs_available, "reason": None if runs_available else "public_adapters_pending"},
+            "runs": {
+                "available": runs_available,
+                "reason": None if runs_available else "public_adapters_pending",
+            },
+            "artifacts": {
+                "available": runs_available,
+                "reason": None if runs_available else "public_adapters_pending",
+            },
+            "evidence": {
+                "available": runs_available,
+                "reason": None if runs_available else "public_adapters_pending",
+            },
             "sessions": {
                 "available": runs_available,
                 "reason": None if runs_available else "public_adapters_pending",
@@ -476,6 +704,7 @@ async def create_experimental_research_run(
         raise HTTPException(status_code=400, detail="Idempotency-Key is required")
     scope = _scope_id(request)
     durable = _durable_ledger(request) if _durable_enabled() else None
+    authority = _artifact_authority(request) if _artifact_authority_enabled() else None
     digest = hashlib.sha256(payload.model_dump_json().encode()).hexdigest()
     existing = _IDEMPOTENCY.get((scope, key)) if durable is None else None
     if durable is not None:
@@ -505,6 +734,9 @@ async def create_experimental_research_run(
             record.research_id = research_id
             record.durable_ledger = durable
             _RUNS[admitted.run_id] = record
+        record.artifact_authority = authority
+        if authority is not None:
+            await authority.ensure_scope(_scope_uuid(scope))
         if record.task is None:
             record.task = asyncio.create_task(_execute_run(record))
         return {
@@ -551,17 +783,26 @@ async def create_experimental_research_run(
 
 
 @router.get(f"{_ROUTE_PREFIX}/runs/{{run_id}}")
-async def get_experimental_research_run(run_id: str, request: Request) -> dict[str, Any]:
+async def get_experimental_research_run(
+    run_id: str, request: Request
+) -> dict[str, Any]:
     """Return the authoritative process-local run projection."""
     _require_runs()
-    return _record_projection(_find_run(run_id, request))
+    record = _find_run(run_id, request)
+    await _reconcile_authority(record)
+    await _hydrate_authority_record(record)
+    return _record_projection(record)
 
 
 @router.get(f"{_ROUTE_PREFIX}/runs/{{run_id}}/events")
-async def stream_experimental_research_events(run_id: str, request: Request) -> StreamingResponse:
+async def stream_experimental_research_events(
+    run_id: str, request: Request
+) -> StreamingResponse:
     """Replay retained process-local events as SSE; no restart recovery is claimed."""
     _require_runs()
     record = _find_run(run_id, request)
+    await _reconcile_authority(record)
+    await _hydrate_authority_record(record)
     try:
         events = replay_after(record.events, request.headers.get("Last-Event-ID"))
     except ValueError as exc:
@@ -575,7 +816,9 @@ async def stream_experimental_research_events(run_id: str, request: Request) -> 
 
 
 @router.post(f"{_ROUTE_PREFIX}/runs/{{run_id}}/cancel", status_code=202)
-async def cancel_experimental_research_run(run_id: str, request: Request) -> dict[str, Any]:
+async def cancel_experimental_research_run(
+    run_id: str, request: Request
+) -> dict[str, Any]:
     """Request cancellation and return the current authoritative projection."""
     _require_runs()
     record = _find_run(run_id, request)
@@ -637,13 +880,17 @@ def _durable_read_records(request: Request) -> list[_RunRecord]:
                 status_code=503, detail="Durable research projection unavailable"
             ) from exc
         record.durable_ledger = ledger
+        if _artifact_authority_enabled():
+            record.artifact_authority = _artifact_authority(request)
         _RUNS.setdefault(record.run_id, record)
         records.append(_RUNS[record.run_id])
     return records
 
 
 @router.get(f"{_ROUTE_PREFIX}/artifact-sets/{{artifact_set_id}}")
-async def get_experimental_artifact_set(artifact_set_id: str, request: Request) -> dict[str, Any]:
+async def get_experimental_artifact_set(
+    artifact_set_id: str, request: Request
+) -> dict[str, Any]:
     """Return the exact audited manifest for a completed fixture run."""
     _require_runs()
     scope = _scope_id(request)
@@ -651,22 +898,47 @@ async def get_experimental_artifact_set(artifact_set_id: str, request: Request) 
     records.extend(_durable_read_records(request))
     for record in records:
         if record.scope_id != scope or (
-            record.journey is None and record.durable_manifest is None
+            record.journey is None
+            and record.durable_manifest is None
+            and record.authority_set_digest is None
         ):
-            continue
-        if record.journey is not None:
-            manifest_bytes = record.journey.manifest_bytes
-        else:
-            if record.result is None or record.result.get("artifact_set_id") != artifact_set_id:
-                continue
-            manifest_bytes = record.durable_manifest
-            if manifest_bytes is None:
-                continue
-        manifest_payload = json.loads(manifest_bytes)
-        if manifest_payload.get("artifact_set_id") != artifact_set_id:
             continue
         if record.deleted:
             raise HTTPException(status_code=410, detail="Artifact set deleted")
+        if (
+            record.artifact_authority is not None
+            and record.authority_set_digest is not None
+        ):
+            try:
+                retained = await record.artifact_authority.read(
+                    _scope_uuid(record.scope_id), UUID(record.research_id)
+                )
+            except StorageConflictError as exc:
+                raise HTTPException(
+                    status_code=503, detail="Artifact authority unavailable"
+                ) from exc
+            if retained.set_digest != record.authority_set_digest:
+                raise HTTPException(
+                    status_code=503, detail="Artifact integrity unavailable"
+                )
+            if str(retained.artifact_set_id) != artifact_set_id:
+                continue
+            manifest_bytes = retained.manifest
+        elif record.journey is not None:
+            manifest_bytes = record.journey.manifest_bytes
+        else:
+            if (
+                record.result is None
+                or record.result.get("artifact_set_id") != artifact_set_id
+            ):
+                continue
+            durable_manifest = record.durable_manifest
+            if durable_manifest is None:
+                continue
+            manifest_bytes = durable_manifest
+        manifest_payload = json.loads(manifest_bytes)
+        if manifest_payload.get("artifact_set_id") != artifact_set_id:
+            continue
         return manifest_payload
     raise HTTPException(status_code=404, detail="Artifact set not found")
 
@@ -683,9 +955,32 @@ async def get_experimental_artifact(artifact_id: str, request: Request) -> Respo
             continue
         if record.deleted:
             raise HTTPException(status_code=410, detail="Artifact deleted")
-        if record.journey is not None:
+        if (
+            record.artifact_authority is not None
+            and record.authority_set_digest is not None
+        ):
+            try:
+                retained = await record.artifact_authority.read(
+                    _scope_uuid(record.scope_id), UUID(record.research_id)
+                )
+            except StorageConflictError as exc:
+                raise HTTPException(
+                    status_code=503, detail="Artifact authority unavailable"
+                ) from exc
+            if retained.set_digest != record.authority_set_digest:
+                raise HTTPException(
+                    status_code=503, detail="Artifact integrity unavailable"
+                )
             reports = {
-                report.artifact.artifact_id: (report.body, report.artifact.content_digest)
+                item.artifact_id: (item.body, item.content_digest)
+                for item in retained.artifacts
+            }
+        elif record.journey is not None:
+            reports = {
+                report.artifact.artifact_id: (
+                    report.body,
+                    report.artifact.content_digest,
+                )
                 for report in record.journey.reports
             }
         else:
@@ -694,18 +989,26 @@ async def get_experimental_artifact(artifact_id: str, request: Request) -> Respo
         if artifact is not None:
             body, content_digest = artifact
             if hashlib.sha256(body).hexdigest() != content_digest:
-                raise HTTPException(status_code=503, detail="Artifact integrity unavailable")
+                raise HTTPException(
+                    status_code=503, detail="Artifact integrity unavailable"
+                )
             return Response(body, media_type="text/markdown")
     raise HTTPException(status_code=404, detail="Artifact not found")
 
 
 @router.get(f"{_ROUTE_PREFIX}/research/{{research_id}}/evidence/{{snapshot_id}}")
-async def get_experimental_evidence(research_id: str, snapshot_id: str, request: Request) -> dict[str, Any]:
+async def get_experimental_evidence(
+    research_id: str, snapshot_id: str, request: Request
+) -> dict[str, Any]:
     """Return bounded exact fixture evidence for one scoped snapshot."""
     _require_runs()
     scope = _scope_id(request)
     for record in _RUNS.values():
-        if record.scope_id != scope or record.research_id != research_id or record.journey is None:
+        if (
+            record.scope_id != scope
+            or record.research_id != research_id
+            or record.journey is None
+        ):
             continue
         if record.deleted:
             raise HTTPException(status_code=410, detail="Research evidence deleted")
@@ -722,15 +1025,29 @@ async def get_experimental_evidence(research_id: str, snapshot_id: str, request:
 
 
 @router.delete(f"{_ROUTE_PREFIX}/research/{{research_id}}", status_code=202)
-async def delete_experimental_research(research_id: str, request: Request) -> dict[str, Any]:
+async def delete_experimental_research(
+    research_id: str, request: Request
+) -> dict[str, Any]:
     """Tombstone the process-local research root before physical cleanup."""
     _require_runs()
     scope = _scope_id(request)
     if _durable_enabled():
         ledger = _durable_ledger(request)
         for durable in ledger.retained():
-            if durable.scope_id != scope or durable.payload.get("research_id") != research_id:
+            if (
+                durable.scope_id != scope
+                or durable.payload.get("research_id") != research_id
+            ):
                 continue
+            if _artifact_authority_enabled():
+                authority = _artifact_authority(request)
+                try:
+                    await authority.delete(_scope_uuid(scope), UUID(research_id))
+                except StorageConflictError as exc:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Artifact deletion authority unavailable",
+                    ) from exc
             ledger.delete(
                 durable.run_id,
                 terminal_payload={"research_id": research_id, "deleted": True},

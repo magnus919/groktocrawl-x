@@ -105,7 +105,22 @@ class ArtifactAuthorityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(row, {"deleted": True, "manifest": None})
         self.assertEqual(children, {"count": 0})
 
+    async def test_deletion_before_commit_fences_late_publication(self):
+        await self.store.delete(self.scope, self.research)
+        await self.store.delete(self.scope, self.research)
+        with self.assertRaises(StorageConflictError):
+            await self.store.commit(
+                self.scope,
+                self.research,
+                self.run,
+                self.artifact_set,
+                self.manifest,
+                self.artifacts,
+            )
+
 
 if __name__ == "__main__":
-    asyncio.run(ArtifactAuthority().migrate_artifact_authority())
+    store = ArtifactAuthority()
+    asyncio.run(store.migrate_artifact_authority())
+    asyncio.run(store.migrate_deletion_fence())
     unittest.main(verbosity=2)

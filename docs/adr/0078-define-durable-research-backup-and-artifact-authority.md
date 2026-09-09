@@ -77,6 +77,15 @@ physical-loss or regional-recovery solution: operator RPO/RTO, backup encryption
 cross-version migration and external artifact capacity remain unproven. The bounded
 inline payload must migrate before production-sized artifacts can be adopted.
 
+Issue [#240](https://github.com/magnus919/groktocrawl-x/issues/240) implements that
+migration behind a fourth opt-in gate. Schemas 13 and 14 establish a scoped PostgreSQL
+transaction for the manifest and complete artifact set plus a pre-publication
+deletion fence. The client adapter stores
+only matching identities and digests in Valkey, uses a stable artifact-set identity
+for reconciliation, and orders deletion through PostgreSQL before writing the Valkey
+tombstone. This is implementation evidence for the proposed successor boundary;
+combined backup/restore rehearsal and final decider acceptance remain open.
+
 ## Confirmation
 
 Issue #147 records hosted evidence for terminal receipt/artifact recovery,
