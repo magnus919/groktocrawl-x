@@ -92,9 +92,14 @@ Issue #147 records hosted evidence for terminal receipt/artifact recovery,
 idempotency retry continuity, active-run reclaim, deletion-tombstone continuity,
 tampered snapshot rejection and non-empty-target rejection in [the W5 packet](../experiments/durable-backup-restore.md),
 from Runtime CI run [34142290308](https://github.com/magnus919/groktocrawl-x/actions/runs/34142290308).
-The rehearsal passed. W5 remains open only for the production artifact-authority
-and infrastructure decision; passing this bounded rehearsal does not close D5 or
-authorize a production artifact store.
+PR [#244](https://github.com/magnus919/groktocrawl-x/pull/244) implemented the
+successor PostgreSQL authority boundary. Runtime CI run
+[34404714550](https://github.com/magnus919/groktocrawl-x/actions/runs/34404714550)
+then restored PostgreSQL and Valkey into fresh targets and passed exact-byte,
+pointer, deletion, interrupted-publication reconciliation, and idempotent-replay
+checks. The implementation gate has passed. W5 remains open for the durable
+execution-owner decision and final decider acceptance; this rehearsal does not
+close D5 or claim production disaster recovery.
 
 ## Links
 
