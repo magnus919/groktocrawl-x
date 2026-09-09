@@ -317,8 +317,10 @@ def main() -> int:
     args.sizes = [int(item) for item in args.sizes.split(",") if item]
     if not args.sizes or any(size < 4 for size in args.sizes):
         parser.error("--sizes must contain integers >= 4")
-    if args.workers < 1 or args.operations < 1:
-        parser.error("--workers and --operations must be positive")
+    if args.workers < 1:
+        parser.error("--workers must be positive")
+    if args.operations < 1 or args.operations > 100000:
+        parser.error("--operations must be between 1 and 100000")
     if args.dimension < 1 or args.dimension > 2000:
         parser.error("--dimension must be between 1 and 2000")
     if args.batch_size < 1 or args.batch_size > 10000:
