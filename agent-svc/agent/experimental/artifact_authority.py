@@ -188,7 +188,7 @@ class ArtifactAuthority(SourceStore):
             raise StorageConflictError("artifact set unavailable")
         children = await (
             await conn.execute(
-                "SELECT artifact_id,layer,body,content_digest FROM research_staging.research_artifacts WHERE scope_id=%s AND research_id=%s ORDER BY layer,artifact_id",
+                "SELECT artifact_id,layer,body,content_digest FROM research_staging.research_artifacts WHERE scope_id=%s AND research_id=%s ORDER BY CASE layer WHEN 'summary' THEN 1 WHEN 'analysis' THEN 2 WHEN 'dossier' THEN 3 END,artifact_id",
                 (scope, research),
             )
         ).fetchall()
