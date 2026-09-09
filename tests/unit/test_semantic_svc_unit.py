@@ -1025,6 +1025,51 @@ class TestSearchVectorQdrantBoundary:
 
 class TestPgvectorShadowIndexWiring:
     @pytest.mark.asyncio
+    async def test_scheduled_shadow_operation_reports_completion_lag(self, monkeypatch):
+        """Expose shadow backlog and completion delay without request content."""
+        from types import SimpleNamespace
+
+        import app as app_module
+
+        scheduled = []
+
+        class _Tracker:
+            def create_background_task(self, coro):
+                scheduled.append(coro)
+
+        async def _run(operation, function):
+            assert operation == "unit_lag"
+            function()
+            return "done"
+
+        monkeypatch.setattr(app_module, "SHADOW_CONFIG", SimpleNamespace(enabled=True))
+        monkeypatch.setattr(
+            app_module.app.state, "task_tracker", _Tracker(), raising=False
+        )
+        monkeypatch.setattr(app_module, "_run_shadow_operation", _run)
+
+        app_module._schedule_shadow_operation("unit_lag", lambda: None)
+
+        assert len(scheduled) == 1
+        assert await scheduled[0] == "done"
+        metrics = app_module.METRICS.generate_openmetrics()
+        assert (
+            'groktocrawl_pgvector_shadow_scheduled_total{operation="unit_lag"} 1.0'
+            in metrics
+        )
+        assert (
+            'groktocrawl_pgvector_shadow_completed_total{operation="unit_lag"} 1.0'
+            in metrics
+        )
+        assert (
+            'groktocrawl_pgvector_shadow_inflight{operation="unit_lag"} 0.0' in metrics
+        )
+        assert (
+            'groktocrawl_pgvector_shadow_completion_lag_seconds_count{operation="unit_lag"} 1'
+            in metrics
+        )
+
+    @pytest.mark.asyncio
     async def test_single_index_mirrors_only_after_qdrant_success(self, monkeypatch):
         """The authoritative write completes before shadow work is scheduled."""
         import app as app_module

@@ -253,9 +253,45 @@ def _schedule_shadow_operation(operation: str, function: Callable[[], Any]) -> N
     """Schedule fail-open shadow work under the service task tracker."""
     if not SHADOW_CONFIG.enabled:
         return
+    scheduled_at = time.monotonic()
+    METRICS.counter(
+        "groktocrawl_pgvector_shadow_scheduled_total",
+        "Pgvector shadow operations scheduled after authoritative completion",
+        ["operation"],
+    ).inc({"operation": operation})
+    METRICS.gauge(
+        "groktocrawl_pgvector_shadow_inflight",
+        "Pgvector shadow operations waiting or running",
+        ["operation"],
+    ).inc({"operation": operation})
     app.state.task_tracker.create_background_task(
-        _run_shadow_operation(operation, function)
+        _run_scheduled_shadow_operation(operation, function, scheduled_at)
     )
+
+
+async def _run_scheduled_shadow_operation(
+    operation: str, function: Callable[[], Any], scheduled_at: float
+) -> Any:
+    """Measure authority-to-shadow completion lag without retaining content."""
+    try:
+        return await _run_shadow_operation(operation, function)
+    finally:
+        elapsed = time.monotonic() - scheduled_at
+        METRICS.histogram(
+            "groktocrawl_pgvector_shadow_completion_lag_seconds",
+            "Time from authoritative completion until a shadow attempt finishes",
+            ["operation"],
+        ).observe({"operation": operation}, elapsed)
+        METRICS.counter(
+            "groktocrawl_pgvector_shadow_completed_total",
+            "Pgvector shadow attempts completed after scheduling",
+            ["operation"],
+        ).inc({"operation": operation})
+        METRICS.gauge(
+            "groktocrawl_pgvector_shadow_inflight",
+            "Pgvector shadow operations waiting or running",
+            ["operation"],
+        ).dec({"operation": operation})
 
 
 def _create_background_task(coro) -> asyncio.Task:
