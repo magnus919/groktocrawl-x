@@ -50,6 +50,21 @@ logger = logging.getLogger(__name__)
 router_index = APIRouter()
 
 
+def _write_qdrant_rollback_copy(operation: str, function):
+    """Require the rollback copy while pgvector is serving requests."""
+    try:
+        return function()
+    except Exception as exc:
+        if not SHADOW_CONFIG.serving:
+            raise
+        logger.exception(
+            "Qdrant rollback %s failed while pgvector is serving", operation
+        )
+        raise HTTPException(
+            503, "Qdrant rollback store is unavailable — please retry"
+        ) from exc
+
+
 # ── Payload building ──────────────────────────────────────────────
 
 
@@ -196,15 +211,18 @@ async def index_page(body: IndexRequest):
             except Exception as e:
                 logger.warning("Dual-write embed failed for target model: %s", e)
 
-    qdrant.upsert(
-        collection_name=COLLECTION_NAME,
-        points=[
-            models.PointStruct(
-                id=point_id,
-                vector=vectors,
-                payload=payload,
-            )
-        ],
+    _write_qdrant_rollback_copy(
+        "upsert",
+        lambda: qdrant.upsert(
+            collection_name=COLLECTION_NAME,
+            points=[
+                models.PointStruct(
+                    id=point_id,
+                    vector=vectors,
+                    payload=payload,
+                )
+            ],
+        ),
     )
 
     def shadow_write():
@@ -338,7 +356,10 @@ async def index_batch(body: IndexBatchRequest):
         )
 
     # Single batch upsert via Qdrant gRPC
-    qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+    _write_qdrant_rollback_copy(
+        "upsert_batch",
+        lambda: qdrant.upsert(collection_name=COLLECTION_NAME, points=points),
+    )
 
     def shadow_batch_write():
         return _shadow_store.upsert_many(shadow_records)

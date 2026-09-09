@@ -1197,3 +1197,52 @@ class TestPgvectorShadowIndexWiring:
 
         assert response.status == "indexed"
         assert events == ["qdrant", "upsert", "pgvector"]
+
+    @pytest.mark.asyncio
+    async def test_pgvector_serving_rejects_write_when_rollback_store_is_down(
+        self, monkeypatch
+    ):
+        """A missing rollback copy is a stable retryable response, not a 500."""
+        from types import SimpleNamespace
+
+        import app as app_module
+        import numpy as np
+        import router_index
+        from fastapi import HTTPException
+        from models import IndexRequest
+
+        class _Qdrant:
+            def retrieve(self, *args, **kwargs):
+                return []
+
+            def upsert(self, *args, **kwargs):
+                raise ConnectionError("rollback store unavailable")
+
+        class _Model:
+            def encode(self, text, **kwargs):
+                return np.array([0.1, 0.2, 0.3])
+
+        class _Pgvector:
+            def upsert(self, **kwargs):
+                pytest.fail("pgvector must not receive a write without its rollback copy")
+
+        monkeypatch.setattr(app_module, "_models_ready", True)
+        monkeypatch.setattr(
+            router_index, "SHADOW_CONFIG", SimpleNamespace(serving=True)
+        )
+        monkeypatch.setattr(router_index, "_ensure_qdrant", _async_return(_Qdrant()))
+        monkeypatch.setattr(router_index, "_get_embed_model", lambda: _Model())
+        monkeypatch.setattr(router_index, "_get_active_model", lambda: "v_bge-m3")
+        monkeypatch.setattr(router_index, "_shadow_store", _Pgvector())
+
+        with pytest.raises(HTTPException) as exc_info:
+            await router_index.index_page(
+                IndexRequest(
+                    url="https://example.com", title="Example", content="body"
+                )
+            )
+
+        assert exc_info.value.status_code == 503
+        assert exc_info.value.detail == (
+            "Qdrant rollback store is unavailable — please retry"
+        )
