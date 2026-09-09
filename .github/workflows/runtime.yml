@@ -402,6 +402,8 @@ jobs:
           # Copy full tests/ directory and root Compose contract input
           docker compose exec -T agent-svc mkdir -p /app/tests
           docker cp tests/. "$svc":/app/tests/
+          docker compose exec -T agent-svc mkdir -p /app/w6-fixtures
+          docker cp groktocrawl "$svc":/app/w6-fixtures/groktocrawl
           docker cp docker-compose.yml "$svc":/app/docker-compose.yml
           docker compose exec -T agent-svc mkdir -p /app/scripts
           docker cp scripts/classify_ci_changes.py "$svc":/app/scripts/classify_ci_changes.py

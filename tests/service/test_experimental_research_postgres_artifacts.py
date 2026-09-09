@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import importlib.util
 import json
 import os
+import runpy
+import sys
+import types
+from pathlib import Path
 from uuid import UUID
 
 import httpx
@@ -215,3 +221,84 @@ async def test_deletion_reaches_postgres_before_valkey(authority_app) -> None:
         assert authority.deletions == 1
         experimental._RUNS.clear()
         assert (await client.get(created.json()["status_url"])).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_recovered_bytes_match_http_sse_cli_and_mcp(
+    authority_app, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One recovered authority set remains identical on every W6 client surface."""
+    app, _, _ = authority_app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        created = await client.post(
+            "/experimental/research/v1/runs",
+            headers={"Idempotency-Key": "recovered-client-parity"},
+            json={"objective": "Preserve one result across every client"},
+        )
+        original_status = await _wait(client, created.json()["status_url"])
+        summary_url = original_status["result"]["artifacts"]["summary"]
+        original_bytes = (await client.get(summary_url)).content
+
+        # Simulate loss of all process-local route state. Subsequent reads must
+        # reconstruct the result from Valkey pointers and PostgreSQL bytes.
+        experimental._RUNS.clear()
+        recovered_status = (await client.get(created.json()["status_url"])).json()
+        manifest = (await client.get(recovered_status["result"]["manifest_url"])).json()
+        recovered_bytes = (await client.get(summary_url)).content
+        events = await client.get(created.json()["events_url"])
+
+        assert recovered_bytes == original_bytes
+        assert (
+            manifest["artifact_set_id"] == recovered_status["result"]["artifact_set_id"]
+        )
+        assert "event: done" in events.text
+        assert recovered_status["result"]["artifact_set_id"] in events.text
+
+        summary_id = summary_url.rsplit("/", 1)[-1]
+
+        cli_path = Path("/app/w6-fixtures/groktocrawl")
+        if not cli_path.is_file():
+            cli_path = Path(__file__).resolve().parents[2] / "groktocrawl"
+        cli_ns = runpy.run_path(str(cli_path))
+        cli_client = cli_ns["Client"](server="http://test")
+        cli_response = httpx.Response(200, content=recovered_bytes)
+        monkeypatch.setitem(
+            sys.modules,
+            "requests",
+            types.SimpleNamespace(get=lambda *args, **kwargs: cli_response),
+        )
+        assert (
+            cli_client.experimental_research_artifact_bytes(summary_id)
+            == original_bytes
+        )
+
+        module_path = (
+            Path(__file__).resolve().parents[2] / "mcp-svc/groktocrawl_client.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "recovered_mcp_client", module_path
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        mcp_client = module.GroktocrawlClient(base_url="http://test")
+        mcp_client._client = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        )
+        mcp_artifact = await mcp_client.experimental_research_artifact(summary_id)
+        await mcp_client.close()
+        assert base64.b64decode(mcp_artifact["content_base64"]) == original_bytes
+
+        foreign = await client.get(
+            created.json()["status_url"], headers={"Authorization": "Bearer foreign"}
+        )
+        assert foreign.status_code == 404
+        deleted = await client.delete(
+            f"/experimental/research/v1/research/{recovered_status['research_id']}"
+        )
+        assert deleted.status_code == 202
+        experimental._RUNS.clear()
+        assert (await client.get(summary_url)).status_code == 410
+        assert (await client.get(created.json()["events_url"])).status_code == 410
