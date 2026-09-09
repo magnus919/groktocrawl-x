@@ -1,6 +1,6 @@
 # pgvector shadow pilot
 
-- Status: ready for an isolated application-level run
+- Status: first isolated run complete; extension recommended before cutover
 - Tracking: [issue #227](https://github.com/magnus919/groktocrawl-x/issues/227)
 - Parent evaluation: [issue #201](https://github.com/magnus919/groktocrawl-x/issues/201)
 - Authority during the pilot: Qdrant
@@ -8,6 +8,13 @@
 This pilot measures the optional pgvector path through the real semantic-service
 index and search boundaries. It does not serve pgvector results, remove Qdrant,
 or authorize a production or mainline migration.
+
+The first run is preserved in the
+[2026-09-09 application shadow packet](../evidence/storage-vector-evaluation/2026-09-09-application-shadow-pilot/).
+It passed response-equivalence, fail-open, reconciliation, and bounded
+shared-database correctness checks. Two ordinary comparisons also exposed the
+expected lag from asynchronous shadow writes. Keep Qdrant authoritative while
+that lag is measured under sustained mixed traffic.
 
 ## Preconditions
 
