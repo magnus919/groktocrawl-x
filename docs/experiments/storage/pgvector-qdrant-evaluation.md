@@ -140,6 +140,13 @@ latency in every round. The packet still uses only synthetic 3-dimensional
 vectors, at most 1,000 records and short mixed workloads. Representative scale,
 sustained resource measurements, migration/rollback and cutover remain open.
 
+The follow-up [larger 1,024-dimensional packet](../evidence/storage-vector-evaluation/2026-09-09-scale-1024d-larger-r1/)
+uses the inherited embedding shape, equal 1,000-record batches, and up to 10,000
+records. All rounds passed correctness without provider failures. At 10,000
+records Qdrant had lower median ingestion time, filtered-search p50 and higher
+mixed throughput, while pgvector had the tighter search p95. The short mixed
+workload and final-only resource snapshot do not establish sustained capacity.
+
 ## Measures and gates
 
 Record p50/p95/p99 latency, throughput, error and timeout rate, index-build/rebuild time, CPU/RAM/disk footprint, backup size, restore time, and cleanup lag. For retrieval, report exact top-k identity overlap, score ordering changes, recall against a separately computed brute-force reference on the fixture corpus, and scope/deletion correctness. Do not treat Qdrant as truth merely because it is the incumbent.
