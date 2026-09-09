@@ -83,10 +83,10 @@ retention settings, target state, counts, elapsed restore time and any excluded
 failure schedules. Passing these cases does not establish disk-loss, regional,
 encrypted-backup or cross-version recovery.
 
-## Remaining W5 decision
+## Outcome and next gate
 
 The PostgreSQL artifact-authority implementation and combined restore gate have
-passed for the experiment. W5 still needs the parent decision on durable execution
-ownership and the broader W6 client journey before this architecture can be called
-a replacement candidate. This evidence does not accept ADR-0074, claim production
-disaster recovery, or change mainline GroktoCrawl.
+passed for the experiment. W5 now has an accepted execution-owner decision. The
+broader W6 client journey still must pass before this architecture can be called a
+replacement candidate. This evidence does not claim production disaster recovery
+or change mainline GroktoCrawl.
