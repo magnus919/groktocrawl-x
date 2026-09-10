@@ -115,3 +115,22 @@ runtime, but persistence retention, migration, and cleanup remain operating work
 Scenario 3 supplies a concrete future-platform advantage. Fork isolation and
 capability-version substitution still need evidence before ADR-0073 can decide the
 long-term substrate.
+
+## Future-facing scenario 4
+
+The [checkpoint-fork packet](../evidence/future-runtime/2026-09-10-forks/)
+records 60 conforming parent/child comparisons. LangGraph's retained history and
+`update_state` API create an alternate continuation from a precise checkpoint while
+leaving the parent's terminal checkpoint unchanged. This is a second concrete
+future-platform advantage after durable interrupts.
+
+The imperative reference performs the same operation by explicitly loading and
+cloning a 495-byte control checkpoint. Its median fork took 0.49 ms versus 1.08 ms
+for LangGraph, whose SQLite history occupied 32,768 bytes. The larger footprint buys
+built-in history traversal and branch construction, but requires retention and
+cleanup policy.
+
+Application authority remains decisive. It records parent/child ancestry and rejects
+reuse when scope, policy, model, search identity, deletion, or cancellation differs.
+Both arms made one shared evidence call and distinct analysis calls. Model and search
+capability substitution is now the final planned scenario before ADR-0073 review.
