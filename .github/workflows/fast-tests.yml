@@ -50,8 +50,10 @@ jobs:
         run: >-
           PYTHONPATH=agent-svc
           uv run --no-project --with langgraph==0.6.11 --with pytest
-          --with pytest-asyncio --with pydantic pytest -q -o addopts=''
+          --with langgraph-checkpoint-sqlite --with redis --with pytest-asyncio
+          --with pydantic pytest -q -o addopts=''
           tests/unit/test_adaptive_runtime.py tests/unit/test_specialist_runtime.py
+          tests/unit/test_guidance_runtime.py
 
       - name: Smoke future-runtime measurements
         run: >-
@@ -59,6 +61,14 @@ jobs:
           uv run --no-project --with langgraph==0.6.11 --with pydantic
           python scripts/measure_future_runtime.py --repetitions 1
           --output /tmp/future-runtime-measurements
+
+      - name: Smoke durable-guidance measurements
+        run: >-
+          PYTHONPATH=agent-svc
+          uv run --no-project --with langgraph==0.6.11
+          --with langgraph-checkpoint-sqlite --with redis --with pydantic
+          python scripts/measure_guidance_runtime.py --repetitions 1
+          --output /tmp/guidance-runtime-measurements
 
       - name: Run mcp-svc unit tests
         run: >-
