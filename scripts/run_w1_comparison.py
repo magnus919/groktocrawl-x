@@ -32,6 +32,7 @@ EXPECTED = {
     "approval": "sha256:946baaf7a32f8faf18d9ccdea8fd829ea1acb0a11738a4ebd81ff932cd04bad2",
     "authorization": "sha256:119e8e18338e1ac5a6206646caaa964a2e77d139f3abe04933740fe92596a324",
     "call-budget-amendment": "sha256:f0fe18cfca535d3bb1652e5eb21d6d72f57e5140167c97bde4cd1fdc926bf8ec",
+    "clean-rerun-authorization": "sha256:e1867609a62b8ee607fceafcb58f113db4e31b9f63181292109dd1dca5d0d31d",
 }
 FILES = {
     "corpus": "corpus.json",
@@ -39,6 +40,7 @@ FILES = {
     "approval": "approval.json",
     "authorization": "comparison-authorization.json",
     "call-budget-amendment": "comparison-authorization-amendment-1.json",
+    "clean-rerun-authorization": "clean-rerun-authorization.json",
 }
 
 
