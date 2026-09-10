@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight/1",
-  "status": "authorized_for_w1_paired_ab_execution",
+  "status": "w1_execution_complete_candidate_b_operationally_rejected_pending_semantic_learning_review",
   "comparison_authorized": true,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -8,14 +8,14 @@
   "external_provider_budget_usd": 0,
   "arms": {
     "A": {
-      "status": "frozen_ready_for_paired_comparison",
+      "status": "paired_comparison_complete_reference_retained",
       "upstream_commit": "34b4975bc7baaf25510ed34029b957f95b59de70",
       "policy": "incumbent answer policy at pinned upstream commit",
       "compatible_comparison_fixture_commit": null,
       "commit": "34b4975bc7baaf25510ed34029b957f95b59de70"
     },
     "B": {
-      "status": "frozen_ready_for_paired_comparison",
+      "status": "paired_comparison_complete_operationally_rejected",
       "commit": "36f999514cf0dc8eb3164c4cac50a7ba0002618f",
       "policy": "evidence-first research construction with deterministic structural/conflict verification and model-reviewed assessment, semantic support, and freshness",
       "policy_version": "real-research-pilot/3",
@@ -493,8 +493,8 @@
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "execute the authorized clean paired A/B schedule",
-    "adjudicate candidate disagreements and critical findings before any adoption claim"
+    "review completed private outputs for semantic learning, not to reverse the operational rejection",
+    "design a leaner evidence-first successor candidate from the failure evidence"
   ],
   "authorized_scope": [
     "A",
@@ -509,13 +509,25 @@
     "call_budget_amendment_sha256": "sha256:f0fe18cfca535d3bb1652e5eb21d6d72f57e5140167c97bde4cd1fdc926bf8ec"
   },
   "comparison_execution": {
-    "status": "clean_rerun_authorized_pending_execution",
-    "record": "docs/experiments/enterprise-evaluation/w1-comparison-launch-2026-09-10.md",
-    "private_manifest_sha256": "sha256:16817fe7c9cec787f097210be067aee4bc2987237aaa39db90f57edf8151247e",
-    "completed_answers": 0,
-    "received_model_envelopes": 0,
-    "scorable": false,
-    "clean_rerun_authorized": true,
-    "clean_rerun_authorization_sha256": "sha256:e1867609a62b8ee607fceafcb58f113db4e31b9f63181292109dd1dca5d0d31d"
+    "status": "complete_candidate_b_failed_operational_gates",
+    "record": "docs/experiments/enterprise-evaluation/w1-comparison-outcome-2026-09-10.md",
+    "private_manifest_sha256": "sha256:81c796f90df768a96e1f3fa5201196a40e5c10ac08719777d8fce753476cc14a",
+    "schedule_sha256": "sha256:8d3d0f4fef37a7610ab1718c9eb248078b76b2cdbdddfa2c01eac120630b496a",
+    "results_sha256": "sha256:b2c633a69280f3f587d66fbfe5a08b0fd460f355faa285212290a4c436873604",
+    "receipts_sha256": "sha256:b8783595c21de3e9afff2cc738d1bba534fd83db473ba8b966f74b92d640ca2d",
+    "attempts": 300,
+    "arm_a_completed": 77,
+    "arm_b_completed": 39,
+    "arm_a_p50_ms": 2189,
+    "arm_a_p95_ms": 3202,
+    "arm_b_p50_ms": 17570,
+    "arm_b_p95_ms": 22367,
+    "arm_a_reported_tokens": 49387,
+    "arm_b_reported_tokens": 777108,
+    "candidate_b_operational_gate": "fail",
+    "semantic_learning_review": "pending",
+    "scored_adoption_decision": "candidate_b_rejected_before_semantic_adoption_gate",
+    "production_adoption": false,
+    "mainline_replacement": false
   }
 }
