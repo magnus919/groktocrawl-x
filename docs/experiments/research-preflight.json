@@ -1,21 +1,21 @@
 {
-  "schema_version": "research-preflight-draft/1",
-  "status": "blocked_pending_adjudication_and_comparison_authorization",
-  "comparison_authorized": false,
+  "schema_version": "research-preflight/1",
+  "status": "authorized_for_w1_paired_ab_execution",
+  "comparison_authorized": true,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
   "decision_owner": "Magnus Hedemark",
   "external_provider_budget_usd": 0,
   "arms": {
     "A": {
-      "status": "not_executed_for_comparison",
+      "status": "frozen_ready_for_paired_comparison",
       "upstream_commit": "34b4975bc7baaf25510ed34029b957f95b59de70",
       "policy": "incumbent answer policy at pinned upstream commit",
       "compatible_comparison_fixture_commit": null,
       "commit": "34b4975bc7baaf25510ed34029b957f95b59de70"
     },
     "B": {
-      "status": "candidate_core_frozen_pending_fresh_comparison_packet",
+      "status": "frozen_ready_for_paired_comparison",
       "commit": "36f999514cf0dc8eb3164c4cac50a7ba0002618f",
       "policy": "evidence-first research construction with deterministic structural/conflict verification and model-reviewed assessment, semantic support, and freshness",
       "policy_version": "real-research-pilot/3",
@@ -330,7 +330,7 @@
     "adjudicating_reviewer": {
       "name": "Magnus Hedemark",
       "kind": "human",
-      "status": "pending_critical_finding_and_candidate_disagreements"
+      "status": "incumbent_critical_finding_accepted; future_candidate_disagreements_require_adjudication"
     },
     "hardware_and_limits": {
       "runner_host": "current local macOS arm64 host",
@@ -344,7 +344,7 @@
       "provider_seed": "record support or absence; do not simulate determinism"
     },
     "quality_regression_bounds": {
-      "status": "proposed_for_decider_review",
+      "status": "accepted_for_w1_paired_ab_comparison",
       "hard_critical_findings_allowed": 0,
       "paired_95pct_interval_must_not_show_regression": [
         "strict_support",
@@ -358,13 +358,13 @@
       }
     },
     "latency_regression_bounds": {
-      "status": "proposed_for_decider_review",
+      "status": "accepted_for_w1_paired_ab_comparison",
       "p50_ms_max": 8030,
       "p95_ms_max": 10354,
       "multiplier_over_incumbent": 1.25
     },
     "resource_regression_bounds": {
-      "status": "proposed_for_decider_review",
+      "status": "accepted_for_w1_paired_ab_comparison",
       "maximum_per_question_median_multiplier": 3.0,
       "exception_requires": "established paired quality improvement and explicit final acceptance"
     },
@@ -379,7 +379,7 @@
       "stop_mechanism": "runner refuses dispatch after any call, token, time, route, or case-accounting ceiling and retains the stopped outcome"
     },
     "sample_uncertainty_plan": {
-      "status": "proposed_for_decider_review",
+      "status": "accepted_for_w1_paired_ab_comparison",
       "trials_per_case_per_arm": 5,
       "resamples": 10000,
       "unit": "paired question",
@@ -397,14 +397,14 @@
   },
   "hard_invariant_allowed_violations": 0,
   "evaluation_design": {
-    "status": "proposal_not_execution_authorization",
+    "status": "w1_paired_ab_execution_authorized",
     "domain": "enterprise agentic engineering/software factories",
     "packet": "docs/experiments/enterprise-evaluation/README.md",
     "manifest": "docs/experiments/enterprise-evaluation/manifest.json",
     "separate_ai_reviewer": "Hermes via local one-shot CLI",
     "human_calibration_and_adjudication": "Magnus; 12 exposed calibration cases human-confirmed in docs/experiments/enterprise-evaluation/calibration/human-confirmation.json; no held-out labels",
-    "held_out_status": "No sealed held-out set; candidate calibration questions exposed to author/reviewer",
-    "numerical_performance_bounds": "Pending measured baseline and review under ADR-0070",
+    "held_out_status": "Fresh 30-case replacement packet is isolation-approved and eligible; raw contents remain private",
+    "numerical_performance_bounds": "Accepted for W1 A/B execution; see w1-incumbent-semantic-review-2026-09-09.md",
     "independent_ai_review_status": "local-only Hermes route timed out; two fallback-routed outputs excluded before scoring"
   },
   "storage_exploration": {
@@ -439,7 +439,7 @@
     "access_log_sha256": "sha256:0f459327ffd3ced393ee653030ca5664ea985b228db10a2d947ddb9f9dc288dd",
     "validator_status": "candidate_validation_passed",
     "approval_record": "private approval.json; sanitized summary docs/experiments/enterprise-evaluation/w1-replacement-packet-2026-09-10.md",
-    "comparison_authorized": false,
+    "comparison_authorized": true,
     "production_adoption": false,
     "held_out_eligible_for_future_candidate": true,
     "replacement_packet_required": false,
@@ -485,12 +485,23 @@
       "do_not_use_cases": 5,
       "report": "docs/experiments/enterprise-evaluation/w1-incumbent-semantic-review-2026-09-09.md"
     },
-    "comparison_authorized": false,
+    "comparison_authorized": true,
     "production_adoption": false,
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "adjudicate the incumbent critical finding and confirm the proposed bounds",
-    "obtain explicit comparison authorization for the isolation-approved replacement packet"
-  ]
+    "execute the authorized paired A/B schedule without exposing the private packet",
+    "adjudicate candidate disagreements and critical findings before any adoption claim"
+  ],
+  "authorized_scope": [
+    "A",
+    "B"
+  ],
+  "comparison_authorization": {
+    "decision_owner": "Magnus Hedemark",
+    "record": "docs/experiments/enterprise-evaluation/w1-comparison-authorization-2026-09-10.md",
+    "private_record_sha256": "sha256:119e8e18338e1ac5a6206646caaa964a2e77d139f3abe04933740fe92596a324",
+    "production_adoption": false,
+    "mainline_replacement": false
+  }
 }
