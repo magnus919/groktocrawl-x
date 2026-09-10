@@ -493,8 +493,7 @@
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "approve one clean rerun after the zero-inference qualification failure",
-    "execute the protected paired A/B schedule",
+    "execute the authorized clean paired A/B schedule",
     "adjudicate candidate disagreements and critical findings before any adoption claim"
   ],
   "authorized_scope": [
@@ -510,12 +509,13 @@
     "call_budget_amendment_sha256": "sha256:f0fe18cfca535d3bb1652e5eb21d6d72f57e5140167c97bde4cd1fdc926bf8ec"
   },
   "comparison_execution": {
-    "status": "qualification_failed_no_model_inference",
+    "status": "clean_rerun_authorized_pending_execution",
     "record": "docs/experiments/enterprise-evaluation/w1-comparison-launch-2026-09-10.md",
     "private_manifest_sha256": "sha256:16817fe7c9cec787f097210be067aee4bc2987237aaa39db90f57edf8151247e",
     "completed_answers": 0,
     "received_model_envelopes": 0,
     "scorable": false,
-    "clean_rerun_authorized": false
+    "clean_rerun_authorized": true,
+    "clean_rerun_authorization_sha256": "sha256:e1867609a62b8ee607fceafcb58f113db4e31b9f63181292109dd1dca5d0d31d"
   }
 }

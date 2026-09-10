@@ -16,3 +16,8 @@ The runner now checks the authenticated model listing before creating an output
 directory and uses non-routable, contract-valid HTTPS identities for private
 sources. A clean rerun requires an explicit amendment because the no-retry rule
 was correctly conservative even though inference did not occur.
+
+Magnus authorized one clean rerun after reviewing this disposition. The private
+rerun authorization is bound to the invalid launch, original comparison decision,
+call-budget correction, and runner fix; its digest is
+`sha256:e1867609a62b8ee607fceafcb58f113db4e31b9f63181292109dd1dca5d0d31d`.
