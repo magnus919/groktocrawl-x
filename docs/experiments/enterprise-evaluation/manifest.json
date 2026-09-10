@@ -24,7 +24,7 @@
   },
   "series_external_provider_budget_usd": 0,
   "hermes_design_review_authorized": true,
-  "execution_status": "exploratory_local_self_check_recorded_2026-09-07",
+  "execution_status": "exploratory_local_reliability_refresh_recorded_2026-09-10",
   "exploratory_execution": {
     "record": "exploratory-local-2026-09-08/evaluation-summary.md",
     "gateway_host": "gpuslut01",
@@ -66,5 +66,20 @@
     "calls_dispatched": 53,
     "comparison_authorized": false,
     "held_out": false
+  },
+  "latest_exploratory_execution": {
+    "record": "exploratory-local-2026-09-10/evaluation-summary.md",
+    "execution_host": "hal2000 production GroktoCrawl agent container",
+    "gateway_host": "gpuslut01",
+    "gateway_base_url": "http://gpuslut01:4000/v1",
+    "model": "local",
+    "judge_model": "local",
+    "cases_attempted": 30,
+    "graded": 29,
+    "failed": 1,
+    "calls_dispatched": 59,
+    "comparison_authorized": false,
+    "held_out": false,
+    "interpretation": "output reliability evidence only; exposed same-model self-grading is not quality evidence"
   }
 }
