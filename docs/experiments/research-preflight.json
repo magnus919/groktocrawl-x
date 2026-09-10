@@ -373,10 +373,13 @@
       "retries_per_scored_call": 0,
       "maximum_source_cards_per_case": 3,
       "maximum_total_tokens_per_call": 6000,
-      "maximum_calls_per_arm": 150,
-      "maximum_calls_series": 300,
       "external_provider_budget_usd": 0,
-      "stop_mechanism": "runner refuses dispatch after any call, token, time, route, or case-accounting ceiling and retains the stopped outcome"
+      "stop_mechanism": "runner refuses dispatch after any call, token, time, route, or case-accounting ceiling and retains the stopped outcome",
+      "maximum_calls_by_arm": {
+        "A": 150,
+        "B": 300
+      },
+      "maximum_calls_series": 450
     },
     "sample_uncertainty_plan": {
       "status": "accepted_for_w1_paired_ab_comparison",
@@ -502,6 +505,7 @@
     "record": "docs/experiments/enterprise-evaluation/w1-comparison-authorization-2026-09-10.md",
     "private_record_sha256": "sha256:119e8e18338e1ac5a6206646caaa964a2e77d139f3abe04933740fe92596a324",
     "production_adoption": false,
-    "mainline_replacement": false
+    "mainline_replacement": false,
+    "call_budget_amendment_sha256": "sha256:f0fe18cfca535d3bb1652e5eb21d6d72f57e5140167c97bde4cd1fdc926bf8ec"
   }
 }

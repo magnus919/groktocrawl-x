@@ -24,3 +24,14 @@ Its digest is
 
 This authorizes the paired A/B experiment only. It does not authorize production
 adoption, removal of the incumbent, or replacement of mainline GroktoCrawl.
+
+## Call-budget correction
+
+Magnus approved one execution correction after the runner design exposed a mismatch:
+30 cases times five trials requires 150 attempts per arm, while Arm B makes two
+ordered model calls for every attempt. The corrected ceilings are 150 calls for
+Arm A, 300 calls for Arm B, and 450 calls for the complete series. Every other
+quality, latency, resource, retry, route, and stop limit remains unchanged.
+
+The private amendment record has digest
+`sha256:f0fe18cfca535d3bb1652e5eb21d6d72f57e5140167c97bde4cd1fdc926bf8ec`.
