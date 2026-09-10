@@ -36,7 +36,7 @@ These files are not a retained PostgreSQL publication or a quality-comparison re
 ## Model work and server-owned identity
 
 `construct_research()` accepts captured sources from trusted acquisition callbacks.
-The internal `research-construction/4` draft asks the model for up to three dense
+The internal `research-construction/4` draft under policy `real-research-pilot/3` asks the model for up to three dense
 source-statement claims, source-line selections, support/contradiction selections,
 answer status and conflict descriptions. References are one-based positions in
 bounded arrays. The model does not create scope, research, revision, evidence, claim,
@@ -116,3 +116,7 @@ for a healthy local backend, exercise the two-call candidate without retries, an
 record the terminal outcome. A successful run would establish only functional
 viability; comparative quality and replacement claims still require the fresh blind
 packet and paired study.
+
+### Policy 3 probe result
+
+Policy `real-research-pilot/3` states the required construction document identity explicitly in the model instruction. A bounded fixed-source probe through `local` then passed construction and completed the ordered review call, where the publication gate denied the candidate because the model did not pass the required structural/conflict checks. A separate live-source probe completed both model calls and was denied because a rendered claim was ineligible. These are terminal fail-closed outcomes, not successful manifests. They confirm that the schema-identity correction reaches the review and publication stages; they also show that model-judged structural checks are now the next candidate-design question. Candidate B remains unfrozen.

@@ -39,7 +39,8 @@ the answer or its uncertainty. This is always a required integer, never null, ev
 when unresolved: include a source-backed claim explaining the limit. answer_status
 is unresolved if the objective cannot be established. Conflict records select positions in the same claims/evidence arrays;
 conflicts require unresolved status. The application builds identifiers and edges.
-Return only JSON matching the supplied schema. No tools, code fences or extra prose."""
+Set schema_version to exactly research-construction/4. Return only JSON matching
+the supplied schema. No tools, code fences or extra prose."""
 
 Index = Annotated[int, Field(ge=1, le=100)]
 
@@ -289,7 +290,7 @@ async def construct_research(
                 "created_at": now.isoformat().replace("+00:00", "Z"),
                 "as_of": now.isoformat().replace("+00:00", "Z"),
                 "objective": objective,
-                "policy_version": "real-research-pilot/2",
+                "policy_version": "real-research-pilot/3",
                 "snapshots": [s.model_dump(mode="json") for s in snapshots],
             }
         )
