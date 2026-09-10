@@ -493,7 +493,8 @@
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "execute the authorized paired A/B schedule without exposing the private packet",
+    "approve one clean rerun after the zero-inference qualification failure",
+    "execute the protected paired A/B schedule",
     "adjudicate candidate disagreements and critical findings before any adoption claim"
   ],
   "authorized_scope": [
@@ -507,5 +508,14 @@
     "production_adoption": false,
     "mainline_replacement": false,
     "call_budget_amendment_sha256": "sha256:f0fe18cfca535d3bb1652e5eb21d6d72f57e5140167c97bde4cd1fdc926bf8ec"
+  },
+  "comparison_execution": {
+    "status": "qualification_failed_no_model_inference",
+    "record": "docs/experiments/enterprise-evaluation/w1-comparison-launch-2026-09-10.md",
+    "private_manifest_sha256": "sha256:16817fe7c9cec787f097210be067aee4bc2987237aaa39db90f57edf8151247e",
+    "completed_answers": 0,
+    "received_model_envelopes": 0,
+    "scorable": false,
+    "clean_rerun_authorized": false
   }
 }

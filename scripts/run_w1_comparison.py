@@ -57,6 +57,8 @@ def load_authorized_packet(packet: Path, preflight_path: Path) -> dict[str, Any]
         raise ValueError("W1 comparison is not authorized")
     if preflight.get("authorized_scope") != ["A", "B"]:
         raise ValueError("W1 authorization scope is not exact A/B")
+    if preflight.get("comparison_execution", {}).get("clean_rerun_authorized") is not True:
+        raise ValueError("clean W1 rerun is not authorized")
     for key, filename in FILES.items():
         path = packet / filename
         if not path.is_file() or digest(path) != EXPECTED[key]:
@@ -88,6 +90,28 @@ def schedule(cases: list[dict[str, Any]], *, seed: int, trials: int) -> list[dic
 
 def source_map(corpus: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return {source["source_id"]: source for source in corpus["sources"]}
+
+
+def private_source_url(source_id: str) -> str:
+    """Produce a contract-valid non-routable identity without exposing provenance."""
+    safe = "".join(character if character.isalnum() or character in "-_" else "-" for character in source_id)
+    if not safe:
+        raise ValueError("private source identity is empty")
+    return f"https://w1.invalid/source/{safe}"
+
+
+async def qualify_gateway(client: httpx.AsyncClient, base_url: str, api_key: str) -> None:
+    """Refuse the series before case dispatch when the configured route is unavailable."""
+    response = await client.get(
+        base_url.rstrip("/") + "/models",
+        headers={"Authorization": "Bearer " + api_key},
+        follow_redirects=False,
+        timeout=10,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not any(item.get("id") == "local" for item in payload.get("data", [])):
+        raise ValueError("configured gateway does not advertise the local model")
 
 
 def objective(case: dict[str, Any]) -> str:
@@ -176,6 +200,10 @@ async def run(args: argparse.Namespace) -> int:
     corpus = load_authorized_packet(args.packet, args.preflight)
     if args.output.exists():
         raise ValueError("output directory already exists")
+    base_url = os.environ["LLM_BASE_URL"]
+    api_key = os.environ.get("LLM_API_KEY", "")
+    async with httpx.AsyncClient() as qualification_client:
+        await qualify_gateway(qualification_client, base_url, api_key)
     args.output.mkdir(parents=True, mode=0o700)
     cases = {case["case_id"]: case for case in corpus["cases"]}
     sources = source_map(corpus)
@@ -184,12 +212,11 @@ async def run(args: argparse.Namespace) -> int:
     for path in args.output.iterdir():
         path.chmod(0o600)
 
-    base_url = os.environ["LLM_BASE_URL"]
     results: list[dict[str, Any]] = []
     limits = {"A": 150, "B": 300}
     async with httpx.AsyncClient() as client:
         metered = MeteredTransport(
-            ReviewTransport(client, base_url=base_url, api_key=os.environ.get("LLM_API_KEY", "")),
+            ReviewTransport(client, base_url=base_url, api_key=api_key),
             limits,
         )
         for row in rows:
@@ -213,7 +240,7 @@ async def run(args: argparse.Namespace) -> int:
                     else:
                         captured = tuple(
                             CapturedSource(
-                                f"urn:w1-source:{source['source_id']}",
+                                private_source_url(source["source_id"]),
                                 source["text"],
                                 source["retrieved_at"],
                             )
