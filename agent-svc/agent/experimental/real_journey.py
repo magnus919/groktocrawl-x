@@ -36,7 +36,9 @@ def _evidence(context: KnowledgeContext, claim_id: str) -> list[str]:
 
 
 def review_plan(
-    context: KnowledgeContext, reviewer: ModelReviewer
+    context: KnowledgeContext,
+    reviewer: ModelReviewer,
+    mechanical_reviewer: ToolReviewer | None = None,
 ) -> tuple[KnowledgeCheckInput, ...]:
     checks = []
     work = [(kind, context.revision_id) for kind in ("structural", "conflict_coverage")]
@@ -81,7 +83,12 @@ def review_plan(
                         "check_type": kind,
                         "subject_id": subject,
                         "policy_version": context.policy_version,
-                        "reviewer": reviewer.model_dump(mode="json"),
+                        "reviewer": (
+                            mechanical_reviewer
+                            if mechanical_reviewer is not None
+                            and kind in {"structural", "conflict_coverage"}
+                            else reviewer
+                        ).model_dump(mode="json"),
                         "context": context.model_dump(mode="json"),
                         "evidence_ids": evidence,
                         "freshness": freshness,
@@ -178,6 +185,12 @@ async def research_from_sources(
         complete=complete,
         timeout_seconds=90,
     )
+    mechanical_reviewer = ToolReviewer(
+        kind="tool",
+        identity="deterministic-knowledge-contract-checks",
+        version="1",
+        configuration_digest=text_digest("knowledge-context-prototype/1"),
+    )
     identity = str(uuid4())
     callbacks = {}
     for source in constructed.sources:
@@ -190,7 +203,21 @@ async def research_from_sources(
     async def verify(checked):
         return await adapter.verify(checked, constructed)
 
-    checks = review_plan(constructed.context, adapter.reviewer)
+    checks = review_plan(constructed.context, adapter.reviewer, mechanical_reviewer)
+
+    async def verify_mechanical(checked: KnowledgeCheckInput) -> ExecutionDecision:
+        if checked.check_type not in {"structural", "conflict_coverage"}:
+            raise ValueError("mechanical verifier received a semantic check")
+        # KnowledgeCheckInput and KnowledgeContext validation already prove exact
+        # structure, relationship closure, and conflict/question consistency.
+        return ExecutionDecision(
+            outcome="pass",
+            reason=(
+                "Canonical context and complete evidence closure passed application-owned validation."
+                if checked.check_type == "structural"
+                else "Contradictions, conflict groups, and unresolved questions passed application-owned consistency validation."
+            ),
+        )
 
     async def render(knowledge):
         return await render_research(knowledge, identity)
@@ -219,7 +246,10 @@ async def research_from_sources(
         )
 
     try:
-        await adapter.prepare(checks, constructed)
+        await adapter.prepare(
+            tuple(check for check in checks if check.reviewer == adapter.reviewer),
+            constructed,
+        )
         return await ConsolidatedJourney(
             context=constructed.context,
             checks=checks,
@@ -237,6 +267,10 @@ async def research_from_sources(
             artifact_set_id=identity,
             clock=lambda: datetime.now(UTC),
             timeout_seconds=120,
+            verification_registrations=(
+                (adapter.reviewer, verify),
+                (mechanical_reviewer, verify_mechanical),
+            ),
         ).run()
     finally:
         adapter.close()

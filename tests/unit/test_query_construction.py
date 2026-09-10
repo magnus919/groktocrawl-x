@@ -159,10 +159,20 @@ async def test_model_journey_executes_checks_and_audit_without_fixture_provenanc
     assert len({report.body for report in result.reports}) == 3
     assert len(calls) == 2  # construction and one semantic-check batch
     assert "checks" in calls[-1]
-    assert all(
-        i.reviewer.kind == "model"
+    assert {item["check_type"] for item in calls[-1]["checks"]} == {
+        "assessment",
+        "semantic_support",
+        "freshness",
+    }
+    reviewers = {
+        i.check_type: i.reviewer.kind
         for i in result.candidate.admitted.knowledge.verification_inputs
-    )
+    }
+    assert reviewers["structural"] == "tool"
+    assert reviewers["conflict_coverage"] == "tool"
+    assert reviewers["assessment"] == "model"
+    assert reviewers["semantic_support"] == "model"
+    assert reviewers["freshness"] == "model"
     assert all(
         i.reviewer.kind == "tool"
         for i in result.candidate.admitted.manifest.audit_inputs
@@ -309,7 +319,7 @@ async def test_real_journey_rejects_invalid_batched_review(mutation):
             elif mutation == "reordered":
                 content["decisions"][0]["check_index"] = 2
             else:
-                content["decisions"][0]["outcome"] = "supported"
+                content["decisions"][0]["outcome"] = "pass"
         return ModelReply(json.dumps(content).encode(), "test-model", 1, 1)
 
     with pytest.raises(ValueError, match="no judgment accepted"):

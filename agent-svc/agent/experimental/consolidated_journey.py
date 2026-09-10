@@ -158,6 +158,8 @@ class ConsolidatedJourney:
         artifact_set_id: str,
         clock: Callable[[], datetime],
         timeout_seconds: int = 30,
+        verification_registrations: tuple[tuple[Reviewer, CheckExecutor], ...]
+        | None = None,
         commit: Callable[
             [JourneyResult, KnowledgeExecutionLedger, RenderExecutionLedger],
             Awaitable[None],
@@ -193,14 +195,30 @@ class ConsolidatedJourney:
         self._checks = tuple(
             KnowledgeCheckInput.model_validate_json(i.model_dump_json()) for i in checks
         )
-        self._verifier: Reviewer = TypeAdapter(Reviewer).validate_json(verifier.model_dump_json())
-        self._auditor: Reviewer = TypeAdapter(Reviewer).validate_json(auditor.model_dump_json())
+        self._verifier: Reviewer = TypeAdapter(Reviewer).validate_json(
+            verifier.model_dump_json()
+        )
+        supplied_registrations = verification_registrations or ((verifier, verify),)
+        self._verification_registrations = tuple(
+            (
+                TypeAdapter(Reviewer).validate_json(reviewer.model_dump_json()),
+                executor,
+            )
+            for reviewer, executor in supplied_registrations
+        )
+        self._reviewers = tuple(
+            reviewer for reviewer, _ in self._verification_registrations
+        )
+        self._auditor: Reviewer = TypeAdapter(Reviewer).validate_json(
+            auditor.model_dump_json()
+        )
         if self._require_fixture and (
-            self._verifier.kind != "fixture" or self._auditor.kind != "fixture"
+            any(reviewer.kind != "fixture" for reviewer in self._reviewers)
+            or self._auditor.kind != "fixture"
         ):
             raise ValueError("fixture journey requires fixture reviewers")
         if any(
-            i.context != self._context or i.reviewer != self._verifier
+            i.context != self._context or i.reviewer not in self._reviewers
             for i in self._checks
         ):
             raise ValueError(
@@ -237,7 +255,7 @@ class ConsolidatedJourney:
         self._started = True
         self._deadline = asyncio.get_running_loop().time() + self._timeout
         knowledge_owner = KnowledgeExecutionLedger(
-            ((self._verifier, self._verify),), clock=self._clock
+            self._verification_registrations, clock=self._clock
         )
         render_owner = RenderExecutionLedger(
             ((self._auditor, self._audit),), clock=self._clock
@@ -365,7 +383,7 @@ class ConsolidatedJourney:
             prior=(),
             resolver=material,
             source_resolver=material,
-            reviewers=(self._verifier,),
+            reviewers=self._reviewers,
             knowledge_execution=knowledge_owner,
             render_execution=render_owner,
         )
