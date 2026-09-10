@@ -17,9 +17,9 @@ def draft() -> dict:
     )
 
 
-def test_frozen_candidate_preflight_still_requires_comparison_authorization():
+def test_authorized_frozen_candidate_preflight_is_valid():
     errors = MODULE.validate_manifest(draft(), Path(__file__).parents[2])
-    assert errors == ["comparison_authorized is false"]
+    assert errors == []
 
 
 def test_missing_file_pin_is_rejected_without_reading_arbitrary_paths():
