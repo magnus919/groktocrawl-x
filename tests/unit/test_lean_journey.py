@@ -35,6 +35,8 @@ def construction(*, kind: str = "source_statement") -> bytes:
                     "qualifiers": ["According to the retained measurement"],
                     "support": "supported",
                     "support_reason": "The exact passage states 42.",
+                    "temporal_scope": "historical",
+                    "freshness": "historical",
                     "disputed": False,
                     "high_consequence": False,
                 }

@@ -40,6 +40,8 @@ class AnswerUnit(StrictRecord):
     qualifiers: tuple[Text, ...] = Field(min_length=1, max_length=10)
     support: Literal["supported", "contested", "insufficient"]
     support_reason: Text
+    temporal_scope: Literal["current", "historical"]
+    freshness: Literal["current", "historical", "unknown"]
     disputed: bool
     high_consequence: bool
 
@@ -53,6 +55,10 @@ class AnswerUnit(StrictRecord):
             raise ValueError("non-uncertainty units must report supported evidence")
         if self.kind == "uncertainty" and self.support == "supported":
             raise ValueError("uncertainty units must report a contested or insufficient basis")
+        if self.kind != "uncertainty" and self.freshness == "unknown":
+            raise ValueError("unknown freshness requires an uncertainty unit")
+        if self.kind != "uncertainty" and self.temporal_scope != self.freshness:
+            raise ValueError("answer-unit temporal scope differs from freshness basis")
         return self
 
 

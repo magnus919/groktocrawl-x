@@ -37,6 +37,8 @@ def unit(identity: str, **changes: object) -> AnswerUnit:
         "qualifiers": ("According to the source",),
         "support": "supported",
         "support_reason": "The passage states it.",
+        "temporal_scope": "historical",
+        "freshness": "historical",
         "disputed": False,
         "high_consequence": False,
     }
