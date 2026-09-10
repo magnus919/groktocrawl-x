@@ -51,7 +51,7 @@ jobs:
           PYTHONPATH=agent-svc
           uv run --no-project --with langgraph==0.6.11 --with pytest
           --with pytest-asyncio --with pydantic pytest -q -o addopts=''
-          tests/unit/test_adaptive_runtime.py
+          tests/unit/test_adaptive_runtime.py tests/unit/test_specialist_runtime.py
 
       - name: Run mcp-svc unit tests
         run: >-
