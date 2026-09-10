@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal, Protocol, TypedDict, cast
@@ -11,7 +12,7 @@ from .execution import Budget, ExecutionLedger, ExecutionState
 
 EvidenceSignal = Literal["adequate", "weak", "contradictory"]
 AdaptiveRuntimeName = Literal["imperative", "langgraph"]
-StopReason = Literal["adequate", "replan_limit", "failed"]
+StopReason = Literal["adequate", "replan_limit", "time_limit", "failed"]
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class AdaptivePolicy:
     policy_version: str = "adaptive-research/1"
     max_replans: int = 2
     max_operations: int = 3
+    max_elapsed_ms: int = 30_000
     budget: Budget = field(default_factory=lambda: Budget(searches=3))
 
     def follow_up(self, query: str, signal: EvidenceSignal, depth: int) -> str:
@@ -132,7 +134,12 @@ class ImperativeAdaptiveRuntime:
         outputs: list[str] = []
         current = query
         reason: StopReason = "failed"
+        deadline = time.monotonic() + (policy.max_elapsed_ms / 1000)
         for depth in range(policy.max_replans + 1):
+            if time.monotonic() >= deadline:
+                execution.finish(False)
+                reason = "time_limit"
+                break
             try:
                 receipt = await execution.observe(current, depth)
             except (ValueError, RuntimeError):
@@ -181,7 +188,7 @@ class _AdaptiveGraphState(TypedDict):
     queries: tuple[str, ...]
     signals: tuple[EvidenceSignal, ...]
     outputs: tuple[str, ...]
-    stop_reason: Literal["", "adequate", "replan_limit", "failed"]
+    stop_reason: Literal["", "adequate", "replan_limit", "time_limit", "failed"]
 
 
 class LangGraphAdaptiveRuntime:
@@ -200,9 +207,12 @@ class LangGraphAdaptiveRuntime:
             raise RuntimeError("LangGraph is required for this experiment") from error
 
         execution = _AdaptiveExecution(run_id, policy, adapter, receipts)
+        deadline = time.monotonic() + (policy.max_elapsed_ms / 1000)
         graph = StateGraph(_AdaptiveGraphState)
 
         async def research(state: _AdaptiveGraphState) -> dict[str, object]:
+            if time.monotonic() >= deadline:
+                return {"stop_reason": "time_limit"}
             try:
                 receipt = await execution.observe(state["query"], state["depth"])
             except (ValueError, RuntimeError):

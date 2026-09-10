@@ -71,3 +71,25 @@ The long-term decision remains open until that evidence shows whether LangGraph
 lets the platform safely build materially better research experiences as models and
 search tools improve. Pydantic Graph is not added as a third arm because ADR-0073
 bounds this study to one framework candidate until that need is established.
+
+## Future-facing scenarios 1 and 2
+
+The first two future-capability implementations and their retained
+[measurement packet](../evidence/future-runtime/2026-09-09/) strengthen the case
+for continuing the LangGraph study without changing the current recommendation.
+Across 420 adaptive-replanning and dynamic-specialist records, the imperative and
+LangGraph arms had zero conformance failures.
+
+Adaptive replanning benefits from visible conditional routing, but the implementation
+advantage is modest: the application must still own evidence judgments, receipts,
+budgets, time limits, and terminal publication. Dynamic specialist fan-out is a more
+natural fit. LangGraph's `Send` mechanism accepts a question-dependent number of
+branches, and its reducer makes concurrent aggregation explicit. New specialist
+assignments did not require a graph or public-contract change.
+
+That flexibility adds framework-specific state and reducer failure modes. The real
+LangGraph controllers are larger in these compact fixtures and take roughly 1.2–1.9
+ms at the median versus 0.06–0.37 ms for the imperative versions. Network and model
+work will dominate that absolute difference. The more important unresolved test is
+whether native interrupts, checkpoints, restart, and forks simplify ambitious user
+journeys without competing with the W5 execution ledger or PostgreSQL authority.
