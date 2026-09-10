@@ -40,11 +40,12 @@ not a performance or recovery verdict for this repository.
 
 ## Decision Outcome
 
-The first comparison establishes **B, the typed imperative controller, as the
-reference for the bounded current workflow**. It does not settle the substrate for
-future research capabilities. Keep the working LangGraph adapter as an optional
-candidate and do not add it to the production image or runtime dependency set until
-the future-capability experiment in issue #245 is complete. Do not add a third
+The complete comparison establishes **B, the typed imperative controller, as the
+reference for the bounded current workflow** and recommends retaining **C,
+LangGraph, as an optional advanced research runtime**. Do not make LangGraph the
+sole controller or add it to the default production dependency set. Dynamic
+specialist fan-out, durable human interrupts, historical-checkpoint forks, and
+version-pinned continuation demonstrated material future value. Do not add a third
 runtime without an explicit ADR-0070 protocol revision. Keep inherited behavior as
 arm A.
 

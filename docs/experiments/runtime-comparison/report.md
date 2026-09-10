@@ -134,3 +134,23 @@ Application authority remains decisive. It records parent/child ancestry and rej
 reuse when scope, policy, model, search identity, deletion, or cancellation differs.
 Both arms made one shared evidence call and distinct analysis calls. Model and search
 capability substitution is now the final planned scenario before ADR-0073 review.
+
+## Future-facing scenario 5 and recommendation
+
+The [capability-substitution packet](../evidence/future-runtime/2026-09-10-capabilities/)
+records 60 conforming old-run/new-run pairs. Old checkpoints retained their pinned
+model, search, policy, state, and receipt semantics after a new capability became
+the default. New work used the new search and specialist while both returned the
+same `research/1` artifact shape. Incompatible workers quarantined state before a
+model call.
+
+Retain the typed imperative controller as the simple reference and retain LangGraph
+as the optional advanced research runtime. LangGraph adds larger checkpoints,
+dependencies, retention work, reducer rules, and version-support duties. It also
+materially improved dynamic specialist fan-out, durable human interrupts, and
+alternate continuations from historical checkpoints.
+
+Do not let LangGraph checkpoints own evidence, budgets, authorization, or artifacts.
+Promote it beyond the optional experimental path only after a real research pilot
+demonstrates user value and PostgreSQL-backed checkpoint retention, migration,
+backup, and cleanup pass their own operating gates.

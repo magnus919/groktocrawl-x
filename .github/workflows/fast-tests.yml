@@ -54,6 +54,7 @@ jobs:
           --with pydantic pytest -q -o addopts=''
           tests/unit/test_adaptive_runtime.py tests/unit/test_specialist_runtime.py
           tests/unit/test_guidance_runtime.py tests/unit/test_fork_runtime.py
+          tests/unit/test_capability_runtime.py
 
       - name: Smoke future-runtime measurements
         run: >-
@@ -77,6 +78,13 @@ jobs:
           --with langgraph-checkpoint-sqlite --with pydantic
           python scripts/measure_fork_runtime.py --repetitions 1
           --output /tmp/fork-runtime-measurements
+
+      - name: Smoke capability-substitution measurements
+        run: >-
+          PYTHONPATH=agent-svc uv run --no-project --with langgraph==0.6.11
+          --with langgraph-checkpoint-sqlite --with pydantic
+          python scripts/measure_capability_runtime.py --repetitions 1
+          --output /tmp/capability-runtime-measurements
 
       - name: Run mcp-svc unit tests
         run: >-
