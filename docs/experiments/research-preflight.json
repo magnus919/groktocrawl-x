@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight-draft/1",
-  "status": "blocked_pending_replacement_packet_isolation_approval_and_comparison_authorization",
+  "status": "blocked_pending_adjudication_and_comparison_authorization",
   "comparison_authorized": false,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -300,17 +300,18 @@
       "held_out_eligible": false
     },
     "held_out_corpus": {
-      "status": "replacement_packet_structurally_valid_pending_human_isolation_approval",
+      "status": "replacement_packet_isolation_approved",
       "cases": 30,
       "corpus_sha256": "sha256:99857f4484492e787adc62aab81189551f66ebcc3c9cd42f5bfdf7dcdc6dc796",
       "post_review_access_log_sha256": "sha256:d6b31f8e034981e5c6a308b3d79da69a3afcc93e28e000d9ad899f935ad82107",
-      "held_out_eligible_for_future_candidate": false,
+      "held_out_eligible_for_future_candidate": true,
       "replacement_packet": "docs/experiments/enterprise-evaluation/w1-replacement-packet-2026-09-10.md",
       "adverse_or_abstention_cases": 11,
       "topic_categories": 8,
       "template_families": 30,
       "access_log_sha256": "sha256:0f459327ffd3ced393ee653030ca5664ea985b228db10a2d947ddb9f9dc288dd",
-      "validation_sha256": "sha256:72aa09aa66df518151e5ef3b111fdbf78e39508c9e827390f18389bb58a51885"
+      "validation_sha256": "sha256:72aa09aa66df518151e5ef3b111fdbf78e39508c9e827390f18389bb58a51885",
+      "approval_sha256": "sha256:946baaf7a32f8faf18d9ccdea8fd829ea1acb0a11738a4ebd81ff932cd04bad2"
     },
     "required_question_denominators": {
       "cases": 30,
@@ -429,7 +430,7 @@
     "production_adoption": false
   },
   "held_out_packet": {
-    "status": "replacement_packet_structurally_valid_pending_human_isolation_approval",
+    "status": "replacement_packet_isolation_approved",
     "cases": 30,
     "adverse_or_abstention_cases": 11,
     "topic_categories": 8,
@@ -437,12 +438,13 @@
     "corpus_sha256": "sha256:99857f4484492e787adc62aab81189551f66ebcc3c9cd42f5bfdf7dcdc6dc796",
     "access_log_sha256": "sha256:0f459327ffd3ced393ee653030ca5664ea985b228db10a2d947ddb9f9dc288dd",
     "validator_status": "candidate_validation_passed",
-    "approval_record": "pending Magnus isolation review; sanitized summary docs/experiments/enterprise-evaluation/w1-replacement-packet-2026-09-10.md",
+    "approval_record": "private approval.json; sanitized summary docs/experiments/enterprise-evaluation/w1-replacement-packet-2026-09-10.md",
     "comparison_authorized": false,
     "production_adoption": false,
-    "held_out_eligible_for_future_candidate": false,
+    "held_out_eligible_for_future_candidate": true,
     "replacement_packet_required": false,
-    "validation_sha256": "sha256:72aa09aa66df518151e5ef3b111fdbf78e39508c9e827390f18389bb58a51885"
+    "validation_sha256": "sha256:72aa09aa66df518151e5ef3b111fdbf78e39508c9e827390f18389bb58a51885",
+    "approval_sha256": "sha256:946baaf7a32f8faf18d9ccdea8fd829ea1acb0a11738a4ebd81ff932cd04bad2"
   },
   "baseline_observation": {
     "status": "incumbent_answer_run_complete",
@@ -488,8 +490,7 @@
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "obtain Magnus approval of the replacement packet curator, access history, and isolation mechanism",
-    "adjudicate the incumbent critical finding and review the proposed bounds",
-    "obtain explicit comparison authorization after the replacement packet is isolation-approved"
+    "adjudicate the incumbent critical finding and confirm the proposed bounds",
+    "obtain explicit comparison authorization for the isolation-approved replacement packet"
   ]
 }

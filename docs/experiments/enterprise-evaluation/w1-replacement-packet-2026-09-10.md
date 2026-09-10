@@ -1,7 +1,6 @@
 # W1 replacement packet review — 2026-09-10
 
-Status: **structurally valid; human isolation approval still required; comparison
-not authorized**
+Status: **structurally valid and isolation-approved; comparison not authorized**
 
 Candidate B was frozen before this packet was created. Hermes then curated the
 packet in a private directory outside the implementation workspace. The
@@ -27,7 +26,10 @@ records. An automated repair recomputed those fields from the already sealed UTF
 text without printing any content. That access was added to the private access log,
 the packet was resealed, and validation then passed with no structural errors.
 
-This is enough to present the packet for Magnus's isolation review. It does not
-make the packet held-out eligible by itself. Magnus still needs to approve the
-curator and access history, after which the approval record can be added and the
-separate scored-comparison gate can be considered.
+On 2026-09-10, Magnus Hedemark approved the replacement packet's curator, access
+history, and isolation mechanism. The private approval record is bound to the
+three digests above and has digest
+`sha256:946baaf7a32f8faf18d9ccdea8fd829ea1acb0a11738a4ebd81ff932cd04bad2`.
+The packet is now eligible to serve as held-out evidence for the frozen candidate.
+This approval does not authorize the scored comparison, production adoption, or
+replacement of mainline GroktoCrawl.
