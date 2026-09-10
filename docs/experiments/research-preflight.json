@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight-draft/1",
-  "status": "blocked_pending_candidate_identity_adjudication_and_authorization",
+  "status": "blocked_pending_replacement_packet_adjudication_and_authorization",
   "comparison_authorized": false,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -15,10 +15,13 @@
       "commit": "34b4975bc7baaf25510ed34029b957f95b59de70"
     },
     "B": {
-      "status": "not_implemented",
-      "commit": null,
-      "policy_version": null,
-      "runtime": "typed imperative reference"
+      "status": "candidate_core_frozen_pending_fresh_comparison_packet",
+      "commit": "36f999514cf0dc8eb3164c4cac50a7ba0002618f",
+      "policy": "evidence-first research construction with deterministic structural/conflict verification and model-reviewed assessment, semantic support, and freshness",
+      "policy_version": "real-research-pilot/3",
+      "runtime": "typed imperative reference",
+      "evidence": "docs/experiments/evidence/w1-candidate/2026-09-10-deterministic-checks/README.md",
+      "scope": "candidate core only; live search acquisition remains outside this freeze"
     },
     "C": {
       "status": "runtime_comparison_complete_not_a_quality_arm",
@@ -302,7 +305,7 @@
       "corpus_sha256": "sha256:659200d31ea23b17dc497b658c6c44db277005ed91a74fb962b10c6cebbf27c3",
       "post_review_access_log_sha256": "sha256:d6b31f8e034981e5c6a308b3d79da69a3afcc93e28e000d9ad899f935ad82107",
       "held_out_eligible_for_future_candidate": false,
-      "replacement_packet": "required after candidate B freeze"
+      "replacement_packet": "required now that candidate B is frozen; curate without implementation-agent access"
     },
     "required_question_denominators": {
       "cases": 30,
