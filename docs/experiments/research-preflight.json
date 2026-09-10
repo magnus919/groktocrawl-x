@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight/1",
-  "status": "w1_execution_complete_candidate_b_operationally_rejected_pending_semantic_learning_review",
+  "status": "w1_execution_and_semantic_learning_review_complete_pending_human_adjudication",
   "comparison_authorized": true,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -493,8 +493,8 @@
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "review completed private outputs for semantic learning, not to reverse the operational rejection",
-    "design a leaner evidence-first successor candidate from the failure evidence"
+    "obtain Magnus adjudication of the provisional zero-upheld-critical disposition",
+    "design and evaluate a leaner evidence-first successor candidate"
   ],
   "authorized_scope": [
     "A",
@@ -525,7 +525,27 @@
     "arm_a_reported_tokens": 49387,
     "arm_b_reported_tokens": 777108,
     "candidate_b_operational_gate": "fail",
-    "semantic_learning_review": "pending",
+    "semantic_learning_review": {
+      "status": "complete_provisional_pending_human_adjudication",
+      "record": "docs/experiments/enterprise-evaluation/w1-semantic-learning-review-2026-09-10.md",
+      "private_review_sha256": "sha256:854c09da48d2fdd7177b65951b2e125417c46daee7a9a1eec54ced563e289bfe",
+      "private_summary_sha256": "sha256:cc7e0016bd1dc35e44bf310cbf0c9e22328c1f59f59d6d50d2a7daf4a239c4f2",
+      "arm_a_full_study_coverage": 0.4166666667,
+      "arm_b_full_study_coverage": 0.2133333333,
+      "arm_a_completed_support": 0.8353413655,
+      "arm_b_completed_support": 0.652892562,
+      "arm_a_completed_citation_correctness": 0.8762886598,
+      "arm_b_completed_citation_correctness": 0.7068965517,
+      "automated_critical_flags": {
+        "A": 13,
+        "B": 10
+      },
+      "implementation_review_upheld_critical_flags": {
+        "A": 0,
+        "B": 0
+      },
+      "human_adjudication": "pending"
+    },
     "scored_adoption_decision": "candidate_b_rejected_before_semantic_adoption_gate",
     "production_adoption": false,
     "mainline_replacement": false
