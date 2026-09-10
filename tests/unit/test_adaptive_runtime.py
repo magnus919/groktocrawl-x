@@ -51,6 +51,17 @@ async def test_imperative_preserves_contradiction_and_bounds_replanning():
 
 
 @pytest.mark.asyncio
+async def test_imperative_stops_before_dispatch_when_time_limit_is_exhausted():
+    adapter = ScriptedEvidence(["adequate"])
+    outcome, _ = await ImperativeAdaptiveRuntime().run(
+        "timed-run", "question", AdaptivePolicy(max_elapsed_ms=0), adapter
+    )
+    assert outcome.stop_reason == "time_limit"
+    assert outcome.accounting.state == "failed"
+    assert adapter.calls == []
+
+
+@pytest.mark.asyncio
 async def test_replay_uses_receipts_without_repeating_adapter_calls():
     first_adapter = ScriptedEvidence(["weak", "adequate"])
     runtime = ImperativeAdaptiveRuntime()
@@ -96,3 +107,50 @@ async def test_real_langgraph_adaptive_loop_matches_reference(signals):
     )
     assert compare_adaptive_outcomes(imperative, graph) == ()
     assert graph.adapter_calls == imperative.adapter_calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is installed only in the optional W4 experiment lane",
+    owner="repository-maintainer",
+    issue="#255",
+    classification="retained",
+    environment="default test lane excludes the optional LangGraph dependency",
+)  # type: ignore[call-arg]
+async def test_real_langgraph_respects_time_limit_before_dispatch():
+    adapter = ScriptedEvidence(["adequate"])
+    outcome, _ = await LangGraphAdaptiveRuntime().run(
+        "timed-graph", "question", AdaptivePolicy(max_elapsed_ms=0), adapter
+    )
+    assert outcome.stop_reason == "time_limit"
+    assert outcome.accounting.state == "failed"
+    assert adapter.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is installed only in the optional W4 experiment lane",
+    owner="repository-maintainer",
+    issue="#255",
+    classification="retained",
+    environment="default test lane excludes the optional LangGraph dependency",
+)  # type: ignore[call-arg]
+async def test_real_langgraph_replay_reuses_completed_receipts():
+    runtime = LangGraphAdaptiveRuntime()
+    first_adapter = ScriptedEvidence(["weak", "adequate"])
+    first, receipts = await runtime.run(
+        "first-graph", "question", AdaptivePolicy(), first_adapter
+    )
+    replay_adapter = ScriptedEvidence([])
+    replay, _ = await runtime.run(
+        "replay-graph",
+        "question",
+        AdaptivePolicy(),
+        replay_adapter,
+        receipts=receipts,
+    )
+    assert compare_adaptive_outcomes(first, replay) == ()
+    assert replay.adapter_calls == 0
+    assert replay_adapter.calls == []
