@@ -32,6 +32,8 @@ def reply(**changes: object) -> bytes:
         "qualifiers": ["According to the retained test report"],
         "support": "supported",
         "support_reason": "The selected passage reports 42.",
+        "temporal_scope": "historical",
+        "freshness": "historical",
         "disputed": False,
         "high_consequence": False,
     }

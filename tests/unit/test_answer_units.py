@@ -35,6 +35,8 @@ def unit(**changes: object) -> AnswerUnit:
         "qualifiers": ("According to the retained source",),
         "support": "supported",
         "support_reason": "The exact passage states the result.",
+        "temporal_scope": "historical",
+        "freshness": "historical",
         "disputed": False,
         "high_consequence": False,
     }
@@ -99,11 +101,19 @@ def test_uncertainty_is_preserved_and_does_not_claim_coverage() -> None:
         kind="uncertainty",
         support="insufficient",
         support_reason="The passage states no applicable result.",
+        freshness="unknown",
     )
     result = assemble_answer(bundle(uncertain))
 
     assert result.coverage == "insufficient"
     assert result.missing_question_ids == ("question-1", "question-2")
+
+
+def test_unknown_or_mismatched_freshness_cannot_publish_as_fact() -> None:
+    with pytest.raises(ValidationError, match="unknown freshness"):
+        unit(freshness="unknown")
+    with pytest.raises(ValidationError, match="temporal scope"):
+        unit(temporal_scope="current", freshness="historical")
 
 
 def test_renderer_cannot_accept_reviews_for_unknown_units() -> None:
