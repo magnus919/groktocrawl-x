@@ -1,6 +1,6 @@
 {
   "schema_version": "research-preflight/1",
-  "status": "w1_execution_and_semantic_learning_review_complete_pending_human_adjudication",
+  "status": "w1_complete_candidate_b_rejected_successor_design_open",
   "comparison_authorized": true,
   "issue": 13,
   "scope": "magnus919/groktocrawl-x only",
@@ -493,7 +493,6 @@
     "source": "docs/experiments/enterprise-evaluation/w1-baseline-inputs-2026-09-08.md"
   },
   "remaining_gate_summary": [
-    "obtain Magnus adjudication of the provisional zero-upheld-critical disposition",
     "design and evaluate a leaner evidence-first successor candidate"
   ],
   "authorized_scope": [
@@ -526,7 +525,7 @@
     "arm_b_reported_tokens": 777108,
     "candidate_b_operational_gate": "fail",
     "semantic_learning_review": {
-      "status": "complete_provisional_pending_human_adjudication",
+      "status": "complete_human_adjudicated",
       "record": "docs/experiments/enterprise-evaluation/w1-semantic-learning-review-2026-09-10.md",
       "private_review_sha256": "sha256:854c09da48d2fdd7177b65951b2e125417c46daee7a9a1eec54ced563e289bfe",
       "private_summary_sha256": "sha256:cc7e0016bd1dc35e44bf310cbf0c9e22328c1f59f59d6d50d2a7daf4a239c4f2",
@@ -544,7 +543,9 @@
         "A": 0,
         "B": 0
       },
-      "human_adjudication": "pending"
+      "human_adjudication": "approved_zero_upheld_critical_flags",
+      "adjudicated_by": "Magnus Hedemark",
+      "adjudicated_on": "2026-09-10"
     },
     "scored_adoption_decision": "candidate_b_rejected_before_semantic_adoption_gate",
     "production_adoption": false,
