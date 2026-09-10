@@ -2,7 +2,7 @@
 # Only synthetic transport probes. Never an application migration or pilot gate.
 set -eu
 case "${1:-}" in
-  combined-authority-seed|combined-authority-verify|artifact-authority|consolidated-restore-seed|consolidated-restore-delete|consolidated-restore-verify|consolidated|capacity-workload|capacity-verify|write|read|cleanup|admission|adapter|shadow|revision|publication|rerender|export|import|expiry|research-import|research-publication-state|research-export|research-publication|research|research-state|import-state|publication-state|revision-state|source-state|restore-seed|restore-delete|restore-verify) phase=$1 ;;
+  combined-authority-seed|combined-authority-verify|guidance-owner|artifact-authority|consolidated-restore-seed|consolidated-restore-delete|consolidated-restore-verify|consolidated|capacity-workload|capacity-verify|write|read|cleanup|admission|adapter|shadow|revision|publication|rerender|export|import|expiry|research-import|research-publication-state|research-export|research-publication|research|research-state|import-state|publication-state|revision-state|source-state|restore-seed|restore-delete|restore-verify) phase=$1 ;;
   *) echo 'Expected a documented storage test phase' >&2; exit 2 ;;
 esac
 umask 077
@@ -18,6 +18,7 @@ printf '%s:%s:%s:%s:%s\n' "$PGHOST" 5432 "$PGDATABASE" "$PGUSER" "$password" > "
 unset password
 case "$phase" in
 combined-authority-*) python /probes/combined_authority_restore.py "${phase#combined-authority-}"; exit ;;
+guidance-owner) python /probes/guidance_owner_probe.py; exit ;;
 consolidated-restore-*) python /probes/restore_consolidated.py "${phase#consolidated-restore-}"; exit ;;
 consolidated) python /probes/test_consolidated_store_db.py; exit ;;
 artifact-authority) python /probes/test_artifact_authority_db.py; exit ;;

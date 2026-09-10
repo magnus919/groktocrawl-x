@@ -90,6 +90,9 @@ local record = cjson.decode(raw)
 if record.state == 'cancelled' or record.state == 'completed' or record.state == 'failed' or record.state == 'deleted' then
   return {-2, record.state}
 end
+local now = redis.call('TIME')
+local now_ms = tonumber(now[1]) * 1000 + math.floor(tonumber(now[2]) / 1000)
+if now_ms >= tonumber(record.retry_deadline_ms) then return {-3, 'expired'} end
 local lease = redis.call('GET', KEYS[2])
 if lease then return {0, lease} end
 local generation = tonumber(record.owner_generation or 0) + 1
@@ -97,8 +100,6 @@ record.owner_generation = generation
 record.owner_id = ARGV[1]
 record.attempt_id = ARGV[2]
 record.state = 'running'
-local now = redis.call('TIME')
-local now_ms = tonumber(now[1]) * 1000 + math.floor(tonumber(now[2]) / 1000)
 record.lease_expires_at_ms = now_ms + tonumber(ARGV[3])
 redis.call('SET', KEYS[1], cjson.encode(record), 'PX', ARGV[4])
 redis.call('SET', KEYS[2], ARGV[1] .. ':' .. generation, 'PX', ARGV[3])
@@ -294,6 +295,8 @@ class DurableResearchLedger:
             raise DurableResearchError("run is missing")
         if code == -2:
             raise DurableConflictError(f"run is already terminal: {result[1]}")
+        if code == -3:
+            raise DurableConflictError("run recovery window has expired")
         return DurableRun.from_record(json.loads(str(result[2])))
 
     def heartbeat(self, run_id: str, owner_id: str, generation: int) -> None:

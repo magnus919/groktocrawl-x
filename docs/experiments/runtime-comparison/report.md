@@ -93,3 +93,25 @@ ms at the median versus 0.06–0.37 ms for the imperative versions. Network and 
 work will dominate that absolute difference. The more important unresolved test is
 whether native interrupts, checkpoints, restart, and forks simplify ambitious user
 journeys without competing with the W5 execution ledger or PostgreSQL authority.
+
+## Future-facing scenario 3
+
+The [durable human-guidance packet](../evidence/future-runtime/2026-09-10-guidance/)
+records 60 conforming pause/restart/resume runs. LangGraph's native interrupt and
+thread checkpoint materially simplify continuation from an exact control boundary.
+Completed research was reused after a new process opened the same checkpoint, and a
+checkpoint after guidance acceptance continued directly into synthesis.
+
+This benefit depends on a strict split of responsibility. The W5 Valkey ledger still
+owns claims, fencing, expiry, cancellation, and terminal state. The application
+journal owns guidance and operation receipts. LangGraph stores control position and
+receipt references. It cannot authorize resume or establish that an external effect
+is safe to repeat.
+
+The local LangGraph fixture used a 28,672-byte SQLite checkpoint file versus a
+173-byte imperative control file, and its median pause/resume operations were about
+2.27/1.36 ms versus 0.46/0.22 ms. Those costs are acceptable for an optional research
+runtime, but persistence retention, migration, and cleanup remain operating work.
+Scenario 3 supplies a concrete future-platform advantage. Fork isolation and
+capability-version substitution still need evidence before ADR-0073 can decide the
+long-term substrate.
