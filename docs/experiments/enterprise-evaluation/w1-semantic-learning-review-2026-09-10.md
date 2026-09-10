@@ -1,6 +1,6 @@
 # W1 semantic learning review — 2026-09-10
 
-Status: **provisional post-run review complete; human adjudication pending**
+Status: **complete; human adjudication accepted**
 
 After all A/B outputs were frozen, the home-lab `local` model reviewed every
 completed answer against its private question, required subquestions, as-of date,
@@ -30,8 +30,10 @@ least-privilege constraints, and warnings against blind retries as dangerous. So
 answers still have ordinary support, precision, or citation problems, but those do
 not meet the frozen critical threshold.
 
-This disposition is provisional until Magnus adjudicates it. It does not repair the
-underlying quality scores or change Candidate B's operational rejection.
+Magnus accepted this disposition on 2026-09-10. Zero of the 23 automated critical
+flags are upheld. This closes the critical-flag adjudication only: it does not
+repair the ordinary support, precision, coverage, or citation problems, and it
+does not change Candidate B's operational rejection.
 
 ## What this teaches us
 
