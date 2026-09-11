@@ -94,20 +94,20 @@ sets AS (
  SELECT count(*)::int total,
    count(*) FILTER (WHERE NOT deleted)::int active,
    count(*) FILTER (WHERE deleted)::int deleted,
-   encode(digest(coalesce(string_agg(scope_id::text||':'||research_id::text||':'||deleted::text||':'||set_digest,',' ORDER BY scope_id,research_id),''),'sha256'),'hex') digest
+   encode(sha256(convert_to(coalesce(string_agg(scope_id::text||':'||research_id::text||':'||deleted::text||':'||set_digest,',' ORDER BY scope_id,research_id),''),'UTF8')),'hex') digest
  FROM research_staging.research_artifact_sets
 ), arts AS (
  SELECT count(*)::int total,
-   encode(digest(coalesce(string_agg(scope_id::text||':'||research_id::text||':'||artifact_id||':'||content_digest,',' ORDER BY scope_id,research_id,artifact_id),''),'sha256'),'hex') digest
+   encode(sha256(convert_to(coalesce(string_agg(scope_id::text||':'||research_id::text||':'||artifact_id||':'||content_digest,',' ORDER BY scope_id,research_id,artifact_id),''),'UTF8')),'hex') digest
  FROM research_staging.research_artifacts
 ), roots AS (
  SELECT count(*)::int total, count(*) FILTER (WHERE deleted)::int deleted,
-   encode(digest(coalesce(string_agg(scope_id::text||':'||root_id||':'||deleted::text,',' ORDER BY scope_id,root_id),''),'sha256'),'hex') digest
+   encode(sha256(convert_to(coalesce(string_agg(scope_id::text||':'||root_id||':'||deleted::text,',' ORDER BY scope_id,root_id),''),'UTF8')),'hex') digest
  FROM research_staging.roots
 ), vec AS (
  SELECT count(*) FILTER (WHERE NOT deleted)::int active,
    count(*) FILTER (WHERE deleted)::int deleted,
-   encode(digest(coalesce(string_agg(point_id::text||':'||model||':'||deleted::text||':'||encode(digest(convert_to(payload::text,'UTF8'),'sha256'),'hex'),',' ORDER BY point_id),''),'sha256'),'hex') digest
+   encode(sha256(convert_to(coalesce(string_agg(point_id::text||':'||model||':'||deleted::text||':'||encode(sha256(convert_to(payload::text,'UTF8')),'hex'),',' ORDER BY point_id),''),'UTF8')),'hex') digest
  FROM groktocrawl_x_semantic_shadow.pages
 )
 SELECT json_build_object(
