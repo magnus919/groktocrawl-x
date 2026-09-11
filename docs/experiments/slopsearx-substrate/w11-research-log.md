@@ -237,5 +237,7 @@ The missing SlopSearX regression test constructs that exact mixed initial
 scope. It requires the operation to fail explicitly, preserves the two charged
 initial adapter calls, leaves the fallback pending, and proves the fallback
 adapter received zero calls. W11 now references that exact test. The contract
-summary must be regenerated from the corrected source test before the staged
-family can return to passing status.
+proof pins the test commit, which merged through SlopSearX PR 372 without
+changing the 0.5.0 runtime implementation. The regenerated 31-case summary
+contains 111 local passes and three isolated-Valkey passes with no unresolved
+references, so the staged family has returned to passing status.
