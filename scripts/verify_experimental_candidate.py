@@ -165,8 +165,8 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
             env=cli_env,
         )
     )
-    cli_result_count = len(cli_payload.get("data", {}).get("web", []))
-    if not cli_payload.get("success") or cli_result_count == 0:
+    cli_result_count = len(cli_payload.get("results", []))
+    if cli_result_count == 0:
         raise RuntimeError("CLI search returned no usable results")
 
     async with httpx.AsyncClient(base_url=args.mcp_url, timeout=args.timeout) as mcp:
