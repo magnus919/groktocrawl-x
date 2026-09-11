@@ -234,3 +234,8 @@ unchanged SlopSearX 0.4.0 container rather than HAL2000. The one completed trial
 and interruption evidence remain excluded as
 `challenge-excluded-search-environment-change` with SHA-256
 `86b301d24734f5f6dfe79e2e3b807907c7824af2921b9eb0855fae0dee6b4301`.
+The environment-binding live smoke then verified both deployed image IDs before
+execution, completed without failure, embedded the SlopSearX package version and
+source revision in its manifest, and passed the validator. Its private evidence
+tree is retained as `pre-execution-environment-binding-smoke` with SHA-256
+`7bf70770343d0b36f4add2e0115ed007f803d02c0b55590eae2a75c08e969b9a`.
