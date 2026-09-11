@@ -305,3 +305,13 @@ one capture, submitted the same receipt payload again, received the original
 receipt identity as a replay, observed exactly one retained receipt, and
 exported a linked manifest. The secret-free hard gate passed; raw checkpoint
 state remains private.
+
+Two earlier live capture attempts are excluded. They pointed the scraper
+client at the isolated SlopSearX HTTP port, where `/v2/scrape` correctly
+returned not found; the harness recorded failed-retrieval receipts and never
+reached the intended process boundary. A fresh case used the GroktoCrawl API
+behind a loopback delay proxy. The capture completed, the proxy withheld its
+response, and the harness process was terminated. Recovery reused the retained
+search and result handoff, visibly counted two capture attempts, created and
+replayed one receipt, retained exactly one receipt, and passed the linked
+manifest gate. This closes the live downstream-retrieval interruption case.
