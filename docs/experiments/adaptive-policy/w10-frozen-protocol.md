@@ -110,6 +110,11 @@ interruption record are preserved and excluded as
 `269bdcdd8eb502bae560b153b5320ef6a37503b8176b06423a1d198e035ebc36`.
 Valid sequential-policy records now preserve the complete interim assessment,
 and the validator checks it against the recorded round decision.
+The focused live repeat preserved all three interim gap judgments and the
+separate final statuses, completed without failure, and passed the strengthened
+validator. Its private evidence tree is retained as
+`pre-execution-interim-preservation-smoke` with SHA-256
+`2c60978a16e4f0b5b68e125bd77d88f35f405abbe4bb7236b6765f35cffbddcb`.
 
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
