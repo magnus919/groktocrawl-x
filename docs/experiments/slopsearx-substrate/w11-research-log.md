@@ -102,12 +102,13 @@ startup produced no search or scored evidence.
 
 After correction, the research-only arm became healthy with its own Compose
 network and Valkey volume. The authenticated preflight found all 35 expected
-tools, exactly one enabled specialist grant (`research`), five explicit
-pre-dispatch denials, durable leased execution, and connected isolated Valkey.
+tools, exactly one enabled specialist grant (`research`), eight explicit
+pre-dispatch denials, targeted-sensitive access disabled, durable leased
+execution, and connected isolated Valkey.
 The redacted packet is retained under
 `evidence/slopsearx-substrate/2026-09-11-isolated-research-only/` with stable
 configuration SHA-256
-`093ca7c87997db2ae5ec64aa8b816d012ee6ff2f19c7310841b64e3da4c752a6`.
+`9c78149ff6543a77aca6032ae252b0e64cdf96a4849a160da8df0a36214ad93a`.
 It is deployment evidence only; no scored research task was run.
 
 The isolated ordinary HTTP service then passed the before-run compatibility
@@ -131,3 +132,5 @@ unexamined service metadata. That was insufficient for an exact arm boundary,
 especially because the dossier arm requires security. The preflight now checks
 all nine specialist grants, runs denial probes for every disabled grant, and
 verifies the separate targeted-sensitive flag.
+The original six-grant capture remains in the evidence directory under an
+explicit incomplete-boundary filename and is excluded from later freeze input.

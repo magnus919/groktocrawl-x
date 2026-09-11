@@ -1,17 +1,12 @@
 {
-  "captured_at": "2026-09-11T21:46:54.863521+00:00",
-  "configuration_sha256": "9c78149ff6543a77aca6032ae252b0e64cdf96a4849a160da8df0a36214ad93a",
+  "captured_at": "2026-09-11T21:34:50.241392+00:00",
+  "configuration_sha256": "093ca7c87997db2ae5ec64aa8b816d012ee6ff2f19c7310841b64e3da4c752a6",
   "mcp": {
     "disabled_grant_probes": {
       "dependency_dossier": {
         "error_code": "tool_disabled",
         "reported_grant": null,
         "tool": "slopsearx_start_dependency_dossier"
-      },
-      "jobs": {
-        "error_code": "tool_disabled",
-        "reported_grant": null,
-        "tool": "slopsearx_search_jobs"
       },
       "retrieval_receipts": {
         "error_code": "tool_disabled",
@@ -27,16 +22,6 @@
         "error_code": "tool_disabled",
         "reported_grant": null,
         "tool": "slopsearx_get_saved_search"
-      },
-      "science": {
-        "error_code": "tool_disabled",
-        "reported_grant": null,
-        "tool": "slopsearx_search_science"
-      },
-      "security": {
-        "error_code": "tool_disabled",
-        "reported_grant": null,
-        "tool": "slopsearx_search_security"
       },
       "staged_search": {
         "error_code": "tool_disabled",
@@ -91,18 +76,14 @@
     "grants": {
       "disabled": [
         "dependency_dossier",
-        "jobs",
         "retrieval_receipts",
         "saved_search_events",
         "saved_searches",
-        "science",
-        "security",
         "staged_search"
       ],
       "enabled": [
         "research"
-      ],
-      "targeted_sensitive_allowed": false
+      ]
     },
     "image_digest": "sha256:4cd9c04ae4ef2f154a104cd95cf2219d603e461c9449f4392ce562b0541dd2d3",
     "job_store_available": true,
@@ -155,5 +136,5 @@
       }
     }
   },
-  "target_label": "isolated-research-only-complete-policy"
+  "target_label": "isolated-research-only"
 }

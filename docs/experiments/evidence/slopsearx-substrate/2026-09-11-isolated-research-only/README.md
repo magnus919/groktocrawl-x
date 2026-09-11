@@ -6,12 +6,18 @@ research-quality evidence.
 
 The instance used its own Compose project, network, Valkey volume, bearer
 credential, and host port. Only the research grant was enabled. Staged search,
-retrieval receipts, saved searches, saved-search events, and dependency
-dossiers were explicitly disabled and each denial was probed before dispatch.
-The production GroktoCrawl deployment was not changed.
+retrieval receipts, saved searches, saved-search events, dependency dossiers,
+jobs, science, and security were explicitly disabled and each denial was
+probed before dispatch. Targeted sensitive-engine access was also confirmed
+off. The production GroktoCrawl deployment was not changed.
 
 The retained preflight contains no credential, endpoint, private address, or
 ephemeral worker identity. Its stable configuration digest is
+`9c78149ff6543a77aca6032ae252b0e64cdf96a4849a160da8df0a36214ad93a`.
+
+The earlier `preflight-incomplete-grant-boundary.json` is retained but excluded.
+It enforced the six new workflow grants while failing to verify the older jobs,
+science, security, and targeted-sensitive settings. Its digest is
 `093ca7c87997db2ae5ec64aa8b816d012ee6ff2f19c7310841b64e3da4c752a6`.
 
 The first startup attempt failed closed before any search because the Compose
