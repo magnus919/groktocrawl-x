@@ -85,6 +85,8 @@ def trial_evidence_checkpoint(
     candidates: dict[str, dict[str, Any]],
     initial_gap_assessment: list[dict[str, Any]] | None = None,
     interim_assessment: dict[str, Any] | None = None,
+    received_assessment: dict[str, Any] | None = None,
+    received_assessment_receipt: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Split resumable trial evidence into tracked metadata and private excerpts."""
     public_candidates = [
@@ -117,6 +119,8 @@ def trial_evidence_checkpoint(
             "proposals": proposals,
             "initial_gap_assessment": initial_gap_assessment,
             "interim_assessment": interim_assessment,
+            "received_assessment": received_assessment,
+            "received_assessment_receipt": received_assessment_receipt,
             "candidates": public_candidates,
             "recorded_at": datetime.now(UTC).isoformat(),
         },
@@ -325,68 +329,72 @@ def assessment_schema(gap_ids: list[str], candidate_ids: list[str]) -> dict[str,
             for key in ("currency", "relevance", "authority", "accuracy", "purpose")
         },
     }
+    candidate_grade = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "relevant_gap_ids",
+            "supports_or_challenges",
+            "quality",
+            "derivative_of",
+            "marginal_value",
+            "improves_currency",
+            "improves_authority",
+            "resolves_contradiction",
+            "reason",
+        ],
+        "properties": {
+            "relevant_gap_ids": {
+                "type": "array",
+                "uniqueItems": True,
+                "items": {"type": "string", "enum": gap_ids},
+            },
+            "supports_or_challenges": {"type": "boolean"},
+            "quality": quality,
+            "derivative_of": {
+                "type": ["string", "null"],
+                "enum": [*candidate_ids, None],
+            },
+            "marginal_value": {"type": "boolean"},
+            "improves_currency": {"type": "boolean"},
+            "improves_authority": {"type": "boolean"},
+            "resolves_contradiction": {"type": "boolean"},
+            "reason": {"type": "string", "maxLength": 240},
+        },
+    }
+    gap_grade = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["status", "candidate_ids", "reason"],
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["open", "closed", "ambiguous"],
+            },
+            "candidate_ids": {
+                "type": "array",
+                "uniqueItems": True,
+                "items": {"type": "string", "enum": candidate_ids},
+            },
+            "reason": {"type": "string", "maxLength": 240},
+        },
+    }
     return {
         "type": "object",
         "additionalProperties": False,
         "required": ["candidates", "gaps"],
         "properties": {
             "candidates": {
-                "type": "array",
-                "minItems": len(candidate_ids),
-                "maxItems": len(candidate_ids),
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": [
-                        "candidate_id",
-                        "relevant_gap_ids",
-                        "supports_or_challenges",
-                        "quality",
-                        "derivative_of",
-                        "marginal_value",
-                        "improves_currency",
-                        "improves_authority",
-                        "resolves_contradiction",
-                        "reason",
-                    ],
-                    "properties": {
-                        "candidate_id": {"type": "string", "enum": candidate_ids},
-                        "relevant_gap_ids": {
-                            "type": "array",
-                            "items": {"type": "string", "enum": gap_ids},
-                        },
-                        "supports_or_challenges": {"type": "boolean"},
-                        "quality": quality,
-                        "derivative_of": {"type": ["string", "null"]},
-                        "marginal_value": {"type": "boolean"},
-                        "improves_currency": {"type": "boolean"},
-                        "improves_authority": {"type": "boolean"},
-                        "resolves_contradiction": {"type": "boolean"},
-                        "reason": {"type": "string", "maxLength": 240},
-                    },
-                },
+                "type": "object",
+                "additionalProperties": False,
+                "required": candidate_ids,
+                "properties": dict.fromkeys(candidate_ids, candidate_grade),
             },
             "gaps": {
-                "type": "array",
-                "minItems": len(gap_ids),
-                "maxItems": len(gap_ids),
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["gap_id", "status", "candidate_ids", "reason"],
-                    "properties": {
-                        "gap_id": {"type": "string", "enum": gap_ids},
-                        "status": {
-                            "type": "string",
-                            "enum": ["open", "closed", "ambiguous"],
-                        },
-                        "candidate_ids": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                        },
-                        "reason": {"type": "string", "maxLength": 240},
-                    },
-                },
+                "type": "object",
+                "additionalProperties": False,
+                "required": gap_ids,
+                "properties": dict.fromkeys(gap_ids, gap_grade),
             },
         },
     }
@@ -513,7 +521,10 @@ def execute_trial(
     planner_claimed_complete = False
 
     def checkpoint(
-        stage: str, *, assessment_snapshot: dict[str, Any] | None = None
+        stage: str,
+        *,
+        received_assessment: dict[str, Any] | None = None,
+        assessment_receipt: dict[str, Any] | None = None,
     ) -> None:
         if checkpoint_writer is None:
             return
@@ -529,11 +540,9 @@ def execute_trial(
                 initial_gap_assessment=(
                     planning.get("initial_gaps") if planning is not None else None
                 ),
-                interim_assessment=(
-                    assessment_snapshot
-                    if assessment_snapshot is not None
-                    else interim_assessment
-                ),
+                interim_assessment=interim_assessment,
+                received_assessment=received_assessment,
+                received_assessment_receipt=assessment_receipt,
             )
         )
 
@@ -556,7 +565,7 @@ def execute_trial(
                 }
             )
         random.Random(blind_seed).shuffle(candidate_payload)
-        assessment, receipt = model_json(
+        assessment_wire, receipt = model_json(
             llm_client,
             model=model,
             name=f"w10_evidence_assessment_{stage}",
@@ -570,7 +579,10 @@ def execute_trial(
                 "gaps": claims,
                 "candidates": candidate_payload,
                 "instruction": (
-                    "Judge every candidate separately. Close a gap only from acquired "
+                    "Use each supplied candidate ID exactly once as a key in the "
+                    "candidates object and each gap ID exactly once as a key in the "
+                    "gaps object. Judge every candidate separately. Close a gap only "
+                    "from acquired "
                     "content that meets its closure rule. A snippet alone is insufficient. "
                     "Score each quality dimension as 0 poor, 1 adequate, or 2 strong. "
                     "Marginal value means the source adds material claim evidence beyond "
@@ -582,17 +594,31 @@ def execute_trial(
             max_tokens=4000,
             deadline=deadline,
         )
-        checkpoint(f"{stage}_assessment_received")
-        assessed_ids = [item["candidate_id"] for item in assessment["candidates"]]
-        if len(assessed_ids) != len(set(assessed_ids)) or set(assessed_ids) != set(
+        checkpoint(
+            f"{stage}_assessment_received",
+            received_assessment=assessment_wire,
+            assessment_receipt=receipt,
+        )
+        candidate_grades = assessment_wire.get("candidates")
+        gap_grades = assessment_wire.get("gaps")
+        if not isinstance(candidate_grades, dict) or set(candidate_grades) != set(
             id_to_key
         ):
             raise ValueError("assessment must return every candidate exactly once")
-        graded_gaps = [item["gap_id"] for item in assessment["gaps"]]
-        if len(graded_gaps) != len(set(graded_gaps)) or set(graded_gaps) != {
-            gap.gap_id for gap in gaps
-        }:
+        gap_order = [gap.gap_id for gap in gaps]
+        if not isinstance(gap_grades, dict) or set(gap_grades) != set(gap_order):
             raise ValueError("assessment must return every gap exactly once")
+        assessment = {
+            "candidates": [
+                {"candidate_id": candidate_id, **candidate_grades[candidate_id]}
+                for candidate_id in (
+                    item["candidate_id"] for item in candidate_payload
+                )
+            ],
+            "gaps": [
+                {"gap_id": gap_id, **gap_grades[gap_id]} for gap_id in gap_order
+            ],
+        }
         return assessment, receipt, id_to_key
 
     checkpoint("initial_acquisition")
@@ -698,7 +724,8 @@ def execute_trial(
                         ) = assess_current_candidates(stage="round_1")
                         checkpoint(
                             "round_1_assessment_preserved",
-                            assessment_snapshot=interim_assessment,
+                            received_assessment=interim_assessment,
+                            assessment_receipt=interim_assessment_receipt,
                         )
                         interim_by_id = {
                             item["candidate_id"]: item

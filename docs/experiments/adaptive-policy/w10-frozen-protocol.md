@@ -116,6 +116,55 @@ validator. Its private evidence tree is retained as
 `pre-execution-interim-preservation-smoke` with SHA-256
 `2c60978a16e4f0b5b68e125bd77d88f35f405abbe4bb7236b6765f35cffbddcb`.
 
+A later full launch was stopped after 27 attempted trials. Two trials reached a
+final assessment whose candidate set was incomplete. The runner correctly
+failed those trials, but its archived checkpoint retained the candidates and
+the cardinality error without retaining the exact assessment returned by the
+model. That prevents reconstruction of which candidate grades were omitted.
+The complete launch is preserved and excluded as
+`challenge-excluded-unpreserved-final-assessment`; its canonical 63-file
+manifest (relative path, byte size, and content SHA-256, encoded as compact
+sorted-key JSON) has SHA-256
+`430836f5fe67606d05de0bf439bce720de58ce2b57c3fbeecac0f4056d7f85ce`.
+The checkpoint is now written with the received assessment and its model-call
+receipt before candidate or gap cardinality is validated. The independent run
+validator rejects an assessment-stage failure checkpoint that lacks either.
+The corrected runner then completed a one-case fixed-policy smoke against the
+pinned candidate and local model route, and the independent validator reported
+no issues. Its five-file evidence tree is retained as
+`pre-execution-final-assessment-preservation-smoke`; the canonical manifest has
+SHA-256
+`ab71da5cacc847021bbfcc94e80fbc8f813eabaf303a2176905f0c1203171e65`.
+
+The first attempted relaunch was stopped during its first trial because the
+operator-supplied full source revision did not match the checked-out commit.
+It is retained and excluded as `challenge-excluded-launch-commit-typo`; its
+canonical six-file manifest has SHA-256
+`89ed1c5c8c37133395189106417cdfc011979b460c5ed66e8793a86d9ca7145d`.
+No result from that launch is eligible for analysis.
+
+The next clean launch was stopped after 24 terminal attempts (21 completed and
+three failed) with one additional trial in flight. Each failed final assessment
+returned eight candidate grades but reused one or more candidate IDs, omitting
+the same number of candidates. Retrying until an array happened to contain
+unique identities would condition inclusion on model-formatting luck. The
+57-file evidence tree is retained and excluded as
+`challenge-excluded-array-assessment-identity`; its canonical manifest has
+SHA-256
+`d3e96107945173839d3489c846f5f93cfacf2744da105c9d556218c5d6c1ebb6`.
+
+Candidate and gap assessments now use their frozen IDs as required object keys
+with additional properties forbidden. The runner checkpoints that exact wire
+response, verifies its key sets, and only then normalizes it to the unchanged
+analysis record shape. This enforces one grade per identity in the original
+model call without repair calls, invented mappings, or valid-output selection.
+The keyed schema then completed a one-case gap-policy smoke using the same
+freshness case and policy combination that had failed in both prior full
+launches. The independent validator reported no issues. Its five-file evidence
+tree is retained as `pre-execution-keyed-assessment-smoke`; the canonical
+manifest has SHA-256
+`2258d1d76015393a14482d27ee1a7055f8a716f04f21db1a3a7c63b0f19f4366`.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256
@@ -190,6 +239,11 @@ acquisition checkpoint before grading. A grader or transport failure archives
 both checkpoints, including excluded candidates, before the trial is retried.
 Failure evidence is never treated as a policy outcome, but remains available for
 the required manual adjudication and missing-data audit.
+
+After a model assessment returns, the public checkpoint also retains the exact
+structured assessment and response digest before semantic coverage checks run.
+Invalid candidate or gap cardinality is therefore reproducible rather than
+reduced to an error string.
 
 For the full policy, the public evidence record preserves the complete interim
 candidate and gap assessment that caused a between-round stop or continuation.

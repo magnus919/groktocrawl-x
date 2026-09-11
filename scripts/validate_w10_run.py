@@ -87,6 +87,30 @@ def validate_run(
             issues.append(f"{record_path.name}: duplicate completed trial identity")
         observed.add(identity)
         if record.get("status") != "completed":
+            partial = record.get("partial_evidence_file")
+            if isinstance(partial, str):
+                partial_path = run_dir / partial
+                if not partial_path.exists():
+                    issues.append(
+                        f"{record_path.name}: partial evidence file is missing"
+                    )
+                else:
+                    checkpoint = load_json(partial_path)
+                    if str(checkpoint.get("stage", "")).endswith(
+                        "_assessment_received"
+                    ):
+                        if not isinstance(
+                            checkpoint.get("received_assessment"), dict
+                        ):
+                            issues.append(
+                                f"{record_path.name}: failed assessment is not preserved"
+                            )
+                        if not isinstance(
+                            checkpoint.get("received_assessment_receipt"), dict
+                        ):
+                            issues.append(
+                                f"{record_path.name}: failed assessment receipt is not preserved"
+                            )
             continue
         if record.get("stop_reason") not in TERMINAL_STOPS:
             issues.append(f"{record_path.name}: missing terminal stop reason")

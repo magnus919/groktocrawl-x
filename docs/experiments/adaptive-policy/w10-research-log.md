@@ -68,6 +68,48 @@ decide whether another query should run and the separate final blind assessment
 used for outcome scoring. Record and adjudicate disagreements rather than
 silently replacing one judgment with the other.
 
+The launch retained as `challenge-excluded-unpreserved-final-assessment` failed
+two final candidate-cardinality checks after 27 attempted trials. It is excluded
+because the exact invalid assessments were not recoverable. The corrected
+runner checkpoints every returned assessment and its response receipt before
+candidate and gap coverage validation; the run validator checks this failure
+path independently.
+
+The corrected runner completed the one-case fixed-policy
+`pre-execution-final-assessment-preservation-smoke` against the pinned
+candidate and local model route. The independent validator found no issues.
+Its five-file evidence manifest has SHA-256
+`ab71da5cacc847021bbfcc94e80fbc8f813eabaf303a2176905f0c1203171e65`.
+
+The first full relaunch was stopped during its first trial after detecting that
+the launcher's full source-revision value did not match the checked-out commit.
+The six-file partial evidence tree is retained as
+`challenge-excluded-launch-commit-typo`, SHA-256
+`89ed1c5c8c37133395189106417cdfc011979b460c5ed66e8793a86d9ca7145d`,
+and is ineligible for analysis.
+
+The following clean launch reached 21 completed trials and three final
+assessment failures before it was stopped. Every failure returned eight grades
+but duplicated candidate IDs, omitting between one and five expected IDs. The
+new checkpoints preserved each exact response and receipt, which made the
+shared failure mechanism observable. The run is retained and excluded as
+`challenge-excluded-array-assessment-identity`; its 57-file canonical manifest
+has SHA-256
+`d3e96107945173839d3489c846f5f93cfacf2744da105c9d556218c5d6c1ebb6`.
+
+The assessment wire schema now represents candidate and gap IDs as required
+object keys rather than enum-valued array fields. This makes missing or repeated
+identity structurally impossible when strict schema enforcement succeeds. The
+runner retains the wire response before validation and converts it to the same
+list-shaped analysis record afterward. No repair call or post-hoc grade mapping
+was added.
+
+The keyed schema completed a live smoke on the freshness gap-policy combination
+that had failed in both earlier full launches. The independent validator found
+no issues. The retained five-file evidence tree
+`pre-execution-keyed-assessment-smoke` has canonical manifest SHA-256
+`2258d1d76015393a14482d27ee1a7055f8a716f04f21db1a3a7c63b0f19f4366`.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.
