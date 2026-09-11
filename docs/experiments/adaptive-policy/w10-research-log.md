@@ -104,6 +104,12 @@ runner retains the wire response before validation and converts it to the same
 list-shaped analysis record afterward. No repair call or post-hoc grade mapping
 was added.
 
+The keyed schema completed a live smoke on the freshness gap-policy combination
+that had failed in both earlier full launches. The independent validator found
+no issues. The retained five-file evidence tree
+`pre-execution-keyed-assessment-smoke` has canonical manifest SHA-256
+`2258d1d76015393a14482d27ee1a7055f8a716f04f21db1a3a7c63b0f19f4366`.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.

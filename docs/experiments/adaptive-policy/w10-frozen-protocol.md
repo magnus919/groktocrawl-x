@@ -158,6 +158,12 @@ with additional properties forbidden. The runner checkpoints that exact wire
 response, verifies its key sets, and only then normalizes it to the unchanged
 analysis record shape. This enforces one grade per identity in the original
 model call without repair calls, invented mappings, or valid-output selection.
+The keyed schema then completed a one-case gap-policy smoke using the same
+freshness case and policy combination that had failed in both prior full
+launches. The independent validator reported no issues. Its five-file evidence
+tree is retained as `pre-execution-keyed-assessment-smoke`; the canonical
+manifest has SHA-256
+`2258d1d76015393a14482d27ee1a7055f8a716f04f21db1a3a7c63b0f19f4366`.
 
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
