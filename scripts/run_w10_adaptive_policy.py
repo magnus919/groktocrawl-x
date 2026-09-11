@@ -1011,6 +1011,15 @@ def main() -> int:
     started_at = datetime.now(UTC).isoformat()
     args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
     freeze_path = ROOT / "docs/experiments/adaptive-policy/w10-freeze.json"
+    search_environment_path = (
+        ROOT / "docs/experiments/adaptive-policy/w10-search-environment.json"
+    )
+    search_environment = json.loads(search_environment_path.read_text())
+    if search_environment.get("schema_version") != (
+        "enterprise-evaluation/w10-search-environment/1"
+    ):
+        parser.error("W10 search environment record has an unsupported schema")
+    search_environment_sha256 = digest(search_environment_path.read_bytes())
     atomic_json(
         args.output / "run-metadata.json",
         {
@@ -1020,6 +1029,7 @@ def main() -> int:
             "cases_sha256": digest(args.cases.read_bytes()),
             "freeze_sha256": digest(freeze_path.read_bytes()),
             "runner_sha256": digest(Path(__file__).read_bytes()),
+            "search_environment_sha256": search_environment_sha256,
         },
     )
     records = args.output / "records"
@@ -1150,6 +1160,8 @@ def main() -> int:
             "runner_sha256": digest(Path(__file__).read_bytes()),
             "source_commit": source_commit,
             "freeze_sha256": digest(freeze_path.read_bytes()),
+            "search_environment_sha256": search_environment_sha256,
+            "search_environment": search_environment,
             "policy_sha256": digest(
                 (
                     ROOT / "agent-svc/agent/experimental/bounded_adaptive_policy.py"

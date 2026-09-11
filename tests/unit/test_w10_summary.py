@@ -265,7 +265,9 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
     cases_path.write_text(
         '{"cases":[{"case_id":"case-1","claims":[{"claim_id":"claim"}]}]}\n'
     )
-    freeze_path.write_text('{"runner_sha256":"runner"}\n')
+    freeze_path.write_text(
+        '{"runner_sha256":"runner","search_environment_sha256":"search"}\n'
+    )
     (run_dir / "run-metadata.json").write_text(
         json.dumps(
             {
@@ -273,6 +275,7 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
                 "cases_sha256": file_digest(cases_path),
                 "freeze_sha256": file_digest(freeze_path),
                 "runner_sha256": "runner",
+                "search_environment_sha256": "search",
             }
         )
     )

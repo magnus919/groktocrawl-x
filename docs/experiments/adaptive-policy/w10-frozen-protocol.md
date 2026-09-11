@@ -220,3 +220,17 @@ completion gate are defined in `w10-research-log.md`. Live execution uses the
 same optional dependency as the earlier runtime studies,
 `langgraph==0.6.11`, installed in an isolated experiment environment rather than
 the production image.
+
+W10 uses the separately deployed, pinned flat-search baseline recorded in
+`w10-search-environment.json`: GroktoCrawl candidate image
+`6b46bc9a3f44a1571ad68d5453fef90edc99466b` and SlopSearX 0.4.0 source
+`f4c7f960f09a1b2ce931d1e0bd2bf1a171cb5222`. The runner binds that record's
+digest into immutable run metadata and the final manifest. SlopSearX 0.5's
+opt-in MCP workflows are outside this comparison and belong to W11.
+
+One trial launched immediately after notification of the HAL2000 upgrade was
+stopped conservatively. Subsequent route inspection proved W10 was using its own
+unchanged SlopSearX 0.4.0 container rather than HAL2000. The one completed trial
+and interruption evidence remain excluded as
+`challenge-excluded-search-environment-change` with SHA-256
+`86b301d24734f5f6dfe79e2e3b807907c7824af2921b9eb0855fae0dee6b4301`.

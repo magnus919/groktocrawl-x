@@ -57,6 +57,10 @@ def validate_run(
         issues.append("run metadata freeze digest does not match")
     if metadata.get("runner_sha256") != freeze.get("runner_sha256"):
         issues.append("run metadata runner digest does not match the freeze")
+    if metadata.get("search_environment_sha256") != freeze.get(
+        "search_environment_sha256"
+    ):
+        issues.append("run metadata search environment does not match the freeze")
 
     entries = load_json(order_path).get("entries", [])
     if len(entries) != expected_records:
