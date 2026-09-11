@@ -75,33 +75,36 @@ def model_json(
     deadline: float,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     started = time.monotonic()
-    response = client.post(
-        "/chat/completions",
-        json={
-            "model": model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a conservative research evaluator. Use only the "
-                        "provided material. Return JSON matching the schema."
-                    ),
+    try:
+        response = client.post(
+            "/chat/completions",
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a conservative research evaluator. Use only the "
+                            "provided material. Return JSON matching the schema."
+                        ),
+                    },
+                    {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
+                ],
+                "temperature": 0,
+                "max_tokens": max_tokens,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {"name": name, "strict": True, "schema": schema},
                 },
-                {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
-            ],
-            "temperature": 0,
-            "max_tokens": max_tokens,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": name, "strict": True, "schema": schema},
             },
-        },
-        timeout=remaining_seconds(deadline),
-    )
-    response.raise_for_status()
-    envelope = response.json()
-    content = envelope["choices"][0]["message"]["content"]
-    parsed = json.loads(content)
+            timeout=remaining_seconds(deadline),
+        )
+        response.raise_for_status()
+        envelope = response.json()
+        content = envelope["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+    except Exception as error:
+        raise RuntimeError(f"{name}: {type(error).__name__}: {error}") from error
     return parsed, {
         "latency_ms": round((time.monotonic() - started) * 1000, 3),
         "model": envelope.get("model"),
@@ -301,6 +304,7 @@ def execute_trial(
     llm_client: httpx.Client,
     model: str,
     result_limit: int,
+    seed: int,
 ) -> dict[str, Any]:
     started = time.monotonic()
     deadline = started + 90
@@ -445,6 +449,8 @@ def execute_trial(
                 "available": item["acquisition_status"] == "acquired",
             }
         )
+    blind_seed = int(digest(f"{seed}:{case['case_id']}:{policy}:{repetition}")[:16], 16)
+    random.Random(blind_seed).shuffle(candidate_payload)
     assessment, assessment_receipt = model_json(
         llm_client,
         model=model,
@@ -624,6 +630,10 @@ def execute_trial(
         },
         "planning_receipt": planning_receipt,
         "assessment_receipt": assessment_receipt,
+        "blind_grade": {
+            "candidate_order_seed_sha256": digest(str(blind_seed)),
+            "policy_and_rank_labels_exposed": False,
+        },
         "private_acquisitions": [
             {
                 "candidate_id": digest(key)[:16],
@@ -659,6 +669,9 @@ def main() -> int:
     parser.add_argument("--result-limit", type=int, default=8)
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--seed", type=int, default=20260911)
+    parser.add_argument(
+        "--policies", nargs="+", choices=POLICIES, default=list(POLICIES)
+    )
     args = parser.parse_args()
     if not args.api_key or not args.llm_base_url or not args.llm_api_key:
         parser.error("API and LLM credentials are required")
@@ -679,7 +692,7 @@ def main() -> int:
         (case, policy, repetition)
         for repetition in range(args.repetitions)
         for case in payload["cases"]
-        for policy in POLICIES
+        for policy in args.policies
     ]
     random.Random(args.seed).shuffle(work)
 
@@ -712,6 +725,7 @@ def main() -> int:
                     llm_client=llm,
                     model=args.model,
                     result_limit=args.result_limit,
+                    seed=args.seed,
                 )
                 private = result.pop("private_acquisitions")
                 private_path.mkdir(exist_ok=True, mode=0o700)
@@ -737,7 +751,7 @@ def main() -> int:
         "records": len(results),
         "completed": sum(item["status"] == "completed" for item in results),
         "failed": sum(item["status"] != "completed" for item in results),
-        "policies": list(POLICIES),
+        "policies": args.policies,
         "repetitions": args.repetitions,
         "result_limit": args.result_limit,
         "seed": args.seed,
