@@ -1,6 +1,7 @@
 import pytest
 
 import scripts.run_w10_adaptive_policy as w10_runner
+from scripts.build_w10_adjudication_packet import select_gap_disagreements
 from scripts.run_w10_adaptive_policy import (
     build_work_order,
     execute_trial,
@@ -109,6 +110,43 @@ def test_gate_rejection_audit_uses_only_observed_equivalent_queries():
     assert result["rejections"] == 2
     assert result["observed_gain_elsewhere"] == 1
     assert result["unknown"] == 1
+
+
+def test_adjudication_selects_every_disputed_high_importance_closure():
+    observations = [
+        {
+            "observation_id": "high-open",
+            "case_id": "case-1",
+            "gap_id": "high",
+            "claim": {"importance": 3},
+            "model_gap_grade": {"status": "open"},
+        },
+        {
+            "observation_id": "high-closed",
+            "case_id": "case-1",
+            "gap_id": "high",
+            "claim": {"importance": 3},
+            "model_gap_grade": {"status": "closed"},
+        },
+        {
+            "observation_id": "low-open",
+            "case_id": "case-1",
+            "gap_id": "low",
+            "claim": {"importance": 1},
+            "model_gap_grade": {"status": "open"},
+        },
+        {
+            "observation_id": "low-closed",
+            "case_id": "case-1",
+            "gap_id": "low",
+            "claim": {"importance": 1},
+            "model_gap_grade": {"status": "closed"},
+        },
+    ]
+
+    selected, reasons = select_gap_disagreements(observations)
+    assert set(selected) == {"high-open", "high-closed"}
+    assert reasons["high-open"] == {"high_importance_closure_disagreement"}
 
 
 def test_work_order_rotates_each_policy_within_each_case():

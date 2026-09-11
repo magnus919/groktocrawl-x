@@ -28,8 +28,9 @@ def load_cases(paths: list[Path]) -> dict[str, dict[str, Any]]:
 
 def load_observations(
     run_dirs: list[Path], cases: dict[str, dict[str, Any]]
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     observations = []
+    gap_observations = []
     failures = []
     for run_dir in run_dirs:
         for record_path in sorted((run_dir / "records").glob("*.json")):
@@ -42,12 +43,22 @@ def load_observations(
                 item["candidate_id"]: item
                 for item in json.loads(private_path.read_text())
             }
+            admitted_sources = []
             for candidate in record["candidates"]:
                 grade = candidate.get("operational_assessment")
                 if grade is None:
                     continue
                 candidate_id = candidate["candidate_id"]
                 private_item = private[candidate_id]
+                if candidate.get("admitted"):
+                    admitted_sources.append(
+                        {
+                            "candidate_id": candidate_id,
+                            "title": candidate["title"],
+                            "url": candidate["url"],
+                            "reviewed_excerpt": private_item["reviewed_excerpt"],
+                        }
+                    )
                 observation_id = digest(
                     ":".join(
                         (
@@ -73,7 +84,35 @@ def load_observations(
                         "model_grade": grade,
                     }
                 )
-    return observations, failures
+            claim_by_id = {
+                item["claim_id"]: item for item in cases[record["case_id"]]["claims"]
+            }
+            for gap in record["gap_results"]:
+                claim = claim_by_id[gap["gap_id"]]
+                gap_observations.append(
+                    {
+                        "observation_id": digest(
+                            ":".join(
+                                (
+                                    "gap",
+                                    record["case_id"],
+                                    record["policy"],
+                                    str(record["repetition"]),
+                                    gap["gap_id"],
+                                )
+                            )
+                        )[:20],
+                        "case_id": record["case_id"],
+                        "policy": record["policy"],
+                        "repetition": record["repetition"],
+                        "gap_id": gap["gap_id"],
+                        "question": cases[record["case_id"]]["query"],
+                        "claim": claim,
+                        "admitted_sources": admitted_sources,
+                        "model_gap_grade": gap,
+                    }
+                )
+    return observations, gap_observations, failures
 
 
 def grade_signature(observation: dict[str, Any]) -> str:
@@ -94,6 +133,28 @@ def grade_signature(observation: dict[str, Any]) -> str:
     return digest(json.dumps(relevant, sort_keys=True))
 
 
+def select_gap_disagreements(
+    observations: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, set[str]]]:
+    reasons: dict[str, set[str]] = defaultdict(set)
+    selected: dict[str, dict[str, Any]] = {}
+    by_gap: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for item in observations:
+        by_gap[(item["case_id"], item["gap_id"])].append(item)
+    for items in by_gap.values():
+        if items[0]["claim"]["importance"] != 3:
+            continue
+        statuses = {item["model_gap_grade"]["status"] for item in items}
+        if len(statuses) <= 1:
+            continue
+        for item in items:
+            selected[item["observation_id"]] = item
+            reasons[item["observation_id"]].add(
+                "high_importance_closure_disagreement"
+            )
+    return selected, reasons
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, action="append", required=True)
@@ -104,7 +165,7 @@ def main() -> int:
     args = parser.parse_args()
 
     cases = load_cases(args.cases)
-    observations, failures = load_observations(args.run_dir, cases)
+    observations, gap_observations, failures = load_observations(args.run_dir, cases)
     by_source: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for item in observations:
         by_source[(item["case_id"], item["candidate_id"])].append(item)
@@ -128,6 +189,8 @@ def main() -> int:
             selected[item["observation_id"]] = item
             reasons[item["observation_id"]].add("repeated_grade_disagreement")
 
+    selected_gaps, gap_reasons = select_gap_disagreements(gap_observations)
+
     private_items = []
     public_items = []
     for observation_id, item in sorted(selected.items()):
@@ -137,6 +200,7 @@ def main() -> int:
             if key not in {"policy", "repetition", "model_grade"}
         }
         blind["selection_reasons"] = sorted(reasons[observation_id])
+        blind["item_type"] = "source_grade"
         private_items.append(blind)
         public_items.append(
             {
@@ -144,6 +208,29 @@ def main() -> int:
                 "case_id": item["case_id"],
                 "candidate_id": item["candidate_id"],
                 "selection_reasons": sorted(reasons[observation_id]),
+                "item_type": "source_grade",
+                "private_item_sha256": digest(
+                    json.dumps(blind, ensure_ascii=False, sort_keys=True)
+                ),
+            }
+        )
+
+    for observation_id, item in sorted(selected_gaps.items()):
+        blind = {
+            key: value
+            for key, value in item.items()
+            if key not in {"policy", "repetition", "model_gap_grade"}
+        }
+        blind["selection_reasons"] = sorted(gap_reasons[observation_id])
+        blind["item_type"] = "claim_closure"
+        private_items.append(blind)
+        public_items.append(
+            {
+                "observation_id": observation_id,
+                "case_id": item["case_id"],
+                "gap_id": item["gap_id"],
+                "selection_reasons": sorted(gap_reasons[observation_id]),
+                "item_type": "claim_closure",
                 "private_item_sha256": digest(
                     json.dumps(blind, ensure_ascii=False, sort_keys=True)
                 ),
@@ -165,6 +252,8 @@ def main() -> int:
         "unique_case_sources": len(representatives),
         "seeded_sample_size": sample_size,
         "selected_observations": len(private_items),
+        "selected_source_grades": len(selected),
+        "selected_claim_closures": len(selected_gaps),
         "schema_failures": failures,
         "private_packet_sha256": digest(args.private_output.read_bytes()),
         "items": public_items,
@@ -178,6 +267,8 @@ def main() -> int:
             {
                 "unique_case_sources": len(representatives),
                 "selected_observations": len(private_items),
+                "selected_source_grades": len(selected),
+                "selected_claim_closures": len(selected_gaps),
                 "schema_failures": len(failures),
             },
             indent=2,
