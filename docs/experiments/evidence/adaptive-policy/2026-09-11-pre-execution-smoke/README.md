@@ -68,3 +68,18 @@ The complete public and private packet is retained on the experiment host as
 `challenge-excluded-global-shuffle`. The accepted runner writes a hashed order
 manifest and rotates every policy through distinct within-case positions across
 the three repetitions.
+
+## Excluded incomplete-failure-evidence run
+
+The first counterbalanced challenge execution was stopped and excluded after 21
+outcomes (18 completed and three grader-schema failures). Although the runner
+correctly refused incomplete candidate grades, failed trials did not retain
+their query and acquisition ledger for manual adjudication. That violates the
+frozen evidence-completion gate.
+
+The excluded tree remains on the experiment host as
+`challenge-excluded-incomplete-failure-evidence`, with composite SHA-256
+`01809ef31116e0391d5edd4403e6a29a71fbd1e93adac339887bd4b6eaefc4fb`.
+The correction adds public/private pre-grade checkpoints and archives them on
+failure. It does not change cases, policy behavior, budgets, scoring, work order,
+or decision gates. The formal comparison restarts from an empty output directory.

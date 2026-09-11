@@ -1,6 +1,9 @@
 import pytest
 
-from scripts.run_w10_adaptive_policy import build_work_order
+from scripts.run_w10_adaptive_policy import (
+    build_work_order,
+    trial_evidence_checkpoint,
+)
 from scripts.summarize_w10_adaptive_policy import aggregate, gate
 
 
@@ -77,3 +80,30 @@ def test_work_order_rotates_each_policy_within_each_case():
             for position, policy in enumerate(ordered):
                 positions[policy].append(position)
         assert all(len(set(values)) == 3 for values in positions.values())
+
+
+def test_trial_checkpoint_preserves_failure_evidence_without_public_excerpts():
+    public, private = trial_evidence_checkpoint(
+        case={"case_id": "case-1", "challenge_type": "contradiction"},
+        policy="full",
+        repetition=1,
+        stage="assessment_received",
+        attempts=[{"query": "example", "result_count": 1}],
+        proposals=[],
+        candidates={
+            "https://example.com/evidence": {
+                "url": "https://example.com/evidence",
+                "title": "Evidence",
+                "observed_at": "2026-09-11T00:00:00+00:00",
+                "accessed_at": "2026-09-11T00:00:01+00:00",
+                "acquisition_status": "acquired",
+                "reviewed_bytes_sha256": "abc",
+                "reviewed_excerpt": "private source text",
+            }
+        },
+    )
+
+    assert public["stage"] == "assessment_received"
+    assert public["attempts"] == [{"query": "example", "result_count": 1}]
+    assert "reviewed_excerpt" not in public["candidates"][0]
+    assert private[0]["reviewed_excerpt"] == "private source text"

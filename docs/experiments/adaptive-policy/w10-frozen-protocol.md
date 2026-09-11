@@ -83,6 +83,12 @@ schema failures, all high-importance closure disagreements, and a seeded 10%
 sample. Report cluster-aware case distributions rather than treating source
 sightings as independent observations.
 
+The runner writes a public query/candidate checkpoint and a separate private
+acquisition checkpoint before grading. A grader or transport failure archives
+both checkpoints, including excluded candidates, before the trial is retried.
+Failure evidence is never treated as a policy outcome, but remains available for
+the required manual adjudication and missing-data audit.
+
 ## Sensitivity and missing data
 
 Repeat the decision after removing unavailable sources, removing each challenge

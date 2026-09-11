@@ -12,6 +12,7 @@ import platform
 import random
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -44,6 +45,8 @@ PURPOSES = (
     "entity_identity",
 )
 
+CheckpointWriter = Callable[[dict[str, Any], list[dict[str, Any]]], None]
+
 
 def digest(value: str | bytes) -> str:
     raw = value.encode() if isinstance(value, str) else value
@@ -67,6 +70,51 @@ def canonical_url(value: str) -> str:
 def publisher_id(value: str) -> str:
     host = (urlsplit(value).hostname or "").casefold()
     return host.removeprefix("www.")
+
+
+def trial_evidence_checkpoint(
+    *,
+    case: dict[str, Any],
+    policy: str,
+    repetition: int,
+    stage: str,
+    attempts: list[dict[str, Any]],
+    proposals: list[dict[str, Any]],
+    candidates: dict[str, dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Split resumable trial evidence into tracked metadata and private excerpts."""
+    public_candidates = [
+        {key: value for key, value in item.items() if key != "reviewed_excerpt"}
+        for item in candidates.values()
+    ]
+    private_candidates = [
+        {
+            "candidate_id": digest(key)[:16],
+            "canonical_url": key,
+            "url": item["url"],
+            "accessed_at": item.get("accessed_at", item["observed_at"]),
+            "acquisition_status": item["acquisition_status"],
+            "reviewed_bytes_sha256": item.get("reviewed_bytes_sha256"),
+            "reviewed_excerpt": item.get("reviewed_excerpt", ""),
+            "exclusion_reason": item.get("acquisition_error"),
+        }
+        for key, item in candidates.items()
+    ]
+    return (
+        {
+            "schema_version": "enterprise-evaluation/w10-policy-checkpoint/1",
+            "case_id": case["case_id"],
+            "challenge_type": case.get("challenge_type", case.get("category")),
+            "policy": policy,
+            "repetition": repetition,
+            "stage": stage,
+            "attempts": attempts,
+            "proposals": proposals,
+            "candidates": public_candidates,
+            "recorded_at": datetime.now(UTC).isoformat(),
+        },
+        private_candidates,
+    )
 
 
 def build_work_order(
@@ -347,6 +395,7 @@ def execute_trial(
     model: str,
     result_limit: int,
     seed: int,
+    checkpoint_writer: CheckpointWriter | None = None,
 ) -> dict[str, Any]:
     started = time.monotonic()
     deadline = started + 90
@@ -402,6 +451,23 @@ def execute_trial(
     planning = None
     planning_receipt = None
     proposal_log: list[dict[str, Any]] = []
+
+    def checkpoint(stage: str) -> None:
+        if checkpoint_writer is None:
+            return
+        checkpoint_writer(
+            *trial_evidence_checkpoint(
+                case=case,
+                policy=policy,
+                repetition=repetition,
+                stage=stage,
+                attempts=attempts,
+                proposals=proposal_log,
+                candidates=candidates,
+            )
+        )
+
+    checkpoint("initial_acquisition")
     if policy != "fixed":
         blind_initial = [
             {
@@ -466,6 +532,7 @@ def execute_trial(
                     )
                     followup_keys = register(results, len(attempts) - 1)
                     acquire(followup_keys, 2)
+                    checkpoint("followup_acquisition")
                     prior = (*prior, raw["query"])
 
     acquire(
@@ -475,6 +542,7 @@ def execute_trial(
             item["acquisition_status"] != "not_selected" for item in candidates.values()
         ),
     )
+    checkpoint("acquisition_complete")
 
     candidate_payload = []
     id_to_key: dict[str, str] = {}
@@ -519,6 +587,7 @@ def execute_trial(
         max_tokens=4000,
         deadline=deadline,
     )
+    checkpoint("assessment_received")
     assessed = {item["candidate_id"]: item for item in assessment["candidates"]}
     if set(assessed) != set(id_to_key):
         raise ValueError("assessment must return every candidate exactly once")
@@ -692,19 +761,15 @@ def execute_trial(
             "candidate_order_seed_sha256": digest(str(blind_seed)),
             "policy_and_rank_labels_exposed": False,
         },
-        "private_acquisitions": [
-            {
-                "candidate_id": digest(key)[:16],
-                "canonical_url": key,
-                "url": item["url"],
-                "accessed_at": item.get("accessed_at", item["observed_at"]),
-                "acquisition_status": item["acquisition_status"],
-                "reviewed_bytes_sha256": item.get("reviewed_bytes_sha256"),
-                "reviewed_excerpt": item.get("reviewed_excerpt", ""),
-                "exclusion_reason": item.get("acquisition_error"),
-            }
-            for key, item in candidates.items()
-        ],
+        "private_acquisitions": trial_evidence_checkpoint(
+            case=case,
+            policy=policy,
+            repetition=repetition,
+            stage="completed",
+            attempts=attempts,
+            proposals=proposal_log,
+            candidates=candidates,
+        )[1],
     }
 
 
@@ -773,7 +838,20 @@ def main() -> int:
         private_path = args.output / "private-acquisitions"
         private_record = private_path / name
         if path.exists() and private_record.exists():
-            return json.loads(path.read_text())
+            existing = json.loads(path.read_text())
+            if existing.get("status") == "completed":
+                return existing
+        inflight_path = args.output / "inflight" / name
+        private_inflight_path = args.output / "private-inflight" / name
+
+        def write_checkpoint(
+            public: dict[str, Any], private: list[dict[str, Any]]
+        ) -> None:
+            inflight_path.parent.mkdir(exist_ok=True, mode=0o700)
+            private_inflight_path.parent.mkdir(exist_ok=True, mode=0o700)
+            atomic_json(inflight_path, public)
+            atomic_json(private_inflight_path, private)
+
         try:
             with (
                 httpx.Client(
@@ -796,11 +874,25 @@ def main() -> int:
                     model=args.model,
                     result_limit=args.result_limit,
                     seed=args.seed,
+                    checkpoint_writer=write_checkpoint,
                 )
                 private = result.pop("private_acquisitions")
                 private_path.mkdir(exist_ok=True, mode=0o700)
                 atomic_json(private_record, private)
+                inflight_path.unlink(missing_ok=True)
+                private_inflight_path.unlink(missing_ok=True)
         except Exception as error:
+            failure_path = None
+            if inflight_path.exists() and private_inflight_path.exists():
+                failure_dir = args.output / "failures"
+                private_failure_dir = args.output / "private-failures"
+                failure_dir.mkdir(exist_ok=True, mode=0o700)
+                private_failure_dir.mkdir(exist_ok=True, mode=0o700)
+                attempt = len(list(failure_dir.glob(f"{path.stem}--*.json"))) + 1
+                failure_name = f"{path.stem}--attempt-{attempt}.json"
+                failure_path = failure_dir / failure_name
+                os.replace(inflight_path, failure_path)
+                os.replace(private_inflight_path, private_failure_dir / failure_name)
             result = {
                 "schema_version": "enterprise-evaluation/w10-policy-trial/1",
                 "case_id": case["case_id"],
@@ -809,6 +901,9 @@ def main() -> int:
                 "status": "failed",
                 "error_type": type(error).__name__,
                 "error": str(error)[:1000],
+                "partial_evidence_file": (
+                    str(failure_path.relative_to(args.output)) if failure_path else None
+                ),
             }
         atomic_json(path, result)
         return result
@@ -821,6 +916,9 @@ def main() -> int:
         "records": len(results),
         "completed": sum(item["status"] == "completed" for item in results),
         "failed": sum(item["status"] != "completed" for item in results),
+        "failed_attempts": len(list((args.output / "failures").glob("*.json")))
+        if (args.output / "failures").exists()
+        else 0,
         "policies": args.policies,
         "repetitions": args.repetitions,
         "result_limit": args.result_limit,
