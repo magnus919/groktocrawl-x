@@ -83,3 +83,10 @@ The excluded tree remains on the experiment host as
 The correction adds public/private pre-grade checkpoints and archives them on
 failure. It does not change cases, policy behavior, budgets, scoring, work order,
 or decision gates. The formal comparison restarts from an empty output directory.
+
+An initial corrected-run launch used loopback port 4000 instead of the configured
+home-lab gateway route. It was stopped after 25 immediate connection failures
+and contains no completed outcomes. The checkpoint correction preserved the
+partial ledgers as designed. This launch is excluded at
+`challenge-excluded-wrong-llm-route`, with composite SHA-256
+`c4fbe49b90991a566ec722dbd9fb007f58359303c97a18c885bd62630b16c098`.
