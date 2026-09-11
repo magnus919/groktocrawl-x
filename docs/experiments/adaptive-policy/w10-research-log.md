@@ -57,3 +57,20 @@ linchpin evidence whose removal changes the decision.
 - [ ] The hypothesis matrix and all required sensitivity analyses are complete.
 - [ ] Environment, software, model, and dataset digests permit reproduction.
 - [ ] No essential evidence exists only in chat or an untracked temporary file.
+
+## Final artifact pyramid
+
+The completed study is published under
+`docs/experiments/evidence/adaptive-policy/w10-final/` with progressive detail:
+
+- `00-index.md` contains navigation and provenance only;
+- `01-summary/findings.md` gives the decision and user implications;
+- `02-analysis/` separates policy effects, source quality, sensitivity,
+  LangGraph behavior, and limitations;
+- flat `03-dossiers/` files contain methodology, run manifests, source and
+  exclusion ledgers, adjudications, and raw machine-readable results.
+
+Every Markdown artifact ends with a `SOURCES` navigation section. The tracked
+Layer 3 material links by digest to private acquired excerpts retained on the
+experiment host, without republishing source bodies. The roadmap and ADR link to
+the Layer 1 finding rather than duplicating its analysis.
