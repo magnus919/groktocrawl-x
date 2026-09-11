@@ -116,6 +116,20 @@ validator. Its private evidence tree is retained as
 `pre-execution-interim-preservation-smoke` with SHA-256
 `2c60978a16e4f0b5b68e125bd77d88f35f405abbe4bb7236b6765f35cffbddcb`.
 
+A later full launch was stopped after 27 attempted trials. Two trials reached a
+final assessment whose candidate set was incomplete. The runner correctly
+failed those trials, but its archived checkpoint retained the candidates and
+the cardinality error without retaining the exact assessment returned by the
+model. That prevents reconstruction of which candidate grades were omitted.
+The complete launch is preserved and excluded as
+`challenge-excluded-unpreserved-final-assessment`; its canonical 63-file
+manifest (relative path, byte size, and content SHA-256, encoded as compact
+sorted-key JSON) has SHA-256
+`430836f5fe67606d05de0bf439bce720de58ce2b57c3fbeecac0f4056d7f85ce`.
+The checkpoint is now written with the received assessment and its model-call
+receipt before candidate or gap cardinality is validated. The independent run
+validator rejects an assessment-stage failure checkpoint that lacks either.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256
@@ -190,6 +204,11 @@ acquisition checkpoint before grading. A grader or transport failure archives
 both checkpoints, including excluded candidates, before the trial is retried.
 Failure evidence is never treated as a policy outcome, but remains available for
 the required manual adjudication and missing-data audit.
+
+After a model assessment returns, the public checkpoint also retains the exact
+structured assessment and response digest before semantic coverage checks run.
+Invalid candidate or gap cardinality is therefore reproducible rather than
+reduced to an error string.
 
 For the full policy, the public evidence record preserves the complete interim
 candidate and gap assessment that caused a between-round stop or continuation.

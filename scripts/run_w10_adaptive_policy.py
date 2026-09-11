@@ -85,6 +85,8 @@ def trial_evidence_checkpoint(
     candidates: dict[str, dict[str, Any]],
     initial_gap_assessment: list[dict[str, Any]] | None = None,
     interim_assessment: dict[str, Any] | None = None,
+    received_assessment: dict[str, Any] | None = None,
+    received_assessment_receipt: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Split resumable trial evidence into tracked metadata and private excerpts."""
     public_candidates = [
@@ -117,6 +119,8 @@ def trial_evidence_checkpoint(
             "proposals": proposals,
             "initial_gap_assessment": initial_gap_assessment,
             "interim_assessment": interim_assessment,
+            "received_assessment": received_assessment,
+            "received_assessment_receipt": received_assessment_receipt,
             "candidates": public_candidates,
             "recorded_at": datetime.now(UTC).isoformat(),
         },
@@ -513,7 +517,10 @@ def execute_trial(
     planner_claimed_complete = False
 
     def checkpoint(
-        stage: str, *, assessment_snapshot: dict[str, Any] | None = None
+        stage: str,
+        *,
+        received_assessment: dict[str, Any] | None = None,
+        assessment_receipt: dict[str, Any] | None = None,
     ) -> None:
         if checkpoint_writer is None:
             return
@@ -529,11 +536,9 @@ def execute_trial(
                 initial_gap_assessment=(
                     planning.get("initial_gaps") if planning is not None else None
                 ),
-                interim_assessment=(
-                    assessment_snapshot
-                    if assessment_snapshot is not None
-                    else interim_assessment
-                ),
+                interim_assessment=interim_assessment,
+                received_assessment=received_assessment,
+                received_assessment_receipt=assessment_receipt,
             )
         )
 
@@ -582,7 +587,11 @@ def execute_trial(
             max_tokens=4000,
             deadline=deadline,
         )
-        checkpoint(f"{stage}_assessment_received")
+        checkpoint(
+            f"{stage}_assessment_received",
+            received_assessment=assessment,
+            assessment_receipt=receipt,
+        )
         assessed_ids = [item["candidate_id"] for item in assessment["candidates"]]
         if len(assessed_ids) != len(set(assessed_ids)) or set(assessed_ids) != set(
             id_to_key
@@ -698,7 +707,8 @@ def execute_trial(
                         ) = assess_current_candidates(stage="round_1")
                         checkpoint(
                             "round_1_assessment_preserved",
-                            assessment_snapshot=interim_assessment,
+                            received_assessment=interim_assessment,
+                            assessment_receipt=interim_assessment_receipt,
                         )
                         interim_by_id = {
                             item["candidate_id"]: item

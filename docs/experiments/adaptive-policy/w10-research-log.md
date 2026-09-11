@@ -68,6 +68,13 @@ decide whether another query should run and the separate final blind assessment
 used for outcome scoring. Record and adjudicate disagreements rather than
 silently replacing one judgment with the other.
 
+The launch retained as `challenge-excluded-unpreserved-final-assessment` failed
+two final candidate-cardinality checks after 27 attempted trials. It is excluded
+because the exact invalid assessments were not recoverable. The corrected
+runner checkpoints every returned assessment and its response receipt before
+candidate and gap coverage validation; the run validator checks this failure
+path independently.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.

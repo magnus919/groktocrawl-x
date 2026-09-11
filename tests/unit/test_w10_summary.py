@@ -364,6 +364,28 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
     issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
     assert any("lacks preserved interim assessment" in item for item in issues)
 
+    record["status"] = "failed"
+    record["partial_evidence_file"] = f"failures/{name}"
+    (run_dir / "records" / name).write_text(json.dumps(record))
+    (run_dir / "failures").mkdir()
+    (run_dir / "private-failures").mkdir()
+    checkpoint = {"stage": "final_assessment_received"}
+    (run_dir / "failures" / name).write_text(json.dumps(checkpoint))
+    (run_dir / "private-failures" / name).write_text(json.dumps(checkpoint))
+    issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
+    assert any("failed assessment is not preserved" in item for item in issues)
+    assert any("failed assessment receipt is not preserved" in item for item in issues)
+
+    checkpoint["received_assessment"] = {"candidates": []}
+    checkpoint["received_assessment_receipt"] = {"response_sha256": "assessment"}
+    (run_dir / "failures" / name).write_text(json.dumps(checkpoint))
+    (run_dir / "private-failures" / name).write_text(json.dumps(checkpoint))
+    issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
+    assert not any("failed assessment is not preserved" in item for item in issues)
+    assert not any(
+        "failed assessment receipt is not preserved" in item for item in issues
+    )
+
 
 def test_work_order_rotates_each_policy_within_each_case():
     cases = [{"case_id": "a"}, {"case_id": "b"}]
@@ -464,6 +486,8 @@ def test_trial_checkpoint_preserves_failure_evidence_without_public_excerpts():
         stage="assessment_received",
         attempts=[{"query": "example", "result_count": 1}],
         proposals=[],
+        received_assessment={"candidates": [{"candidate_id": "omitted"}]},
+        received_assessment_receipt={"response_sha256": "def"},
         candidates={
             "https://example.com/evidence": {
                 "url": "https://example.com/evidence",
@@ -479,8 +503,114 @@ def test_trial_checkpoint_preserves_failure_evidence_without_public_excerpts():
 
     assert public["stage"] == "assessment_received"
     assert public["attempts"] == [{"query": "example", "result_count": 1}]
+    assert public["received_assessment"] == {
+        "candidates": [{"candidate_id": "omitted"}]
+    }
+    assert public["received_assessment_receipt"] == {"response_sha256": "def"}
     assert "reviewed_excerpt" not in public["candidates"][0]
     assert private[0]["reviewed_excerpt"] == "private source text"
+
+
+def test_invalid_final_assessment_is_checkpointed_before_cardinality_rejection(
+    monkeypatch,
+):
+    def fake_search(client, query, limit, *, deadline):
+        return (
+            [
+                {"url": "https://one.example/item", "title": "one"},
+                {"url": "https://two.example/item", "title": "two"},
+            ],
+            1.0,
+        )
+
+    def fake_scrape(client, result, *, deadline):
+        return {
+            "acquisition_status": "acquired",
+            "accessed_at": "2026-09-11T00:00:00+00:00",
+            "reviewed_bytes_sha256": "digest",
+            "reviewed_excerpt": result["title"],
+            "acquisition_ms": 1.0,
+        }
+
+    def fake_model_json(client, *, name, prompt, **kwargs):
+        return (
+            {
+                "candidates": [
+                    {
+                        "candidate_id": prompt["candidates"][0]["candidate_id"],
+                        "relevant_gap_ids": ["claim"],
+                        "supports_or_challenges": True,
+                        "quality": {
+                            "currency": 1,
+                            "relevance": 1,
+                            "authority": 1,
+                            "accuracy": 1,
+                            "purpose": 1,
+                        },
+                        "derivative_of": None,
+                        "marginal_value": True,
+                        "improves_currency": False,
+                        "improves_authority": False,
+                        "resolves_contradiction": False,
+                        "reason": "fixture deliberately omitted the other candidate",
+                    }
+                ],
+                "gaps": [
+                    {
+                        "gap_id": "claim",
+                        "status": "closed",
+                        "candidate_ids": [
+                            prompt["candidates"][0]["candidate_id"]
+                        ],
+                        "reason": "fixture",
+                    }
+                ],
+            },
+            {"response_sha256": "invalid-response"},
+        )
+
+    checkpoints = []
+
+    def save_checkpoint(public, private):
+        checkpoints.append((public, private))
+
+    monkeypatch.setattr(w10_runner, "search", fake_search)
+    monkeypatch.setattr(w10_runner, "scrape", fake_scrape)
+    monkeypatch.setattr(w10_runner, "model_json", fake_model_json)
+    with pytest.raises(ValueError, match="every candidate exactly once"):
+        execute_trial(
+            {
+                "case_id": "case-1",
+                "challenge_type": "unsupported_claim",
+                "query": "initial evidence",
+                "as_of": "2026-09-11",
+                "claims": [
+                    {
+                        "claim_id": "claim",
+                        "importance": 3,
+                        "closure_rule": "benchmark evidence",
+                    }
+                ],
+            },
+            "fixed",
+            0,
+            api_client=object(),
+            llm_client=object(),
+            model="local",
+            result_limit=8,
+            seed=20260911,
+            checkpoint_writer=save_checkpoint,
+        )
+
+    public, private = checkpoints[-1]
+    assert public["stage"] == "final_assessment_received"
+    assert len(public["received_assessment"]["candidates"]) == 1
+    assert public["received_assessment_receipt"] == {
+        "response_sha256": "invalid-response"
+    }
+    assert len(public["candidates"]) == 2
+    assert all("reviewed_excerpt" not in item for item in public["candidates"])
+    assert {item["reviewed_excerpt"] for item in private} == {"one", "two"}
 
 
 @pytest.mark.parametrize(
