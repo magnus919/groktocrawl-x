@@ -214,4 +214,3 @@ The final pull request must include:
 
 All public artifacts must omit credentials, private network addresses, and
 unredacted model traces.
-

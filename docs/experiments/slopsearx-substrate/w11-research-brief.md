@@ -1,8 +1,8 @@
 # W11 research brief: SlopSearX as a research retrieval substrate
 
-Status: **draft before protocol freeze**  
-Decision owner: Magnus  
-Execution owner: GroktoCrawl experimental research workstream  
+Status: **draft before protocol freeze**
+Decision owner: Magnus
+Execution owner: GroktoCrawl experimental research workstream
 Tracking issue: [#318](https://github.com/magnus919/groktocrawl-x/issues/318)
 
 ## Decision
@@ -93,4 +93,3 @@ W10 must finish and identify the control policy before W11 measurement begins.
 Protocol and harness development may proceed, but no W11 outcome data may be
 collected before the W10-dependent control, budgets, prompts, and case set are
 frozen.
-
