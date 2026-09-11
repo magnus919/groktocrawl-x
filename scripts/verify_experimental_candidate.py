@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -25,6 +26,11 @@ def _run(command: list[str], *, env: dict[str, str] | None = None) -> str:
         env=env,
     )
     return result.stdout.strip()
+
+
+def _run_bytes(command: list[str], *, env: dict[str, str] | None = None) -> bytes:
+    result = subprocess.run(command, check=True, capture_output=True, env=env)
+    return result.stdout
 
 
 def _sse_payload(response: httpx.Response) -> dict[str, Any]:
@@ -85,7 +91,12 @@ def _compose_image_receipts(records: list[dict[str, Any]]) -> list[dict[str, Any
     )
 
 
-async def _mcp_call(client: httpx.AsyncClient, session: str, name: str) -> dict[str, Any]:
+async def _mcp_call(
+    client: httpx.AsyncClient,
+    session: str,
+    name: str,
+    arguments: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     response = await client.post(
         "/mcp",
         headers={
@@ -97,7 +108,7 @@ async def _mcp_call(client: httpx.AsyncClient, session: str, name: str) -> dict[
             "jsonrpc": "2.0",
             "id": 2,
             "method": "tools/call",
-            "params": {"name": name, "arguments": {}},
+            "params": {"name": name, "arguments": arguments or {}},
         },
     )
     response.raise_for_status()
@@ -105,6 +116,16 @@ async def _mcp_call(client: httpx.AsyncClient, session: str, name: str) -> dict[
     if payload.get("error") or payload.get("result", {}).get("isError"):
         raise RuntimeError(f"MCP tool {name} failed")
     return payload
+
+
+def _mcp_result(payload: dict[str, Any]) -> dict[str, Any]:
+    content = payload.get("result", {}).get("content", [])
+    for item in content:
+        if item.get("type") == "text":
+            parsed = json.loads(item["text"])
+            if isinstance(parsed, dict):
+                return parsed
+    raise RuntimeError("MCP tool returned no JSON object")
 
 
 async def verify(args: argparse.Namespace) -> dict[str, Any]:
@@ -162,9 +183,14 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
             raise RuntimeError("SSE replay did not contain the terminal event")
 
         result = run.get("result") or {}
+        artifact_set_id = result.get("artifact_set_id")
         manifest_path = result.get("manifest_url")
         artifacts = result.get("artifacts") or {}
-        if not manifest_path or set(artifacts) != {"summary", "analysis", "dossier"}:
+        if (
+            not artifact_set_id
+            or not manifest_path
+            or set(artifacts) != {"summary", "analysis", "dossier"}
+        ):
             raise RuntimeError("completed run did not expose the complete artifact set")
         manifest_response = await client.get(manifest_path)
         manifest_response.raise_for_status()
@@ -188,7 +214,7 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
             raise RuntimeError("HTTP search returned no usable results")
 
     cli_env = {**os.environ, "GROKTOCRAWL_API_KEY": args.api_key}
-    cli_payload = json.loads(
+    cli_search = json.loads(
         _run(
             [
                 str(Path(__file__).parents[1] / "groktocrawl"),
@@ -203,9 +229,55 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
             env=cli_env,
         )
     )
-    cli_result_count = len(cli_payload.get("results", []))
+    cli_result_count = len(cli_search.get("results", []))
     if cli_result_count == 0:
         raise RuntimeError("CLI search returned no usable results")
+    cli_status = json.loads(
+        _run(
+            [
+                str(Path(__file__).parents[1] / "groktocrawl"),
+                "--server",
+                args.base_url,
+                "--json",
+                "research",
+                "status",
+                run_id,
+            ],
+            env=cli_env,
+        )
+    )
+    cli_manifest = json.loads(
+        _run(
+            [
+                str(Path(__file__).parents[1] / "groktocrawl"),
+                "--server",
+                args.base_url,
+                "--json",
+                "research",
+                "show",
+                artifact_set_id,
+            ],
+            env=cli_env,
+        )
+    )
+    summary_artifact_id = str(artifacts["summary"]).rstrip("/").rsplit("/", 1)[-1]
+    cli_summary = _run_bytes(
+        [
+            str(Path(__file__).parents[1] / "groktocrawl"),
+            "--server",
+            args.base_url,
+            "research",
+            "download",
+            summary_artifact_id,
+        ],
+        env=cli_env,
+    )
+    if (
+        cli_status.get("state") != "completed"
+        or cli_manifest.get("artifact_set_id") != artifact_set_id
+        or hashlib.sha256(cli_summary).hexdigest() != artifact_digests["summary"]
+    ):
+        raise RuntimeError("CLI research artifact journey did not reproduce HTTP state")
 
     async with httpx.AsyncClient(
         base_url=args.mcp_url,
@@ -233,7 +305,38 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         session = initialized.headers.get("mcp-session-id")
         if not session:
             raise RuntimeError("MCP initialize returned no session")
-        mcp_capabilities = await _mcp_call(mcp, session, "research_capabilities")
+        mcp_capabilities = _mcp_result(
+            await _mcp_call(mcp, session, "research_capabilities")
+        )
+        mcp_status = _mcp_result(
+            await _mcp_call(mcp, session, "research_status", {"run_id": run_id})
+        )
+        mcp_manifest = _mcp_result(
+            await _mcp_call(
+                mcp,
+                session,
+                "research_show",
+                {"artifact_set_id": artifact_set_id},
+            )
+        )
+        mcp_summary = _mcp_result(
+            await _mcp_call(
+                mcp,
+                session,
+                "research_artifact",
+                {"artifact_id": summary_artifact_id},
+            )
+        )
+        decoded_mcp_summary = base64.b64decode(
+            mcp_summary.get("content_base64", ""), validate=True
+        )
+        if (
+            mcp_status.get("state") != "completed"
+            or mcp_manifest.get("artifact_set_id") != artifact_set_id
+            or hashlib.sha256(decoded_mcp_summary).hexdigest()
+            != artifact_digests["summary"]
+        ):
+            raise RuntimeError("MCP research artifact journey did not reproduce HTTP state")
 
     compose = [
         "docker",
@@ -333,9 +436,17 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         },
         "semantic": semantic_health,
         "search": {"result_count": search_result_count},
-        "cli": {"success": True, "result_count": cli_result_count},
+        "cli": {
+            "search_result_count": cli_result_count,
+            "research_state": cli_status["state"],
+            "artifact_set_match": True,
+            "summary_digest_match": True,
+        },
         "mcp": {
-            "research_capabilities": "result" in mcp_capabilities,
+            "research_capabilities": bool(mcp_capabilities.get("protocol_version")),
+            "research_state": mcp_status["state"],
+            "artifact_set_match": True,
+            "summary_digest_match": True,
         },
         "compose": {
             "version": _run(["docker", "compose", "version", "--short"]),
