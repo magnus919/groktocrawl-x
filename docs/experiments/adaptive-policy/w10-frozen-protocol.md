@@ -85,6 +85,11 @@ and excluded as `challenge-excluded-stale-gap-gate` with SHA-256
 Valid adaptive records preserve one unique initial assessment for every declared
 gap, and proposal admission uses that exact state. The run validator verifies
 this closure before accepting a study run.
+The two-arm live reproduction then completed without failures and passed the
+validator. Both arms preserved all three initial judgments and admitted only
+proposals tied to gaps recorded as open. Its private evidence tree is retained
+as `pre-execution-gap-state-smoke` with SHA-256
+`d243838850f042fdd40cb14e16a9c5af44096b21f1a937eacabff17c836f82a7`.
 
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
