@@ -3,13 +3,13 @@
   "slopsearx_reference": {
     "version": "0.5.0",
     "source_revision": "edeba9ef9311adf19ce3f1b6060257ef1b54c2f9",
-    "proof_revision": "846187d4b9f8dfa456cbed7318112149bffa7499"
+    "proof_revision": "ebfdd7d463515cd92b8309706aee1b6a095bb78e"
   },
   "evidence": {
     "local_suite": {
-      "sha256": "38323f14701fadb7dd925c571a12fb3b28dd54c34b6d6b265fca9d7dc8d354f2",
-      "tests": 114,
-      "passed": 111,
+      "sha256": "9a62a54eef99effd3b397388670306d458f01624b859c9d675000c83d77fba88",
+      "tests": 116,
+      "passed": 113,
       "failed": 0,
       "skipped": 3
     },
@@ -21,7 +21,7 @@
       "skipped": 0
     }
   },
-  "case_count": 31,
+  "case_count": 33,
   "all_cases_passed": true,
   "unresolved_references": [],
   "cases": [
@@ -284,6 +284,30 @@
       "references": [
         {
           "reference": "tests/test_adaptive_research.py::test_plan_followup_progress_completion_and_immutable_history",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-06-engine-return",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_adaptive_research.py::test_worker_death_after_engine_return_is_conservatively_recovered",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-07-snapshot-write",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_adaptive_research.py::test_worker_death_after_snapshot_write_preserves_orphan_and_recovers",
           "status": "passed",
           "proof": "local"
         }

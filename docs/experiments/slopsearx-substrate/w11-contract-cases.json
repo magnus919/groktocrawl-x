@@ -3,7 +3,7 @@
   "slopsearx_reference": {
     "version": "0.5.0",
     "source_revision": "edeba9ef9311adf19ce3f1b6060257ef1b54c2f9",
-    "proof_revision": "846187d4b9f8dfa456cbed7318112149bffa7499"
+    "proof_revision": "ebfdd7d463515cd92b8309706aee1b6a095bb78e"
   },
   "scoring_boundary": "Contract cases establish mechanics and hard gates. They do not contribute to the general research-quality score.",
   "cases": [
@@ -295,6 +295,34 @@
       ],
       "reference_tests": [
         "tests/test_adaptive_research.py::test_plan_followup_progress_completion_and_immutable_history"
+      ]
+    },
+    {
+      "case_id": "w11-recovery-06-engine-return",
+      "family": "research_recovery",
+      "scenario": "A worker dies after an engine returns but before the response is linked to the research job.",
+      "expected": [
+        "uncertain_attempt_remains_charged",
+        "attempt_marked_interrupted",
+        "response_cache_prevents_repeat_engine_call",
+        "recovery_obeys_original_ceiling"
+      ],
+      "reference_tests": [
+        "tests/test_adaptive_research.py::test_worker_death_after_engine_return_is_conservatively_recovered"
+      ]
+    },
+    {
+      "case_id": "w11-recovery-07-snapshot-write",
+      "family": "research_recovery",
+      "scenario": "A worker dies after immutable snapshot persistence but before the job stores its cursor.",
+      "expected": [
+        "written_snapshot_remains_readable",
+        "written_snapshot_remains_immutable",
+        "uncertain_attempt_remains_charged",
+        "response_cache_prevents_repeat_engine_call"
+      ],
+      "reference_tests": [
+        "tests/test_adaptive_research.py::test_worker_death_after_snapshot_write_preserves_orphan_and_recovers"
       ]
     },
     {

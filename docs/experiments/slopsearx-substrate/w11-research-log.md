@@ -285,14 +285,23 @@ Two SlopSearX fault-injection tests now cover the first two missing boundaries.
 They use an abrupt-process exception outside ordinary error handling. Recovery
 marks the unfinished attempt interrupted, retains its charge, keeps a snapshot
 written before job linkage readable and unchanged, and completes from the
-search response cache without another engine call. The tests are proposed
-upstream in SlopSearX issue 373 and PR 374; W11 will pin their merged revision
-before adding them to its reference manifest.
+search response cache without another engine call. The tests merged through
+SlopSearX issue 373 and PR 374. W11 pins merge revision
+`ebfdd7d463515cd92b8309706aee1b6a095bb78e`; the expanded 33-case contract
+summary has 116 local outcomes and three isolated-Valkey outcomes, with every
+case proved and no unresolved reference.
 
 A separate GroktoCrawl harness now checkpoints the search result, expanded
 handoff, capture, and receipt independently. Deterministic tests interrupt a
 page request and interrupt immediately after receipt submission. Resumption
 does not repeat search or result expansion; an ambiguous page request remains
 counted and may be retried, while receipt resubmission returns the original
-receipt rather than creating a duplicate. Live evidence remains to be captured
-against the isolated provenance arm.
+receipt rather than creating a duplicate.
+
+The isolated live receipt-boundary run then stopped deliberately after the
+first receipt was accepted. Its first process returned the experiment's
+interruption code. The resumed process reused one search, one result read, and
+one capture, submitted the same receipt payload again, received the original
+receipt identity as a replay, observed exactly one retained receipt, and
+exported a linked manifest. The secret-free hard gate passed; raw checkpoint
+state remains private.

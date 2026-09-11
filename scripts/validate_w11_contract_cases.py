@@ -13,7 +13,7 @@ from typing import Any
 EXPECTED_FAMILY_COUNTS = {
     "dependency_dossier": 4,
     "entity_projection": 2,
-    "research_recovery": 5,
+    "research_recovery": 7,
     "retrieval_provenance": 7,
     "saved_search": 5,
     "staged_search": 8,
