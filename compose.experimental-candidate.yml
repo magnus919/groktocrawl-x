@@ -46,7 +46,7 @@ services:
     pids_limit: 256
 
   candidate-slopsearx:
-    image: ghcr.io/magnus919/slopsearx@sha256:91194d146d205b1cf4688c1989da8f5f6b599a9627be23fd1ee7a4e488fda5b7
+    image: ghcr.io/magnus919/slopsearx@sha256:8643ed14703bf899bd579b1b06f4b62b798d7f42f303ce9af8aa2386c928108d
     restart: unless-stopped
     environment:
       ENGINE_BRAVE_API_KEY: ${BRAVE_API_KEY:-}
