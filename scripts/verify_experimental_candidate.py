@@ -47,6 +47,44 @@ def _json_records(value: str) -> list[dict[str, Any]]:
     raise RuntimeError("unexpected Docker Compose JSON output")
 
 
+def _compose_service_receipts(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    receipts = [
+        {
+            "service": record.get("Service"),
+            "image": record.get("Image"),
+            "state": record.get("State"),
+            "health": record.get("Health"),
+            "ports": record.get("Ports", ""),
+        }
+        for record in records
+    ]
+    unhealthy = [
+        receipt["service"]
+        for receipt in receipts
+        if receipt["state"] != "running" or receipt["health"] != "healthy"
+    ]
+    if unhealthy:
+        raise RuntimeError(f"candidate services are not healthy: {sorted(unhealthy)}")
+    return sorted(receipts, key=lambda receipt: str(receipt["service"]))
+
+
+def _compose_image_receipts(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    receipts = [
+        {
+            "repository": record.get("Repository"),
+            "tag": record.get("Tag", ""),
+            "id": record.get("ID"),
+            "platform": record.get("Platform"),
+            "size_bytes": record.get("Size"),
+        }
+        for record in records
+    ]
+    return sorted(
+        receipts,
+        key=lambda receipt: (str(receipt["repository"]), str(receipt["tag"])),
+    )
+
+
 async def _mcp_call(client: httpx.AsyncClient, session: str, name: str) -> dict[str, Any]:
     response = await client.post(
         "/mcp",
@@ -261,6 +299,13 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
     ):
         raise RuntimeError("semantic serving or rollback readiness is unavailable")
 
+    compose_services = _compose_service_receipts(
+        _json_records(_run([*compose, "ps", "--format", "json"]))
+    )
+    compose_images = _compose_image_receipts(
+        _json_records(_run([*compose, "images", "--format", "json"]))
+    )
+
     return {
         "schema_version": "experimental-candidate-verification/1",
         "verified_at_unix": int(time.time()),
@@ -294,8 +339,8 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         },
         "compose": {
             "version": _run(["docker", "compose", "version", "--short"]),
-            "services": _json_records(_run([*compose, "ps", "--format", "json"])),
-            "images": _json_records(_run([*compose, "images", "--format", "json"])),
+            "services": compose_services,
+            "images": compose_images,
         },
     }
 
