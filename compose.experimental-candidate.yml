@@ -10,7 +10,9 @@ services:
     command: [valkey-server, --appendonly, "yes", --appendfsync, everysec]
     volumes:
       - candidate_valkey_data:/data
-    networks: [candidate_private]
+    networks:
+      candidate_private:
+        aliases: [valkey]
     healthcheck:
       test: [CMD, valkey-cli, ping]
       interval: 5s
