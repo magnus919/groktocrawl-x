@@ -55,3 +55,10 @@ def test_malformed_reference_fails_closed() -> None:
     value["cases"][0]["reference_tests"] = ["a prose assertion"]
     assert any("reference_tests" in issue for issue in MODULE.validate_cases(value))
 
+
+def test_class_scoped_pytest_reference_is_valid() -> None:
+    value = payload()
+    value["cases"][0]["reference_tests"] = [
+        "tests/test_example.py::TestWorkflow::test_contract"
+    ]
+    assert MODULE.validate_cases(value) == []

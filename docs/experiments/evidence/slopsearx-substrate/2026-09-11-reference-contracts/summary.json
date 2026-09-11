@@ -1,0 +1,405 @@
+{
+  "schema_version": "enterprise-evaluation/w11-reference-contract-summary/1",
+  "slopsearx_reference": {
+    "version": "0.5.0",
+    "source_revision": "edeba9ef9311adf19ce3f1b6060257ef1b54c2f9"
+  },
+  "evidence": {
+    "local_suite": {
+      "sha256": "2a9e666d03ea7ed5a954e1aaf1f526f2a11224c02a0d33b2dedb5834c2d8da00",
+      "tests": 114,
+      "passed": 111,
+      "failed": 0,
+      "skipped": 3
+    },
+    "isolated_valkey_suite": {
+      "sha256": "34d5773024e3122fd8d24b499bc9aa8995e3122cc2d3b764458731bd84323406",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "case_count": 31,
+  "all_cases_passed": true,
+  "unresolved_references": [],
+  "cases": [
+    {
+      "case_id": "w11-staged-01-nonempty",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_nonempty_initial_stage_skips_fallback_and_replays",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-02-clean-empty",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_clean_empty_runs_disjoint_fallback",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-03-cached-empty",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_cached_empty_initial_stage_does_not_authorize_fallback",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-04-overlap",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_validation_rejects_overlap_and_strict_safesearch",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-05-partial",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_retry_preserves_unknown_aggregate_accounting",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-06-deadline",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_absolute_deadline_terminalizes_claimed_attempt",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-07-retry",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_valkey_integration.py::test_atomic_admission_claim_fencing_and_retry",
+          "status": "passed",
+          "proof": "isolated_valkey"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-staged-08-revocation",
+      "family": "staged_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_staged_search.py::test_policy_revocation_hides_retained_results_and_replay",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-01-success",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_receipts_transport.py::test_search_receipt_read_manifest_over_authenticated_transport",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-02-failure",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_receipts.py::test_failed_receipt_records_failed_terminal_outcome",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-03-replay",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_receipts.py::test_success_replay_conflict_failure_and_manifest",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-04-conflict",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_receipts_valkey.py::test_atomic_replay_conflict_capacity_fixed_horizon_and_tenant_isolation",
+          "status": "passed",
+          "proof": "isolated_valkey"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-05-expiry",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_receipts.py::test_identical_replay_survives_source_expiry_but_new_receipt_does_not",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-06-tenant",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_receipts.py::test_tenant_grant_and_unknown_handle",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-provenance-07-unsafe-url",
+      "family": "retrieval_provenance",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_retrieval_handoff.py",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-entity-01-v1-conservation",
+      "family": "entity_projection",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_entity_projection.py::test_grouping_conserves_original_indices_conflicts_and_does_not_mutate",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-entity-02-v2-relations",
+      "family": "entity_projection",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_entity_projection.py::test_v2_candidate_repository_and_advisory_edges_do_not_merge_entities",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-01-reservation",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_research_queue_integration.py::test_fenced_predispatch_charge_survives_recovery",
+          "status": "passed",
+          "proof": "isolated_valkey"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-02-lease",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_research_durability.py::TestClaim::test_lease_expiry_makes_job_reclaimable",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-03-late-worker",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_research_durability.py::TestLeaseOwnershipGuard::test_stale_owner_does_not_persist_after_lease_reclaimed",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-04-continuation-replay",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_adaptive_research.py::test_plan_followup_progress_completion_and_immutable_history",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-recovery-05-caller-completion",
+      "family": "research_recovery",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_adaptive_research.py::test_plan_followup_progress_completion_and_immutable_history",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-saved-01-delta",
+      "family": "saved_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_saved_models.py::test_added_changed_and_not_observed_events_keep_source_values",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-saved-02-ranking",
+      "family": "saved_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_saved_models.py::test_ranking_changes_are_not_source_changes",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-saved-03-partial",
+      "family": "saved_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_saved_models.py::test_incomparable_observation_never_replaces_good_baseline",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-saved-04-ack-restart",
+      "family": "saved_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_saved_events.py::test_ack_is_idempotent_monotonic_and_survives_consumer_restart",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-saved-05-retention-gap",
+      "family": "saved_search",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_saved_events.py::test_retention_gap_is_explicit_and_does_not_depend_on_ack",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-dossier-01-package",
+      "family": "dependency_dossier",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_dependency_dossier.py::TestWorkflow::test_completed_dossier_is_attributed_and_read_only",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-dossier-02-advisory",
+      "family": "dependency_dossier",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_dependency_dossier.py::TestWorkflow::test_partial_advisory_failure_uses_stable_error",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-dossier-03-partial",
+      "family": "dependency_dossier",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_dependency_dossier.py::TestWorkflow::test_partial_advisory_failure_uses_stable_error",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-dossier-04-replay-recovery",
+      "family": "dependency_dossier",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_dependency_dossier.py::TestWorkflow::test_start_is_idempotent_and_conflicts_on_identity_change",
+          "status": "passed",
+          "proof": "local"
+        },
+        {
+          "reference": "tests/test_dependency_dossier.py::TestWorkflow::test_predispatch_charge_survives_interrupted_execution",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    }
+  ]
+}

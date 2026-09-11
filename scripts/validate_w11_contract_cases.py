@@ -19,7 +19,7 @@ EXPECTED_FAMILY_COUNTS = {
     "staged_search": 8,
 }
 CASE_ID = re.compile(r"w11-[a-z0-9]+(?:-[a-z0-9]+)+")
-TEST_REFERENCE = re.compile(r"tests/test_[a-z0-9_]+\.py(?:::[A-Za-z0-9_]+)?")
+TEST_REFERENCE = re.compile(r"tests/test_[a-z0-9_]+\.py(?:::[A-Za-z0-9_]+)*")
 
 
 def validate_cases(payload: Any) -> list[str]:

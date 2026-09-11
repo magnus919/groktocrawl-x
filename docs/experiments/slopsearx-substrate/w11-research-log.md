@@ -1,5 +1,23 @@
 # W11 research log
 
+## 2026-09-11 — installed 0.5 baseline and reference contracts
+
+The HAL2000 GroktoCrawl deployment was rechecked after the operator reported
+the new SlopSearX feature release. Both its HTTP and MCP containers identify as
+SlopSearX 0.5.0 and resolve to the image digest already pinned by W11. The
+ordinary deployment does not grant the new specialist workflows. This preserves
+it as compatibility and discovery evidence; scored workflow experiments remain
+isolated and enable only the grant required by each arm.
+
+The 31-case contract manifest was then checked against 30 exact tests from the
+pinned SlopSearX source. The local suite produced 111 passes and three deliberate
+Valkey skips. Those three tests passed against the isolated W11 Valkey instance.
+The generated secret-free summary binds both complete JUnit files by SHA-256 and
+maps every case to its proof. Raw JUnit remains private because it contains
+machine-local paths. An earlier collection attempt is excluded: six references
+omitted their pytest class scopes. The manifest and validator were corrected
+before the successful run; no outcome was inferred from the failed collection.
+
 ## 2026-09-11 — capability discovery
 
 Question: Does the newly installed SlopSearX release change the experimental
