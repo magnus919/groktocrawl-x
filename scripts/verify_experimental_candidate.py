@@ -169,7 +169,11 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
     if cli_result_count == 0:
         raise RuntimeError("CLI search returned no usable results")
 
-    async with httpx.AsyncClient(base_url=args.mcp_url, timeout=args.timeout) as mcp:
+    async with httpx.AsyncClient(
+        base_url=args.mcp_url,
+        headers=api_headers,
+        timeout=args.timeout,
+    ) as mcp:
         initialized = await mcp.post(
             "/mcp",
             headers={
