@@ -209,3 +209,18 @@ complete result linkage. Raw result records and captured content remain in a
 private artifact; the public record retains only hashes, states, and gate
 outcomes. The harness also requires SlopSearX to disclose that downstream
 receipts are observations rather than verification judgments.
+
+The isolated provenance arm passed its least-grant preflight with all 35 tools
+present, only retrieval receipts enabled, and the other eight specialist
+grants denied before dispatch. Its first Compose start inherited the normal
+deployment's exported MCP port and collided before the MCP service started.
+The arm was recreated using only its own private port setting; the failed start
+is excluded and produced no search evidence.
+
+The first live chain admitted three results. All three preserved discovery
+identity through receipt creation, identical replay, retained receipt read,
+and manifest export. GroktoCrawl captured and hashed two pages; one eligible
+page returned an HTTP error and was recorded as a failed retrieval. The
+provenance hard gate passed because the failure remained faithfully linked and
+the manifest disclaimed verification. This result does not count the failed
+page as successful acquisition and does not establish research quality.
