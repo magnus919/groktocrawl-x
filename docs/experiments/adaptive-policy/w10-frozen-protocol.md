@@ -14,6 +14,12 @@ Counterbalance the five policies by case with seed `20260911`:
 4. gap-tied queries that also pass the proposal gate;
 5. proposal-gated queries plus marginal-value admission and deterministic stop.
 
+For each case, derive one seeded policy order and rotate it by one position per
+repetition. Shuffle case order separately within each repetition. The resulting
+work-order file is retained and hashed in the run manifest. A globally shuffled
+ten-trial pilot was stopped and excluded after the data-science design audit
+showed that it randomized order without counterbalancing policy position.
+
 The search provider, result cap, acquisition path, model family, prompts, and
 case data are frozen. Technical execution is repeated three times. Model-created
 query text may vary and every variant is retained.

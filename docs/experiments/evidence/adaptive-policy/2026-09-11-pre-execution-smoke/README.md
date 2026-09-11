@@ -53,3 +53,18 @@ claims open. The record digest is
 the manifest digest is
 `a97b758360ad79b9a5b9064d893aa3ec81a36b29131f6ad1c64345a0a3a6c286`.
 This is the accepted pre-execution runner behavior.
+
+## Excluded work-order pilot
+
+The first attempted challenge execution completed ten technically valid trials
+before a data-science design audit found that the global shuffle did not satisfy
+the protocol's per-case counterbalancing requirement. Its policy counts were
+uneven (`fixed=4`, `gated=3`, `gap=2`, `unconstrained=1`, `full=0`). The process
+was stopped, and none of those observations are used in the W10 comparison.
+
+The ten public record digests, sorted by path and hashed together, produce
+`e22b423580e8ed5dc794f5542eb5c9f14928d2433578a0ebb802a08a11ce2799`.
+The complete public and private packet is retained on the experiment host as
+`challenge-excluded-global-shuffle`. The accepted runner writes a hashed order
+manifest and rotates every policy through distinct within-case positions across
+the three repetitions.

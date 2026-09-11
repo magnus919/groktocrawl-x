@@ -69,6 +69,31 @@ def publisher_id(value: str) -> str:
     return host.removeprefix("www.")
 
 
+def build_work_order(
+    cases: list[dict[str, Any]],
+    policies: list[str],
+    repetitions: int,
+    seed: int,
+) -> list[tuple[dict[str, Any], str, int]]:
+    """Rotate policy order inside each case while shuffling case order by repetition."""
+    work = []
+    bases: dict[str, list[str]] = {}
+    for case in cases:
+        order = list(policies)
+        case_seed = int(digest(f"{seed}:{case['case_id']}:policies")[:16], 16)
+        random.Random(case_seed).shuffle(order)
+        bases[case["case_id"]] = order
+    for repetition in range(repetitions):
+        case_order = list(cases)
+        random.Random(seed + repetition).shuffle(case_order)
+        for case in case_order:
+            base = bases[case["case_id"]]
+            offset = repetition % len(base)
+            rotated = base[offset:] + base[:offset]
+            work.extend((case, policy, repetition) for policy in rotated)
+    return work
+
+
 def model_json(
     client: httpx.Client,
     *,
@@ -721,13 +746,25 @@ def main() -> int:
     records = args.output / "records"
     records.mkdir(exist_ok=True, mode=0o700)
     payload = json.loads(args.cases.read_text())
-    work = [
-        (case, policy, repetition)
-        for repetition in range(args.repetitions)
-        for case in payload["cases"]
-        for policy in args.policies
-    ]
-    random.Random(args.seed).shuffle(work)
+    work = build_work_order(
+        payload["cases"], args.policies, args.repetitions, args.seed
+    )
+    order_payload = {
+        "schema_version": "enterprise-evaluation/w10-work-order/1",
+        "method": "seeded_case_shuffle_with_per_case_policy_rotation",
+        "seed": args.seed,
+        "entries": [
+            {
+                "position": position,
+                "case_id": case["case_id"],
+                "policy": policy,
+                "repetition": repetition,
+            }
+            for position, (case, policy, repetition) in enumerate(work, 1)
+        ],
+    }
+    atomic_json(args.output / "work-order.json", order_payload)
+    work_order_sha256 = digest((args.output / "work-order.json").read_bytes())
 
     def execute(item: tuple[dict[str, Any], str, int]) -> dict[str, Any]:
         case, policy, repetition = item
@@ -788,6 +825,7 @@ def main() -> int:
         "repetitions": args.repetitions,
         "result_limit": args.result_limit,
         "seed": args.seed,
+        "work_order_sha256": work_order_sha256,
         "started_at": started_at,
         "completed_at": datetime.now(UTC).isoformat(),
         "environment": {
