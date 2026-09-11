@@ -11,12 +11,12 @@ experimental candidate, not a production cutover or a replacement for mainline.
 
 | Item | Frozen value |
 |---|---|
-| Source revision | `7cf19c4016b969c13c30bba73c612d241a3d0f73` |
-| Compose SHA-256 | `1e086c04cc9d4bf77eab2c400c581d0e453ea63b1f4be3b6caa6e667f6400362` |
+| Source revision | `c158d59bc21da43828d255d715675f91bc0f4dfb` |
+| Compose SHA-256 | `c866f7ccfb7ae47f859ce26ba396e67af3d5fb2b31a3676273d603dc3a15ac3f` |
 | Python lock SHA-256 | `4c383538479287eedaf4ffde5f2044f29972897a256e07f9b57fa3d1bc42648a` |
 | Candidate host | `gpuslut01` |
 | Compose project | `groktocrawl-x-candidate` |
-| Verification time | `2026-09-11T16:43:51Z` |
+| Verification time | `2026-09-11T16:48:39Z` |
 | PostgreSQL research schema | `14` |
 | pgvector extension | `0.8.6` |
 | Semantic serving store | `pgvector` |
@@ -26,6 +26,10 @@ The candidate was built from the full source revision. Locally built images use
 that revision as their tag. External PostgreSQL/pgvector, Qdrant, Valkey, and
 SlopSearX images are pinned by digest in the Compose definition; the receipt
 records their resolved image identities.
+
+The SlopSearX pin is the exact image digest running in the incumbent deployment
+at freeze time. This keeps the following compatibility comparison from mixing a
+research-architecture change with a search-provider version change.
 
 ## Isolation evidence
 
