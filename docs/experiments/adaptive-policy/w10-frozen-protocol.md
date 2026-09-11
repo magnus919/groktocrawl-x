@@ -129,6 +129,12 @@ sorted-key JSON) has SHA-256
 The checkpoint is now written with the received assessment and its model-call
 receipt before candidate or gap cardinality is validated. The independent run
 validator rejects an assessment-stage failure checkpoint that lacks either.
+The corrected runner then completed a one-case fixed-policy smoke against the
+pinned candidate and local model route, and the independent validator reported
+no issues. Its five-file evidence tree is retained as
+`pre-execution-final-assessment-preservation-smoke`; the canonical manifest has
+SHA-256
+`ab71da5cacc847021bbfcc94e80fbc8f813eabaf303a2176905f0c1203171e65`.
 
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside

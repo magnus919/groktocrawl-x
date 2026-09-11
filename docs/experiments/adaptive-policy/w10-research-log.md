@@ -75,6 +75,12 @@ runner checkpoints every returned assessment and its response receipt before
 candidate and gap coverage validation; the run validator checks this failure
 path independently.
 
+The corrected runner completed the one-case fixed-policy
+`pre-execution-final-assessment-preservation-smoke` against the pinned
+candidate and local model route. The independent validator found no issues.
+Its five-file evidence manifest has SHA-256
+`ab71da5cacc847021bbfcc94e80fbc8f813eabaf303a2176905f0c1203171e65`.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.
