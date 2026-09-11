@@ -136,6 +136,13 @@ no issues. Its five-file evidence tree is retained as
 SHA-256
 `ab71da5cacc847021bbfcc94e80fbc8f813eabaf303a2176905f0c1203171e65`.
 
+The first attempted relaunch was stopped during its first trial because the
+operator-supplied full source revision did not match the checked-out commit.
+It is retained and excluded as `challenge-excluded-launch-commit-typo`; its
+canonical six-file manifest has SHA-256
+`89ed1c5c8c37133395189106417cdfc011979b460c5ed66e8793a86d9ca7145d`.
+No result from that launch is eligible for analysis.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256

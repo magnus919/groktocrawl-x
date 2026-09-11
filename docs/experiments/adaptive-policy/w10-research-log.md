@@ -81,6 +81,13 @@ candidate and local model route. The independent validator found no issues.
 Its five-file evidence manifest has SHA-256
 `ab71da5cacc847021bbfcc94e80fbc8f813eabaf303a2176905f0c1203171e65`.
 
+The first full relaunch was stopped during its first trial after detecting that
+the launcher's full source-revision value did not match the checked-out commit.
+The six-file partial evidence tree is retained as
+`challenge-excluded-launch-commit-typo`, SHA-256
+`89ed1c5c8c37133395189106417cdfc011979b460c5ed66e8793a86d9ca7145d`,
+and is ineligible for analysis.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.
