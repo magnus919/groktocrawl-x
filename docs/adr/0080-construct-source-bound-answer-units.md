@@ -1,6 +1,6 @@
 # Construct Source-Bound Answer Units
 
-- Status: proposed
+- Status: rejected
 - Deciders: Magnus Hedemark
 - Date: 2026-09-10
 - Scope: lean evidence-first successor experiment in `magnus919/groktocrawl-x`
@@ -122,9 +122,25 @@ stop; fixture success alone does not accept this architecture for production.
 
 ## Links
 
+- [W7 Candidate D outcome](../experiments/enterprise-evaluation/w7-candidate-d-outcome-2026-09-11.md)
 - [W1 comparison outcome](../experiments/enterprise-evaluation/w1-comparison-outcome-2026-09-10.md)
 - [W1 semantic learning review](../experiments/enterprise-evaluation/w1-semantic-learning-review-2026-09-10.md)
 - [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md)
 - [ADR-0069](0069-define-versioned-knowledge-and-verification.md)
 - [ADR-0070](0070-evaluate-research-policy-and-runtime-separately.md)
 - [ADR-0075](0075-consolidate-research-interchange-contracts.md)
+
+## Rejection evidence
+
+The authorized held-out comparison completed on 2026-09-11. Candidate D
+completed 4 of 150 scheduled attempts, compared with 134 for the incumbent, and
+its median attempt latency was 2.30 times the incumbent. The four completed
+answers were insufficient to establish a semantic-quality advantage. Candidate D
+therefore failed the completion, median-latency and comparative-quality gates.
+
+This rejection applies to the frozen Candidate D implementation. It does not
+reject the accepted separation of execution, knowledge and rendering in ADR-0068
+or the evidence semantics in ADR-0069. Application-owned source identity,
+deterministic citations, visible missing coverage and runtime-neutral publication
+remain valid inputs to a future design. Any successor requires a new ADR and a
+fresh comparison; this record does not authorize deployment or replacement.

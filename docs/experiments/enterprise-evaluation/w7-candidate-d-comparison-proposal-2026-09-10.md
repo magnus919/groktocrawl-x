@@ -1,6 +1,10 @@
 # W7 Candidate D comparison proposal — 2026-09-10
 
-Status: **authorized by the maintainer; no model inference has started**
+Status: **completed; Candidate D did not pass the adoption gates**
+
+The generation, blinded grading and one-by-one high-consequence review are
+complete. See the [comparison outcome](w7-candidate-d-outcome-2026-09-11.md).
+Candidate D completed 4 of 150 attempts versus 134 for Arm A and is not adopted.
 
 This experiment asks a narrow question: does the frozen lean successor produce
 more dependable grounded answers than the incumbent without repeating Candidate
