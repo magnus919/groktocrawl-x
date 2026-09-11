@@ -87,5 +87,7 @@ passes every 0.5 specialist grant as an independent empty-by-default setting.
 This is required for isolated W11 arms: enabling staged search must not silently
 enable receipts, saved searches, event publication, or dependency dossiers.
 Deterministic Compose, MCP-client, preflight, and case-contract tests passed.
-The local workstation has no Docker executable, so rendered-Compose and live
-startup verification remain deployment-host gates rather than inferred proof.
+The local workstation has no Docker executable. A clean checkout on HAL2000
+rendered the Compose model successfully and confirmed the pinned 0.5 registry
+digest plus nine empty-by-default specialist grant variables. Live isolated
+startup remains a separate pre-measurement gate.
