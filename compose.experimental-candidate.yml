@@ -234,8 +234,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       HOST: 0.0.0.0
       PORT: "8080"
-    extra_hosts:
-      - gpuslut01:host-gateway
     secrets: [postgres_password]
     depends_on:
       candidate-valkey:
