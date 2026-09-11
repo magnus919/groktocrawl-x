@@ -73,6 +73,9 @@ This result confirms a contract on a synthetic packet. It does not demonstrate
 accuracy of publisher-supplied dates, establish Internet-scale latency, or authorize
 changes to the default GroktoCrawl stack.
 
+The remaining W8 source-equivalence audit is tracked in
+[#307](https://github.com/magnus919/groktocrawl-x/issues/307).
+
 ## SlopSearX boundary
 
 SlopSearX can help by returning additive, nullable metadata when an engine actually
