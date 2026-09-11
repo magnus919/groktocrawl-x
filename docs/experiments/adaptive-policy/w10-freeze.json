@@ -1,0 +1,8 @@
+{
+  "brief_sha256": "87ef4db56d5393646c36bcea97ef405a8f1e0a4660fa4d6d33ee31d74e1acc49",
+  "challenge_cases_sha256": "6761705e14ea1b535a8debdd0e54c6be14d8a42608c6f3606e6e445290aa21d6",
+  "protocol_sha256": "d16495478c95b2f505398e250149646fcea41ab9d958ab83672c89da9ad32513",
+  "schema_version": "enterprise-evaluation/w10-freeze/1",
+  "seed": 20260911,
+  "w8_anchor_sha256": "1dbe9ec940ffcf3cece28c9a2eb9755a6d227a651c697cc075a8e7c4b555cbbd"
+}
