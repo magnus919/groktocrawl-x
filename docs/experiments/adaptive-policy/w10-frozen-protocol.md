@@ -18,6 +18,14 @@ The search provider, result cap, acquisition path, model family, prompts, and
 case data are frozen. Technical execution is repeated three times. Model-created
 query text may vary and every variant is retained.
 
+The acquisition budget is eight pages. Fixed retrieval acquires its top eight.
+Adaptive arms acquire the top four initial results and the top two novel results
+from each executed follow-up; unused follow-up slots are backfilled in original
+result order. All returned result metadata remains in the exclusion ledger. This
+allocation was clarified after a pre-execution smoke test showed that grading up
+to 24 full pages could not finish inside the already-frozen 90-second case bound;
+the failed smoke record is retained and is not part of the comparison.
+
 ## Bounds and gates
 
 Each case permits at most three searches, two planning/judging model calls, 20

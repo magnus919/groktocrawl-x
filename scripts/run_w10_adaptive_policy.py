@@ -166,6 +166,21 @@ def scrape(
     return record
 
 
+def search_record(result: dict[str, Any], *, attempt: int, rank: int) -> dict[str, Any]:
+    url = str(result.get("url", ""))
+    return {
+        "url": url,
+        "canonical_url": canonical_url(url),
+        "title": str(result.get("title", ""))[:500],
+        "snippet": str(result.get("description", result.get("content", "")))[:1000],
+        "observed_at": datetime.now(UTC).isoformat(),
+        "search_origins": [{"attempt": attempt, "rank": rank}],
+        "acquisition_status": "not_selected",
+        "reviewed_bytes_sha256": None,
+        "reviewed_excerpt": "",
+    }
+
+
 def planning_schema(gap_ids: list[str], *, unconstrained: bool) -> dict[str, Any]:
     allowed_gaps = [*gap_ids, "general"] if unconstrained else gap_ids
     return {
@@ -307,9 +322,36 @@ def execute_trial(
         }
     )
     candidates: dict[str, dict[str, Any]] = {}
-    for result in initial:
-        item = scrape(api_client, result, deadline=deadline)
-        candidates.setdefault(item["canonical_url"], item)
+
+    def register(results: list[dict[str, Any]], attempt: int) -> list[str]:
+        keys: list[str] = []
+        for rank, result in enumerate(results, 1):
+            item = search_record(result, attempt=attempt, rank=rank)
+            key = item["canonical_url"]
+            if not key:
+                continue
+            if key in candidates:
+                candidates[key]["search_origins"].extend(item["search_origins"])
+            else:
+                candidates[key] = item
+            keys.append(key)
+        return list(dict.fromkeys(keys))
+
+    def acquire(keys: list[str], limit: int) -> None:
+        selected = [
+            key
+            for key in keys
+            if candidates[key]["acquisition_status"] == "not_selected"
+        ][:limit]
+        for key in selected:
+            origins = candidates[key]["search_origins"]
+            candidates[key].update(
+                scrape(api_client, candidates[key], deadline=deadline)
+            )
+            candidates[key]["search_origins"] = origins
+
+    initial_keys = register(initial, 0)
+    acquire(initial_keys, 8 if policy == "fixed" else 4)
 
     planning = None
     planning_receipt = None
@@ -323,6 +365,7 @@ def execute_trial(
                 "available": item["acquisition_status"] == "acquired",
             }
             for key, item in candidates.items()
+            if item["acquisition_status"] != "not_selected"
         ]
         planning, planning_receipt = model_json(
             llm_client,
@@ -375,14 +418,23 @@ def execute_trial(
                             "result_count": len(results),
                         }
                     )
-                    for result in results:
-                        item = scrape(api_client, result, deadline=deadline)
-                        candidates.setdefault(item["canonical_url"], item)
+                    followup_keys = register(results, len(attempts) - 1)
+                    acquire(followup_keys, 2)
                     prior = (*prior, raw["query"])
+
+    acquire(
+        list(candidates),
+        8
+        - sum(
+            item["acquisition_status"] != "not_selected" for item in candidates.values()
+        ),
+    )
 
     candidate_payload = []
     id_to_key: dict[str, str] = {}
     for key, item in candidates.items():
+        if item["acquisition_status"] == "not_selected":
+            continue
         candidate_id = digest(key)[:16]
         id_to_key[candidate_id] = key
         candidate_payload.append(
@@ -419,9 +471,16 @@ def execute_trial(
     admitted_publishers: set[str] = set()
     for canonical, source in candidates.items():
         candidate_id = digest(canonical)[:16]
+        source["candidate_id"] = candidate_id
+        if source["acquisition_status"] == "not_selected":
+            source["admitted"] = False
+            source["admission_reason"] = "not_selected_for_acquisition"
+            continue
         item = assessed[candidate_id]
         admitted = source["acquisition_status"] == "acquired" and len(admitted_ids) < 8
-        admission_reason = "admitted_within_source_limit" if admitted else "source_limit"
+        admission_reason = (
+            "admitted_within_source_limit" if admitted else "source_limit"
+        )
         if policy == "full":
             quality = item["quality"]
             decision = admit_candidate(
@@ -448,14 +507,15 @@ def execute_trial(
             )
             admitted = decision.admitted and bool(item["marginal_value"])
             admission_reason = (
-                decision.reason if admitted else "no_marginal_value"
+                decision.reason
+                if admitted
+                else "no_marginal_value"
                 if decision.admitted
                 else decision.reason
             )
             if len(admitted_ids) >= 8:
                 admitted = False
                 admission_reason = "source_limit"
-        source["candidate_id"] = candidate_id
         source["operational_assessment"] = item
         source["admitted"] = admitted
         source["admission_reason"] = admission_reason
@@ -569,7 +629,7 @@ def execute_trial(
                 "candidate_id": digest(key)[:16],
                 "canonical_url": key,
                 "url": item["url"],
-                "accessed_at": item["accessed_at"],
+                "accessed_at": item.get("accessed_at", item["observed_at"]),
                 "acquisition_status": item["acquisition_status"],
                 "reviewed_bytes_sha256": item.get("reviewed_bytes_sha256"),
                 "reviewed_excerpt": item.get("reviewed_excerpt", ""),
@@ -692,7 +752,9 @@ def main() -> int:
             "llm_route": "openai_compatible",
             "runner_sha256": digest(Path(__file__).read_bytes()),
             "policy_sha256": digest(
-                (ROOT / "agent-svc/agent/experimental/bounded_adaptive_policy.py").read_bytes()
+                (
+                    ROOT / "agent-svc/agent/experimental/bounded_adaptive_policy.py"
+                ).read_bytes()
             ),
         },
     }
