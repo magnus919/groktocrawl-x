@@ -84,6 +84,7 @@ def trial_evidence_checkpoint(
     proposals: list[dict[str, Any]],
     candidates: dict[str, dict[str, Any]],
     initial_gap_assessment: list[dict[str, Any]] | None = None,
+    interim_assessment: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Split resumable trial evidence into tracked metadata and private excerpts."""
     public_candidates = [
@@ -115,6 +116,7 @@ def trial_evidence_checkpoint(
             "attempts": attempts,
             "proposals": proposals,
             "initial_gap_assessment": initial_gap_assessment,
+            "interim_assessment": interim_assessment,
             "candidates": public_candidates,
             "recorded_at": datetime.now(UTC).isoformat(),
         },
@@ -510,7 +512,9 @@ def execute_trial(
     interim_assessment_receipt = None
     planner_claimed_complete = False
 
-    def checkpoint(stage: str) -> None:
+    def checkpoint(
+        stage: str, *, assessment_snapshot: dict[str, Any] | None = None
+    ) -> None:
         if checkpoint_writer is None:
             return
         checkpoint_writer(
@@ -524,6 +528,11 @@ def execute_trial(
                 candidates=candidates,
                 initial_gap_assessment=(
                     planning.get("initial_gaps") if planning is not None else None
+                ),
+                interim_assessment=(
+                    assessment_snapshot
+                    if assessment_snapshot is not None
+                    else interim_assessment
                 ),
             )
         )
@@ -687,6 +696,10 @@ def execute_trial(
                             interim_assessment_receipt,
                             interim_id_to_key,
                         ) = assess_current_candidates(stage="round_1")
+                        checkpoint(
+                            "round_1_assessment_preserved",
+                            assessment_snapshot=interim_assessment,
+                        )
                         interim_by_id = {
                             item["candidate_id"]: item
                             for item in interim_assessment["candidates"]
@@ -913,6 +926,7 @@ def execute_trial(
         "initial_gap_assessment": (
             planning.get("initial_gaps") if planning is not None else None
         ),
+        "interim_assessment": interim_assessment,
         "candidates": public_candidates,
         "gap_results": gap_results,
         "metrics": {
@@ -950,6 +964,10 @@ def execute_trial(
             attempts=attempts,
             proposals=proposal_log,
             candidates=candidates,
+            initial_gap_assessment=(
+                planning.get("initial_gaps") if planning is not None else None
+            ),
+            interim_assessment=interim_assessment,
         )[1],
     }
 

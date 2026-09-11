@@ -168,6 +168,40 @@ def test_summary_credits_promoted_source_to_acquiring_followup():
     assert result["unnecessary_followup_queries"] == 0
 
 
+def test_summary_surfaces_interim_final_stop_disagreement():
+    record = {
+        "status": "completed",
+        "case_id": "case-1",
+        "policy": "full",
+        "repetition": 0,
+        "attempts": [{"query": "initial"}, {"query": "follow-up"}],
+        "proposals": [{"admitted": True, "executed": True}],
+        "candidates": [],
+        "gap_results": [{"gap_id": "claim", "status": "open"}],
+        "interim_assessment": {"gaps": [{"gap_id": "claim", "status": "closed"}]},
+        "metrics": {
+            "searches": 2,
+            "model_calls": 3,
+            "admitted_count": 0,
+            "closed_weight": 0,
+            "total_weight": 3,
+            "elapsed_ms": 100,
+        },
+        "round_decisions": [{"all_gaps_closed": True}],
+    }
+    case = {
+        "challenge_type": "unsupported_claim",
+        "claims": [{"claim_id": "claim", "importance": 3}],
+    }
+
+    result = trial_metrics(record, case)
+    summary = aggregate([result])
+    assert result["premature_stop_disagreement"]
+    assert summary["interim_all_closed_trials"] == 1
+    assert summary["premature_stop_disagreements"] == 1
+    assert summary["premature_stop_disagreement_rate"] == 1.0
+
+
 def test_adjudication_selects_every_disputed_high_importance_closure():
     observations = [
         {
@@ -203,6 +237,23 @@ def test_adjudication_selects_every_disputed_high_importance_closure():
     selected, reasons = select_gap_disagreements(observations)
     assert set(selected) == {"high-open", "high-closed"}
     assert reasons["high-open"] == {"high_importance_closure_disagreement"}
+
+
+def test_adjudication_selects_interim_final_closure_disagreement():
+    observations = [
+        {
+            "observation_id": "changed",
+            "case_id": "case-1",
+            "gap_id": "claim",
+            "claim": {"importance": 1},
+            "interim_gap_grade": {"status": "closed"},
+            "model_gap_grade": {"status": "open"},
+        }
+    ]
+
+    selected, reasons = select_gap_disagreements(observations)
+    assert set(selected) == {"changed"}
+    assert reasons["changed"] == {"interim_final_closure_disagreement"}
 
 
 def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
@@ -302,6 +353,13 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
     )
     issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
     assert any("planner-closed gap" in item for item in issues)
+
+    record["initial_gap_assessment"][0]["status"] = "open"
+    record["round_decisions"] = [{"all_gaps_closed": True}]
+    record["interim_assessment"] = None
+    (run_dir / "records" / name).write_text(json.dumps(record))
+    issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
+    assert any("lacks preserved interim assessment" in item for item in issues)
 
 
 def test_work_order_rotates_each_policy_within_each_case():

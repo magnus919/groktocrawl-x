@@ -87,6 +87,10 @@ def load_observations(
             claim_by_id = {
                 item["claim_id"]: item for item in cases[record["case_id"]]["claims"]
             }
+            interim_by_gap = {
+                item["gap_id"]: item
+                for item in (record.get("interim_assessment") or {}).get("gaps", [])
+            }
             for gap in record["gap_results"]:
                 claim = claim_by_id[gap["gap_id"]]
                 gap_observations.append(
@@ -109,6 +113,7 @@ def load_observations(
                         "question": cases[record["case_id"]]["query"],
                         "claim": claim,
                         "admitted_sources": admitted_sources,
+                        "interim_gap_grade": interim_by_gap.get(gap["gap_id"]),
                         "model_gap_grade": gap,
                     }
                 )
@@ -141,6 +146,12 @@ def select_gap_disagreements(
     by_gap: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for item in observations:
         by_gap[(item["case_id"], item["gap_id"])].append(item)
+        interim = item.get("interim_gap_grade")
+        if interim is not None and interim.get("status") != item["model_gap_grade"].get(
+            "status"
+        ):
+            selected[item["observation_id"]] = item
+            reasons[item["observation_id"]].add("interim_final_closure_disagreement")
     for items in by_gap.values():
         if items[0]["claim"]["importance"] != 3:
             continue
@@ -149,9 +160,7 @@ def select_gap_disagreements(
             continue
         for item in items:
             selected[item["observation_id"]] = item
-            reasons[item["observation_id"]].add(
-                "high_importance_closure_disagreement"
-            )
+            reasons[item["observation_id"]].add("high_importance_closure_disagreement")
     return selected, reasons
 
 
@@ -219,7 +228,13 @@ def main() -> int:
         blind = {
             key: value
             for key, value in item.items()
-            if key not in {"policy", "repetition", "model_gap_grade"}
+            if key
+            not in {
+                "policy",
+                "repetition",
+                "model_gap_grade",
+                "interim_gap_grade",
+            }
         }
         blind["selection_reasons"] = sorted(gap_reasons[observation_id])
         blind["item_type"] = "claim_closure"

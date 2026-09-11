@@ -43,6 +43,13 @@ frozen replacement gates:
 - source-admission precision before and after marginal-value filtering;
 - outcomes split by challenge type, case, repetition, and policy position.
 
+The final report also includes an exploratory stop-judgment reliability measure:
+how often an interim `all gaps closed` decision disagrees with the separate blind
+final gap assessment. This diagnostic was added after such a disagreement was
+observed during execution. It does not change a replacement gate or rescue a
+policy that fails the frozen decision rules; it tests whether the stopping
+trigger can be trusted and identifies cases requiring adjudication.
+
 The gate rejection audit is explicitly limited. A rejected query that was never
 executed has no observed result and cannot be labeled a false rejection from
 model opinion alone. Such cases remain unknown unless another arm issued a

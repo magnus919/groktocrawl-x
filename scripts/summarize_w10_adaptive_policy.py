@@ -47,9 +47,7 @@ def trial_metrics(
         for item in admitted
         if item.get("operational_assessment", {}).get("supports_or_challenges")
     ]
-    acquired = [
-        item for item in candidates if item["acquisition_status"] == "acquired"
-    ]
+    acquired = [item for item in candidates if item["acquisition_status"] == "acquired"]
     useful_acquired = [
         item
         for item in acquired
@@ -92,6 +90,13 @@ def trial_metrics(
         for claim in case["claims"]
     )
     metrics = record["metrics"]
+    interim_gaps = (record.get("interim_assessment") or {}).get("gaps", [])
+    interim_all_closed = bool(interim_gaps) and all(
+        item.get("status") == "closed" for item in interim_gaps
+    )
+    final_all_closed = bool(record["gap_results"]) and all(
+        item.get("status") == "closed" for item in record["gap_results"]
+    )
     return {
         "case_id": record["case_id"],
         "policy": record["policy"],
@@ -125,6 +130,9 @@ def trial_metrics(
         "elapsed_ms": metrics["elapsed_ms"],
         "model_calls": metrics["model_calls"],
         "round_decisions": record.get("round_decisions", []),
+        "interim_all_closed": interim_all_closed,
+        "final_all_closed": final_all_closed,
+        "premature_stop_disagreement": interim_all_closed and not final_all_closed,
     }
 
 
@@ -140,15 +148,15 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     acquired = sum(row.get("acquired", 0) for row in completed)
     useful_acquired = sum(row.get("useful_acquired", 0) for row in completed)
     proposals = sum(row.get("proposals_made", 0) for row in completed)
-    evaluated_proposals = sum(
-        row.get("proposals_evaluated", 0) for row in completed
-    )
+    evaluated_proposals = sum(row.get("proposals_evaluated", 0) for row in completed)
     accepted_proposals = sum(row.get("proposals_accepted", 0) for row in completed)
     followups = sum(row["followup_queries"] for row in completed)
-    gainful_followups = sum(
-        row.get("gainful_followup_queries", 0) for row in completed
-    )
+    gainful_followups = sum(row.get("gainful_followup_queries", 0) for row in completed)
     unnecessary = sum(row["unnecessary_followup_queries"] for row in completed)
+    interim_stop_trials = sum(row.get("interim_all_closed", False) for row in completed)
+    premature_stop_disagreements = sum(
+        row.get("premature_stop_disagreement", False) for row in completed
+    )
     return {
         "trials": len(rows),
         "completed": len(completed),
@@ -156,9 +164,7 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "weighted_closure": closed_weight / total_weight if total_weight else None,
         "equal_weight_closure": closed_claims / total_claims if total_claims else None,
         "precision": useful / admitted if admitted else None,
-        "pre_admission_precision": (
-            useful_acquired / acquired if acquired else None
-        ),
+        "pre_admission_precision": (useful_acquired / acquired if acquired else None),
         "proposal_yield": (
             accepted_proposals / evaluated_proposals if evaluated_proposals else None
         ),
@@ -175,6 +181,13 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         and all(row["within_bounds"] for row in completed),
         "elapsed_ms": [row["elapsed_ms"] for row in completed],
         "model_calls": [row.get("model_calls", 0) for row in completed],
+        "interim_all_closed_trials": interim_stop_trials,
+        "premature_stop_disagreements": premature_stop_disagreements,
+        "premature_stop_disagreement_rate": (
+            premature_stop_disagreements / interim_stop_trials
+            if interim_stop_trials
+            else None
+        ),
     }
 
 
@@ -241,8 +254,10 @@ def summarize_stratum(
 def read_policy_positions(path: Path) -> dict[tuple[str, int, str], int]:
     entries = json.loads((path / "work-order.json").read_text())["entries"]
     return {
-        (item["case_id"], item["repetition"], item["policy"]):
-        ((item["position"] - 1) % len(POLICIES)) + 1
+        (item["case_id"], item["repetition"], item["policy"]): (
+            (item["position"] - 1) % len(POLICIES)
+        )
+        + 1
         for item in entries
     }
 

@@ -189,6 +189,38 @@ def validate_run(
                         issues.append(
                             f"{record_path.name}: admitted proposal targets a planner-closed gap"
                         )
+        round_decisions = record.get("round_decisions", [])
+        interim_assessment = record.get("interim_assessment")
+        if round_decisions:
+            if not isinstance(interim_assessment, dict):
+                issues.append(
+                    f"{record_path.name}: round decision lacks preserved interim assessment"
+                )
+            else:
+                interim_gaps = interim_assessment.get("gaps", [])
+                interim_gap_ids = [
+                    item.get("gap_id")
+                    for item in interim_gaps
+                    if isinstance(item, dict)
+                ]
+                if (
+                    len(interim_gap_ids) != len(interim_gaps)
+                    or len(interim_gap_ids) != len(set(interim_gap_ids))
+                    or set(interim_gap_ids) != expected_gaps
+                ):
+                    issues.append(
+                        f"{record_path.name}: interim gap assessment differs from the case"
+                    )
+                elif round_decisions[-1].get("all_gaps_closed") != all(
+                    item.get("status") == "closed" for item in interim_gaps
+                ):
+                    issues.append(
+                        f"{record_path.name}: round stop disagrees with preserved interim gaps"
+                    )
+        elif interim_assessment is not None:
+            issues.append(
+                f"{record_path.name}: interim assessment exists without a round decision"
+            )
         observed_gaps = [item["gap_id"] for item in record.get("gap_results", [])]
         if (
             len(observed_gaps) != len(set(observed_gaps))

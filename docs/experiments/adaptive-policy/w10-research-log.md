@@ -63,6 +63,11 @@ from retained records. It may not infer correctness merely because the same
 runner produced the records. This includes rejecting any admitted proposal whose
 target gap was already closed in the preserved initial assessment.
 
+For sequential full-policy trials, preserve both the interim assessment used to
+decide whether another query should run and the separate final blind assessment
+used for outcome scoring. Record and adjudicate disagreements rather than
+silently replacing one judgment with the other.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.

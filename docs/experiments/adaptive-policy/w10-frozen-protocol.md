@@ -100,6 +100,17 @@ would leave the evidence claim unproved. The preserved tree is
 `4d8a867ed1829e2acf827cbce2a00d538c033e5c1be47e999209856bdad6dc45`.
 The validator now closes that edge directly.
 
+A subsequent launch was stopped after 12 completed trials when an interim blind
+judge declared every gap closed but the separate final blind judge credited only
+2 of 7 weighted points. The disagreement is legitimate evidence about stop
+reliability, but the record retained only the aggregate round decision and could
+not reconstruct the interim per-gap judgments that caused it. The run and its
+interruption record are preserved and excluded as
+`challenge-excluded-unpreserved-interim-assessment` with SHA-256
+`269bdcdd8eb502bae560b153b5320ef6a37503b8176b06423a1d198e035ebc36`.
+Valid sequential-policy records now preserve the complete interim assessment,
+and the validator checks it against the recorded round decision.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256
@@ -174,6 +185,12 @@ acquisition checkpoint before grading. A grader or transport failure archives
 both checkpoints, including excluded candidates, before the trial is retried.
 Failure evidence is never treated as a policy outcome, but remains available for
 the required manual adjudication and missing-data audit.
+
+For the full policy, the public evidence record preserves the complete interim
+candidate and gap assessment that caused a between-round stop or continuation.
+The final blind assessment remains separate. Any `all gaps closed` interim stop
+that disagrees with final closure is retained as a stop-reliability diagnostic
+and included in adjudication; it does not alter the frozen replacement gates.
 
 ## Sensitivity and missing data
 
