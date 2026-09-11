@@ -152,6 +152,7 @@ def main() -> int:
     with (args.output / "results.jsonl").open("w") as stream:
         for item in schedule:
             case = by_id[item["case_id"]]
+            started = time.monotonic()
             base = {
                 "case_id": item["case_id"],
                 "category": case["category"],
@@ -177,10 +178,12 @@ def main() -> int:
                 row = {
                     **base,
                     "status": "failed",
-                    "latency_ms": None,
+                    "latency_ms": round((time.monotonic() - started) * 1000),
                     "error_type": type(error).__name__,
                     "error": str(error),
                 }
+                if isinstance(error, urllib.error.HTTPError):
+                    row["http_status"] = error.code
             rows.append(row)
             stream.write(json.dumps(row, sort_keys=True) + "\n")
             stream.flush()
