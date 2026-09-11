@@ -64,6 +64,11 @@ def canonical_url(value: str) -> str:
     return urlunsplit((parsed.scheme.casefold(), host, path, parsed.query, ""))
 
 
+def publisher_id(value: str) -> str:
+    host = (urlsplit(value).hostname or "").casefold()
+    return host.removeprefix("www.")
+
+
 def model_json(
     client: httpx.Client,
     *,
@@ -138,6 +143,7 @@ def scrape(
     record: dict[str, Any] = {
         "url": url,
         "canonical_url": canonical_url(url),
+        "publisher_id": publisher_id(url),
         "title": str(result.get("title", ""))[:500],
         "snippet": str(result.get("description", result.get("content", "")))[:1000],
         "accessed_at": datetime.now(UTC).isoformat(),
@@ -174,6 +180,7 @@ def search_record(result: dict[str, Any], *, attempt: int, rank: int) -> dict[st
     return {
         "url": url,
         "canonical_url": canonical_url(url),
+        "publisher_id": publisher_id(url),
         "title": str(result.get("title", ""))[:500],
         "snippet": str(result.get("description", result.get("content", "")))[:1000],
         "observed_at": datetime.now(UTC).isoformat(),
@@ -251,9 +258,11 @@ def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
                         "relevant_gap_ids",
                         "supports_or_challenges",
                         "quality",
-                        "publisher_id",
                         "derivative_of",
                         "marginal_value",
+                        "improves_currency",
+                        "improves_authority",
+                        "resolves_contradiction",
                         "reason",
                     ],
                     "properties": {
@@ -264,10 +273,12 @@ def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
                         },
                         "supports_or_challenges": {"type": "boolean"},
                         "quality": quality,
-                        "publisher_id": {"type": "string"},
                         "derivative_of": {"type": ["string", "null"]},
                         "marginal_value": {"type": "boolean"},
-                        "reason": {"type": "string"},
+                        "improves_currency": {"type": "boolean"},
+                        "improves_authority": {"type": "boolean"},
+                        "resolves_contradiction": {"type": "boolean"},
+                        "reason": {"type": "string", "maxLength": 240},
                     },
                 },
             },
@@ -287,7 +298,7 @@ def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
                             "type": "array",
                             "items": {"type": "string"},
                         },
-                        "reason": {"type": "string"},
+                        "reason": {"type": "string", "maxLength": 240},
                     },
                 },
             },
@@ -463,7 +474,12 @@ def execute_trial(
             "candidates": candidate_payload,
             "instruction": (
                 "Judge every candidate separately. Close a gap only from acquired "
-                "content that meets its closure rule. A snippet alone is insufficient."
+                "content that meets its closure rule. A snippet alone is insufficient. "
+                "Score each quality dimension as 0 poor, 1 adequate, or 2 strong. "
+                "Marginal value means the source adds material claim evidence beyond "
+                "the other candidates, improves authority or currency, resolves a "
+                "contradiction, or supplies an independent publisher. Use candidate "
+                "IDs in derivative_of. Keep reasons concrete and brief."
             ),
         },
         max_tokens=4000,
@@ -504,21 +520,20 @@ def execute_trial(
                         )
                     ),
                     canonical_id=canonical,
-                    publisher_id=item["publisher_id"],
+                    publisher_id=source["publisher_id"],
                     acquired=source["acquisition_status"] == "acquired",
-                    supports_or_challenges=item["supports_or_challenges"],
+                    supports_or_challenges=(
+                        item["supports_or_challenges"] and item["marginal_value"]
+                    ),
+                    improves_currency=item["improves_currency"],
+                    improves_authority=item["improves_authority"],
+                    resolves_contradiction=item["resolves_contradiction"],
                 ),
                 admitted_canonical_ids=frozenset(admitted_canonical_ids),
                 admitted_publishers=frozenset(admitted_publishers),
             )
-            admitted = decision.admitted and bool(item["marginal_value"])
-            admission_reason = (
-                decision.reason
-                if admitted
-                else "no_marginal_value"
-                if decision.admitted
-                else decision.reason
-            )
+            admitted = decision.admitted
+            admission_reason = decision.reason
             if len(admitted_ids) >= 8:
                 admitted = False
                 admission_reason = "source_limit"
@@ -528,7 +543,7 @@ def execute_trial(
         if admitted:
             admitted_ids.append(candidate_id)
             admitted_canonical_ids.add(canonical)
-            admitted_publishers.add(item["publisher_id"])
+            admitted_publishers.add(source["publisher_id"])
     gap_results = []
     for item in assessment["gaps"]:
         supporting = [value for value in item["candidate_ids"] if value in admitted_ids]
