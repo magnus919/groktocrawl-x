@@ -252,6 +252,7 @@ def replay_policy_trace(events: tuple[dict[str, Any], ...]) -> tuple[str, ...]:
     graph.add_edge(START, "record")
     graph.add_conditional_edges("record", route, {"record": "record", "done": END})
     result = graph.compile().invoke(
-        {"events": events, "cursor": 0, "event_digests": ()}
+        {"events": events, "cursor": 0, "event_digests": ()},
+        config={"recursion_limit": max(25, len(events) + 5)},
     )
     return cast(tuple[str, ...], result["event_digests"])

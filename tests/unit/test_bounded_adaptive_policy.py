@@ -116,3 +116,9 @@ def test_langgraph_trace_preserves_event_order_and_is_deterministic():
     first = replay_policy_trace(events)
     assert len(first) == 3
     assert first == replay_policy_trace(events)
+
+
+def test_langgraph_trace_scales_recursion_limit_to_a_complete_audit_trail():
+    pytest.importorskip("langgraph")
+    events = tuple({"type": "candidate", "candidate_id": str(i)} for i in range(40))
+    assert len(replay_policy_trace(events)) == 40
