@@ -36,3 +36,20 @@ moved to URL-derived code and the grader schema was expanded to distinguish
 claim value, authority gain, currency gain, and contradiction resolution. These
 smoke outputs are excluded from outcome calculations; their complete records and
 private acquisitions remain on the experiment host under `/tmp/w10-smoke-*`.
+
+## Final runner acceptance
+
+Revision `df86fd4` completed all five policies for the smoke case with no failed
+trial. Its manifest digest is
+`acff700c55fba239b27f936e30684d83bcba5e53718b4d9f50b13a587f96604c`.
+That run exposed and verified the correction for LangGraph's default recursion
+limit, but preceded deterministic derivative rejection.
+
+Revision `cc0fd92` then completed the full policy in 37.121 seconds with all
+bounds enforced. It admitted six sources, rejected two as derivative reporting,
+retained thirteen unselected search results, and conservatively left all three
+claims open. The record digest is
+`3119aa6c146b0da938b044396e72b00a89b5d0dd93f05fd20bfbf70ce322ecce`;
+the manifest digest is
+`a97b758360ad79b9a5b9064d893aa3ec81a36b29131f6ad1c64345a0a3a6c286`.
+This is the accepted pre-execution runner behavior.
