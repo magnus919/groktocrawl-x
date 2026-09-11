@@ -56,6 +56,13 @@ Because the additional assessment is required for the policy to observe its own
 stopping condition, the valid execution uses a 180-second ceiling and retains
 actual elapsed time and model-call count for every arm.
 
+The repeated one-case smoke then completed in 72.153 seconds with two searches
+and three model calls. The interim assessment found no material gain, the policy
+stopped before dispatching the second proposed query, and the final blind
+assessment completed successfully. Its private evidence tree is retained as
+`pre-execution-sequential-stop-smoke-180s` with SHA-256
+`6b49cec895009684b37c268004bd5967d60c48288520b7ee7f6c293bc147ce66`.
+
 ## Bounds and gates
 
 Each case permits at most three searches, three planning/judging model calls, 20
