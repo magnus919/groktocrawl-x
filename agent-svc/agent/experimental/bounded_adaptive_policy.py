@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, TypedDict, cast
 
 ProposalPurpose = Literal[
     "missing_support",
@@ -214,3 +214,44 @@ def stop_reason(
     ):
         return "no_marginal_gain"
     return "continue"
+
+
+class _TraceState(TypedDict):
+    events: tuple[dict[str, Any], ...]
+    cursor: int
+    event_digests: tuple[str, ...]
+
+
+def replay_policy_trace(events: tuple[dict[str, Any], ...]) -> tuple[str, ...]:
+    """Carry an immutable policy-event trace through the LangGraph runtime."""
+    import hashlib
+    import json
+
+    try:
+        from langgraph.graph import END, START, StateGraph
+    except ImportError as error:
+        raise RuntimeError("LangGraph is required for the W10 policy trace") from error
+
+    graph = StateGraph(_TraceState)
+
+    def record(state: _TraceState) -> dict[str, object]:
+        event = state["events"][state["cursor"]]
+        encoded = json.dumps(event, sort_keys=True, separators=(",", ":")).encode()
+        return {
+            "cursor": state["cursor"] + 1,
+            "event_digests": (
+                *state["event_digests"],
+                hashlib.sha256(encoded).hexdigest(),
+            ),
+        }
+
+    def route(state: _TraceState) -> str:
+        return "done" if state["cursor"] >= len(state["events"]) else "record"
+
+    graph.add_node("record", record)
+    graph.add_edge(START, "record")
+    graph.add_conditional_edges("record", route, {"record": "record", "done": END})
+    result = graph.compile().invoke(
+        {"events": events, "cursor": 0, "event_digests": ()}
+    )
+    return cast(tuple[str, ...], result["event_digests"])

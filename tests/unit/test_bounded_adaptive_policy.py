@@ -1,3 +1,4 @@
+import pytest
 from agent.experimental.bounded_adaptive_policy import (
     CandidateAssessment,
     EvidenceGap,
@@ -6,6 +7,7 @@ from agent.experimental.bounded_adaptive_policy import (
     admit_candidate,
     gate_proposal,
     intent_similarity,
+    replay_policy_trace,
     stop_reason,
 )
 
@@ -102,3 +104,15 @@ def test_stop_order_is_reproducible_from_recorded_state():
         stop_reason(open_gap, WorkState(3, 1, 2, 1_000, 1, False, False, False))
         == "search_limit"
     )
+
+
+def test_langgraph_trace_preserves_event_order_and_is_deterministic():
+    pytest.importorskip("langgraph")
+    events = (
+        {"type": "gap", "gap_id": "quality"},
+        {"type": "proposal", "admitted": True},
+        {"type": "stop", "reason": "all_gaps_closed"},
+    )
+    first = replay_policy_trace(events)
+    assert len(first) == 3
+    assert first == replay_policy_trace(events)

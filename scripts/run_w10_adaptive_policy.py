@@ -1,0 +1,705 @@
+#!/usr/bin/env python3
+"""Execute resumable W10 adaptive-policy retrieval trials."""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import hashlib
+import json
+import os
+import platform
+import random
+import sys
+import time
+from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+import httpx
+
+ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT / "agent-svc"))
+
+from agent.experimental.bounded_adaptive_policy import (
+    CandidateAssessment,
+    EvidenceGap,
+    QueryProposal,
+    WorkState,
+    admit_candidate,
+    gate_proposal,
+    replay_policy_trace,
+    stop_reason,
+)
+
+POLICIES = ("fixed", "unconstrained", "gap", "gated", "full")
+PURPOSES = (
+    "missing_support",
+    "contradiction",
+    "freshness",
+    "primary_source",
+    "publisher_independence",
+    "entity_identity",
+)
+
+
+def digest(value: str | bytes) -> str:
+    raw = value.encode() if isinstance(value, str) else value
+    return hashlib.sha256(raw).hexdigest()
+
+
+def remaining_seconds(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("the 90-second case limit was reached")
+    return max(0.1, remaining)
+
+
+def canonical_url(value: str) -> str:
+    parsed = urlsplit(value)
+    host = (parsed.hostname or "").casefold()
+    path = parsed.path.rstrip("/") or "/"
+    return urlunsplit((parsed.scheme.casefold(), host, path, parsed.query, ""))
+
+
+def model_json(
+    client: httpx.Client,
+    *,
+    model: str,
+    name: str,
+    schema: dict[str, Any],
+    prompt: dict[str, Any],
+    max_tokens: int,
+    deadline: float,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    started = time.monotonic()
+    response = client.post(
+        "/chat/completions",
+        json={
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a conservative research evaluator. Use only the "
+                        "provided material. Return JSON matching the schema."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
+            ],
+            "temperature": 0,
+            "max_tokens": max_tokens,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": name, "strict": True, "schema": schema},
+            },
+        },
+        timeout=remaining_seconds(deadline),
+    )
+    response.raise_for_status()
+    envelope = response.json()
+    content = envelope["choices"][0]["message"]["content"]
+    parsed = json.loads(content)
+    return parsed, {
+        "latency_ms": round((time.monotonic() - started) * 1000, 3),
+        "model": envelope.get("model"),
+        "usage": envelope.get("usage") or {},
+        "response_sha256": digest(content),
+    }
+
+
+def search(
+    client: httpx.Client, query: str, limit: int, *, deadline: float
+) -> tuple[list[dict[str, Any]], float]:
+    started = time.monotonic()
+    response = client.post(
+        "/v2/search",
+        json={"query": query, "limit": limit, "search_type": "fast"},
+        timeout=remaining_seconds(deadline),
+    )
+    response.raise_for_status()
+    payload = response.json()
+    results = (payload.get("data") or {}).get("web") or []
+    if not payload.get("success") or not isinstance(results, list):
+        raise RuntimeError("search returned no valid result list")
+    return results[:limit], round((time.monotonic() - started) * 1000, 3)
+
+
+def scrape(
+    client: httpx.Client, result: dict[str, Any], *, deadline: float
+) -> dict[str, Any]:
+    started = time.monotonic()
+    url = str(result.get("url", ""))
+    record: dict[str, Any] = {
+        "url": url,
+        "canonical_url": canonical_url(url),
+        "title": str(result.get("title", ""))[:500],
+        "snippet": str(result.get("description", result.get("content", "")))[:1000],
+        "accessed_at": datetime.now(UTC).isoformat(),
+    }
+    try:
+        response = client.post(
+            "/v2/scrape",
+            json={"url": url, "formats": ["markdown"]},
+            timeout=remaining_seconds(deadline),
+        )
+        response.raise_for_status()
+        payload = response.json()
+        markdown = str((payload.get("data") or {}).get("markdown", ""))
+        if not payload.get("success") or not markdown:
+            raise RuntimeError("empty scrape")
+        record.update(
+            acquisition_status="acquired",
+            reviewed_bytes_sha256=digest(markdown),
+            reviewed_excerpt=markdown[:4000],
+        )
+    except Exception as error:
+        record.update(
+            acquisition_status="unavailable",
+            reviewed_bytes_sha256=None,
+            reviewed_excerpt="",
+            acquisition_error=f"{type(error).__name__}: {error}"[:500],
+        )
+    record["acquisition_ms"] = round((time.monotonic() - started) * 1000, 3)
+    return record
+
+
+def planning_schema(gap_ids: list[str], *, unconstrained: bool) -> dict[str, Any]:
+    allowed_gaps = [*gap_ids, "general"] if unconstrained else gap_ids
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["initial_gaps", "proposals"],
+        "properties": {
+            "initial_gaps": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["gap_id", "status", "reason"],
+                    "properties": {
+                        "gap_id": {"type": "string", "enum": gap_ids},
+                        "status": {
+                            "type": "string",
+                            "enum": ["open", "closed", "ambiguous"],
+                        },
+                        "reason": {"type": "string"},
+                    },
+                },
+            },
+            "proposals": {
+                "type": "array",
+                "maxItems": 2,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["query", "gap_id", "predicted_evidence", "purpose"],
+                    "properties": {
+                        "query": {"type": "string"},
+                        "gap_id": {"type": "string", "enum": allowed_gaps},
+                        "predicted_evidence": {"type": "string"},
+                        "purpose": {"type": "string", "enum": list(PURPOSES)},
+                    },
+                },
+            },
+        },
+    }
+
+
+def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
+    quality = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["currency", "relevance", "authority", "accuracy", "purpose"],
+        "properties": {
+            key: {"type": "integer", "minimum": 0, "maximum": 2}
+            for key in ("currency", "relevance", "authority", "accuracy", "purpose")
+        },
+    }
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["candidates", "gaps"],
+        "properties": {
+            "candidates": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "candidate_id",
+                        "relevant_gap_ids",
+                        "supports_or_challenges",
+                        "quality",
+                        "publisher_id",
+                        "derivative_of",
+                        "marginal_value",
+                        "reason",
+                    ],
+                    "properties": {
+                        "candidate_id": {"type": "string"},
+                        "relevant_gap_ids": {
+                            "type": "array",
+                            "items": {"type": "string", "enum": gap_ids},
+                        },
+                        "supports_or_challenges": {"type": "boolean"},
+                        "quality": quality,
+                        "publisher_id": {"type": "string"},
+                        "derivative_of": {"type": ["string", "null"]},
+                        "marginal_value": {"type": "boolean"},
+                        "reason": {"type": "string"},
+                    },
+                },
+            },
+            "gaps": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["gap_id", "status", "candidate_ids", "reason"],
+                    "properties": {
+                        "gap_id": {"type": "string", "enum": gap_ids},
+                        "status": {
+                            "type": "string",
+                            "enum": ["open", "closed", "ambiguous"],
+                        },
+                        "candidate_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                        },
+                        "reason": {"type": "string"},
+                    },
+                },
+            },
+        },
+    }
+
+
+def execute_trial(
+    case: dict[str, Any],
+    policy: str,
+    repetition: int,
+    *,
+    api_client: httpx.Client,
+    llm_client: httpx.Client,
+    model: str,
+    result_limit: int,
+) -> dict[str, Any]:
+    started = time.monotonic()
+    deadline = started + 90
+    claims = case["claims"]
+    gaps = tuple(
+        EvidenceGap(item["claim_id"], item["importance"], item["closure_rule"])
+        for item in claims
+    )
+    attempts: list[dict[str, Any]] = []
+    initial, latency = search(
+        api_client, case["query"], result_limit, deadline=deadline
+    )
+    attempts.append(
+        {
+            "query": case["query"],
+            "purpose": "initial",
+            "latency_ms": latency,
+            "result_count": len(initial),
+        }
+    )
+    candidates: dict[str, dict[str, Any]] = {}
+    for result in initial:
+        item = scrape(api_client, result, deadline=deadline)
+        candidates.setdefault(item["canonical_url"], item)
+
+    planning = None
+    planning_receipt = None
+    proposal_log: list[dict[str, Any]] = []
+    if policy != "fixed":
+        blind_initial = [
+            {
+                "candidate_id": digest(key)[:16],
+                "title": item["title"],
+                "excerpt": item["reviewed_excerpt"],
+                "available": item["acquisition_status"] == "acquired",
+            }
+            for key, item in candidates.items()
+        ]
+        planning, planning_receipt = model_json(
+            llm_client,
+            model=model,
+            name="w10_query_plan",
+            schema=planning_schema(
+                [gap.gap_id for gap in gaps], unconstrained=policy == "unconstrained"
+            ),
+            prompt={
+                "question": case["query"],
+                "as_of": case["as_of"],
+                "gaps": claims,
+                "initial_sources": blind_initial,
+                "policy": (
+                    "Propose broad follow-up searches wherever more information may help."
+                    if policy == "unconstrained"
+                    else "Tie every proposal to one still-open declared gap."
+                ),
+                "instruction": "Do not answer the research question.",
+            },
+            max_tokens=1400,
+            deadline=deadline,
+        )
+        statuses = {item["gap_id"]: item["status"] for item in planning["initial_gaps"]}
+        all_closed = statuses and all(value == "closed" for value in statuses.values())
+        if not all_closed:
+            prior = (case["query"],)
+            for raw in planning["proposals"]:
+                admitted, reason = True, "policy_has_no_proposal_gate"
+                if policy in {"gated", "full"}:
+                    proposal = QueryProposal(**raw)
+                    decision = gate_proposal(
+                        proposal,
+                        original_query=case["query"],
+                        gaps=gaps,
+                        prior_queries=prior,
+                    )
+                    admitted, reason = decision.admitted, decision.reason
+                proposal_log.append({**raw, "admitted": admitted, "reason": reason})
+                if admitted:
+                    results, query_ms = search(
+                        api_client, raw["query"], result_limit, deadline=deadline
+                    )
+                    attempts.append(
+                        {
+                            "query": raw["query"],
+                            "purpose": raw["purpose"],
+                            "gap_id": raw["gap_id"],
+                            "latency_ms": query_ms,
+                            "result_count": len(results),
+                        }
+                    )
+                    for result in results:
+                        item = scrape(api_client, result, deadline=deadline)
+                        candidates.setdefault(item["canonical_url"], item)
+                    prior = (*prior, raw["query"])
+
+    candidate_payload = []
+    id_to_key: dict[str, str] = {}
+    for key, item in candidates.items():
+        candidate_id = digest(key)[:16]
+        id_to_key[candidate_id] = key
+        candidate_payload.append(
+            {
+                "candidate_id": candidate_id,
+                "title": item["title"],
+                "excerpt": item["reviewed_excerpt"],
+                "available": item["acquisition_status"] == "acquired",
+            }
+        )
+    assessment, assessment_receipt = model_json(
+        llm_client,
+        model=model,
+        name="w10_evidence_assessment",
+        schema=assessment_schema([gap.gap_id for gap in gaps]),
+        prompt={
+            "question": case["query"],
+            "as_of": case["as_of"],
+            "gaps": claims,
+            "candidates": candidate_payload,
+            "instruction": (
+                "Judge every candidate separately. Close a gap only from acquired "
+                "content that meets its closure rule. A snippet alone is insufficient."
+            ),
+        },
+        max_tokens=4000,
+        deadline=deadline,
+    )
+    assessed = {item["candidate_id"]: item for item in assessment["candidates"]}
+    if set(assessed) != set(id_to_key):
+        raise ValueError("assessment must return every candidate exactly once")
+    admitted_ids: list[str] = []
+    admitted_canonical_ids: set[str] = set()
+    admitted_publishers: set[str] = set()
+    for canonical, source in candidates.items():
+        candidate_id = digest(canonical)[:16]
+        item = assessed[candidate_id]
+        admitted = source["acquisition_status"] == "acquired" and len(admitted_ids) < 8
+        admission_reason = "admitted_within_source_limit" if admitted else "source_limit"
+        if policy == "full":
+            quality = item["quality"]
+            decision = admit_candidate(
+                CandidateAssessment(
+                    candidate_id=candidate_id,
+                    relevant_gap_ids=tuple(item["relevant_gap_ids"]),
+                    source_quality=tuple(
+                        quality[key]
+                        for key in (
+                            "currency",
+                            "relevance",
+                            "authority",
+                            "accuracy",
+                            "purpose",
+                        )
+                    ),
+                    canonical_id=canonical,
+                    publisher_id=item["publisher_id"],
+                    acquired=source["acquisition_status"] == "acquired",
+                    supports_or_challenges=item["supports_or_challenges"],
+                ),
+                admitted_canonical_ids=frozenset(admitted_canonical_ids),
+                admitted_publishers=frozenset(admitted_publishers),
+            )
+            admitted = decision.admitted and bool(item["marginal_value"])
+            admission_reason = (
+                decision.reason if admitted else "no_marginal_value"
+                if decision.admitted
+                else decision.reason
+            )
+            if len(admitted_ids) >= 8:
+                admitted = False
+                admission_reason = "source_limit"
+        source["candidate_id"] = candidate_id
+        source["operational_assessment"] = item
+        source["admitted"] = admitted
+        source["admission_reason"] = admission_reason
+        if admitted:
+            admitted_ids.append(candidate_id)
+            admitted_canonical_ids.add(canonical)
+            admitted_publishers.add(item["publisher_id"])
+    gap_results = []
+    for item in assessment["gaps"]:
+        supporting = [value for value in item["candidate_ids"] if value in admitted_ids]
+        status = item["status"] if supporting else "open"
+        gap_results.append({**item, "candidate_ids": supporting, "status": status})
+    total_weight = sum(item["importance"] for item in claims)
+    closed = {item["gap_id"] for item in gap_results if item["status"] == "closed"}
+    closed_weight = sum(
+        item["importance"] for item in claims if item["claim_id"] in closed
+    )
+    final_gaps = tuple(
+        EvidenceGap(
+            gap.gap_id,
+            gap.importance,
+            gap.closure_rule,
+            gap.gap_id in closed,
+        )
+        for gap in gaps
+    )
+    stop = stop_reason(
+        final_gaps,
+        WorkState(
+            searches=len(attempts),
+            model_calls=int(planning is not None) + 1,
+            admitted_sources=len(admitted_ids),
+            elapsed_ms=round((time.monotonic() - started) * 1000),
+            newly_closed_weight=closed_weight,
+            quality_gain=any(
+                item["quality"]["authority"] >= 2 for item in assessed.values()
+            ),
+            contradiction_gain=any(
+                item["supports_or_challenges"] for item in assessed.values()
+            ),
+            publisher_gain=len(admitted_publishers) > 1,
+        ),
+    )
+    public_candidates = [
+        {key: value for key, value in item.items() if key != "reviewed_excerpt"}
+        for item in candidates.values()
+    ]
+    policy_events = (
+        *(
+            {"type": "search", "query": item["query"], "purpose": item["purpose"]}
+            for item in attempts
+        ),
+        *(
+            {
+                "type": "proposal",
+                "gap_id": item["gap_id"],
+                "admitted": item["admitted"],
+                "reason": item["reason"],
+            }
+            for item in proposal_log
+        ),
+        *(
+            {
+                "type": "candidate",
+                "candidate_id": item["candidate_id"],
+                "admitted": item["admitted"],
+            }
+            for item in public_candidates
+        ),
+        *(
+            {"type": "gap", "gap_id": item["gap_id"], "status": item["status"]}
+            for item in gap_results
+        ),
+        {"type": "stop", "reason": stop},
+    )
+    event_digests = replay_policy_trace(tuple(policy_events))
+    return {
+        "schema_version": "enterprise-evaluation/w10-policy-trial/1",
+        "case_id": case["case_id"],
+        "challenge_type": case.get("challenge_type", case.get("category")),
+        "policy": policy,
+        "repetition": repetition,
+        "status": "completed",
+        "attempts": attempts,
+        "proposals": proposal_log,
+        "candidates": public_candidates,
+        "gap_results": gap_results,
+        "metrics": {
+            "searches": len(attempts),
+            "model_calls": int(planning is not None) + 1,
+            "candidate_count": len(candidates),
+            "acquired_count": sum(
+                item["acquisition_status"] == "acquired" for item in candidates.values()
+            ),
+            "admitted_count": len(admitted_ids),
+            "closed_weight": closed_weight,
+            "total_weight": total_weight,
+            "weighted_closure": closed_weight / total_weight,
+            "elapsed_ms": round((time.monotonic() - started) * 1000, 3),
+        },
+        "stop_reason": stop,
+        "orchestration": {
+            "runtime": "langgraph",
+            "event_count": len(event_digests),
+            "event_digests": list(event_digests),
+        },
+        "planning_receipt": planning_receipt,
+        "assessment_receipt": assessment_receipt,
+        "private_acquisitions": [
+            {
+                "candidate_id": digest(key)[:16],
+                "canonical_url": key,
+                "url": item["url"],
+                "accessed_at": item["accessed_at"],
+                "acquisition_status": item["acquisition_status"],
+                "reviewed_bytes_sha256": item.get("reviewed_bytes_sha256"),
+                "reviewed_excerpt": item.get("reviewed_excerpt", ""),
+                "exclusion_reason": item.get("acquisition_error"),
+            }
+            for key, item in candidates.items()
+        ],
+    }
+
+
+def atomic_json(path: Path, value: Any) -> None:
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True) + "\n")
+    os.replace(temporary, path)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cases", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--base-url", required=True)
+    parser.add_argument("--api-key", default=os.environ.get("GROKTOCRAWL_API_KEY", ""))
+    parser.add_argument("--llm-base-url", default=os.environ.get("LLM_BASE_URL", ""))
+    parser.add_argument("--llm-api-key", default=os.environ.get("LLM_API_KEY", ""))
+    parser.add_argument("--model", default="local")
+    parser.add_argument("--repetitions", type=int, default=3)
+    parser.add_argument("--result-limit", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument("--seed", type=int, default=20260911)
+    args = parser.parse_args()
+    if not args.api_key or not args.llm_base_url or not args.llm_api_key:
+        parser.error("API and LLM credentials are required")
+    try:
+        langgraph_version = version("langgraph")
+    except PackageNotFoundError:
+        parser.error("the isolated experiment environment needs langgraph==0.6.11")
+    if langgraph_version != "0.6.11":
+        parser.error(
+            f"expected langgraph==0.6.11, found langgraph=={langgraph_version}"
+        )
+    started_at = datetime.now(UTC).isoformat()
+    args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
+    records = args.output / "records"
+    records.mkdir(exist_ok=True, mode=0o700)
+    payload = json.loads(args.cases.read_text())
+    work = [
+        (case, policy, repetition)
+        for repetition in range(args.repetitions)
+        for case in payload["cases"]
+        for policy in POLICIES
+    ]
+    random.Random(args.seed).shuffle(work)
+
+    def execute(item: tuple[dict[str, Any], str, int]) -> dict[str, Any]:
+        case, policy, repetition = item
+        name = f"{case['case_id']}--{policy}--{repetition}.json"
+        path = records / name
+        private_path = args.output / "private-acquisitions"
+        private_record = private_path / name
+        if path.exists() and private_record.exists():
+            return json.loads(path.read_text())
+        try:
+            with (
+                httpx.Client(
+                    base_url=args.base_url,
+                    headers={"Authorization": f"Bearer {args.api_key}"},
+                    timeout=180,
+                ) as api,
+                httpx.Client(
+                    base_url=args.llm_base_url,
+                    headers={"Authorization": f"Bearer {args.llm_api_key}"},
+                    timeout=180,
+                ) as llm,
+            ):
+                result = execute_trial(
+                    case,
+                    policy,
+                    repetition,
+                    api_client=api,
+                    llm_client=llm,
+                    model=args.model,
+                    result_limit=args.result_limit,
+                )
+                private = result.pop("private_acquisitions")
+                private_path.mkdir(exist_ok=True, mode=0o700)
+                atomic_json(private_record, private)
+        except Exception as error:
+            result = {
+                "schema_version": "enterprise-evaluation/w10-policy-trial/1",
+                "case_id": case["case_id"],
+                "policy": policy,
+                "repetition": repetition,
+                "status": "failed",
+                "error_type": type(error).__name__,
+                "error": str(error)[:1000],
+            }
+        atomic_json(path, result)
+        return result
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
+        results = list(pool.map(execute, work))
+    manifest = {
+        "schema_version": "enterprise-evaluation/w10-policy-run/1",
+        "cases_sha256": digest(args.cases.read_bytes()),
+        "records": len(results),
+        "completed": sum(item["status"] == "completed" for item in results),
+        "failed": sum(item["status"] != "completed" for item in results),
+        "policies": list(POLICIES),
+        "repetitions": args.repetitions,
+        "result_limit": args.result_limit,
+        "seed": args.seed,
+        "started_at": started_at,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "environment": {
+            "python": platform.python_version(),
+            "httpx": version("httpx"),
+            "langgraph": langgraph_version,
+            "model_requested": args.model,
+            "api_route": "candidate_loopback",
+            "llm_route": "openai_compatible",
+            "runner_sha256": digest(Path(__file__).read_bytes()),
+            "policy_sha256": digest(
+                (ROOT / "agent-svc/agent/experimental/bounded_adaptive_policy.py").read_bytes()
+            ),
+        },
+    }
+    atomic_json(args.output / "manifest.json", manifest)
+    print(json.dumps(manifest, indent=2, sort_keys=True))
+    return 0 if manifest["failed"] == 0 else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

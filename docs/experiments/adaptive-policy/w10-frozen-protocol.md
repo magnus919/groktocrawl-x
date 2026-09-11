@@ -82,3 +82,9 @@ Retain the environment manifest, query/proposal log, candidate and exclusion log
 claim-gap ledger, source-to-claim links, blind grades, sealed arm map, run-level
 measurements, hypothesis analysis, sensitivities, and outcome. No essential
 evidence may exist only in chat or an untracked temporary file.
+
+The source and exclusion accounting, competing-hypothesis analysis, and durable
+completion gate are defined in `w10-research-log.md`. Live execution uses the
+same optional dependency as the earlier runtime studies,
+`langgraph==0.6.11`, installed in an isolated experiment environment rather than
+the production image.
