@@ -83,6 +83,7 @@ def trial_evidence_checkpoint(
     attempts: list[dict[str, Any]],
     proposals: list[dict[str, Any]],
     candidates: dict[str, dict[str, Any]],
+    initial_gap_assessment: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Split resumable trial evidence into tracked metadata and private excerpts."""
     public_candidates = [
@@ -113,6 +114,7 @@ def trial_evidence_checkpoint(
             "stage": stage,
             "attempts": attempts,
             "proposals": proposals,
+            "initial_gap_assessment": initial_gap_assessment,
             "candidates": public_candidates,
             "recorded_at": datetime.now(UTC).isoformat(),
         },
@@ -409,6 +411,26 @@ def resolve_terminal_stop_reason(
     return "proposal_exhausted"
 
 
+def apply_planner_gap_state(
+    gaps: tuple[EvidenceGap, ...], assessment: list[dict[str, Any]]
+) -> tuple[EvidenceGap, ...]:
+    """Validate and apply the planner's initial open/closed gap judgments."""
+    expected = {gap.gap_id for gap in gaps}
+    observed = [item["gap_id"] for item in assessment]
+    if len(observed) != len(set(observed)) or set(observed) != expected:
+        raise ValueError("planning must return every gap exactly once")
+    statuses = {item["gap_id"]: item["status"] for item in assessment}
+    return tuple(
+        EvidenceGap(
+            gap.gap_id,
+            gap.importance,
+            gap.closure_rule,
+            statuses[gap.gap_id] == "closed",
+        )
+        for gap in gaps
+    )
+
+
 def execute_trial(
     case: dict[str, Any],
     policy: str,
@@ -500,6 +522,9 @@ def execute_trial(
                 attempts=attempts,
                 proposals=proposal_log,
                 candidates=candidates,
+                initial_gap_assessment=(
+                    planning.get("initial_gaps") if planning is not None else None
+                ),
             )
         )
 
@@ -595,8 +620,8 @@ def execute_trial(
             max_tokens=1400,
             deadline=deadline,
         )
-        statuses = {item["gap_id"]: item["status"] for item in planning["initial_gaps"]}
-        all_closed = statuses and all(value == "closed" for value in statuses.values())
+        planning_gaps = apply_planner_gap_state(gaps, planning["initial_gaps"])
+        all_closed = planning_gaps and all(gap.closed for gap in planning_gaps)
         planner_claimed_complete = bool(all_closed)
         if not all_closed:
             prior: tuple[str, ...] = (case["query"],)
@@ -619,7 +644,7 @@ def execute_trial(
                     proposal_decision = gate_proposal(
                         proposal,
                         original_query=case["query"],
-                        gaps=gaps,
+                        gaps=planning_gaps,
                         prior_queries=prior,
                     )
                     admitted, reason = (
@@ -673,10 +698,7 @@ def execute_trial(
                             and item.get("selected_on_attempt") == 1
                         }
                         evidence_gain = any(
-                            (
-                                item["supports_or_challenges"]
-                                and item["marginal_value"]
-                            )
+                            (item["supports_or_challenges"] and item["marginal_value"])
                             or item["improves_currency"]
                             or item["improves_authority"]
                             or item["resolves_contradiction"]
@@ -722,9 +744,7 @@ def execute_trial(
     )
     checkpoint("acquisition_complete")
 
-    assessment, assessment_receipt, _ = assess_current_candidates(
-        stage="final"
-    )
+    assessment, assessment_receipt, _ = assess_current_candidates(stage="final")
     assessed = {item["candidate_id"]: item for item in assessment["candidates"]}
     admitted_ids: list[str] = []
     admitted_canonical_ids: set[str] = set()
@@ -890,6 +910,9 @@ def execute_trial(
         "status": "completed",
         "attempts": attempts,
         "proposals": proposal_log,
+        "initial_gap_assessment": (
+            planning.get("initial_gaps") if planning is not None else None
+        ),
         "candidates": public_candidates,
         "gap_results": gap_results,
         "metrics": {

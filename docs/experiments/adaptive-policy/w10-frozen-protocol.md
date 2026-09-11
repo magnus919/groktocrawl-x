@@ -76,6 +76,16 @@ backfills. The validator closed every provenance and evidence edge. Its private
 tree is retained as `pre-execution-acquisition-attribution-smoke` with SHA-256
 `251f7e3b9cd30a900ef87dcddbab84aa0ea0c3d96fda3b4856298ffa438c0670`.
 
+A later nine-trial launch was stopped when the research-methodology audit found
+that proposal gating received the original all-open gap definitions rather than
+the planner's recorded initial assessment. A gated arm could therefore execute a
+query for a gap the planner had already declared closed. The launch is retained
+and excluded as `challenge-excluded-stale-gap-gate` with SHA-256
+`db6d737cff8c812d28ff2a1da32fe1887eb4e2ac9c44e609c0bb4c22968178ee`.
+Valid adaptive records preserve one unique initial assessment for every declared
+gap, and proposal admission uses that exact state. The run validator verifies
+this closure before accepting a study run.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256
@@ -97,6 +107,7 @@ Each case permits at most three searches, three planning/judging model calls, 20
 results per search, eight admitted sources, and 180 elapsed seconds. A proposal
 must name one gap, predict the evidence that closes it, differ materially from
 prior query intent, and avoid broadening beyond the material claims.
+The named gap must still be open in the planner's preserved initial assessment.
 
 A candidate is admitted only if acquired content supports or challenges a
 material claim, improves authority or currency, resolves a contradiction, or

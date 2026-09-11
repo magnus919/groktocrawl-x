@@ -31,6 +31,15 @@ The interpretation and boundary analysis are declared in
 `w10-analysis-plan.md`. That plan does not alter the frozen cases, outcomes, or
 decision gates.
 
+## Inclusion and exclusion rule
+
+Include only trials produced from the exact frozen source, case, protocol, and
+runner digests that pass the independent run validator. Preserve but exclude
+interrupted trials and trials affected by a discovered accounting, attribution,
+stopping, or proposal-state defect. Do not infer a policy result from partial
+evidence. Every exclusion and its evidence-tree digest remains in the protocol
+and research log.
+
 ## Confidence and scope
 
 The study targets agentic engineering software factories in enterprise settings.

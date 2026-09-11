@@ -48,6 +48,16 @@ Use `consistent`, `inconsistent`, or `not diagnostic` in the completed matrix.
 Prefer the hypothesis with the fewest important inconsistencies. Identify any
 linchpin evidence whose removal changes the decision.
 
+## Method audit and exclusions
+
+Each interrupted or invalid execution remains in the private evidence tree with
+its digest and reason for exclusion. A timeout is treated as an interruption,
+not an outcome. The study resumes only after the partial evidence is inspected,
+the defect is reproduced, and a focused regression test plus the run validator
+close the affected evidence edge. The frozen protocol lists every excluded tree,
+including the stale-gap proposal-gate launch found during the full
+research-methodology audit.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.

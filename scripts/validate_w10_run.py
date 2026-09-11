@@ -70,7 +70,9 @@ def validate_run(
         issues.append("work order contains duplicate trial identities")
 
     record_paths = sorted((run_dir / "records").glob("*.json"))
-    private_paths = {item.name: item for item in (run_dir / "private-acquisitions").glob("*.json")}
+    private_paths = {
+        item.name: item for item in (run_dir / "private-acquisitions").glob("*.json")
+    }
     observed: set[tuple[str, str, int]] = set()
     for record_path in record_paths:
         record = load_json(record_path)
@@ -96,13 +98,17 @@ def validate_run(
         attempts = record.get("attempts", [])
         proposals = record.get("proposals", [])
         if metrics.get("searches") != len(attempts):
-            issues.append(f"{record_path.name}: search accounting differs from attempts")
+            issues.append(
+                f"{record_path.name}: search accounting differs from attempts"
+            )
         if sum(item.get("executed", False) for item in proposals) != max(
             0, len(attempts) - 1
         ):
             issues.append(f"{record_path.name}: proposal execution accounting differs")
         if any("reviewed_excerpt" in item for item in record.get("candidates", [])):
-            issues.append(f"{record_path.name}: public record contains a private excerpt")
+            issues.append(
+                f"{record_path.name}: public record contains a private excerpt"
+            )
         if record.get("orchestration", {}).get("runtime") != "langgraph":
             issues.append(f"{record_path.name}: orchestration runtime is not LangGraph")
         event_count = record.get("orchestration", {}).get("event_count")
@@ -143,21 +149,50 @@ def validate_run(
                     issues.append(
                         f"{record_path.name}: candidate {candidate_id} attribution lacks a matching origin"
                     )
-        expected_gaps = {item["claim_id"] for item in cases[record["case_id"]]["claims"]}
+        expected_gaps = {
+            item["claim_id"] for item in cases[record["case_id"]]["claims"]
+        }
+        initial_gap_assessment = record.get("initial_gap_assessment")
+        if record["policy"] == "fixed":
+            if initial_gap_assessment is not None:
+                issues.append(
+                    f"{record_path.name}: fixed policy has a planner gap assessment"
+                )
+        elif not isinstance(initial_gap_assessment, list):
+            issues.append(
+                f"{record_path.name}: adaptive policy lacks initial gap assessment"
+            )
+        else:
+            initial_gap_ids = [
+                item.get("gap_id")
+                for item in initial_gap_assessment
+                if isinstance(item, dict)
+            ]
+            if (
+                len(initial_gap_ids) != len(initial_gap_assessment)
+                or len(initial_gap_ids) != len(set(initial_gap_ids))
+                or set(initial_gap_ids) != expected_gaps
+            ):
+                issues.append(
+                    f"{record_path.name}: initial gap assessment differs from the case"
+                )
         observed_gaps = [item["gap_id"] for item in record.get("gap_results", [])]
-        if len(observed_gaps) != len(set(observed_gaps)) or set(observed_gaps) != expected_gaps:
+        if (
+            len(observed_gaps) != len(set(observed_gaps))
+            or set(observed_gaps) != expected_gaps
+        ):
             issues.append(f"{record_path.name}: gap accounting differs from the case")
 
     orphan_private = set(private_paths) - {item.name for item in record_paths}
     if orphan_private:
-        issues.append(f"{len(orphan_private)} private completed records lack public records")
+        issues.append(
+            f"{len(orphan_private)} private completed records lack public records"
+        )
     for public_name, private_name in (
         ("inflight", "private-inflight"),
         ("failures", "private-failures"),
     ):
-        public_evidence = {
-            item.name for item in (run_dir / public_name).glob("*.json")
-        }
+        public_evidence = {item.name for item in (run_dir / public_name).glob("*.json")}
         private_evidence = {
             item.name for item in (run_dir / private_name).glob("*.json")
         }

@@ -5,6 +5,7 @@ import pytest
 import scripts.run_w10_adaptive_policy as w10_runner
 from scripts.build_w10_adjudication_packet import select_gap_disagreements
 from scripts.run_w10_adaptive_policy import (
+    apply_planner_gap_state,
     build_work_order,
     execute_trial,
     resolve_terminal_stop_reason,
@@ -211,8 +212,7 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
     (run_dir / "records").mkdir(parents=True)
     (run_dir / "private-acquisitions").mkdir()
     cases_path.write_text(
-        '{"cases":[{"case_id":"case-1","claims":'
-        '[{"claim_id":"claim"}]}]}\n'
+        '{"cases":[{"case_id":"case-1","claims":[{"claim_id":"claim"}]}]}\n'
     )
     freeze_path.write_text('{"runner_sha256":"runner"}\n')
     (run_dir / "run-metadata.json").write_text(
@@ -246,6 +246,7 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
                 },
                 "attempts": [{"query": "initial"}],
                 "proposals": [],
+                "initial_gap_assessment": None,
                 "candidates": [
                     {
                         "candidate_id": "source-1",
@@ -269,9 +270,7 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
         '"reviewed_excerpt":"private"}]\n'
     )
 
-    assert validate_run(
-        run_dir, cases_path, freeze_path, expected_records=1
-    ) == []
+    assert validate_run(run_dir, cases_path, freeze_path, expected_records=1) == []
     record = json.loads((run_dir / "records" / name).read_text())
     record["stop_reason"] = "continue"
     record["candidates"][0]["reviewed_excerpt"] = "leak"
@@ -334,6 +333,44 @@ def test_exhausted_policy_paths_have_terminal_reasons(
     )
 
 
+def test_planner_gap_state_is_complete_unique_and_controls_proposal_gate():
+    gaps = (
+        w10_runner.EvidenceGap("closed", 3, "primary source"),
+        w10_runner.EvidenceGap("open", 2, "independent corroboration"),
+    )
+    assessed = apply_planner_gap_state(
+        gaps,
+        [
+            {"gap_id": "closed", "status": "closed", "reason": "found"},
+            {"gap_id": "open", "status": "open", "reason": "missing"},
+        ],
+    )
+
+    assert [gap.closed for gap in assessed] == [True, False]
+    rejected = w10_runner.gate_proposal(
+        w10_runner.QueryProposal(
+            query="find primary source",
+            gap_id="closed",
+            predicted_evidence="primary source",
+            purpose="missing_support",
+        ),
+        original_query="initial query",
+        gaps=assessed,
+        prior_queries=("initial query",),
+    )
+    assert not rejected.admitted
+    assert rejected.reason == "gap_already_closed"
+
+    with pytest.raises(ValueError, match="every gap exactly once"):
+        apply_planner_gap_state(
+            gaps,
+            [
+                {"gap_id": "closed", "status": "closed", "reason": "found"},
+                {"gap_id": "closed", "status": "open", "reason": "duplicate"},
+            ],
+        )
+
+
 def test_trial_checkpoint_preserves_failure_evidence_without_public_excerpts():
     public, private = trial_evidence_checkpoint(
         case={"case_id": "case-1", "challenge_type": "contradiction"},
@@ -370,7 +407,10 @@ def test_full_policy_stops_between_followups_from_observed_gain(
 ):
     results = {
         "initial evidence": [
-            {"url": f"https://initial-{index}.example/item", "title": f"initial-{index}"}
+            {
+                "url": f"https://initial-{index}.example/item",
+                "title": f"initial-{index}",
+            }
             for index in range(5)
         ],
         "primary benchmark evidence": [
@@ -378,7 +418,10 @@ def test_full_policy_stops_between_followups_from_observed_gain(
             {"url": "https://follow-1.example/item", "title": "follow-1"},
         ],
         "defect study evidence": [
-            {"url": f"https://follow-2-{index}.example/item", "title": f"follow-2-{index}"}
+            {
+                "url": f"https://follow-2-{index}.example/item",
+                "title": f"follow-2-{index}",
+            }
             for index in range(2)
         ],
     }
