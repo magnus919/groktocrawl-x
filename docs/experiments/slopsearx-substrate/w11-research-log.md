@@ -224,3 +224,18 @@ page returned an HTTP error and was recorded as a failed retrieval. The
 provenance hard gate passed because the failure remained faithfully linked and
 the manifest disclaimed verification. This result does not count the failed
 page as successful acquisition and does not establish research quality.
+
+## 2026-09-11 — staged-search evidence correction
+
+A semantic review found that the passing reference attached to the partial-
+coverage case exercised retry accounting after an interrupted attempt. It did
+not create the declared mixed outcome of one successful-empty engine and one
+failed engine. The case was therefore not proven despite the green aggregate
+summary.
+
+The missing SlopSearX regression test constructs that exact mixed initial
+scope. It requires the operation to fail explicitly, preserves the two charged
+initial adapter calls, leaves the fallback pending, and proves the fallback
+adapter received zero calls. W11 now references that exact test. The contract
+summary must be regenerated from the corrected source test before the staged
+family can return to passing status.

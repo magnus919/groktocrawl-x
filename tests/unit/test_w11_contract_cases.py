@@ -56,6 +56,12 @@ def test_malformed_reference_fails_closed() -> None:
     assert any("reference_tests" in issue for issue in MODULE.validate_cases(value))
 
 
+def test_missing_proof_revision_fails_closed() -> None:
+    value = payload()
+    del value["slopsearx_reference"]["proof_revision"]
+    assert "SlopSearX proof_revision must be an exact commit" in MODULE.validate_cases(value)
+
+
 def test_class_scoped_pytest_reference_is_valid() -> None:
     value = payload()
     value["cases"][0]["reference_tests"] = [

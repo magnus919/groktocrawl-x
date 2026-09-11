@@ -36,6 +36,8 @@ def validate_cases(payload: Any) -> list[str]:
             issues.append("SlopSearX version must be 0.5.0")
         if re.fullmatch(r"[0-9a-f]{40}", str(reference.get("source_revision", ""))) is None:
             issues.append("SlopSearX source_revision must be an exact commit")
+        if re.fullmatch(r"[0-9a-f]{40}", str(reference.get("proof_revision", ""))) is None:
+            issues.append("SlopSearX proof_revision must be an exact commit")
     boundary = payload.get("scoring_boundary")
     if not isinstance(boundary, str) or "do not contribute" not in boundary:
         issues.append("contract scoring boundary is missing")
