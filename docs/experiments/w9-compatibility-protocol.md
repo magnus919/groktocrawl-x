@@ -89,4 +89,3 @@ deployment pair. It does not prove Internet-wide acquisition reliability,
 production scale, semantic answer superiority, long-duration stability, or
 compatibility for endpoints outside the declared inventory. Those claims belong
 to later W9 gates or remain explicitly untested.
-
