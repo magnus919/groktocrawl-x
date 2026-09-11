@@ -27,6 +27,10 @@ The linchpin evidence is a repeated, challenge-stratum improvement in weighted
 claim closure that survives sensitivity checks while maintaining precision and
 work bounds. Without that evidence, fixed retrieval stays the default.
 
+The interpretation and boundary analysis are declared in
+`w10-analysis-plan.md`. That plan does not alter the frozen cases, outcomes, or
+decision gates.
+
 ## Confidence and scope
 
 The study targets agentic engineering software factories in enterprise settings.

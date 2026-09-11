@@ -57,6 +57,8 @@ linchpin evidence whose removal changes the decision.
 - [ ] The hypothesis matrix and all required sensitivity analyses are complete.
 - [ ] Environment, software, model, and dataset digests permit reproduction.
 - [ ] No essential evidence exists only in chat or an untracked temporary file.
+- [ ] The boundary measures and four-way decision form in
+  `w10-analysis-plan.md` are complete.
 
 ## Final artifact pyramid
 
