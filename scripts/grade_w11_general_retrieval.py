@@ -17,6 +17,7 @@ import httpx
 
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "agent-svc"))
 
 from agent.experimental.bounded_adaptive_policy import (
     CandidateAssessment,
