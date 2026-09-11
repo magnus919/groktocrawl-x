@@ -7,8 +7,12 @@ import argparse
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Protocol
+
+ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT))
 
 from scripts.w11_mcp_client import W11McpClient
 
