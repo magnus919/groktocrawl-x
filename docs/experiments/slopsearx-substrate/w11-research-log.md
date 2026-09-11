@@ -257,3 +257,17 @@ The corrected package case now supplies the exact package name to the package
 adapter alone. This is an input-contract correction made before accepting any
 entity outcome. The failed pilot remains private; its reason and the changed
 case are retained here rather than silently overwritten.
+
+The corrected two-case pilot passed. One CVE result projected to one CVE
+entity after ordinary URL deduplication had already combined the engine
+observations. One PyPI result projected to separate package-release and GitHub
+repository entities with a `candidate_repository` edge. Both projections
+conserved every result, retained the flat snapshot byte-for-byte, and used only
+the documented relationship vocabulary.
+
+The measured count of potentially avoidable acquisitions was zero in both
+cases. Entity projection is therefore useful here as an organizational and
+relationship view, but the live evidence does not support using it to suppress
+fetches. W11 keeps automatic fetch suppression disabled because shared identity
+does not prove URL equivalence, source dependence, ownership, applicability,
+or verification.
