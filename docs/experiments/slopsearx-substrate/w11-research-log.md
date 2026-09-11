@@ -50,6 +50,19 @@ Decision:
   handling, recovery, saved-search monitoring, and dependency dossiers so one
   feature cannot mask another's failure.
 
+Preflight implementation check:
+
+- The first capture was excluded because its configuration fingerprint
+  included the current worker ID, which changes across restarts and is not a
+  configuration choice.
+- The corrected capture retains stable execution settings and omits that
+  identity. Its configuration digest is
+  `de343af62cb56eb4f6b0f2bcf32467269c058cae453ea23f4624bba7444cc167`.
+- All five declared disabled capability probes returned `tool_disabled` before
+  dispatch. The retained packet is under
+  `evidence/slopsearx-substrate/2026-09-11-shared-discovery/` and remains
+  excluded from scored W11 evidence.
+
 Exclusions and limitations:
 
 - Feature documentation and contract tests establish intended behavior, not
