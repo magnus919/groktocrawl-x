@@ -56,6 +56,10 @@ nonterminal stop label `continue`. That launch is preserved and excluded as
 Every valid completed trial must instead record a terminal reason, including
 fixed-query completion, planner-declared completion, no proposed follow-up, no
 admitted proposal, exhausted proposals, an evidence-based stop, or a hard bound.
+The targeted repeat completed in 50.639 seconds with the explicit terminal reason
+`planner_claimed_complete`; its private tree is retained as
+`pre-execution-terminal-stop-smoke` with SHA-256
+`c92710ce3979dcb1d14948d2ae1d961e3fa244ccddacc6e1db31279452ca766c`.
 
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
