@@ -1,0 +1,324 @@
+#!/usr/bin/env python3
+"""Verify an isolated replacement candidate and write a sanitized receipt."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import json
+import os
+import subprocess
+import time
+from pathlib import Path
+from typing import Any
+
+import httpx
+
+
+def _run(command: list[str], *, env: dict[str, str] | None = None) -> str:
+    result = subprocess.run(
+        command,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    return result.stdout.strip()
+
+
+def _sse_payload(response: httpx.Response) -> dict[str, Any]:
+    for line in response.text.splitlines():
+        if line.startswith("data:"):
+            return json.loads(line[5:].strip())
+    return response.json()
+
+
+def _json_records(value: str) -> list[dict[str, Any]]:
+    """Accept Compose's array or newline-delimited JSON output variants."""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        parsed = [json.loads(line) for line in value.splitlines() if line.strip()]
+    if isinstance(parsed, list):
+        return parsed
+    if isinstance(parsed, dict):
+        return [parsed]
+    raise RuntimeError("unexpected Docker Compose JSON output")
+
+
+async def _mcp_call(client: httpx.AsyncClient, session: str, name: str) -> dict[str, Any]:
+    response = await client.post(
+        "/mcp",
+        headers={
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "MCP-Session-Id": session,
+        },
+        json={
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": {}},
+        },
+    )
+    response.raise_for_status()
+    payload = _sse_payload(response)
+    if payload.get("error") or payload.get("result", {}).get("isError"):
+        raise RuntimeError(f"MCP tool {name} failed")
+    return payload
+
+
+async def verify(args: argparse.Namespace) -> dict[str, Any]:
+    api_headers = {"Authorization": f"Bearer {args.api_key}"}
+    async with httpx.AsyncClient(
+        base_url=args.base_url, headers=api_headers, timeout=args.timeout
+    ) as client:
+        health_response = await client.get("/health")
+        health_response.raise_for_status()
+        health = health_response.json()
+        if health.get("status") != "ok":
+            raise RuntimeError(f"candidate health is {health.get('status')!r}")
+
+        capability_response = await client.get(
+            "/experimental/research/v1/capabilities"
+        )
+        capability_response.raise_for_status()
+        capabilities = capability_response.json()
+        if capabilities.get("implementation_stage") != "postgres_artifact_authority_adapter":
+            raise RuntimeError("PostgreSQL artifact authority is not active")
+
+        admitted_response = await client.post(
+            "/experimental/research/v1/runs",
+            headers={**api_headers, "Idempotency-Key": f"candidate-{time.time_ns()}"},
+            json={"objective": "Verify the isolated replacement candidate artifact journey."},
+        )
+        admitted_response.raise_for_status()
+        admitted = admitted_response.json()
+        run_id = admitted["run_id"]
+
+        deadline = time.monotonic() + args.timeout
+        run: dict[str, Any] = {}
+        while time.monotonic() < deadline:
+            status_response = await client.get(
+                f"/experimental/research/v1/runs/{run_id}"
+            )
+            status_response.raise_for_status()
+            run = status_response.json()
+            if run["state"] in {"completed", "failed", "cancelled"}:
+                break
+            await asyncio.sleep(0.25)
+        if run.get("state") != "completed":
+            raise RuntimeError(f"research journey ended in {run.get('state')!r}")
+
+        events_response = await client.get(
+            f"/experimental/research/v1/runs/{run_id}/events"
+        )
+        events_response.raise_for_status()
+        event_names = [
+            line[6:].strip()
+            for line in events_response.text.splitlines()
+            if line.startswith("event:")
+        ]
+        if "done" not in event_names:
+            raise RuntimeError("SSE replay did not contain the terminal event")
+
+        result = run.get("result") or {}
+        manifest_path = result.get("manifest_url")
+        artifacts = result.get("artifacts") or {}
+        if not manifest_path or set(artifacts) != {"summary", "analysis", "dossier"}:
+            raise RuntimeError("completed run did not expose the complete artifact set")
+        manifest_response = await client.get(manifest_path)
+        manifest_response.raise_for_status()
+        artifact_digests: dict[str, str] = {}
+        for layer, path in artifacts.items():
+            artifact_response = await client.get(path)
+            artifact_response.raise_for_status()
+            artifact_digests[layer] = hashlib.sha256(artifact_response.content).hexdigest()
+
+        search_response = await client.post(
+            "/v2/search",
+            json={
+                "query": "agentic engineering software factory enterprise",
+                "limit": 3,
+            },
+        )
+        search_response.raise_for_status()
+        search_payload = search_response.json()
+        search_result_count = len(search_payload.get("data", {}).get("web", []))
+        if not search_payload.get("success") or search_result_count == 0:
+            raise RuntimeError("HTTP search returned no usable results")
+
+    cli_env = {**os.environ, "GROKTOCRAWL_API_KEY": args.api_key}
+    cli_payload = json.loads(
+        _run(
+            [
+                str(Path(__file__).parents[1] / "groktocrawl"),
+                "--server",
+                args.base_url,
+                "--json",
+                "search",
+                "agentic engineering software factory enterprise",
+                "--limit",
+                "3",
+            ],
+            env=cli_env,
+        )
+    )
+    cli_result_count = len(cli_payload.get("data", {}).get("web", []))
+    if not cli_payload.get("success") or cli_result_count == 0:
+        raise RuntimeError("CLI search returned no usable results")
+
+    async with httpx.AsyncClient(base_url=args.mcp_url, timeout=args.timeout) as mcp:
+        initialized = await mcp.post(
+            "/mcp",
+            headers={
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "candidate-verifier", "version": "1"},
+                },
+            },
+        )
+        initialized.raise_for_status()
+        session = initialized.headers.get("mcp-session-id")
+        if not session:
+            raise RuntimeError("MCP initialize returned no session")
+        mcp_capabilities = await _mcp_call(mcp, session, "research_capabilities")
+
+    compose = [
+        "docker",
+        "compose",
+        "--env-file",
+        args.env_file,
+        "-f",
+        args.compose_file,
+    ]
+    schema_version = _run(
+        [
+            *compose,
+            "exec",
+            "-T",
+            "candidate-postgres",
+            "psql",
+            "-U",
+            "groktocrawl_x",
+            "-d",
+            "groktocrawl_x",
+            "-Atc",
+            "SELECT version FROM research_staging.schema_version",
+        ]
+    )
+    pgvector_version = _run(
+        [
+            *compose,
+            "exec",
+            "-T",
+            "candidate-postgres",
+            "psql",
+            "-U",
+            "groktocrawl_x",
+            "-d",
+            "groktocrawl_x",
+            "-Atc",
+            "SELECT extversion FROM pg_extension WHERE extname='vector'",
+        ]
+    )
+    if schema_version != "14" or not pgvector_version:
+        raise RuntimeError("PostgreSQL schema or pgvector extension is unavailable")
+    semantic_health = json.loads(
+        _run(
+            [
+                *compose,
+                "exec",
+                "-T",
+                "candidate-semantic",
+                "python",
+                "-c",
+                (
+                    "import json,urllib.request;"
+                    "print(json.dumps(json.load(urllib.request.urlopen("
+                    "'http://127.0.0.1:8003/ready',timeout=5))))"
+                ),
+            ]
+        )
+    )
+    if (
+        semantic_health.get("vector_store") != "pgvector"
+        or semantic_health.get("pgvector") != "ready"
+        or semantic_health.get("qdrant") != "rollback_ready"
+    ):
+        raise RuntimeError("semantic serving or rollback readiness is unavailable")
+
+    return {
+        "schema_version": "experimental-candidate-verification/1",
+        "verified_at_unix": int(time.time()),
+        "git_revision": _run(["git", "rev-parse", "HEAD"]),
+        "source": {
+            "compose_sha256": hashlib.sha256(
+                Path(args.compose_file).read_bytes()
+            ).hexdigest(),
+            "uv_lock_sha256": hashlib.sha256(
+                (Path(__file__).parents[1] / "uv.lock").read_bytes()
+            ).hexdigest(),
+        },
+        "service_health": health,
+        "research": {
+            "run_id": run_id,
+            "research_id": run["research_id"],
+            "state": run["state"],
+            "sse_events": event_names,
+            "manifest_sha256": hashlib.sha256(manifest_response.content).hexdigest(),
+            "artifact_sha256": artifact_digests,
+        },
+        "postgres": {
+            "research_schema_version": int(schema_version),
+            "pgvector_version": pgvector_version,
+        },
+        "semantic": semantic_health,
+        "search": {"result_count": search_result_count},
+        "cli": {"success": True, "result_count": cli_result_count},
+        "mcp": {
+            "research_capabilities": "result" in mcp_capabilities,
+        },
+        "compose": {
+            "version": _run(["docker", "compose", "version", "--short"]),
+            "services": _json_records(_run([*compose, "ps", "--format", "json"])),
+            "images": _json_records(_run([*compose, "images", "--format", "json"])),
+        },
+    }
+
+
+def parser() -> argparse.ArgumentParser:
+    value = argparse.ArgumentParser(description=__doc__)
+    value.add_argument("--base-url", default="http://127.0.0.1:18080")
+    value.add_argument("--mcp-url", default="http://127.0.0.1:18002")
+    value.add_argument("--api-key", default=os.environ.get("CANDIDATE_API_KEY", ""))
+    value.add_argument("--env-file", required=True)
+    value.add_argument("--compose-file", default="compose.experimental-candidate.yml")
+    value.add_argument("--timeout", type=float, default=300)
+    value.add_argument("--output", required=True)
+    return value
+
+
+def main() -> int:
+    args = parser().parse_args()
+    if not args.api_key:
+        raise SystemExit("CANDIDATE_API_KEY or --api-key is required")
+    receipt = asyncio.run(verify(args))
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+    print(output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
