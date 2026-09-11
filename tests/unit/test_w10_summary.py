@@ -10,7 +10,12 @@ from scripts.run_w10_adaptive_policy import (
     resolve_terminal_stop_reason,
     trial_evidence_checkpoint,
 )
-from scripts.summarize_w10_adaptive_policy import aggregate, gate, gate_rejection_audit
+from scripts.summarize_w10_adaptive_policy import (
+    aggregate,
+    gate,
+    gate_rejection_audit,
+    trial_metrics,
+)
 from scripts.validate_w10_run import digest as file_digest
 from scripts.validate_w10_run import validate_run
 
@@ -115,6 +120,51 @@ def test_gate_rejection_audit_uses_only_observed_equivalent_queries():
     assert result["rejections"] == 2
     assert result["observed_gain_elsewhere"] == 1
     assert result["unknown"] == 1
+
+
+def test_summary_credits_promoted_source_to_acquiring_followup():
+    record = {
+        "status": "completed",
+        "case_id": "case-1",
+        "policy": "full",
+        "repetition": 0,
+        "attempts": [{"query": "initial"}, {"query": "follow-up"}],
+        "proposals": [{"admitted": True, "executed": True}],
+        "candidates": [
+            {
+                "candidate_id": "source-1",
+                "acquisition_status": "acquired",
+                "admitted": True,
+                "selected_on_attempt": 1,
+                "search_origins": [
+                    {"attempt": 0, "rank": 8},
+                    {"attempt": 1, "rank": 1},
+                ],
+                "operational_assessment": {
+                    "supports_or_challenges": True,
+                    "marginal_value": True,
+                },
+            }
+        ],
+        "gap_results": [{"gap_id": "claim", "status": "closed"}],
+        "metrics": {
+            "searches": 2,
+            "model_calls": 3,
+            "admitted_count": 1,
+            "closed_weight": 3,
+            "total_weight": 3,
+            "elapsed_ms": 100,
+        },
+        "round_decisions": [],
+    }
+    case = {
+        "challenge_type": "unsupported_claim",
+        "claims": [{"claim_id": "claim", "importance": 3}],
+    }
+
+    result = trial_metrics(record, case)
+    assert result["gainful_followup_queries"] == 1
+    assert result["unnecessary_followup_queries"] == 0
 
 
 def test_adjudication_selects_every_disputed_high_importance_closure():
