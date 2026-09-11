@@ -315,3 +315,26 @@ response, and the harness process was terminated. Recovery reused the retained
 search and result handoff, visibly counted two capture attempts, created and
 replayed one receipt, retained exactly one receipt, and passed the linked
 manifest gate. This closes the live downstream-retrieval interruption case.
+
+## 2026-09-11 — isolated saved-search lifecycle
+
+The saved-search arm started with a dedicated network and Valkey volume. Its
+preflight enabled only saved searches and saved-search events; the other seven
+specialist grants were denied before dispatch. A live package query produced
+one immediate baseline and one scheduled no-change comparison. The comparison
+reported no source-change events. Pausing held the report count unchanged for
+a full interval, repeated event reads returned the same event identities,
+acknowledgement was stable on replay, the post-ack read was empty, and resume
+plus deletion succeeded.
+
+The first computed hard gate was false because the harness assumed reports
+were oldest-first. Inspection showed the API returns newest-first and every
+underlying lifecycle check had passed. The evaluator was corrected to select
+reports by explicit status and the same retained evidence was reanalyzed; no
+search or scheduled interval was repeated. The corrected hard gate passed.
+
+This live case does not establish change-detection accuracy against an
+externally evolving source. Controlled added, changed, not-observed, pause,
+event, and retention cases remain covered by the pinned deterministic contract
+suite. The live result establishes scheduling, stable no-change behavior,
+delivery, acknowledgement, resume, and bounded cleanup.
