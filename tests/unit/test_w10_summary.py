@@ -5,6 +5,7 @@ from scripts.build_w10_adjudication_packet import select_gap_disagreements
 from scripts.run_w10_adaptive_policy import (
     build_work_order,
     execute_trial,
+    resolve_terminal_stop_reason,
     trial_evidence_checkpoint,
 )
 from scripts.summarize_w10_adaptive_policy import aggregate, gate, gate_rejection_audit
@@ -166,6 +167,40 @@ def test_work_order_rotates_each_policy_within_each_case():
             for position, policy in enumerate(ordered):
                 positions[policy].append(position)
         assert all(len(set(values)) == 3 for values in positions.values())
+
+
+@pytest.mark.parametrize(
+    ("policy", "planner_complete", "proposals", "expected"),
+    [
+        ("fixed", False, [], "fixed_query_complete"),
+        ("full", True, [], "planner_claimed_complete"),
+        ("full", False, [], "no_followup_proposed"),
+        (
+            "gated",
+            False,
+            [{"executed": False}],
+            "no_admitted_proposal",
+        ),
+        (
+            "gap",
+            False,
+            [{"executed": True}],
+            "proposal_exhausted",
+        ),
+    ],
+)
+def test_exhausted_policy_paths_have_terminal_reasons(
+    policy, planner_complete, proposals, expected
+):
+    assert (
+        resolve_terminal_stop_reason(
+            policy=policy,
+            computed_stop="continue",
+            planner_claimed_complete=planner_complete,
+            proposals=proposals,
+        )
+        == expected
+    )
 
 
 def test_trial_checkpoint_preserves_failure_evidence_without_public_excerpts():

@@ -387,6 +387,27 @@ def assessment_schema(gap_ids: list[str], candidate_ids: list[str]) -> dict[str,
     }
 
 
+def resolve_terminal_stop_reason(
+    *,
+    policy: str,
+    computed_stop: str,
+    planner_claimed_complete: bool,
+    proposals: list[dict[str, Any]],
+) -> str:
+    """Turn an exhausted policy path into an explicit terminal reason."""
+    if computed_stop != "continue":
+        return computed_stop
+    if policy == "fixed":
+        return "fixed_query_complete"
+    if planner_claimed_complete:
+        return "planner_claimed_complete"
+    if not proposals:
+        return "no_followup_proposed"
+    if not any(item.get("executed", False) for item in proposals):
+        return "no_admitted_proposal"
+    return "proposal_exhausted"
+
+
 def execute_trial(
     case: dict[str, Any],
     policy: str,
@@ -457,6 +478,7 @@ def execute_trial(
     round_decisions: list[dict[str, Any]] = []
     interim_assessment = None
     interim_assessment_receipt = None
+    planner_claimed_complete = False
 
     def checkpoint(stage: str) -> None:
         if checkpoint_writer is None:
@@ -567,6 +589,7 @@ def execute_trial(
         )
         statuses = {item["gap_id"]: item["status"] for item in planning["initial_gaps"]}
         all_closed = statuses and all(value == "closed" for value in statuses.values())
+        planner_claimed_complete = bool(all_closed)
         if not all_closed:
             prior: tuple[str, ...] = (case["query"],)
             executed_followups = 0
@@ -585,13 +608,16 @@ def execute_trial(
                 admitted, reason = True, "policy_has_no_proposal_gate"
                 if policy in {"gated", "full"}:
                     proposal = QueryProposal(**raw)
-                    decision = gate_proposal(
+                    proposal_decision = gate_proposal(
                         proposal,
                         original_query=case["query"],
                         gaps=gaps,
                         prior_queries=prior,
                     )
-                    admitted, reason = decision.admitted, decision.reason
+                    admitted, reason = (
+                        proposal_decision.admitted,
+                        proposal_decision.reason,
+                    )
                 proposal_log.append(
                     {
                         **raw,
@@ -707,7 +733,7 @@ def execute_trial(
         )
         if policy == "full":
             quality = item["quality"]
-            decision = admit_candidate(
+            candidate_decision = admit_candidate(
                 CandidateAssessment(
                     candidate_id=candidate_id,
                     relevant_gap_ids=tuple(item["relevant_gap_ids"]),
@@ -735,8 +761,8 @@ def execute_trial(
                 admitted_canonical_ids=frozenset(admitted_canonical_ids),
                 admitted_publishers=frozenset(admitted_publishers),
             )
-            admitted = decision.admitted
-            admission_reason = decision.reason
+            admitted = candidate_decision.admitted
+            admission_reason = candidate_decision.reason
             if len(admitted_ids) >= 8:
                 admitted = False
                 admission_reason = "source_limit"
@@ -775,9 +801,9 @@ def execute_trial(
         int(planning is not None) + 1 + int(interim_assessment is not None)
     )
     if round_decisions and round_decisions[-1]["decision"] == "stop":
-        stop = round_decisions[-1]["reason"]
+        computed_stop = round_decisions[-1]["reason"]
     else:
-        stop = stop_reason(
+        computed_stop = stop_reason(
             final_gaps,
             WorkState(
                 searches=len(attempts),
@@ -795,6 +821,14 @@ def execute_trial(
             ),
             max_model_calls=3,
         )
+    stop = resolve_terminal_stop_reason(
+        policy=policy,
+        computed_stop=computed_stop,
+        planner_claimed_complete=planner_claimed_complete,
+        proposals=proposal_log,
+    )
+    if stop == "continue":
+        raise RuntimeError("completed trial retained a nonterminal stop reason")
     public_candidates = [
         {key: value for key, value in item.items() if key != "reviewed_excerpt"}
         for item in candidates.values()

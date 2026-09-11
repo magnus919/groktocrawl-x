@@ -22,6 +22,11 @@ StopReason = Literal[
     "source_limit",
     "time_limit",
     "continue",
+    "fixed_query_complete",
+    "planner_claimed_complete",
+    "no_followup_proposed",
+    "no_admitted_proposal",
+    "proposal_exhausted",
 ]
 
 _WORDS = re.compile(r"[a-z0-9][a-z0-9_-]+")

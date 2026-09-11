@@ -48,6 +48,15 @@ tree is retained as `challenge-excluded-posthoc-stop` with SHA-256
 The corrected implementation permits a third model call only for the full arm's
 interim assessment and counts that call as policy cost.
 
+A subsequent six-trial launch proved the sequential behavior but exposed an
+accounting defect: a completed trial with no proposed follow-up retained the
+nonterminal stop label `continue`. That launch is preserved and excluded as
+`challenge-excluded-nonterminal-stop-reason` with SHA-256
+`c7a1d2dff70fdbd54e1f8fa1b43d5cbdbf360819d50e27771d6ea8099b685db4`.
+Every valid completed trial must instead record a terminal reason, including
+fixed-query completion, planner-declared completion, no proposed follow-up, no
+admitted proposal, exhausted proposals, an evidence-based stop, or a hard bound.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256
