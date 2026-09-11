@@ -101,6 +101,13 @@ Co-primary guardrail: admitted-source precision must not be worse by more than
 the non-inferiority margin copied from the frozen W10 analysis. The margin may
 not be chosen after seeing W11 outcomes.
 
+The frozen challenge margins are two percentage points for importance-weighted
+claim closure and five percentage points for admitted-source precision. A gate
+passes only when the lower bound of the case-bootstrap 95% interval remains at
+or above its margin. Repetitions are averaged within cases and are never used
+as independent bootstrap units. These are non-inferiority gates; they do not by
+themselves establish that the research workflow is worth adopting.
+
 Secondary outcomes: useful-query yield, unnecessary-query count, eligible
 source diversity, acquisition success, elapsed time, model calls, search
 attempts, engine attempts, result admissions, stored bytes, and completeness of
