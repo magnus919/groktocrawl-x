@@ -15,10 +15,13 @@ from w11_mcp_client import W11McpClient
 
 SPECIALIST_GRANTS = {
     "dependency_dossier",
+    "jobs",
     "research",
     "retrieval_receipts",
     "saved_search_events",
     "saved_searches",
+    "science",
+    "security",
     "staged_search",
 }
 
@@ -40,6 +43,10 @@ REQUIRED_TOOLS = {
     "slopsearx_retry_research",
     "slopsearx_retry_staged_search",
     "slopsearx_search",
+    "slopsearx_search_jobs",
+    "slopsearx_search_science",
+    "slopsearx_search_security",
+    "slopsearx_search_targeted",
     "slopsearx_search_staged",
     "slopsearx_start_dependency_dossier",
     "slopsearx_start_research",
@@ -71,6 +78,7 @@ DISABLED_PROBES: dict[str, tuple[str, dict[str, Any]]] = {
             ],
         },
     ),
+    "jobs": ("slopsearx_search_jobs", {"company": "w11-policy-probe"}),
     "retrieval_receipts": (
         "slopsearx_read_retrieval_receipts",
         {"result_id": "w11-policy-probe:0", "limit": 1},
@@ -82,6 +90,14 @@ DISABLED_PROBES: dict[str, tuple[str, dict[str, Any]]] = {
     "saved_searches": (
         "slopsearx_get_saved_search",
         {"search_id": "w11-policy-probe"},
+    ),
+    "science": (
+        "slopsearx_search_science",
+        {"query": "w11 policy probe", "max_results": 1},
+    ),
+    "security": (
+        "slopsearx_search_security",
+        {"query": "w11 policy probe", "max_results": 1},
     ),
     "staged_search": (
         "slopsearx_preview_staged_search",
@@ -148,6 +164,7 @@ def capture_preflight(
     target_label: str,
     source_revision: str,
     image_digest: str,
+    expected_targeted_sensitive: bool = False,
 ) -> dict[str, Any]:
     if expected_enabled & expected_disabled:
         raise PreflightError("a grant cannot be both enabled and disabled")
@@ -182,6 +199,11 @@ def capture_preflight(
         raise PreflightError(
             "observed specialist grants do not match the declared arm policy"
         )
+    targeted_sensitive = status.get("grants", {}).get("targeted_sensitive_allowed")
+    if targeted_sensitive is not expected_targeted_sensitive:
+        raise PreflightError(
+            "targeted-sensitive policy does not match the declared arm policy"
+        )
 
     denial_probes: dict[str, dict[str, str | None]] = {}
     for grant in sorted(expected_disabled):
@@ -209,6 +231,7 @@ def capture_preflight(
             "grants": {
                 "enabled": sorted(observed_enabled),
                 "disabled": sorted(observed_disabled),
+                "targeted_sensitive_allowed": targeted_sensitive,
             },
             "policy_bounds": status.get("policy_bounds"),
             "research_execution": _research_execution(status),
@@ -242,6 +265,7 @@ def main() -> int:
     parser.add_argument("--expected-version", default="0.5.0")
     parser.add_argument("--enabled-grant", action="append", default=[])
     parser.add_argument("--disabled-grant", action="append", default=[])
+    parser.add_argument("--targeted-sensitive-allowed", action="store_true")
     args = parser.parse_args()
     token = os.environ.get(args.token_env, "")
     with W11McpClient(args.endpoint, token) as client:
@@ -253,6 +277,7 @@ def main() -> int:
             target_label=args.target_label,
             source_revision=args.source_revision,
             image_digest=args.image_digest,
+            expected_targeted_sensitive=args.targeted_sensitive_allowed,
         )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x") as handle:

@@ -124,3 +124,10 @@ manifest, rejects missing provider credentials and a within-arm port collision,
 and explicitly disables every capability outside the selected slice. The
 dossier slice encodes SlopSearX's actual composite requirement for dossier,
 research, and security grants rather than assuming one switch is sufficient.
+
+The preflight originally enforced the six new workflow grants but merely
+carried the older jobs, science, security, and targeted-sensitive settings as
+unexamined service metadata. That was insufficient for an exact arm boundary,
+especially because the dossier arm requires security. The preflight now checks
+all nine specialist grants, runs denial probes for every disabled grant, and
+verifies the separate targeted-sensitive flag.

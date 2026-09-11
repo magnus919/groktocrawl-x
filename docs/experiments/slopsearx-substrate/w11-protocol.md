@@ -45,7 +45,8 @@ Before model-bearing work:
 
 1. Record `slopsearx_list_capabilities` and service status with secrets
    removed.
-2. Prove disabled grants fail closed.
+2. Prove every disabled workflow and domain grant fails closed, and verify the
+   separate targeted-sensitive-engine policy.
 3. Enable only the grants needed for the active arm.
 4. Run the repository's SearXNG-compatible `/`, `/search`, `/config`,
    `/health`, and `/healthz` contract checks against the isolated 0.5 instance.

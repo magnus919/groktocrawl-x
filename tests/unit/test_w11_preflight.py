@@ -37,7 +37,10 @@ class StubClient:
                 "version": "0.5.0",
                 "contract_version": "1.0",
                 "active_engines": 7,
-                "grants": {"specialist": specialist},
+                "grants": {
+                    "specialist": specialist,
+                    "targeted_sensitive_allowed": False,
+                },
                 "policy_bounds": {"job_max_queries": 3},
                 "research_execution": {
                     "mode": "durable_leased",
@@ -85,6 +88,7 @@ def test_capture_records_redacted_reproducible_configuration() -> None:
     assert record["slopsearx"]["grants"] == {
         "enabled": ["research"],
         "disabled": sorted(disabled),
+        "targeted_sensitive_allowed": False,
     }
     assert set(record["mcp"]["disabled_grant_probes"]) == disabled
     assert record["configuration_sha256"]
