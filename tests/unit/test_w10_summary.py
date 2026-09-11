@@ -199,6 +199,9 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
                 "candidates": [
                     {
                         "candidate_id": "source-1",
+                        "acquisition_status": "acquired",
+                        "selected_on_attempt": 0,
+                        "search_origins": [{"attempt": 0, "rank": 1}],
                         "reviewed_bytes_sha256": "content",
                     }
                 ],
@@ -318,11 +321,11 @@ def test_full_policy_stops_between_followups_from_observed_gain(
     results = {
         "initial evidence": [
             {"url": f"https://initial-{index}.example/item", "title": f"initial-{index}"}
-            for index in range(4)
+            for index in range(5)
         ],
         "primary benchmark evidence": [
-            {"url": f"https://follow-1-{index}.example/item", "title": f"follow-1-{index}"}
-            for index in range(2)
+            {"url": "https://initial-4.example/item", "title": "initial-4"},
+            {"url": "https://follow-1.example/item", "title": "follow-1"},
         ],
         "defect study evidence": [
             {"url": f"https://follow-2-{index}.example/item", "title": f"follow-2-{index}"}
@@ -368,7 +371,7 @@ def test_full_policy_stops_between_followups_from_observed_gain(
             )
         candidates = []
         for item in prompt["candidates"]:
-            gained = first_round_gain and item["title"].startswith("follow-1-")
+            gained = first_round_gain and item["title"] == "initial-4"
             candidates.append(
                 {
                     "candidate_id": item["candidate_id"],
@@ -436,3 +439,7 @@ def test_full_policy_stops_between_followups_from_observed_gain(
     assert result["round_decisions"][0]["decision"] == expected_decision
     assert len(result["proposals"]) == 2
     assert result["proposals"][1]["executed"] is first_round_gain
+    acquired_overlap = next(
+        item for item in result["candidates"] if item["title"] == "initial-4"
+    )
+    assert acquired_overlap["selected_on_attempt"] == 1

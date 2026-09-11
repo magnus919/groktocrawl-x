@@ -130,6 +130,19 @@ def validate_run(
                 issues.append(
                     f"{record_path.name}: candidate {candidate_id} digest differs"
                 )
+            if item.get("acquisition_status") != "not_selected":
+                if "selected_on_attempt" not in item:
+                    issues.append(
+                        f"{record_path.name}: candidate {candidate_id} lacks acquisition attribution"
+                    )
+                selected_on = item.get("selected_on_attempt")
+                origin_attempts = {
+                    origin["attempt"] for origin in item.get("search_origins", [])
+                }
+                if selected_on is not None and selected_on not in origin_attempts:
+                    issues.append(
+                        f"{record_path.name}: candidate {candidate_id} attribution lacks a matching origin"
+                    )
         expected_gaps = {item["claim_id"] for item in cases[record["case_id"]]["claims"]}
         observed_gaps = [item["gap_id"] for item in record.get("gap_results", [])]
         if len(observed_gaps) != len(set(observed_gaps)) or set(observed_gaps) != expected_gaps:

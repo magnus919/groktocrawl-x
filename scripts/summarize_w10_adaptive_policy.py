@@ -61,7 +61,12 @@ def trial_metrics(
         gained = False
         for item in acquired:
             origins = item.get("search_origins", [])
-            if not origins or min(origin["attempt"] for origin in origins) != attempt:
+            selected_on_attempt = item.get("selected_on_attempt")
+            if selected_on_attempt is None and "selected_on_attempt" not in item:
+                selected_on_attempt = (
+                    min(origin["attempt"] for origin in origins) if origins else None
+                )
+            if selected_on_attempt != attempt:
                 continue
             assessment = item.get("operational_assessment", {})
             gained = gained or (
@@ -262,7 +267,12 @@ def _attempt_gained(record: dict[str, Any], attempt: int) -> bool:
         if item.get("acquisition_status") != "acquired":
             continue
         origins = item.get("search_origins", [])
-        if not origins or min(origin["attempt"] for origin in origins) != attempt:
+        selected_on_attempt = item.get("selected_on_attempt")
+        if selected_on_attempt is None and "selected_on_attempt" not in item:
+            selected_on_attempt = (
+                min(origin["attempt"] for origin in origins) if origins else None
+            )
+        if selected_on_attempt != attempt:
             continue
         assessment = item.get("operational_assessment", {})
         if (

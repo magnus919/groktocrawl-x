@@ -61,6 +61,16 @@ The targeted repeat completed in 50.639 seconds with the explicit terminal reaso
 `pre-execution-terminal-stop-smoke` with SHA-256
 `c92710ce3979dcb1d14948d2ae1d961e3fa244ccddacc6e1db31279452ca766c`.
 
+An eight-trial launch was then stopped when the provenance audit found that a
+page seen below the initial acquisition cutoff and later promoted by a follow-up
+was still attributed to its earliest sighting. That could hide a real follow-up
+gain and stop too early. The launch is retained and excluded as
+`challenge-excluded-acquisition-attribution` with SHA-256
+`e1840d56394971c2262a69f98fd892df70a7878a968f467700f8a7b4ebaa9d97`.
+Valid records distinguish every search sighting from `selected_on_attempt`, the
+specific search that caused acquisition; backfill is recorded separately with a
+null selection attempt and never credited as adaptive-query gain.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256

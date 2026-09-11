@@ -96,6 +96,7 @@ def trial_evidence_checkpoint(
             "url": item["url"],
             "accessed_at": item.get("accessed_at", item["observed_at"]),
             "acquisition_status": item["acquisition_status"],
+            "selected_on_attempt": item.get("selected_on_attempt"),
             "reviewed_bytes_sha256": item.get("reviewed_bytes_sha256"),
             "reviewed_excerpt": item.get("reviewed_excerpt", ""),
             "exclusion_reason": item.get("acquisition_error"),
@@ -456,7 +457,9 @@ def execute_trial(
             keys.append(key)
         return list(dict.fromkeys(keys))
 
-    def acquire(keys: list[str], limit: int) -> None:
+    def acquire(
+        keys: list[str], limit: int, *, selected_on_attempt: int | None
+    ) -> None:
         selected = [
             key
             for key in keys
@@ -468,9 +471,14 @@ def execute_trial(
                 scrape(api_client, candidates[key], deadline=deadline)
             )
             candidates[key]["search_origins"] = origins
+            candidates[key]["selected_on_attempt"] = selected_on_attempt
 
     initial_keys = register(initial, 0)
-    acquire(initial_keys, 8 if policy == "fixed" else 4)
+    acquire(
+        initial_keys,
+        8 if policy == "fixed" else 4,
+        selected_on_attempt=0,
+    )
 
     planning = None
     planning_receipt = None
@@ -641,7 +649,11 @@ def execute_trial(
                         }
                     )
                     followup_keys = register(results, len(attempts) - 1)
-                    acquire(followup_keys, 2)
+                    acquire(
+                        followup_keys,
+                        2,
+                        selected_on_attempt=len(attempts) - 1,
+                    )
                     checkpoint("followup_acquisition")
                     prior = (*prior, raw["query"])
                     if policy == "full" and executed_followups == 1:
@@ -658,10 +670,7 @@ def execute_trial(
                             digest(key)[:16]
                             for key, item in candidates.items()
                             if item["acquisition_status"] == "acquired"
-                            and min(
-                                origin["attempt"]
-                                for origin in item["search_origins"]
-                            ) == 1
+                            and item.get("selected_on_attempt") == 1
                         }
                         evidence_gain = any(
                             (
@@ -709,6 +718,7 @@ def execute_trial(
         - sum(
             item["acquisition_status"] != "not_selected" for item in candidates.values()
         ),
+        selected_on_attempt=None,
     )
     checkpoint("acquisition_complete")
 
