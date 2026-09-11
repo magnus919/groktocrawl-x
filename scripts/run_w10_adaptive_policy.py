@@ -537,6 +537,7 @@ def execute_trial(
                     supports_or_challenges=(
                         item["supports_or_challenges"] and item["marginal_value"]
                     ),
+                    derivative=item["derivative_of"] is not None,
                     improves_currency=item["improves_currency"],
                     improves_authority=item["improves_authority"],
                     resolves_contradiction=item["resolves_contradiction"],
@@ -559,7 +560,12 @@ def execute_trial(
     gap_results = []
     for item in assessment["gaps"]:
         supporting = [value for value in item["candidate_ids"] if value in admitted_ids]
-        status = item["status"] if supporting else "open"
+        if not supporting:
+            status = "open"
+        elif set(supporting) != set(item["candidate_ids"]):
+            status = "ambiguous"
+        else:
+            status = item["status"]
         gap_results.append({**item, "candidate_ids": supporting, "status": status})
     total_weight = sum(item["importance"] for item in claims)
     closed = {item["gap_id"] for item in gap_results if item["status"] == "closed"}

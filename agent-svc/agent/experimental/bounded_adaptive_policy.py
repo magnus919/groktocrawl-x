@@ -99,6 +99,7 @@ class CandidateAssessment:
     publisher_id: str
     acquired: bool
     supports_or_challenges: bool
+    derivative: bool = False
     improves_currency: bool = False
     improves_authority: bool = False
     resolves_contradiction: bool = False
@@ -171,6 +172,8 @@ def admit_candidate(
         return CandidateDecision(False, "canonical_duplicate")
     if not candidate.relevant_gap_ids:
         return CandidateDecision(False, "irrelevant")
+    if candidate.derivative:
+        return CandidateDecision(False, "derivative_publisher")
     if candidate.supports_or_challenges:
         return CandidateDecision(True, "admitted_claim_value")
     if (

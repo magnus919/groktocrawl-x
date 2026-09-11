@@ -92,6 +92,24 @@ def test_candidate_admission_separates_availability_relevance_and_value():
         ).reason
         == "canonical_duplicate"
     )
+    derivative = CandidateAssessment(
+        "source-2",
+        ("quality",),
+        (2, 2, 2, 2, 1),
+        "canonical-2",
+        "publisher-2",
+        True,
+        True,
+        derivative=True,
+    )
+    assert (
+        admit_candidate(
+            derivative,
+            admitted_canonical_ids=frozenset(),
+            admitted_publishers=frozenset(),
+        ).reason
+        == "derivative_publisher"
+    )
 
 
 def test_stop_order_is_reproducible_from_recorded_state():
