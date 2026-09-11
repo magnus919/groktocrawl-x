@@ -271,3 +271,28 @@ relationship view, but the live evidence does not support using it to suppress
 fetches. W11 keeps automatic fetch suppression disabled because shared identity
 does not prove URL equivalence, source dependence, ownership, applicability,
 or verification.
+
+## 2026-09-11 — recovery-boundary audit
+
+The five-case recovery summary was compared line by line with the frozen W11
+protocol. It proved reservation charging, lease reclaim, stale-owner fencing,
+continuation replay, and caller completion, but it did not directly inject
+termination after an engine response, after snapshot persistence, during
+GroktoCrawl retrieval, or after receipt submission. Those claims remain open
+until exact tests and live recovery evidence are retained.
+
+Two SlopSearX fault-injection tests now cover the first two missing boundaries.
+They use an abrupt-process exception outside ordinary error handling. Recovery
+marks the unfinished attempt interrupted, retains its charge, keeps a snapshot
+written before job linkage readable and unchanged, and completes from the
+search response cache without another engine call. The tests are proposed
+upstream in SlopSearX issue 373 and PR 374; W11 will pin their merged revision
+before adding them to its reference manifest.
+
+A separate GroktoCrawl harness now checkpoints the search result, expanded
+handoff, capture, and receipt independently. Deterministic tests interrupt a
+page request and interrupt immediately after receipt submission. Resumption
+does not repeat search or result expansion; an ambiguous page request remains
+counted and may be retried, while receipt resubmission returns the original
+receipt rather than creating a duplicate. Live evidence remains to be captured
+against the isolated provenance arm.

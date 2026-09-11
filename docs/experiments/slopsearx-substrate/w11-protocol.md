@@ -165,7 +165,9 @@ boundary, verify:
 - retries obey original ceilings and scope;
 - interrupted reservations remain charged when the upstream call is
   ambiguous;
-- idempotent replay does not create a second receipt or repeated engine call;
+- idempotent request replay does not create a second receipt or repeated
+  engine call; a genuinely uncertain downstream page request may be attempted
+  again, and must remain visible in the recovery record;
 - late workers cannot overwrite a newer owner;
 - the terminal reason describes execution state rather than research truth.
 
