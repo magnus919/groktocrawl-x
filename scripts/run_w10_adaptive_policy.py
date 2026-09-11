@@ -124,7 +124,7 @@ def build_work_order(
     seed: int,
 ) -> list[tuple[dict[str, Any], str, int]]:
     """Rotate policy order inside each case while shuffling case order by repetition."""
-    work = []
+    work: list[tuple[dict[str, Any], str, int]] = []
     bases: dict[str, list[str]] = {}
     for case in cases:
         order = list(policies)
@@ -400,6 +400,7 @@ def execute_trial(
     started = time.monotonic()
     deadline = started + 90
     claims = case["claims"]
+    blind_seed = int(digest(f"{seed}:{case['case_id']}:{policy}:{repetition}")[:16], 16)
     gaps = tuple(
         EvidenceGap(item["claim_id"], item["importance"], item["closure_rule"])
         for item in claims
@@ -451,6 +452,9 @@ def execute_trial(
     planning = None
     planning_receipt = None
     proposal_log: list[dict[str, Any]] = []
+    round_decisions: list[dict[str, Any]] = []
+    interim_assessment = None
+    interim_assessment_receipt = None
 
     def checkpoint(stage: str) -> None:
         if checkpoint_writer is None:
@@ -466,6 +470,64 @@ def execute_trial(
                 candidates=candidates,
             )
         )
+
+    def assess_current_candidates(
+        *, stage: str
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, str]]:
+        candidate_payload = []
+        id_to_key: dict[str, str] = {}
+        for key, item in candidates.items():
+            if item["acquisition_status"] == "not_selected":
+                continue
+            candidate_id = digest(key)[:16]
+            id_to_key[candidate_id] = key
+            candidate_payload.append(
+                {
+                    "candidate_id": candidate_id,
+                    "title": item["title"],
+                    "excerpt": item["reviewed_excerpt"],
+                    "available": item["acquisition_status"] == "acquired",
+                }
+            )
+        random.Random(blind_seed).shuffle(candidate_payload)
+        assessment, receipt = model_json(
+            llm_client,
+            model=model,
+            name=f"w10_evidence_assessment_{stage}",
+            schema=assessment_schema(
+                [gap.gap_id for gap in gaps],
+                [item["candidate_id"] for item in candidate_payload],
+            ),
+            prompt={
+                "question": case["query"],
+                "as_of": case["as_of"],
+                "gaps": claims,
+                "candidates": candidate_payload,
+                "instruction": (
+                    "Judge every candidate separately. Close a gap only from acquired "
+                    "content that meets its closure rule. A snippet alone is insufficient. "
+                    "Score each quality dimension as 0 poor, 1 adequate, or 2 strong. "
+                    "Marginal value means the source adds material claim evidence beyond "
+                    "the other candidates, improves authority or currency, resolves a "
+                    "contradiction, or supplies an independent publisher. Use candidate "
+                    "IDs in derivative_of. Keep reasons concrete and brief."
+                ),
+            },
+            max_tokens=4000,
+            deadline=deadline,
+        )
+        checkpoint(f"{stage}_assessment_received")
+        assessed_ids = [item["candidate_id"] for item in assessment["candidates"]]
+        if len(assessed_ids) != len(set(assessed_ids)) or set(assessed_ids) != set(
+            id_to_key
+        ):
+            raise ValueError("assessment must return every candidate exactly once")
+        graded_gaps = [item["gap_id"] for item in assessment["gaps"]]
+        if len(graded_gaps) != len(set(graded_gaps)) or set(graded_gaps) != {
+            gap.gap_id for gap in gaps
+        }:
+            raise ValueError("assessment must return every gap exactly once")
+        return assessment, receipt, id_to_key
 
     checkpoint("initial_acquisition")
     if policy != "fixed":
@@ -504,8 +566,20 @@ def execute_trial(
         statuses = {item["gap_id"]: item["status"] for item in planning["initial_gaps"]}
         all_closed = statuses and all(value == "closed" for value in statuses.values())
         if not all_closed:
-            prior = (case["query"],)
+            prior: tuple[str, ...] = (case["query"],)
+            executed_followups = 0
+            stop_remaining = False
             for raw in planning["proposals"]:
+                if stop_remaining:
+                    proposal_log.append(
+                        {
+                            **raw,
+                            "admitted": False,
+                            "executed": False,
+                            "reason": "stopped_after_prior_round",
+                        }
+                    )
+                    continue
                 admitted, reason = True, "policy_has_no_proposal_gate"
                 if policy in {"gated", "full"}:
                     proposal = QueryProposal(**raw)
@@ -516,8 +590,16 @@ def execute_trial(
                         prior_queries=prior,
                     )
                     admitted, reason = decision.admitted, decision.reason
-                proposal_log.append({**raw, "admitted": admitted, "reason": reason})
+                proposal_log.append(
+                    {
+                        **raw,
+                        "admitted": admitted,
+                        "executed": admitted,
+                        "reason": reason,
+                    }
+                )
                 if admitted:
+                    executed_followups += 1
                     results, query_ms = search(
                         api_client, raw["query"], result_limit, deadline=deadline
                     )
@@ -534,6 +616,64 @@ def execute_trial(
                     acquire(followup_keys, 2)
                     checkpoint("followup_acquisition")
                     prior = (*prior, raw["query"])
+                    if policy == "full" and executed_followups == 1:
+                        (
+                            interim_assessment,
+                            interim_assessment_receipt,
+                            interim_id_to_key,
+                        ) = assess_current_candidates(stage="round_1")
+                        interim_by_id = {
+                            item["candidate_id"]: item
+                            for item in interim_assessment["candidates"]
+                        }
+                        round_ids = {
+                            digest(key)[:16]
+                            for key, item in candidates.items()
+                            if item["acquisition_status"] == "acquired"
+                            and min(
+                                origin["attempt"]
+                                for origin in item["search_origins"]
+                            ) == 1
+                        }
+                        evidence_gain = any(
+                            (
+                                item["supports_or_challenges"]
+                                and item["marginal_value"]
+                            )
+                            or item["improves_currency"]
+                            or item["improves_authority"]
+                            or item["resolves_contradiction"]
+                            for candidate_id, item in interim_by_id.items()
+                            if candidate_id in round_ids
+                        )
+                        all_closed_after_round = bool(
+                            interim_assessment["gaps"]
+                        ) and all(
+                            item["status"] == "closed"
+                            for item in interim_assessment["gaps"]
+                        )
+                        stop_after_round = all_closed_after_round or not evidence_gain
+                        round_decisions.append(
+                            {
+                                "round": 1,
+                                "executed_query": raw["query"],
+                                "acquired_candidate_ids": sorted(
+                                    round_ids & set(interim_id_to_key)
+                                ),
+                                "evidence_gain": evidence_gain,
+                                "all_gaps_closed": all_closed_after_round,
+                                "decision": "stop" if stop_after_round else "continue",
+                                "reason": (
+                                    "all_gaps_closed"
+                                    if all_closed_after_round
+                                    else "no_marginal_gain"
+                                    if not evidence_gain
+                                    else "marginal_gain"
+                                ),
+                            }
+                        )
+                        if stop_after_round:
+                            stop_remaining = True
 
     acquire(
         list(candidates),
@@ -544,56 +684,10 @@ def execute_trial(
     )
     checkpoint("acquisition_complete")
 
-    candidate_payload = []
-    id_to_key: dict[str, str] = {}
-    for key, item in candidates.items():
-        if item["acquisition_status"] == "not_selected":
-            continue
-        candidate_id = digest(key)[:16]
-        id_to_key[candidate_id] = key
-        candidate_payload.append(
-            {
-                "candidate_id": candidate_id,
-                "title": item["title"],
-                "excerpt": item["reviewed_excerpt"],
-                "available": item["acquisition_status"] == "acquired",
-            }
-        )
-    blind_seed = int(digest(f"{seed}:{case['case_id']}:{policy}:{repetition}")[:16], 16)
-    random.Random(blind_seed).shuffle(candidate_payload)
-    assessment, assessment_receipt = model_json(
-        llm_client,
-        model=model,
-        name="w10_evidence_assessment",
-        schema=assessment_schema(
-            [gap.gap_id for gap in gaps],
-            [item["candidate_id"] for item in candidate_payload],
-        ),
-        prompt={
-            "question": case["query"],
-            "as_of": case["as_of"],
-            "gaps": claims,
-            "candidates": candidate_payload,
-            "instruction": (
-                "Judge every candidate separately. Close a gap only from acquired "
-                "content that meets its closure rule. A snippet alone is insufficient. "
-                "Score each quality dimension as 0 poor, 1 adequate, or 2 strong. "
-                "Marginal value means the source adds material claim evidence beyond "
-                "the other candidates, improves authority or currency, resolves a "
-                "contradiction, or supplies an independent publisher. Use candidate "
-                "IDs in derivative_of. Keep reasons concrete and brief."
-            ),
-        },
-        max_tokens=4000,
-        deadline=deadline,
+    assessment, assessment_receipt, _ = assess_current_candidates(
+        stage="final"
     )
-    checkpoint("assessment_received")
     assessed = {item["candidate_id"]: item for item in assessment["candidates"]}
-    if set(assessed) != set(id_to_key):
-        raise ValueError("assessment must return every candidate exactly once")
-    graded_gaps = {item["gap_id"] for item in assessment["gaps"]}
-    if graded_gaps != {gap.gap_id for gap in gaps}:
-        raise ValueError("assessment must return every gap exactly once")
     admitted_ids: list[str] = []
     admitted_canonical_ids: set[str] = set()
     admitted_publishers: set[str] = set()
@@ -675,23 +769,30 @@ def execute_trial(
         )
         for gap in gaps
     )
-    stop = stop_reason(
-        final_gaps,
-        WorkState(
-            searches=len(attempts),
-            model_calls=int(planning is not None) + 1,
-            admitted_sources=len(admitted_ids),
-            elapsed_ms=round((time.monotonic() - started) * 1000),
-            newly_closed_weight=closed_weight,
-            quality_gain=any(
-                item["quality"]["authority"] >= 2 for item in assessed.values()
-            ),
-            contradiction_gain=any(
-                item["supports_or_challenges"] for item in assessed.values()
-            ),
-            publisher_gain=len(admitted_publishers) > 1,
-        ),
+    model_call_count = (
+        int(planning is not None) + 1 + int(interim_assessment is not None)
     )
+    if round_decisions and round_decisions[-1]["decision"] == "stop":
+        stop = round_decisions[-1]["reason"]
+    else:
+        stop = stop_reason(
+            final_gaps,
+            WorkState(
+                searches=len(attempts),
+                model_calls=model_call_count,
+                admitted_sources=len(admitted_ids),
+                elapsed_ms=round((time.monotonic() - started) * 1000),
+                newly_closed_weight=closed_weight,
+                quality_gain=any(
+                    item["quality"]["authority"] >= 2 for item in assessed.values()
+                ),
+                contradiction_gain=any(
+                    item["supports_or_challenges"] for item in assessed.values()
+                ),
+                publisher_gain=False,
+            ),
+            max_model_calls=3,
+        )
     public_candidates = [
         {key: value for key, value in item.items() if key != "reviewed_excerpt"}
         for item in candidates.values()
@@ -709,6 +810,15 @@ def execute_trial(
                 "reason": item["reason"],
             }
             for item in proposal_log
+        ),
+        *(
+            {
+                "type": "round_decision",
+                "round": item["round"],
+                "decision": item["decision"],
+                "reason": item["reason"],
+            }
+            for item in round_decisions
         ),
         *(
             {
@@ -738,7 +848,7 @@ def execute_trial(
         "gap_results": gap_results,
         "metrics": {
             "searches": len(attempts),
-            "model_calls": int(planning is not None) + 1,
+            "model_calls": model_call_count,
             "candidate_count": len(candidates),
             "acquired_count": sum(
                 item["acquisition_status"] == "acquired" for item in candidates.values()
@@ -750,6 +860,7 @@ def execute_trial(
             "elapsed_ms": round((time.monotonic() - started) * 1000, 3),
         },
         "stop_reason": stop,
+        "round_decisions": round_decisions,
         "orchestration": {
             "runtime": "langgraph",
             "event_count": len(event_digests),
@@ -757,6 +868,7 @@ def execute_trial(
         },
         "planning_receipt": planning_receipt,
         "assessment_receipt": assessment_receipt,
+        "interim_assessment_receipt": interim_assessment_receipt,
         "blind_grade": {
             "candidate_order_seed_sha256": digest(str(blind_seed)),
             "policy_and_rank_labels_exposed": False,

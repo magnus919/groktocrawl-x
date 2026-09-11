@@ -1,9 +1,11 @@
 # W10 adaptive-query analysis plan
 
-Status: **declared during execution; does not change the frozen protocol**
+Status: **declared before the corrected valid execution**
 
-This plan defines how the frozen W10 results will be interpreted. It adds no
-cases, outcomes, gates, or stopping rules. The purpose is to prevent a broad
+This plan defines how the refrozen W10 results will be interpreted. It adds no
+cases, outcomes, or decision gates. The methodology audit exposed a mismatch in
+the original stopping implementation; the invalid run was preserved and the
+protocol was corrected before a valid execution. The purpose is to prevent a broad
 claim such as "adaptive search works" from hiding the conditions that made it
 work or fail.
 

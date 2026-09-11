@@ -12,7 +12,7 @@ gate.
 On matched cases with declared material claims, does gap-triggered adaptation
 close more important evidence gaps than fixed retrieval without losing more than
 five percentage points of admitted-source precision or exceeding three searches
-and two model calls per case?
+and three model calls per case?
 
 ## Competing explanations
 

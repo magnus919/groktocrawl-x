@@ -1,6 +1,6 @@
 # W10 bounded adaptive-query comparison protocol
 
-Status: **frozen before execution**
+Status: **corrected and refrozen before the valid execution**
 
 ## Cases and arms
 
@@ -13,6 +13,14 @@ Counterbalance the five policies by case with seed `20260911`:
 3. one or two queries tied to a declared gap;
 4. gap-tied queries that also pass the proposal gate;
 5. proposal-gated queries plus marginal-value admission and deterministic stop.
+
+The full policy executes its first admitted follow-up, acquires the bounded
+results, and performs an interim evidence assessment. It stops before a second
+follow-up when every gap is closed or that first follow-up produced no declared
+evidence gain. Otherwise it may execute the second admitted follow-up. All arms,
+including the full policy, receive a separate final blind assessment after
+acquisition and backfill; the interim assessment is a policy input and never the
+final score.
 
 For each case, derive one seeded policy order and rotate it by one position per
 repetition. Shuffle case order separately within each repetition. The resulting
@@ -32,9 +40,17 @@ allocation was clarified after a pre-execution smoke test showed that grading up
 to 24 full pages could not finish inside the already-frozen 90-second case bound;
 the failed smoke record is retained and is not part of the comparison.
 
+An initial 13-trial execution was stopped and excluded after a methodology audit
+found that the implementation assessed evidence only after both follow-ups. It
+therefore recorded a stop reason but could not stop between rounds. The excluded
+tree is retained as `challenge-excluded-posthoc-stop` with SHA-256
+`65bbf54573df711b9de6be7a728340c8412fcb2d0aa0a327c7b0c6afd1dc1949`.
+The corrected implementation permits a third model call only for the full arm's
+interim assessment and counts that call as policy cost.
+
 ## Bounds and gates
 
-Each case permits at most three searches, two planning/judging model calls, 20
+Each case permits at most three searches, three planning/judging model calls, 20
 results per search, eight admitted sources, and 90 elapsed seconds. A proposal
 must name one gap, predict the evidence that closes it, differ materially from
 prior query intent, and avoid broadening beyond the material claims.
@@ -46,9 +62,11 @@ cannot close a claim. Canonical duplicates and derivative reporting do not add
 marginal value.
 
 Stop when every material gap meets its case-specific closure rule; after a round
-with no newly closed weighted gap and no authority, currency, contradiction, or
-publisher-independence gain; or at a hard bound. The stop reason is computed from
-recorded state. LangGraph carries the gap, proposal, decision, candidate
+with no material claim, authority, currency, or contradiction gain; or at a hard
+bound. Publisher independence remains a source-admission gain, but cannot alone
+justify another query without evidence relevant to a declared gap. The stop
+reason is computed from recorded state before a second follow-up is dispatched.
+LangGraph carries the gap, proposal, decision, candidate
 disposition, marginal value, and stop state; the deterministic policy owns the
 decision.
 

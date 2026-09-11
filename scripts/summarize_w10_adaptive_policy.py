@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 POLICIES = ("fixed", "unconstrained", "gap", "gated", "full")
+_QUERY_WORDS = re.compile(r"[a-z0-9]+")
 
 
 def read_cases(path: Path) -> dict[str, dict[str, Any]]:
@@ -25,27 +27,56 @@ def read_records(path: Path) -> list[dict[str, Any]]:
     ]
 
 
-def trial_metrics(record: dict[str, Any], case: dict[str, Any]) -> dict[str, Any]:
+def trial_metrics(
+    record: dict[str, Any], case: dict[str, Any], *, policy_position: int | None = None
+) -> dict[str, Any]:
     if record["status"] != "completed":
         return {
             "case_id": record["case_id"],
             "policy": record["policy"],
             "repetition": record["repetition"],
             "challenge_type": case["challenge_type"],
+            "policy_position": policy_position,
             "status": "failed",
         }
     candidates = record["candidates"]
+    proposals = record.get("proposals", [])
     admitted = [item for item in candidates if item["admitted"]]
     useful = [
         item
         for item in admitted
         if item.get("operational_assessment", {}).get("supports_or_challenges")
     ]
-    useful_first_attempts = {
-        min(origin["attempt"] for origin in item["search_origins"]) for item in useful
-    }
+    acquired = [
+        item for item in candidates if item["acquisition_status"] == "acquired"
+    ]
+    useful_acquired = [
+        item
+        for item in acquired
+        if item.get("operational_assessment", {}).get("supports_or_challenges")
+    ]
     followups = len(record["attempts"]) - 1
-    last_gain = max(useful_first_attempts, default=0)
+    gainful_attempts: set[int] = set()
+    for attempt in range(1, followups + 1):
+        gained = False
+        for item in acquired:
+            origins = item.get("search_origins", [])
+            if not origins or min(origin["attempt"] for origin in origins) != attempt:
+                continue
+            assessment = item.get("operational_assessment", {})
+            gained = gained or (
+                (
+                    assessment.get("supports_or_challenges", False)
+                    and assessment.get("marginal_value", False)
+                )
+                or assessment.get("improves_currency", False)
+                or assessment.get("improves_authority", False)
+                or assessment.get("resolves_contradiction", False)
+            )
+        if gained:
+            gainful_attempts.add(attempt)
+    gainful_followups = len(gainful_attempts)
+    last_gain = max(gainful_attempts, default=0)
     unnecessary = sum(attempt > last_gain for attempt in range(1, followups + 1))
     gap_status = {item["gap_id"]: item["status"] for item in record["gap_results"]}
     closed_claims = sum(
@@ -61,6 +92,7 @@ def trial_metrics(record: dict[str, Any], case: dict[str, Any]) -> dict[str, Any
         "policy": record["policy"],
         "repetition": record["repetition"],
         "challenge_type": case["challenge_type"],
+        "policy_position": policy_position,
         "status": "completed",
         "closed_weight": metrics["closed_weight"],
         "total_weight": metrics["total_weight"],
@@ -68,16 +100,26 @@ def trial_metrics(record: dict[str, Any], case: dict[str, Any]) -> dict[str, Any
         "total_claims": len(case["claims"]),
         "admitted": len(admitted),
         "useful": len(useful),
+        "acquired": len(acquired),
+        "useful_acquired": len(useful_acquired),
+        "proposals_made": len(proposals),
+        "proposals_evaluated": sum(
+            item.get("reason") != "stopped_after_prior_round" for item in proposals
+        ),
+        "proposals_accepted": sum(item.get("admitted", False) for item in proposals),
         "followup_queries": followups,
+        "gainful_followup_queries": gainful_followups,
         "unnecessary_followup_queries": unnecessary,
         "unsupported_high_importance": unsupported_high,
         "within_bounds": (
             metrics["searches"] <= 3
-            and metrics["model_calls"] <= 2
+            and metrics["model_calls"] <= 3
             and metrics["admitted_count"] <= 8
             and metrics["elapsed_ms"] <= 90_000
         ),
         "elapsed_ms": metrics["elapsed_ms"],
+        "model_calls": metrics["model_calls"],
+        "round_decisions": record.get("round_decisions", []),
     }
 
 
@@ -90,7 +132,17 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     total_claims = sum(row["total_claims"] for row in completed)
     admitted = sum(row["admitted"] for row in completed)
     useful = sum(row["useful"] for row in completed)
+    acquired = sum(row.get("acquired", 0) for row in completed)
+    useful_acquired = sum(row.get("useful_acquired", 0) for row in completed)
+    proposals = sum(row.get("proposals_made", 0) for row in completed)
+    evaluated_proposals = sum(
+        row.get("proposals_evaluated", 0) for row in completed
+    )
+    accepted_proposals = sum(row.get("proposals_accepted", 0) for row in completed)
     followups = sum(row["followup_queries"] for row in completed)
+    gainful_followups = sum(
+        row.get("gainful_followup_queries", 0) for row in completed
+    )
     unnecessary = sum(row["unnecessary_followup_queries"] for row in completed)
     return {
         "trials": len(rows),
@@ -99,6 +151,17 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "weighted_closure": closed_weight / total_weight if total_weight else None,
         "equal_weight_closure": closed_claims / total_claims if total_claims else None,
         "precision": useful / admitted if admitted else None,
+        "pre_admission_precision": (
+            useful_acquired / acquired if acquired else None
+        ),
+        "proposal_yield": (
+            accepted_proposals / evaluated_proposals if evaluated_proposals else None
+        ),
+        "useful_query_yield": gainful_followups / followups if followups else None,
+        "proposals_made": proposals,
+        "proposals_evaluated": evaluated_proposals,
+        "proposals_accepted": accepted_proposals,
+        "gainful_followup_queries": gainful_followups,
         "unsupported_high_importance": sum(
             row["unsupported_high_importance"] for row in completed
         ),
@@ -106,6 +169,7 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "within_bounds": bool(completed)
         and all(row["within_bounds"] for row in completed),
         "elapsed_ms": [row["elapsed_ms"] for row in completed],
+        "model_calls": [row.get("model_calls", 0) for row in completed],
     }
 
 
@@ -145,9 +209,20 @@ def gate(
 
 
 def summarize_stratum(
-    records: list[dict[str, Any]], cases: dict[str, dict[str, Any]]
+    records: list[dict[str, Any]],
+    cases: dict[str, dict[str, Any]],
+    positions: dict[tuple[str, int, str], int],
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    rows = [trial_metrics(record, cases[record["case_id"]]) for record in records]
+    rows = [
+        trial_metrics(
+            record,
+            cases[record["case_id"]],
+            policy_position=positions.get(
+                (record["case_id"], record["repetition"], record["policy"])
+            ),
+        )
+        for record in records
+    ]
     grouped: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         grouped[(row["policy"], row["repetition"])].append(row)
@@ -156,6 +231,121 @@ def summarize_stratum(
         for (policy, repetition), items in sorted(grouped.items())
     }
     return rows, summaries
+
+
+def read_policy_positions(path: Path) -> dict[tuple[str, int, str], int]:
+    entries = json.loads((path / "work-order.json").read_text())["entries"]
+    return {
+        (item["case_id"], item["repetition"], item["policy"]):
+        ((item["position"] - 1) % len(POLICIES)) + 1
+        for item in entries
+    }
+
+
+def by_policy_position(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    grouped: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if row["policy_position"] is not None:
+            grouped[(row["policy"], row["policy_position"])].append(row)
+    return {
+        f"{policy}:{position}": aggregate(items)
+        for (policy, position), items in sorted(grouped.items())
+    }
+
+
+def _normalized_query(value: str) -> str:
+    return " ".join(_QUERY_WORDS.findall(value.casefold()))
+
+
+def _attempt_gained(record: dict[str, Any], attempt: int) -> bool:
+    for item in record.get("candidates", []):
+        if item.get("acquisition_status") != "acquired":
+            continue
+        origins = item.get("search_origins", [])
+        if not origins or min(origin["attempt"] for origin in origins) != attempt:
+            continue
+        assessment = item.get("operational_assessment", {})
+        if (
+            (
+                assessment.get("supports_or_challenges", False)
+                and assessment.get("marginal_value", False)
+            )
+            or assessment.get("improves_currency", False)
+            or assessment.get("improves_authority", False)
+            or assessment.get("resolves_contradiction", False)
+        ):
+            return True
+    return False
+
+
+def gate_rejection_audit(records: list[dict[str, Any]]) -> dict[str, Any]:
+    executed: dict[tuple[str, int, str], list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        if record.get("status") != "completed":
+            continue
+        for attempt, item in enumerate(record.get("attempts", [])[1:], 1):
+            executed[
+                (
+                    record["case_id"],
+                    record["repetition"],
+                    _normalized_query(item["query"]),
+                )
+            ].append(
+                {
+                    "policy": record["policy"],
+                    "evidence_gain": _attempt_gained(record, attempt),
+                }
+            )
+    audited = []
+    for record in records:
+        if record.get("status") != "completed":
+            continue
+        for proposal in record.get("proposals", []):
+            if proposal.get("admitted", False) or proposal.get("reason") in {
+                "policy_has_no_proposal_gate",
+                "stopped_after_prior_round",
+            }:
+                continue
+            matches = executed.get(
+                (
+                    record["case_id"],
+                    record["repetition"],
+                    _normalized_query(proposal["query"]),
+                ),
+                [],
+            )
+            verdict = (
+                "observed_gain_elsewhere"
+                if any(item["evidence_gain"] for item in matches)
+                else "observed_no_gain_elsewhere"
+                if matches
+                else "unknown_not_executed_equivalently"
+            )
+            audited.append(
+                {
+                    "case_id": record["case_id"],
+                    "repetition": record["repetition"],
+                    "policy": record["policy"],
+                    "query": proposal["query"],
+                    "rejection_reason": proposal["reason"],
+                    "verdict": verdict,
+                    "equivalent_executions": matches,
+                }
+            )
+    return {
+        "exact_normalized_query_matches_only": True,
+        "rejections": len(audited),
+        "observed_gain_elsewhere": sum(
+            item["verdict"] == "observed_gain_elsewhere" for item in audited
+        ),
+        "observed_no_gain_elsewhere": sum(
+            item["verdict"] == "observed_no_gain_elsewhere" for item in audited
+        ),
+        "unknown": sum(
+            item["verdict"] == "unknown_not_executed_equivalently" for item in audited
+        ),
+        "items": audited,
+    }
 
 
 def challenge_decision(
@@ -243,9 +433,11 @@ def main() -> int:
     challenge_records = read_records(args.challenge)
     anchor_records = read_records(args.anchor)
     challenge_rows, challenge_summaries = summarize_stratum(
-        challenge_records, challenge_cases
+        challenge_records, challenge_cases, read_policy_positions(args.challenge)
     )
-    anchor_rows, anchor_summaries = summarize_stratum(anchor_records, anchor_cases)
+    anchor_rows, anchor_summaries = summarize_stratum(
+        anchor_records, anchor_cases, read_policy_positions(args.anchor)
+    )
     decision = challenge_decision(challenge_rows)
     equal_weight_decision = challenge_decision(
         challenge_rows, closure_key="equal_weight_closure"
@@ -319,11 +511,15 @@ def main() -> int:
         },
         "challenge": {
             "summaries": challenge_summaries,
+            "by_policy_position": by_policy_position(challenge_rows),
+            "gate_rejection_audit": gate_rejection_audit(challenge_records),
             "decision": decision,
             "paired_full_vs_fixed_effects": paired_effects(challenge_rows),
         },
         "anchor": {
             "summaries": anchor_summaries,
+            "by_policy_position": by_policy_position(anchor_rows),
+            "gate_rejection_audit": gate_rejection_audit(anchor_records),
             "fixed": fixed_anchor,
             "full": full_anchor,
             "gate": anchor_gate,
