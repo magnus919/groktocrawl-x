@@ -126,7 +126,9 @@ services:
     restart: unless-stopped
     volumes:
       - candidate_qdrant_rollback_data:/qdrant/storage
-    networks: [candidate_private]
+    networks:
+      candidate_private:
+        aliases: [qdrant]
     environment:
       MALLOC_CONF: retain:false
     healthcheck:
@@ -220,6 +222,7 @@ services:
       SEARXNG_URL: http://candidate-slopsearx:8080
       SCRAPER_URL: http://candidate-scraper:8001
       SEMANTIC_URL: http://candidate-semantic:8003
+      QDRANT_URL: http://candidate-qdrant-rollback:6333
       LLM_BASE_URL: ${LLM_BASE_URL:?Set LLM_BASE_URL in the private candidate environment file}
       LLM_API_KEY: ${LLM_API_KEY:?Set LLM_API_KEY in the private candidate environment file}
       LLM_MODEL: ${LLM_MODEL:-local}
@@ -231,6 +234,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       HOST: 0.0.0.0
       PORT: "8080"
+    extra_hosts:
+      - gpuslut01:host-gateway
     secrets: [postgres_password]
     depends_on:
       candidate-valkey:
