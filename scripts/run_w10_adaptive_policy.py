@@ -200,6 +200,8 @@ def planning_schema(gap_ids: list[str], *, unconstrained: bool) -> dict[str, Any
         "properties": {
             "initial_gaps": {
                 "type": "array",
+                "minItems": len(gap_ids),
+                "maxItems": len(gap_ids),
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -233,7 +235,7 @@ def planning_schema(gap_ids: list[str], *, unconstrained: bool) -> dict[str, Any
     }
 
 
-def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
+def assessment_schema(gap_ids: list[str], candidate_ids: list[str]) -> dict[str, Any]:
     quality = {
         "type": "object",
         "additionalProperties": False,
@@ -250,6 +252,8 @@ def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
         "properties": {
             "candidates": {
                 "type": "array",
+                "minItems": len(candidate_ids),
+                "maxItems": len(candidate_ids),
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -266,7 +270,7 @@ def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
                         "reason",
                     ],
                     "properties": {
-                        "candidate_id": {"type": "string"},
+                        "candidate_id": {"type": "string", "enum": candidate_ids},
                         "relevant_gap_ids": {
                             "type": "array",
                             "items": {"type": "string", "enum": gap_ids},
@@ -284,6 +288,8 @@ def assessment_schema(gap_ids: list[str]) -> dict[str, Any]:
             },
             "gaps": {
                 "type": "array",
+                "minItems": len(gap_ids),
+                "maxItems": len(gap_ids),
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
@@ -466,7 +472,10 @@ def execute_trial(
         llm_client,
         model=model,
         name="w10_evidence_assessment",
-        schema=assessment_schema([gap.gap_id for gap in gaps]),
+        schema=assessment_schema(
+            [gap.gap_id for gap in gaps],
+            [item["candidate_id"] for item in candidate_payload],
+        ),
         prompt={
             "question": case["query"],
             "as_of": case["as_of"],
@@ -488,6 +497,9 @@ def execute_trial(
     assessed = {item["candidate_id"]: item for item in assessment["candidates"]}
     if set(assessed) != set(id_to_key):
         raise ValueError("assessment must return every candidate exactly once")
+    graded_gaps = {item["gap_id"] for item in assessment["gaps"]}
+    if graded_gaps != {gap.gap_id for gap in gaps}:
+        raise ValueError("assessment must return every gap exactly once")
     admitted_ids: list[str] = []
     admitted_canonical_ids: set[str] = set()
     admitted_publishers: set[str] = set()
