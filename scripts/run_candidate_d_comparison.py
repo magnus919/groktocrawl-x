@@ -42,6 +42,10 @@ PACKET_DIGESTS = {
 AUTHORIZATION_DIGEST = (
     "757bbcdf3060a3b7" "51d2e6fa8d0a18b8" "4a83c9b5cac4e9e5" "c2bff1dcf91e7834"
 )
+RERUN_AUTHORIZATION_DIGEST = (
+    "09f1005033afa782" "18d00d912f7df315" "354b03e28fb276e6" "cf365c6b8e790fca"
+)
+TRANSPORT_FAILURE_STOP = 5
 CANDIDATE_PATHS = (
     "agent-svc/agent/experimental/answer_units.py",
     "agent-svc/agent/experimental/lean_construction.py",
@@ -102,6 +106,26 @@ def load_authorized_packet(packet: Path) -> dict[str, Any]:
     }
     if any(authorization.get(key) != value for key, value in required.items()):
         raise ValueError("private comparison authorization scope differs")
+    rerun_path = packet / "clean-rerun-authorization.json"
+    if (
+        not rerun_path.is_file()
+        or rerun_path.stat().st_mode & 0o777 != 0o600
+        or digest(rerun_path) != RERUN_AUTHORIZATION_DIGEST
+    ):
+        raise ValueError("private clean-rerun authorization identity differs")
+    rerun = json.loads(rerun_path.read_text())
+    required_rerun = {
+        "authorized": True,
+        "scope": ["A", "D"],
+        "candidate_commit": FROZEN_COMMIT,
+        "packet_sha256": PACKET_DIGESTS["corpus.json"],
+        "schedule_seed": 20260910,
+        "trials_per_case_per_arm": 5,
+        "generation_call_ceiling": 450,
+        "consecutive_transport_failure_stop": TRANSPORT_FAILURE_STOP,
+    }
+    if any(rerun.get(key) != value for key, value in required_rerun.items()):
+        raise ValueError("private clean-rerun authorization scope differs")
     verify_candidate()
     return json.loads((packet / "corpus.json").read_text())
 
@@ -178,6 +202,7 @@ class MeteredTransport:
         self.calls: Counter[str] = Counter()
         self.receipts: list[dict[str, Any]] = []
         self.arm = ""
+        self.consecutive_transport_failures = 0
 
     async def complete(self, request: ReviewRequest) -> ModelReply:
         limits = {"A": 150, "D": 300}
@@ -195,11 +220,13 @@ class MeteredTransport:
         try:
             reply = await self.transport(request)
         except BaseException:
+            self.consecutive_transport_failures += 1
             receipt.update(
                 status="failed_or_cancelled",
                 latency_ms=round((time.perf_counter() - started) * 1000),
             )
             raise
+        self.consecutive_transport_failures = 0
         receipt.update(
             status="received",
             latency_ms=round((time.perf_counter() - started) * 1000),
@@ -229,6 +256,18 @@ async def qualify_gateway(base_url: str, api_key: str) -> None:
         response.raise_for_status()
         if not any(item.get("id") == "local" for item in response.json().get("data", [])):
             raise ValueError("configured gateway does not advertise local")
+        probe = await client.post(
+            base_url.rstrip("/") + "/chat/completions",
+            headers={"Authorization": "Bearer " + api_key},
+            json={
+                "model": "local",
+                "messages": [{"role": "user", "content": "Return ready."}],
+                "max_tokens": 8,
+            },
+        )
+        probe.raise_for_status()
+        if probe.json().get("model") != "local":
+            raise ValueError("configured gateway did not resolve the local model")
 
 
 async def run(args: argparse.Namespace) -> int:
@@ -302,9 +341,12 @@ async def run(args: argparse.Namespace) -> int:
                 args.output / "receipts.json",
                 json.dumps(metered.receipts, indent=2) + "\n",
             )
+            if metered.consecutive_transport_failures >= TRANSPORT_FAILURE_STOP:
+                break
+    complete = len(results) == len(rows)
     manifest = {
         "schema_version": "enterprise-evaluation/w7-paired-results/1",
-        "status": "execution_complete",
+        "status": "execution_complete" if complete else "operational_abort",
         "comparison_authorized": True,
         "held_out": True,
         "candidate_commit": FROZEN_COMMIT,
@@ -312,18 +354,20 @@ async def run(args: argparse.Namespace) -> int:
         "trials_per_case_per_arm": 5,
         "cases": len(cases),
         "attempts": len(results),
+        "scheduled_attempts": len(rows),
         "outcomes": {
             arm: dict(Counter(item["status"] for item in results if item["arm"] == arm))
             for arm in ARMS
         },
         "calls": dict(metered.calls),
+        "consecutive_transport_failure_stop": TRANSPORT_FAILURE_STOP,
         "completed_at": utc_now(),
         "production_adoption": False,
         "mainline_replacement": False,
     }
     write_private(args.output / "manifest.json", json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
-    return 0
+    return 0 if complete else 2
 
 
 def parser() -> argparse.ArgumentParser:
