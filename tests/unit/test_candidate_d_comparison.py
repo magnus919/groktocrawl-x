@@ -2,6 +2,7 @@
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -58,3 +59,35 @@ async def test_meter_refuses_call_past_arm_ceiling() -> None:
 
     with pytest.raises(ValueError, match="ceiling exhausted"):
         await metered.complete(object())
+
+
+@pytest.mark.asyncio
+async def test_transport_failure_streak_resets_only_after_success() -> None:
+    replies = [
+        RuntimeError("down"),
+        RuntimeError("down"),
+        SimpleNamespace(
+            resolved_model="local",
+            input_tokens=1,
+            output_tokens=1,
+            raw_content_digest="sha256:test",
+        ),
+    ]
+
+    class SequencedTransport:
+        async def __call__(self, request: object) -> object:
+            result = replies.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+    metered = MODULE.MeteredTransport(SequencedTransport())
+    metered.arm = "A"
+    request = SimpleNamespace(requested_model="local")
+    for expected in (1, 2):
+        with pytest.raises(RuntimeError, match="down"):
+            await metered.complete(request)
+        assert metered.consecutive_transport_failures == expected
+
+    assert await metered.complete(request) is not None
+    assert metered.consecutive_transport_failures == 0
