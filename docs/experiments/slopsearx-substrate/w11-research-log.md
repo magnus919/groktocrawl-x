@@ -26,8 +26,19 @@ Sources inspected:
 Observed deployment facts:
 
 - The HAL2000 service reports package 0.5.0 and the source revision above.
+- An authenticated MCP discovery call exposed 35 tools, including adaptive
+  research, staged search, entity reads, receipts/manifests, saved searches,
+  artifact lineage, and dependency dossiers. Tool discovery is not proof of
+  authorization: disabled tools remain discoverable and must fail closed when
+  called.
+- The service-status contract reported 51 configured engines, connected
+  Valkey, immutable snapshots, one concurrent durable research worker, a
+  60-second lease, a 600-second default job deadline, a 20-query operator
+  ceiling, a 500-result job ceiling, and a 3,600-second snapshot lifetime.
 - The shared deployment enables research and selected domain grants, but does
-  not enable all W11 grants.
+  not enable staged search, receipts, saved searches, saved-search events, or
+  dependency dossiers. Its workflow-health report says the implementations are
+  available even where policy denies their use.
 - The W10 candidate routes to its own pinned SlopSearX 0.4 container. Its
   experiment is therefore not split across releases.
 
@@ -47,4 +58,3 @@ Exclusions and limitations:
   grants and workload are not isolated.
 - W11 effect margins and the final control policy remain unset until W10
   finishes. No scored W11 run is authorized by this draft.
-
