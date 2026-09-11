@@ -78,7 +78,11 @@ def test_direct_slopsearx_mcp_refuses_to_start_without_token():
     # Secure-by-default is preserved at container startup: the wrapper exits
     # non-zero when MCP_AUTH_TOKEN is empty (never running unauthenticated) and
     # otherwise launches the MCP server.
-    assert 'if [ -z "$MCP_AUTH_TOKEN" ]' in script
+    # Compose must preserve the variable for the container shell. A single
+    # dollar sign would be interpolated from the operator environment while
+    # rendering the model and would make every authenticated startup fail.
+    assert 'if [ -z "$$MCP_AUTH_TOKEN" ]' in script
+    assert 'if [ -z "$MCP_AUTH_TOKEN" ]' not in script
     assert "exit 1" in script
     assert "exec python -m slopsearx.mcp" in script
 

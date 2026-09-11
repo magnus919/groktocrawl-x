@@ -38,7 +38,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ -z "$MCP_AUTH_TOKEN" ]; then
+        if [ -z "$$MCP_AUTH_TOKEN" ]; then
           echo "error: SLOPSEARX_MCP_AUTH_TOKEN must be set to a non-empty value when the mcp profile is enabled" >&2
           exit 1
         fi

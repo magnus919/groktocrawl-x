@@ -91,3 +91,11 @@ The local workstation has no Docker executable. A clean checkout on HAL2000
 rendered the Compose model successfully and confirmed the pinned 0.5 registry
 digest plus nine empty-by-default specialist grant variables. Live isolated
 startup remains a separate pre-measurement gate.
+
+The first isolated startup exposed a Compose interpolation defect in the MCP
+wrapper: its shell test used a single dollar sign, so Compose substituted the
+operator's unset `MCP_AUTH_TOKEN` before the container received the separately
+mapped `SLOPSEARX_MCP_AUTH_TOKEN`. The container therefore failed closed and
+restarted continuously. The wrapper now escapes the reference for container
+evaluation, and its deterministic test rejects the pre-fix form. This failed
+startup produced no search or scored evidence.
