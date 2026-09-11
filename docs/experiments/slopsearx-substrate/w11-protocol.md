@@ -30,6 +30,15 @@ tenant, Valkey namespace, credentials, network, and output directory.
 Any change to a frozen input invalidates affected measurements. Preserve the
 old run with an exclusion reason; never overwrite it.
 
+Each isolated arm is prepared with `scripts/prepare_w11_arm.py`. The tool writes
+an exclusive private environment file and a secret-free manifest, rejects
+missing provider credentials, unsafe port ranges, and use of one port for both
+services, and sets every undeclared grant to false. The fixed arm matrix is:
+control (no specialist grants), research,
+staged search, receipts, staged-plus-receipts, saved searches plus events, and
+dependency dossier plus its required research and security grants. Each arm
+uses a distinct Compose project name and distinct host ports.
+
 ## 2. Capability and compatibility preflight
 
 Before model-bearing work:

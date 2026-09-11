@@ -116,3 +116,11 @@ configuration, health, readiness, and invalid pagination. The redacted
 nine-probe packet retains no endpoint, query, or result content and has stable
 configuration SHA-256
 `e4995ad273449aac341088c3789d164f433cf1d4320265019282bc4342bc5a6b`.
+
+To remove repeated manual secret and grant editing, the harness now prepares
+private arm environments from a fixed matrix. It creates files exclusively at
+private permissions, never places credentials or ports in the public arm
+manifest, rejects missing provider credentials and a within-arm port collision,
+and explicitly disables every capability outside the selected slice. The
+dossier slice encodes SlopSearX's actual composite requirement for dossier,
+research, and security grants rather than assuming one switch is sufficient.
