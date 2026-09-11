@@ -1,6 +1,6 @@
 # Consolidate Retained and Vector Storage in PostgreSQL
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-09
 - Scope: experimental research architecture in `magnus919/groktocrawl-x` only
@@ -44,7 +44,7 @@ irreversible migration.
 
 ## Decision Outcome
 
-Adopt the second option if this proposal is accepted. Implement a PostgreSQL
+Adopt the second option for the experimental fork. Implement a PostgreSQL
 serving adapter behind the existing semantic-service boundary, then rehearse an
 experimental cutover with Qdrant retained as the rollback target. PostgreSQL is
 authoritative for retained artifacts. pgvector remains a rebuildable projection;
@@ -87,14 +87,17 @@ The proposal is supported by the indexed packets in the
 the [first application pilot](../experiments/evidence/storage-vector-evaluation/2026-09-09-application-shadow-pilot/),
 the [sustained lag packet](../experiments/evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/),
 and the [application cutover and rollback packet](../experiments/evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/).
-The application gate has passed. Acceptance still requires review of this ADR
-and a declared rollback window; the measurements do not change production or
-remove Qdrant.
+The application gate and the W9 candidate migration/rollback rehearsal have passed.
+ADR-0079 is accepted for the experimental fork. Qdrant remains available through
+the W9 operational rollback window and is selected for removal from the experimental
+steady-state stack only if that window passes. The decision does not change
+production or mainline.
 
 ## Links
 
 - [Research architecture plan](../experiments/research-architecture.md)
 - [Vector operational-surface comparison](../experiments/storage/vector-operational-surface.md)
+- [W9 candidate migration and rollback result](../experiments/evidence/replacement-rehearsal/2026-09-11-migration-rollback/)
 - [pgvector shadow pilot protocol](../experiments/storage/pgvector-shadow-pilot.md)
 - [ADR-0071](0071-store-research-evidence-independently-of-sessions.md)
 - [ADR-0078](0078-define-durable-research-backup-and-artifact-authority.md)
