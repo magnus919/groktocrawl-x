@@ -70,6 +70,11 @@ gain and stop too early. The launch is retained and excluded as
 Valid records distinguish every search sighting from `selected_on_attempt`, the
 specific search that caused acquisition; backfill is recorded separately with a
 null selection attempt and never credited as adaptive-query gain.
+The targeted live repeat completed in 100.269 seconds with eight selected pages:
+four from the initial search, two from the first follow-up, and two explicit
+backfills. The validator closed every provenance and evidence edge. Its private
+tree is retained as `pre-execution-acquisition-attribution-smoke` with SHA-256
+`251f7e3b9cd30a900ef87dcddbab84aa0ea0c3d96fda3b4856298ffa438c0670`.
 
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
