@@ -25,7 +25,8 @@ def digest(value: str | None) -> str | None:
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
+    def redirect_request(self, req, fp, code, msg, headers, _newurl):
+        del req, fp, code, msg, headers, _newurl
         return None
 
 
