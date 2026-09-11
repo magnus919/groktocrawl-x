@@ -279,6 +279,30 @@ def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
     assert any("terminal stop reason" in item for item in issues)
     assert any("private excerpt" in item for item in issues)
 
+    record["policy"] = "gated"
+    record["stop_reason"] = "search_limit"
+    record["candidates"][0].pop("reviewed_excerpt")
+    record["initial_gap_assessment"] = [
+        {"gap_id": "claim", "status": "closed", "reason": "already covered"}
+    ]
+    record["attempts"].append({"query": "unnecessary follow-up"})
+    record["proposals"] = [
+        {
+            "query": "unnecessary follow-up",
+            "gap_id": "claim",
+            "admitted": True,
+            "executed": True,
+        }
+    ]
+    record["metrics"]["searches"] = 2
+    (run_dir / "records" / name).write_text(json.dumps(record))
+    (run_dir / "work-order.json").write_text(
+        '{"entries":[{"position":1,"case_id":"case-1",'
+        '"policy":"gated","repetition":0}]}\n'
+    )
+    issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
+    assert any("planner-closed gap" in item for item in issues)
+
 
 def test_work_order_rotates_each_policy_within_each_case():
     cases = [{"case_id": "a"}, {"case_id": "b"}]

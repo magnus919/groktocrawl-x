@@ -58,6 +58,11 @@ close the affected evidence edge. The frozen protocol lists every excluded tree,
 including the stale-gap proposal-gate launch found during the full
 research-methodology audit.
 
+The independent validator must prove the policy's central decision invariants
+from retained records. It may not infer correctness merely because the same
+runner produced the records. This includes rejecting any admitted proposal whose
+target gap was already closed in the preserved initial assessment.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.

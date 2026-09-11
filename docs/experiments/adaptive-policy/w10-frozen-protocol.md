@@ -91,6 +91,15 @@ proposals tied to gaps recorded as open. Its private evidence tree is retained
 as `pre-execution-gap-state-smoke` with SHA-256
 `d243838850f042fdd40cb14e16a9c5af44096b21f1a937eacabff17c836f82a7`.
 
+A four-trial launch was stopped and excluded when the final verification audit
+found that the validator checked the completeness of planner gap judgments but
+did not independently reject an admitted proposal aimed at a planner-closed
+gap. The runner already enforced the rule, but trusting the component under test
+would leave the evidence claim unproved. The preserved tree is
+`challenge-excluded-validator-closure-gap` with SHA-256
+`4d8a867ed1829e2acf827cbce2a00d538c033e5c1be47e999209856bdad6dc45`.
+The validator now closes that edge directly.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256

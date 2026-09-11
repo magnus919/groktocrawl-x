@@ -176,6 +176,19 @@ def validate_run(
                 issues.append(
                     f"{record_path.name}: initial gap assessment differs from the case"
                 )
+            else:
+                initial_gap_statuses = {
+                    item["gap_id"]: item.get("status")
+                    for item in initial_gap_assessment
+                }
+                for proposal in proposals:
+                    if (
+                        proposal.get("admitted")
+                        and initial_gap_statuses.get(proposal.get("gap_id")) == "closed"
+                    ):
+                        issues.append(
+                            f"{record_path.name}: admitted proposal targets a planner-closed gap"
+                        )
         observed_gaps = [item["gap_id"] for item in record.get("gap_results", [])]
         if (
             len(observed_gaps) != len(set(observed_gaps))
