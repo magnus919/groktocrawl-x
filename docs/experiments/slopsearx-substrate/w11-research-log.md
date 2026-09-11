@@ -338,3 +338,27 @@ externally evolving source. Controlled added, changed, not-observed, pause,
 event, and retention cases remain covered by the pinned deterministic contract
 suite. The live result establishes scheduling, stable no-change behavior,
 delivery, acknowledgement, resume, and bounded cleanup.
+
+## 2026-09-11 — isolated dependency dossier
+
+The first Compose invocation for this arm omitted its environment file, used a
+default port already owned by another service, and stopped before MCP startup or
+research dispatch. It is an excluded setup error. The corrected arm used a
+dedicated network and Valkey volume, enabled only the documented composite
+grants for dependency dossiers, research, and security, and denied the other six
+specialist grants before dispatch.
+
+The live versioned-package case reached an honest `partial` state. Package
+metadata resolved, and the observed registry version differed from the requested
+version. Repository acquisition failed, while advisory leads were empty. The
+dossier named repository records as missing coverage, did not claim that the
+caller-supplied repository owned the package, left advisory applicability
+unevaluated, retained three explicit limitations, and stayed within its six-call
+and 500-result ceilings. Repeating the start request returned the same job, and
+the terminal report was byte-stable on reread.
+
+The evaluator was frozen after the live probe and then applied to that retained
+evidence; the search was not repeated. Its hard gate passed. This supports the
+dossier as a conservative evidence-organizing workflow. It does not prove the
+completeness or truth of the underlying dependency investigation, and the result
+remains separate from open-domain W11 quality scoring.
