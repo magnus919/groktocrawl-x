@@ -141,7 +141,8 @@ except Exception:
 health=call('/health')
 model=call('/index/model')
 search=call('/search/vector','POST',{'query':'bounded migration evidence','limit':6})
-print(json.dumps({'health':health.get('status'),'vector_store':health.get('vector_store'),'model':model.get('active_named_vector'),'served_count':model.get('total_docs'),'qdrant_count':len(ids),'qdrant_id_digest':hashlib.sha256(','.join(map(str,sorted(ids))).encode()).hexdigest(),'search_urls':[x['url'] for x in search.get('results',[])]},sort_keys=True))
+provider=health.get('vector_store') or ('qdrant' if health.get('qdrant') == 'ready' else None)
+print(json.dumps({'health':health.get('status'),'vector_store':provider,'model':model.get('active_named_vector'),'served_count':model.get('total_docs'),'qdrant_count':len(ids),'qdrant_id_digest':hashlib.sha256(','.join(map(str,sorted(ids))).encode()).hexdigest(),'search_urls':[x['url'] for x in search.get('results',[])]},sort_keys=True))
 q.close()
 """
 
