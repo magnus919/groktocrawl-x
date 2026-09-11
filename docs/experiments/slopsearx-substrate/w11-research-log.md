@@ -241,3 +241,19 @@ proof pins the test commit, which merged through SlopSearX PR 372 without
 changing the 0.5.0 runtime implementation. The regenerated 31-case summary
 contains 111 local passes and three isolated-Valkey passes with no unresolved
 references, so the staged family has returned to passing status.
+
+## 2026-09-11 — entity-projection pilot correction
+
+The first two-case live entity pilot is excluded from the entity decision. The
+CVE case completed, but ordinary URL deduplication had already combined the two
+engine observations into one canonical result. This confirmed that entity
+projection cannot restore raw results removed earlier in the merge pipeline;
+it did not demonstrate another avoidable fetch. The package case used a
+human-style package-and-version phrase where the selected package adapter
+expects the exact package name, while its companion repository engine lacked
+credentials. It returned no results under partial coverage.
+
+The corrected package case now supplies the exact package name to the package
+adapter alone. This is an input-contract correction made before accepting any
+entity outcome. The failed pilot remains private; its reason and the changed
+case are retained here rather than silently overwritten.
