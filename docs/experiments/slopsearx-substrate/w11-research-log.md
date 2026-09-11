@@ -190,3 +190,22 @@ and a five-point precision degradation. Repetitions are averaged within cases,
 not counted as independent evidence. Passing establishes non-inferiority only;
 adoption still requires compatibility, provenance, recovery, and sustainable
 operations. No scored W11 retrieval or quality run has begun.
+
+## 2026-09-11 — production baseline alignment
+
+The newly installed SlopSearX containers were compared with the isolated W11
+candidate by immutable image identity. Both resolve to the same 0.5.0 registry
+digest and exact source revision already named by this protocol. The six
+capability families that motivated W11 are present in that source release.
+This operational update therefore does not change a frozen input or require a
+replacement candidate. Scored work continues only in isolated arms so normal
+traffic and operator grants cannot affect the comparison.
+
+The discovery-to-capture harness now exercises the first cross-service
+provenance path. It reads a SlopSearX result handoff, lets GroktoCrawl perform
+the page capture, submits the capture or failure as an attributed receipt,
+replays the receipt to prove idempotency, and checks the exported manifest for
+complete result linkage. Raw result records and captured content remain in a
+private artifact; the public record retains only hashes, states, and gate
+outcomes. The harness also requires SlopSearX to disclose that downstream
+receipts are observations rather than verification judgments.
