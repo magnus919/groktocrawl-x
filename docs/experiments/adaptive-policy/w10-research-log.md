@@ -88,6 +88,22 @@ The six-file partial evidence tree is retained as
 `89ed1c5c8c37133395189106417cdfc011979b460c5ed66e8793a86d9ca7145d`,
 and is ineligible for analysis.
 
+The following clean launch reached 21 completed trials and three final
+assessment failures before it was stopped. Every failure returned eight grades
+but duplicated candidate IDs, omitting between one and five expected IDs. The
+new checkpoints preserved each exact response and receipt, which made the
+shared failure mechanism observable. The run is retained and excluded as
+`challenge-excluded-array-assessment-identity`; its 57-file canonical manifest
+has SHA-256
+`d3e96107945173839d3489c846f5f93cfacf2744da105c9d556218c5d6c1ebb6`.
+
+The assessment wire schema now represents candidate and gap IDs as required
+object keys rather than enum-valued array fields. This makes missing or repeated
+identity structurally impossible when strict schema enforcement succeeds. The
+runner retains the wire response before validation and converts it to the same
+list-shaped analysis record afterward. No repair call or post-hoc grade mapping
+was added.
+
 ## Completion gate
 
 - [ ] Every executed search appears in the query log.

@@ -143,6 +143,22 @@ canonical six-file manifest has SHA-256
 `89ed1c5c8c37133395189106417cdfc011979b460c5ed66e8793a86d9ca7145d`.
 No result from that launch is eligible for analysis.
 
+The next clean launch was stopped after 24 terminal attempts (21 completed and
+three failed) with one additional trial in flight. Each failed final assessment
+returned eight candidate grades but reused one or more candidate IDs, omitting
+the same number of candidates. Retrying until an array happened to contain
+unique identities would condition inclusion on model-formatting luck. The
+57-file evidence tree is retained and excluded as
+`challenge-excluded-array-assessment-identity`; its canonical manifest has
+SHA-256
+`d3e96107945173839d3489c846f5f93cfacf2744da105c9d556218c5d6c1ebb6`.
+
+Candidate and gap assessments now use their frozen IDs as required object keys
+with additional properties forbidden. The runner checkpoints that exact wire
+response, verifies its key sets, and only then normalizes it to the unchanged
+analysis record shape. This enforces one grade per identity in the original
+model call without repair calls, invented mappings, or valid-output selection.
+
 The first corrected one-case smoke reached that interim decision but the final
 blind assessment exhausted the former 90-second ceiling. It is retained outside
 the comparison as `pre-execution-sequential-stop-smoke` with SHA-256

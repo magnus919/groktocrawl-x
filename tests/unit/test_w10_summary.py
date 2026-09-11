@@ -6,6 +6,7 @@ import scripts.run_w10_adaptive_policy as w10_runner
 from scripts.build_w10_adjudication_packet import select_gap_disagreements
 from scripts.run_w10_adaptive_policy import (
     apply_planner_gap_state,
+    assessment_schema,
     build_work_order,
     execute_trial,
     resolve_terminal_stop_reason,
@@ -533,11 +534,11 @@ def test_invalid_final_assessment_is_checkpointed_before_cardinality_rejection(
         }
 
     def fake_model_json(client, *, name, prompt, **kwargs):
+        candidate_id = prompt["candidates"][0]["candidate_id"]
         return (
             {
-                "candidates": [
-                    {
-                        "candidate_id": prompt["candidates"][0]["candidate_id"],
+                "candidates": {
+                    candidate_id: {
                         "relevant_gap_ids": ["claim"],
                         "supports_or_challenges": True,
                         "quality": {
@@ -554,17 +555,14 @@ def test_invalid_final_assessment_is_checkpointed_before_cardinality_rejection(
                         "resolves_contradiction": False,
                         "reason": "fixture deliberately omitted the other candidate",
                     }
-                ],
-                "gaps": [
-                    {
-                        "gap_id": "claim",
+                },
+                "gaps": {
+                    "claim": {
                         "status": "closed",
-                        "candidate_ids": [
-                            prompt["candidates"][0]["candidate_id"]
-                        ],
+                        "candidate_ids": [candidate_id],
                         "reason": "fixture",
                     }
-                ],
+                },
             },
             {"response_sha256": "invalid-response"},
         )
@@ -611,6 +609,25 @@ def test_invalid_final_assessment_is_checkpointed_before_cardinality_rejection(
     assert len(public["candidates"]) == 2
     assert all("reviewed_excerpt" not in item for item in public["candidates"])
     assert {item["reviewed_excerpt"] for item in private} == {"one", "two"}
+
+
+def test_assessment_schema_keys_candidate_and_gap_identity():
+    schema = assessment_schema(["claim-a", "claim-b"], ["source-a", "source-b"])
+
+    candidates = schema["properties"]["candidates"]
+    assert candidates["type"] == "object"
+    assert candidates["additionalProperties"] is False
+    assert candidates["required"] == ["source-a", "source-b"]
+    assert set(candidates["properties"]) == {"source-a", "source-b"}
+    assert candidates["properties"]["source-a"]["properties"]["derivative_of"][
+        "enum"
+    ] == ["source-a", "source-b", None]
+
+    gaps = schema["properties"]["gaps"]
+    assert gaps["type"] == "object"
+    assert gaps["additionalProperties"] is False
+    assert gaps["required"] == ["claim-a", "claim-b"]
+    assert set(gaps["properties"]) == {"claim-a", "claim-b"}
 
 
 @pytest.mark.parametrize(
@@ -677,12 +694,10 @@ def test_full_policy_stops_between_followups_from_observed_gain(
                 },
                 {"name": name},
             )
-        candidates = []
+        candidates = {}
         for item in prompt["candidates"]:
             gained = first_round_gain and item["title"] == "initial-4"
-            candidates.append(
-                {
-                    "candidate_id": item["candidate_id"],
+            candidates[item["candidate_id"]] = {
                     "relevant_gap_ids": ["claim"],
                     "supports_or_challenges": gained,
                     "quality": {
@@ -699,18 +714,16 @@ def test_full_policy_stops_between_followups_from_observed_gain(
                     "resolves_contradiction": False,
                     "reason": "fixture",
                 }
-            )
         return (
             {
                 "candidates": candidates,
-                "gaps": [
-                    {
-                        "gap_id": "claim",
+                "gaps": {
+                    "claim": {
                         "status": "open",
                         "candidate_ids": [],
                         "reason": "fixture",
                     }
-                ],
+                },
             },
             {"name": name},
         )
