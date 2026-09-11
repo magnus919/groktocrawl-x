@@ -71,3 +71,21 @@ Exclusions and limitations:
   grants and workload are not isolated.
 - W11 effect margins and the final control policy remain unset until W10
   finishes. No scored W11 run is authorized by this draft.
+
+## 2026-09-11 — deployment contract refresh
+
+A second authenticated preflight after the HAL2000 upgrade reproduced the
+same 0.5.0 contract: all 35 expected tools were present, research was enabled,
+the other five W11 specialist grants were denied before dispatch, and all five
+workflow implementations reported healthy. Apart from the evidence label and
+the distinction between the registry manifest digest and local image ID, the
+stable preflight fields matched the retained discovery packet.
+
+The experimental Compose contract now pins both the ordinary SlopSearX service
+and its optional MCP companion to the observed 0.5.0 registry digest. It also
+passes every 0.5 specialist grant as an independent empty-by-default setting.
+This is required for isolated W11 arms: enabling staged search must not silently
+enable receipts, saved searches, event publication, or dependency dossiers.
+Deterministic Compose, MCP-client, preflight, and case-contract tests passed.
+The local workstation has no Docker executable, so rendered-Compose and live
+startup verification remain deployment-host gates rather than inferred proof.
