@@ -7,8 +7,8 @@ def test_assess_accepts_no_change_pause_replay_ack_resume_and_delete() -> None:
         baseline={"reports": [{"status": "baseline_initialized"}]},
         compared={
             "reports": [
-                {"status": "baseline_initialized", "events": []},
                 {"status": "compared", "events": []},
+                {"status": "baseline_initialized", "events": []},
             ],
             "note": "absence is never a deletion",
         },
@@ -31,8 +31,8 @@ def test_assess_rejects_a_change_event_during_no_change_interval() -> None:
         baseline={"reports": [{"status": "baseline_initialized"}]},
         compared={
             "reports": [
-                {"status": "baseline_initialized", "events": []},
                 {"status": "compared", "events": [{"kind": "changed"}]},
+                {"status": "baseline_initialized", "events": []},
             ],
             "note": "absence is never a deletion",
         },

@@ -79,15 +79,19 @@ def assess(
     event_ids = [item.get("event_id") for item in first_items]
     repeated_ids = [item.get("event_id") for item in repeated_items]
     statuses = [report.get("status") for report in compared_reports]
+    comparison_events = [
+        event
+        for report in compared_reports
+        if report.get("status") == "compared"
+        for event in (report.get("events") or [])
+    ]
     event_types = [item.get("event_type") for item in first_items]
     public = {
         "schema_version": "enterprise-evaluation/w11-saved-search-live/1",
         "baseline_report_count": len(baseline_reports),
         "comparison_report_count": len(compared_reports),
         "report_statuses": statuses,
-        "no_change_event_count": sum(
-            len(report.get("events") or []) for report in compared_reports[1:2]
-        ),
+        "no_change_event_count": len(comparison_events),
         "paused": paused.get("paused"),
         "paused_report_count": paused_report_count,
         "event_types": event_types,
@@ -103,8 +107,8 @@ def assess(
     public["hard_gate_passed"] = bool(
         len(baseline_reports) >= 1
         and len(compared_reports) >= 2
-        and statuses[0] == "baseline_initialized"
-        and statuses[1] == "compared"
+        and statuses.count("baseline_initialized") == 1
+        and statuses.count("compared") == 1
         and public["no_change_event_count"] == 0
         and public["paused"] is True
         and paused_report_count == len(compared_reports)
