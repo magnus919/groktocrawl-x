@@ -50,7 +50,7 @@ Edit `/tmp/groktocrawl-x-candidate.env`:
 - set `CANDIDATE_IMAGE_TAG` to the full checked-out Git revision;
 - set the PostgreSQL password-file path to the file just created;
 - set `CANDIDATE_API_KEY` to the value in the API-key file;
-- set the LiteLLM URL and private key for `gpuslut01`;
+- set the working LiteLLM TLS URL and private key for `gpuslut01`;
 - set the SlopSearX search-provider key.
 
 The checked-in sample selects LiteLLM's `local` model alias. Keep secrets in
