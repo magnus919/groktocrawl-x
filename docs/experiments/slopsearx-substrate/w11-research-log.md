@@ -109,3 +109,10 @@ The redacted packet is retained under
 configuration SHA-256
 `093ca7c87997db2ae5ec64aa8b816d012ee6ff2f19c7310841b64e3da4c752a6`.
 It is deployment evidence only; no scored research task was run.
+
+The isolated ordinary HTTP service then passed the before-run compatibility
+gate across HTML root, JSON GET and form-POST search on both compatible paths,
+configuration, health, readiness, and invalid pagination. The redacted
+nine-probe packet retains no endpoint, query, or result content and has stable
+configuration SHA-256
+`e4995ad273449aac341088c3789d164f433cf1d4320265019282bc4342bc5a6b`.

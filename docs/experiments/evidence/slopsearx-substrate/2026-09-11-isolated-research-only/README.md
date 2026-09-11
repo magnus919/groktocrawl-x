@@ -18,3 +18,11 @@ The first startup attempt failed closed before any search because the Compose
 wrapper incorrectly interpolated its container-side token reference. That
 deployment defect was corrected and regression-tested before this packet was
 captured.
+
+The before-run HTTP compatibility capture exercised nine checks: HTML root,
+JSON search through GET and form POST on both `/` and `/search`, `/config`,
+`/health`, `/healthz`, and invalid-pagination handling. All passed, including
+the SearXNG-compatible HTTP 400 response. The packet retains response shapes,
+sizes, and hashes without retaining result content, the probe query, or the
+private endpoint. Its stable configuration digest is
+`e4995ad273449aac341088c3789d164f433cf1d4320265019282bc4342bc5a6b`.
