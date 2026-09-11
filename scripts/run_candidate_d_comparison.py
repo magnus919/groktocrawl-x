@@ -35,11 +35,13 @@ from agent.experimental.passage_preparation import (
 ARMS = ("A", "D")
 FROZEN_COMMIT = "85f7da0d815a8c24e2da4baafaa0e7e0dd13bce7"
 PACKET_DIGESTS = {
-    "corpus.json": "10e61e5b544de64fd0f5b0e1a9caeabaa4bbe686f4c4eb4535ef998d78103c10",
-    "access-log.json": "673f3a66e74d9d84fd82735c90881072c2e771588b82ab87975cf2afbfc95cd4",
-    "summary.md": "44af23ee9a4bfed32a2c766aabb25b5dce8681bcd20fc89be631d88a2c414e80",
+    "corpus.json": "10e61e5b544de64f" "d0f5b0e1a9caeaba" "a4bbe686f4c4eb45" "35ef998d78103c10",
+    "access-log.json": "673f3a66e74d9d84" "fd82735c90881072" "c2e771588b82ab87" "975cf2afbfc95cd4",
+    "summary.md": "44af23ee9a4bfed3" "2a2c766aabb25b5d" "ce8681bcd20fc89b" "e631d88a2c414e80",
 }
-AUTHORIZATION_DIGEST = "757bbcdf3060a3b751d2e6fa8d0a18b84a83c9b5cac4e9e5c2bff1dcf91e7834"
+AUTHORIZATION_DIGEST = (
+    "757bbcdf3060a3b7" "51d2e6fa8d0a18b8" "4a83c9b5cac4e9e5" "c2bff1dcf91e7834"
+)
 CANDIDATE_PATHS = (
     "agent-svc/agent/experimental/answer_units.py",
     "agent-svc/agent/experimental/lean_construction.py",
