@@ -1,15 +1,18 @@
 {
-  "schema_version": "w9-operational-pilot-state/1",
-  "status": "in_progress",
-  "started_at": "2026-09-11T17:26:19Z",
+  "candidate_revision": "e4301eb32dd3b1e4ef83aec658fba754a2be31ec",
+  "completed_checkpoints": 1,
   "earliest_completion_at": "2026-09-18T17:26:19Z",
+  "next_checkpoint_not_before": "2026-09-14T17:26:19Z",
+  "notes": [
+    "Checkpoint 0 passed with 12 representative requests.",
+    "A host-Python setup attempt stopped before any product request; the checkout virtual environment was then used."
+  ],
+  "required_checkpoints": 3,
   "required_elapsed_days": 7,
   "required_successful_requests": 30,
-  "successful_requests": 0,
-  "completed_checkpoints": 0,
-  "required_checkpoints": 3,
-  "next_checkpoint_not_before": "2026-09-11T17:26:19Z",
-  "candidate_revision": "e4301eb32dd3b1e4ef83aec658fba754a2be31ec",
   "runtime_revision": "6b46bc9a3f44a1571ad68d5453fef90edc99466b",
-  "notes": []
+  "schema_version": "w9-operational-pilot-state/1",
+  "started_at": "2026-09-11T17:26:19Z",
+  "status": "in_progress",
+  "successful_requests": 12
 }
