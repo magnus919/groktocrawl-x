@@ -136,6 +136,10 @@ claim-gap ledger, source-to-claim links, blind grades, sealed arm map, run-level
 measurements, hypothesis analysis, sensitivities, and outcome. No essential
 evidence may exist only in chat or an untracked temporary file.
 
+At launch, write immutable run metadata containing the exact 40-character source
+commit and digests for the case file, freeze record, and runner. This record must
+exist before the first network request so an interrupted run retains its identity.
+
 The source and exclusion accounting, competing-hypothesis analysis, and durable
 completion gate are defined in `w10-research-log.md`. Live execution uses the
 same optional dependency as the earlier runtime studies,

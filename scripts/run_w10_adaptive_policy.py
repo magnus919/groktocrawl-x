@@ -10,6 +10,7 @@ import json
 import os
 import platform
 import random
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -911,6 +912,9 @@ def main() -> int:
     args = parser.parse_args()
     if not args.api_key or not args.llm_base_url or not args.llm_api_key:
         parser.error("API and LLM credentials are required")
+    source_commit = os.environ.get("W10_SOURCE_COMMIT", "")
+    if re.fullmatch(r"[0-9a-f]{40}", source_commit) is None:
+        parser.error("W10_SOURCE_COMMIT must contain the exact 40-character commit")
     try:
         langgraph_version = version("langgraph")
     except PackageNotFoundError:
@@ -921,6 +925,18 @@ def main() -> int:
         )
     started_at = datetime.now(UTC).isoformat()
     args.output.mkdir(parents=True, exist_ok=True, mode=0o700)
+    freeze_path = ROOT / "docs/experiments/adaptive-policy/w10-freeze.json"
+    atomic_json(
+        args.output / "run-metadata.json",
+        {
+            "schema_version": "enterprise-evaluation/w10-run-metadata/1",
+            "source_commit": source_commit,
+            "started_at": started_at,
+            "cases_sha256": digest(args.cases.read_bytes()),
+            "freeze_sha256": digest(freeze_path.read_bytes()),
+            "runner_sha256": digest(Path(__file__).read_bytes()),
+        },
+    )
     records = args.output / "records"
     records.mkdir(exist_ok=True, mode=0o700)
     payload = json.loads(args.cases.read_text())
@@ -1047,6 +1063,8 @@ def main() -> int:
             "api_route": "candidate_loopback",
             "llm_route": "openai_compatible",
             "runner_sha256": digest(Path(__file__).read_bytes()),
+            "source_commit": source_commit,
+            "freeze_sha256": digest(freeze_path.read_bytes()),
             "policy_sha256": digest(
                 (
                     ROOT / "agent-svc/agent/experimental/bounded_adaptive_policy.py"
