@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 import scripts.run_w10_adaptive_policy as w10_runner
@@ -9,6 +11,8 @@ from scripts.run_w10_adaptive_policy import (
     trial_evidence_checkpoint,
 )
 from scripts.summarize_w10_adaptive_policy import aggregate, gate, gate_rejection_audit
+from scripts.validate_w10_run import digest as file_digest
+from scripts.validate_w10_run import validate_run
 
 
 def row(**overrides):
@@ -148,6 +152,80 @@ def test_adjudication_selects_every_disputed_high_importance_closure():
     selected, reasons = select_gap_disagreements(observations)
     assert set(selected) == {"high-open", "high-closed"}
     assert reasons["high-open"] == {"high_importance_closure_disagreement"}
+
+
+def test_w10_run_validator_closes_public_private_and_accounting_edges(tmp_path):
+    cases_path = tmp_path / "cases.json"
+    freeze_path = tmp_path / "freeze.json"
+    run_dir = tmp_path / "run"
+    (run_dir / "records").mkdir(parents=True)
+    (run_dir / "private-acquisitions").mkdir()
+    cases_path.write_text(
+        '{"cases":[{"case_id":"case-1","claims":'
+        '[{"claim_id":"claim"}]}]}\n'
+    )
+    freeze_path.write_text('{"runner_sha256":"runner"}\n')
+    (run_dir / "run-metadata.json").write_text(
+        json.dumps(
+            {
+                "source_commit": "a" * 40,
+                "cases_sha256": file_digest(cases_path),
+                "freeze_sha256": file_digest(freeze_path),
+                "runner_sha256": "runner",
+            }
+        )
+    )
+    (run_dir / "work-order.json").write_text(
+        '{"entries":[{"position":1,"case_id":"case-1",'
+        '"policy":"fixed","repetition":0}]}\n'
+    )
+    name = "case-1--fixed--0.json"
+    (run_dir / "records" / name).write_text(
+        json.dumps(
+            {
+                "case_id": "case-1",
+                "policy": "fixed",
+                "repetition": 0,
+                "status": "completed",
+                "stop_reason": "fixed_query_complete",
+                "metrics": {
+                    "searches": 1,
+                    "model_calls": 1,
+                    "admitted_count": 1,
+                    "elapsed_ms": 100,
+                },
+                "attempts": [{"query": "initial"}],
+                "proposals": [],
+                "candidates": [
+                    {
+                        "candidate_id": "source-1",
+                        "reviewed_bytes_sha256": "content",
+                    }
+                ],
+                "gap_results": [{"gap_id": "claim", "status": "closed"}],
+                "orchestration": {
+                    "runtime": "langgraph",
+                    "event_count": 1,
+                    "event_digests": ["event"],
+                },
+            }
+        )
+    )
+    (run_dir / "private-acquisitions" / name).write_text(
+        '[{"candidate_id":"source-1","reviewed_bytes_sha256":"content",'
+        '"reviewed_excerpt":"private"}]\n'
+    )
+
+    assert validate_run(
+        run_dir, cases_path, freeze_path, expected_records=1
+    ) == []
+    record = json.loads((run_dir / "records" / name).read_text())
+    record["stop_reason"] = "continue"
+    record["candidates"][0]["reviewed_excerpt"] = "leak"
+    (run_dir / "records" / name).write_text(json.dumps(record))
+    issues = validate_run(run_dir, cases_path, freeze_path, expected_records=1)
+    assert any("terminal stop reason" in item for item in issues)
+    assert any("private excerpt" in item for item in issues)
 
 
 def test_work_order_rotates_each_policy_within_each_case():
