@@ -163,7 +163,7 @@ services:
         exec uvicorn app:app --host 0.0.0.0 --port 8003
     environment:
       QDRANT_URL: http://candidate-qdrant-rollback:6333
-      VECTOR_STORE_MODE: pgvector
+      VECTOR_STORE_MODE: ${VECTOR_STORE_MODE:-pgvector}
       PGVECTOR_SHADOW_DSN: postgresql://groktocrawl_x@candidate-postgres:5432/groktocrawl_x
       PGPASSFILE: /tmp/postgres.pgpass
       PGVECTOR_SHADOW_SAMPLE_RATE: "1"
