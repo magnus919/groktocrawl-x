@@ -290,7 +290,7 @@ services:
     depends_on:
       candidate-agent:
         condition: service_healthy
-    networks: [candidate_private]
+    networks: [candidate_egress, candidate_private]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=5)"]
       interval: 10s
