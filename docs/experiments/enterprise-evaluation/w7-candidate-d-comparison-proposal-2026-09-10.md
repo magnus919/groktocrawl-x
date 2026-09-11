@@ -1,6 +1,6 @@
 # W7 Candidate D comparison proposal — 2026-09-10
 
-Status: **ready for maintainer authorization; no model inference has started**
+Status: **authorized by the maintainer; no model inference has started**
 
 This experiment asks a narrow question: does the frozen lean successor produce
 more dependable grounded answers than the incumbent without repeating Candidate
@@ -86,3 +86,8 @@ Authorization permits this private paired generation and the subsequent blinded,
 case-by-case grading. It does not accept proposed ADR-0080, deploy Candidate D,
 remove the incumbent, or replace mainline GroktoCrawl. Those decisions require the
 completed evidence and a separate maintainer decision.
+
+Magnus Hedemark authorized this exact comparison on 2026-09-10. The private
+authorization record is bound to the packet, frozen candidate, arms, model route,
+trial count, and 450-call generation ceiling. Its digest is
+`sha256:757bbcdf3060a3b751d2e6fa8d0a18b84a83c9b5cac4e9e5c2bff1dcf91e7834`.
