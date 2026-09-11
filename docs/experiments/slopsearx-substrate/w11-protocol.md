@@ -77,6 +77,13 @@ scope, result limits, acquisition rules, and final assessment. A1 may change
 transport and persistence, but it may not generate a query, decide that a gap
 is closed, or stop research on SlopSearX's behalf.
 
+Before freezing the work order, resolve the ordinary HTTP `general` category
+through SlopSearX's no-dispatch scope preview. Re-preview that selected list as
+an explicit engine scope and require exact equality. Freeze the resulting
+engine names. A0 supplies that explicit list to HTTP search and A1 supplies the
+same list in its caller-authored research plan. This prevents a category versus
+intent routing difference from being mistaken for a transport effect.
+
 The challenge work order is generated only from a completed W10 summary. For
 each challenge type selected by W10, both W11 arms use the W10 `full` policy;
 all other types use `fixed`. The generator rejects partial W10 results and
