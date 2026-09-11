@@ -136,6 +136,14 @@ nine-probe packet retains no endpoint, query, or result content and has stable
 configuration SHA-256
 `e4995ad273449aac341088c3789d164f433cf1d4320265019282bc4342bc5a6b`.
 
+A no-dispatch routing preview resolved the HTTP `general` category to seven
+engines, then reproduced the same ordered set through explicit-engine routing.
+W11 will freeze that list and provide it to both flat HTTP and recorded
+continuation arms. This closes an important confound: an intent-profile routing
+difference can no longer be mistaken for a persistence or transport effect.
+The public report contains engine names and a query digest, but no endpoint,
+credential, search result, or private network detail.
+
 To remove repeated manual secret and grant editing, the harness now prepares
 private arm environments from a fixed matrix. It creates files exclusively at
 private permissions, never places credentials or ports in the public arm
