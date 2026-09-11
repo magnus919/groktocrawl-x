@@ -48,10 +48,18 @@ tree is retained as `challenge-excluded-posthoc-stop` with SHA-256
 The corrected implementation permits a third model call only for the full arm's
 interim assessment and counts that call as policy cost.
 
+The first corrected one-case smoke reached that interim decision but the final
+blind assessment exhausted the former 90-second ceiling. It is retained outside
+the comparison as `pre-execution-sequential-stop-smoke` with SHA-256
+`c748c01a83235951369a47375cec0c95f516a528e7376fb473493ceada0b6bc3`.
+Because the additional assessment is required for the policy to observe its own
+stopping condition, the valid execution uses a 180-second ceiling and retains
+actual elapsed time and model-call count for every arm.
+
 ## Bounds and gates
 
 Each case permits at most three searches, three planning/judging model calls, 20
-results per search, eight admitted sources, and 90 elapsed seconds. A proposal
+results per search, eight admitted sources, and 180 elapsed seconds. A proposal
 must name one gap, predict the evidence that closes it, differ materially from
 prior query intent, and avoid broadening beyond the material claims.
 

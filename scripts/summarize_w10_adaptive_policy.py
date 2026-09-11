@@ -115,7 +115,7 @@ def trial_metrics(
             metrics["searches"] <= 3
             and metrics["model_calls"] <= 3
             and metrics["admitted_count"] <= 8
-            and metrics["elapsed_ms"] <= 90_000
+            and metrics["elapsed_ms"] <= 180_000
         ),
         "elapsed_ms": metrics["elapsed_ms"],
         "model_calls": metrics["model_calls"],

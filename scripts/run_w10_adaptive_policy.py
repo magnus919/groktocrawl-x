@@ -36,6 +36,7 @@ from agent.experimental.bounded_adaptive_policy import (
 )
 
 POLICIES = ("fixed", "unconstrained", "gap", "gated", "full")
+CASE_LIMIT_SECONDS = 180
 PURPOSES = (
     "missing_support",
     "contradiction",
@@ -56,7 +57,7 @@ def digest(value: str | bytes) -> str:
 def remaining_seconds(deadline: float) -> float:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
-        raise TimeoutError("the 90-second case limit was reached")
+        raise TimeoutError(f"the {CASE_LIMIT_SECONDS}-second case limit was reached")
     return max(0.1, remaining)
 
 
@@ -398,7 +399,7 @@ def execute_trial(
     checkpoint_writer: CheckpointWriter | None = None,
 ) -> dict[str, Any]:
     started = time.monotonic()
-    deadline = started + 90
+    deadline = started + CASE_LIMIT_SECONDS
     claims = case["claims"]
     blind_seed = int(digest(f"{seed}:{case['case_id']}:{policy}:{repetition}")[:16], 16)
     gaps = tuple(
