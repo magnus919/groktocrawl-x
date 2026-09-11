@@ -11,12 +11,12 @@ experimental candidate, not a production cutover or a replacement for mainline.
 
 | Item | Frozen value |
 |---|---|
-| Source revision | `c158d59bc21da43828d255d715675f91bc0f4dfb` |
+| Source revision | `6b46bc9a3f44a1571ad68d5453fef90edc99466b` |
 | Compose SHA-256 | `c866f7ccfb7ae47f859ce26ba396e67af3d5fb2b31a3676273d603dc3a15ac3f` |
 | Python lock SHA-256 | `4c383538479287eedaf4ffde5f2044f29972897a256e07f9b57fa3d1bc42648a` |
 | Candidate host | `gpuslut01` |
 | Compose project | `groktocrawl-x-candidate` |
-| Verification time | `2026-09-11T16:48:39Z` |
+| Verification time | `2026-09-11T16:59:54+00:00` |
 | PostgreSQL research schema | `14` |
 | pgvector extension | `0.8.6` |
 | Semantic serving store | `pgvector` |
