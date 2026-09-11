@@ -160,3 +160,33 @@ all nine specialist grants, runs denial probes for every disabled grant, and
 verifies the separate targeted-sensitive flag.
 The original six-grant capture remains in the evidence directory under an
 explicit incomplete-boundary filename and is excluded from later freeze input.
+
+## 2026-09-11 — general-comparison harness
+
+The W11 A0/A1 harness now refuses to construct a work order until W10 is
+complete. It maps challenge types selected by W10 to the `full` control policy
+and all other types to `fixed`, then counterbalances the flat-HTTP and recorded-
+continuation arms within every case and repetition. Both arms use the same
+frozen W10 query sequence and explicit engine list.
+
+The retrieval runner is resumable and separates raw results from public
+accounting. Private checkpoints use restrictive permissions. Public records
+contain query, scope, and result-URL hashes rather than query or result text. A
+retained private checkpoint can reconstruct a missing public record without
+another search; a public record with missing private evidence fails closed.
+SlopSearX research jobs use deterministic idempotency keys and cumulative
+query, attempt, engine-attempt, and result limits.
+
+Quality grading is a separate blind stage. It uses the corrected W10 keyed
+assessment schema, the same acquisition limits and `fixed`/`full` admission
+rules, one model assessment per trial, and an arm-independent shuffle seed.
+Raw excerpts and the exact model response remain private. The public grade
+retains normalized source judgments, gap closure, accounting, and response
+hashes.
+
+The primary quality gate is now frozen before outcomes: the lower bound of the
+case-bootstrap 95% interval must remain above a two-point closure degradation
+and a five-point precision degradation. Repetitions are averaged within cases,
+not counted as independent evidence. Passing establishes non-inferiority only;
+adoption still requires compatibility, provenance, recovery, and sustainable
+operations. No scored W11 retrieval or quality run has begun.

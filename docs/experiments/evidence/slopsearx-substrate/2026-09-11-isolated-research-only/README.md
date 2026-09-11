@@ -32,3 +32,9 @@ the SearXNG-compatible HTTP 400 response. The packet retains response shapes,
 sizes, and hashes without retaining result content, the probe query, or the
 private endpoint. Its stable configuration digest is
 `e4995ad273449aac341088c3789d164f433cf1d4320265019282bc4342bc5a6b`.
+
+The no-dispatch scope-equivalence capture resolves the ordinary `general`
+category to seven engines and proves that the same ordered list is accepted as
+an explicit research scope. The scored A0 and A1 arms must both use this list;
+neither may silently substitute intent-based routing. The capture contains no
+endpoint, credential, result content, or private network address.
