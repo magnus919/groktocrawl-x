@@ -77,6 +77,13 @@ scope, result limits, acquisition rules, and final assessment. A1 may change
 transport and persistence, but it may not generate a query, decide that a gap
 is closed, or stop research on SlopSearX's behalf.
 
+The challenge work order is generated only from a completed W10 summary. For
+each challenge type selected by W10, both W11 arms use the W10 `full` policy;
+all other types use `fixed`. The generator rejects partial W10 results and
+freezes the exact summary and case-file digests. It counterbalances A0/A1 order
+within every case and repetition so transport order cannot be chosen after
+outcomes are visible.
+
 Run three repetitions per case and arm in a deterministic, seeded,
 counterbalanced work order. Repetitions measure run variability; they are not
 treated as independent cases in uncertainty estimates.
