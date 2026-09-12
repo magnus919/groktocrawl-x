@@ -14,7 +14,7 @@ and the combined summary and blinded adjudication packet are complete.
 Independent adjudication is pinned to the Hermes `luna` model alias. Every
 observation uses a fresh one-shot session, the full rubric must validate before
 its private checkpoint is written, and malformed attempts remain preserved for
-the audit. Eight disjoint execution lanes reduce elapsed time without changing
+the audit. Sixteen disjoint execution lanes reduce elapsed time without changing
 the unit of review. Their identity sets were checked against the original
 packet: all 4,487 observations occur exactly once, with no omission or overlap.
 The shared checkpoints remain resumable, and no intermediate judgment or
