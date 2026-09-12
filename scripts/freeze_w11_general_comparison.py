@@ -96,6 +96,14 @@ def build_freeze(
         raise ValueError("W10 policy selection is incomplete")
     if selection.get("w11_measurement_authorized") is not True:
         raise ValueError("W10 did not authorize W11 measurement")
+    known_types = {str(case["challenge_type"]) for case in cases.get("cases", [])}
+    selected_types = set(selection.get("selected_challenge_types", []))
+    if (
+        (selection.get("inputs") or {}).get("challenge_cases") != digest(cases_path)
+        or set(selection.get("known_challenge_types", [])) != known_types
+        or not selected_types <= known_types
+    ):
+        raise ValueError("W10 selection does not bind the supplied challenge cases")
     if manifest.get("completed") != manifest.get("records") or any(
         manifest.get(field) != 0 for field in ("failed", "failed_attempts")
     ):
@@ -120,9 +128,41 @@ def build_freeze(
         or work_order.get("result_limit") != manifest.get("result_limit")
     ):
         raise ValueError("W11 work order does not match the frozen challenge design")
+    expected_policy_by_type = {
+        challenge_type: "full" if challenge_type in selected_types else "fixed"
+        for challenge_type in sorted(known_types)
+    }
+    if work_order.get("policy_by_challenge_type") != expected_policy_by_type:
+        raise ValueError("W11 work order does not implement the final W10 selection")
     entries = work_order["entries"]
     if [entry.get("position") for entry in entries] != list(range(1, expected_trials + 1)):
         raise ValueError("W11 work-order positions are not complete and ordered")
+    case_types = {
+        str(case["case_id"]): str(case["challenge_type"]) for case in cases["cases"]
+    }
+    expected_units = {
+        (case_id, challenge_type, repetition, arm)
+        for case_id, challenge_type in case_types.items()
+        for repetition in range(REPETITIONS)
+        for arm in ARMS
+    }
+    observed_units = [
+        (
+            str(entry.get("case_id")),
+            str(entry.get("challenge_type")),
+            entry.get("repetition"),
+            entry.get("arm"),
+        )
+        for entry in entries
+    ]
+    if len(set(observed_units)) != len(observed_units) or set(observed_units) != expected_units:
+        raise ValueError("W11 work order does not cover each frozen case and arm exactly")
+    if any(
+        entry.get("control_policy")
+        != expected_policy_by_type.get(str(entry.get("challenge_type")))
+        for entry in entries
+    ):
+        raise ValueError("W11 work-order entry does not implement its control policy")
 
     http_engines = scope.get("http_control", {}).get("engines")
     research_engines = scope.get("research_arm", {}).get("initial_plan_engines")

@@ -53,6 +53,7 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
             "w11_measurement_authorized": True,
             "selected_challenge_types": ["freshness"],
             "known_challenge_types": ["authority", "freshness"],
+            "inputs": {"challenge_cases": _digest(cases_path)},
         },
     )
     manifest_path = _write(
@@ -71,10 +72,14 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
         {
             "position": position + 1,
             "case_id": f"case-{(position // 2) % 12:02d}",
-            "challenge_type": "freshness",
+            "challenge_type": (
+                "freshness" if ((position // 2) % 12) < 6 else "authority"
+            ),
             "repetition": (position // 24),
             "arm": ["flat_http", "recorded_continuation"][position % 2],
-            "control_policy": "full",
+            "control_policy": (
+                "full" if ((position // 2) % 12) < 6 else "fixed"
+            ),
         }
         for position in range(72)
     ]
@@ -211,6 +216,47 @@ def test_build_freeze_rejects_tampered_scope(tmp_path: Path) -> None:
     _write(scope_path, scope)
 
     with pytest.raises(ValueError, match="scope-equivalence"):
+        build_freeze(**values)
+
+
+def test_build_freeze_independently_checks_selection_case_binding(tmp_path: Path) -> None:
+    values = _inputs(tmp_path)
+    selection_path = values["w10_selection_path"]
+    work_order_path = values["work_order_path"]
+    assert isinstance(selection_path, Path)
+    assert isinstance(work_order_path, Path)
+    selection = json.loads(selection_path.read_text())
+    selection["inputs"]["challenge_cases"] = "f" * 64
+    _write(selection_path, selection)
+    work_order = json.loads(work_order_path.read_text())
+    work_order["inputs"]["w10_selection_sha256"] = _digest(selection_path)
+    _write(work_order_path, work_order)
+
+    with pytest.raises(ValueError, match="does not bind"):
+        build_freeze(**values)
+
+
+def test_build_freeze_independently_checks_selected_policy_mapping(tmp_path: Path) -> None:
+    values = _inputs(tmp_path)
+    work_order_path = values["work_order_path"]
+    assert isinstance(work_order_path, Path)
+    work_order = json.loads(work_order_path.read_text())
+    work_order["policy_by_challenge_type"]["authority"] = "full"
+    _write(work_order_path, work_order)
+
+    with pytest.raises(ValueError, match="final W10 selection"):
+        build_freeze(**values)
+
+
+def test_build_freeze_requires_exact_case_arm_coverage(tmp_path: Path) -> None:
+    values = _inputs(tmp_path)
+    work_order_path = values["work_order_path"]
+    assert isinstance(work_order_path, Path)
+    work_order = json.loads(work_order_path.read_text())
+    work_order["entries"][0]["case_id"] = work_order["entries"][2]["case_id"]
+    _write(work_order_path, work_order)
+
+    with pytest.raises(ValueError, match="each frozen case and arm exactly"):
         build_freeze(**values)
 
 
