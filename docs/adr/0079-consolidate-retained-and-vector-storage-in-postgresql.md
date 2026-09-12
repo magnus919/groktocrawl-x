@@ -6,7 +6,7 @@
 - Scope: experimental research architecture in `magnus919/groktocrawl-x` only
 - Plan: D3 / W3; issues [#201](https://github.com/magnus919/groktocrawl-x/issues/201) and [#230](https://github.com/magnus919/groktocrawl-x/issues/230)
 - Extends: [ADR-0071](0071-store-research-evidence-independently-of-sessions.md) and [ADR-0078](0078-define-durable-research-backup-and-artifact-authority.md)
-- Replaces if accepted: the Qdrant persistence choice in [ADR-0026](0026-phase2-vector-index.md) for the experimental deployment only
+- Partially supersedes: the Qdrant persistence choice in [ADR-0026](0026-phase2-vector-index.md) for the experimental deployment only
 
 ## Context and Problem Statement
 

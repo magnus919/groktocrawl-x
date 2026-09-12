@@ -19,10 +19,13 @@ in this repository has no effect on the status of the upstream record.
 
 On 2026-09-05 Magnus accepted foundation ADRs 0067–0070 and 0072 for a bounded
 fixture-backed prototype. Magnus subsequently accepted ADR-0071 for bounded,
-isolated PostgreSQL exploration in issue #47. ADRs 0073 and 0074 remain proposed;
-no runtime or recovery infrastructure is adopted. PostgreSQL production adoption
-and pgvector/Qdrant consolidation remain gated. Follow the acceptance record and
-remaining implementation gates. Provider spend remains zero.
+isolated PostgreSQL exploration in issue #47 and ADR-0074 for Valkey-backed durable
+execution and recovery. ADR-0073 remains proposed; LangGraph is an optional advanced
+runtime, not the application authority. ADR-0079 accepts pgvector serving for the
+experimental deployment after the completed cutover and rollback rehearsals. Keep
+Qdrant available through the W9 rollback window. These decisions do not change the
+mainline or production deployment. Evaluations use only owner-authorized provider
+routes and budgets.
 
 On 2026-09-06 Magnus accepted ADR-0075 for bounded experimental implementation
 (issue #92): consolidated knowledge and audited render contracts, preserving old
