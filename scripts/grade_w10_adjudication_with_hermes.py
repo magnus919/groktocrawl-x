@@ -191,7 +191,14 @@ def grade_packet(
             response = None
             for attempt in range(1, max_attempts + 1):
                 prompt_path = checkpoint_dir / f"{observation_id}.prompt.txt"
-                write_exclusive(prompt_path, prompt_for(item))
+                prompt = prompt_for(item)
+                try:
+                    write_exclusive(prompt_path, prompt)
+                except FileExistsError:
+                    if prompt_path.read_text() != prompt:
+                        raise ValueError(
+                            f"stale prompt mismatch for observation {observation_id}"
+                        )
                 raw_response: str | None = None
                 try:
                     raw_response = invoke(prompt_path)
