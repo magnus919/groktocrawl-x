@@ -93,10 +93,52 @@ def test_invalid_hermes_score_is_not_checkpointed(tmp_path):
                     "rationale": "Bad score",
                 }
             ),
+            max_attempts=1,
         )
     assert not (tmp_path / "source-1.json").exists()
 
 
 def test_rejects_schema_drift(tmp_path):
     with pytest.raises(ValueError, match="fields"):
-        grade_packet(packet(), tmp_path, lambda _: '{"rationale": "missing fields"}')
+        grade_packet(
+            packet(),
+            tmp_path,
+            lambda _: '{"rationale": "missing fields"}',
+            max_attempts=1,
+        )
+
+
+def test_retries_and_privately_preserves_invalid_responses(tmp_path):
+    value = packet()
+    value["items"] = value["items"][:1]
+    calls = 0
+
+    def invoke(_):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return '{"rationale": "missing fields"}'
+        return json.dumps(
+            {
+                "currency": 2,
+                "relevance": 2,
+                "authority": 1,
+                "accuracy": 2,
+                "purpose": 2,
+                "passage_support": "supports",
+                "useful": True,
+                "derivative_or_copied": False,
+                "rationale": "The passage directly supports the claim.",
+            }
+        )
+
+    result = grade_packet(value, tmp_path, invoke, max_attempts=2)
+
+    assert calls == 2
+    assert len(result["items"]) == 1
+    failures = tmp_path / "failures"
+    assert (failures / "source-1--attempt-1.error.txt").exists()
+    assert (failures / "source-1--attempt-1.response.txt").read_text() == (
+        '{"rationale": "missing fields"}'
+    )
+    assert all(path.stat().st_mode & 0o777 == 0o600 for path in failures.iterdir())
