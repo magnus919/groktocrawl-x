@@ -31,6 +31,9 @@ ARM_GRANTS = {
     "staged": {"staged_search"},
     "provenance": {"retrieval_receipts"},
     "evidence": {"retrieval_receipts", "staged_search"},
+    # Representative artifact composition needs research plus manifest export.
+    # Broader cross-workflow transitions remain isolated deterministic cases.
+    "composition": {"research", "retrieval_receipts"},
     "saved": {"saved_search_events", "saved_searches"},
     # Dossiers compose package, repository, and advisory research and therefore
     # require the three grants together in SlopSearX 0.5.

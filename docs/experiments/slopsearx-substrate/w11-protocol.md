@@ -36,7 +36,9 @@ missing provider credentials, unsafe port ranges, and use of one port for both
 services, and sets every undeclared grant to false. The fixed arm matrix is:
 control (no specialist grants), research,
 staged search, receipts, staged-plus-receipts, saved searches plus events, and
-dependency dossier plus its required research and security grants. Each arm
+dependency dossier plus its required research and security grants. A separate
+composition arm enables only research and receipt/manifest export for the live
+snapshot-to-research-to-manifest journey. Each arm
 uses a distinct Compose project name and distinct host ports.
 
 ## 2. Capability and compatibility preflight

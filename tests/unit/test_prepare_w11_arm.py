@@ -24,6 +24,7 @@ SPEC.loader.exec_module(module)
         ("staged", {"staged_search"}),
         ("provenance", {"retrieval_receipts"}),
         ("evidence", {"retrieval_receipts", "staged_search"}),
+        ("composition", {"research", "retrieval_receipts"}),
         ("saved", {"saved_search_events", "saved_searches"}),
         ("dossier", {"dependency_dossier", "research", "security"}),
     ],
