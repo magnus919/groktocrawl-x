@@ -20,6 +20,21 @@ The complete reference packet now proves 40 cases through 120 local passes and
 three deliberate local skips that passed against isolated Valkey. There are no
 failed or unresolved references.
 
+The representative live arm enabled only research and receipt/manifest export.
+It composed one immutable snapshot into one bounded research attempt, returned
+the same job on an identical start replay, exported 19 manifest items, and
+preserved the explicit `derived_from` edge and non-verification disclosure. The
+live hard gate passed.
+
+Two pre-evidence attempts are excluded. The first MCP container was initially
+created with a conflicting default host port despite the private environment;
+recreation from the inspected Compose model applied the unique port, after
+which the least-grant preflight passed. The first composition input then used
+an engine/query combination that returned no evidence. Research completed, but
+manifest export refused an empty manifest. That is expected boundary behavior,
+not a passing journey; the successful run used a working engine and a new
+idempotency identity.
+
 ## 2026-09-11 — installed 0.5 baseline and reference contracts
 
 The HAL2000 GroktoCrawl deployment was rechecked after the operator reported
