@@ -116,7 +116,11 @@ def grade_packet(
     packet: dict[str, Any],
     checkpoint_dir: Path,
     invoke: Callable[[Path], str],
+    *,
+    max_attempts: int = 3,
 ) -> dict[str, Any]:
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
     if (
         packet.get("schema_version")
         != "enterprise-evaluation/w10-adjudication-private/1"
@@ -143,19 +147,37 @@ def grade_packet(
         if checkpoint.exists():
             response = json.loads(checkpoint.read_text())
         else:
-            prompt_path = checkpoint_dir / f"{observation_id}.prompt.txt"
-            write_exclusive(prompt_path, prompt_for(item))
-            try:
-                response = validate_grade(
-                    item, parse_json_response(invoke(prompt_path))
-                )
-                write_exclusive(
-                    checkpoint,
-                    json.dumps(response, ensure_ascii=False, indent=2, sort_keys=True)
-                    + "\n",
-                )
-            finally:
-                prompt_path.unlink(missing_ok=True)
+            failures = checkpoint_dir / "failures"
+            for attempt in range(1, max_attempts + 1):
+                prompt_path = checkpoint_dir / f"{observation_id}.prompt.txt"
+                write_exclusive(prompt_path, prompt_for(item))
+                raw_response: str | None = None
+                try:
+                    raw_response = invoke(prompt_path)
+                    response = validate_grade(item, parse_json_response(raw_response))
+                    write_exclusive(
+                        checkpoint,
+                        json.dumps(
+                            response, ensure_ascii=False, indent=2, sort_keys=True
+                        )
+                        + "\n",
+                    )
+                    break
+                except Exception as error:
+                    failures.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    failure_stem = failures / f"{observation_id}--attempt-{attempt}"
+                    write_exclusive(
+                        failure_stem.with_suffix(".error.txt"),
+                        f"{type(error).__name__}: {error}\n",
+                    )
+                    if raw_response is not None:
+                        write_exclusive(
+                            failure_stem.with_suffix(".response.txt"), raw_response
+                        )
+                    if attempt == max_attempts:
+                        raise
+                finally:
+                    prompt_path.unlink(missing_ok=True)
         responses.append(
             validate_grade(
                 item,
@@ -184,6 +206,7 @@ def main() -> int:
         "--hermes", type=Path, default=Path("/Users/magnus/.local/bin/hermes")
     )
     parser.add_argument("--model")
+    parser.add_argument("--max-attempts", type=int, default=3)
     args = parser.parse_args()
 
     def invoke(prompt_path: Path) -> str:
@@ -214,7 +237,10 @@ def main() -> int:
         return completed.stdout
 
     result = grade_packet(
-        json.loads(args.packet.read_text()), args.checkpoint_dir, invoke
+        json.loads(args.packet.read_text()),
+        args.checkpoint_dir,
+        invoke,
+        max_attempts=args.max_attempts,
     )
     write_exclusive(
         args.output,
