@@ -185,3 +185,33 @@ def test_repeated_resume_failures_keep_prior_diagnostics(tmp_path):
         "source-1--attempt-1.error.txt",
         "source-1--attempt-1--retry-2.error.txt",
     }
+
+
+def test_exhausted_item_can_be_deferred_without_blocking_later_items(tmp_path):
+    calls = []
+
+    def invoke(path):
+        prompt = path.read_text()
+        calls.append(prompt)
+        if '"observation_id": "source-1"' in prompt:
+            return '{"rationale": "missing fields"}'
+        return json.dumps(
+            {
+                "claim_status": "open",
+                "contradiction_handling": "not_applicable",
+                "rationale": "No admitted source supports the claim.",
+            }
+        )
+
+    result = grade_packet(
+        packet(),
+        tmp_path,
+        invoke,
+        max_attempts=1,
+        continue_on_exhaustion=True,
+    )
+
+    assert len(calls) == 2
+    assert [item["observation_id"] for item in result["items"]] == ["claim-1"]
+    assert result["unresolved_observation_ids"] == ["source-1"]
+    assert (tmp_path / "claim-1.json").exists()

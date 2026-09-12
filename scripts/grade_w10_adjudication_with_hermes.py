@@ -156,6 +156,7 @@ def grade_packet(
     invoke: Callable[[Path], str],
     *,
     max_attempts: int = 3,
+    continue_on_exhaustion: bool = False,
 ) -> dict[str, Any]:
     if max_attempts < 1:
         raise ValueError("max_attempts must be at least 1")
@@ -171,6 +172,7 @@ def grade_packet(
     checkpoint_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     checkpoint_dir.chmod(0o700)
     responses = []
+    unresolved_observation_ids: list[str] = []
     seen: set[str] = set()
     for item in items:
         if not isinstance(item, dict):
@@ -186,6 +188,7 @@ def grade_packet(
             response = json.loads(checkpoint.read_text())
         else:
             failures = checkpoint_dir / "failures"
+            response = None
             for attempt in range(1, max_attempts + 1):
                 prompt_path = checkpoint_dir / f"{observation_id}.prompt.txt"
                 write_exclusive(prompt_path, prompt_for(item))
@@ -215,9 +218,14 @@ def grade_packet(
                             failure_stem.with_suffix(".response.txt"), raw_response
                         )
                     if attempt == max_attempts:
+                        if continue_on_exhaustion:
+                            unresolved_observation_ids.append(observation_id)
+                            break
                         raise
                 finally:
                     prompt_path.unlink(missing_ok=True)
+            if response is None:
+                continue
         responses.append(
             validate_grade(
                 item,
@@ -228,13 +236,16 @@ def grade_packet(
                 },
             )
         )
-    return {
+    result = {
         "schema_version": "enterprise-evaluation/w10-adjudication-responses/1",
         "reviewer_kind": "agent",
         "reviewer": "Hermes fresh one-shot per observation",
         "blind_to_policy_and_repetition": True,
         "items": responses,
     }
+    if unresolved_observation_ids:
+        result["unresolved_observation_ids"] = unresolved_observation_ids
+    return result
 
 
 def main() -> int:
@@ -247,6 +258,11 @@ def main() -> int:
     )
     parser.add_argument("--model")
     parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument(
+        "--continue-on-exhaustion",
+        action="store_true",
+        help="record an unresolved item after its retries and continue the lane",
+    )
     args = parser.parse_args()
 
     def invoke(prompt_path: Path) -> str:
@@ -274,14 +290,19 @@ def main() -> int:
         args.checkpoint_dir,
         invoke,
         max_attempts=args.max_attempts,
+        continue_on_exhaustion=args.continue_on_exhaustion,
     )
     result["reviewer_model"] = args.model or "default"
     write_exclusive(
         args.output,
         json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
     )
-    print(f"recorded {len(result['items'])} fresh Hermes adjudications")
-    return 0
+    unresolved = result.get("unresolved_observation_ids", [])
+    print(
+        f"recorded {len(result['items'])} fresh Hermes adjudications; "
+        f"unresolved={len(unresolved)}"
+    )
+    return 2 if unresolved else 0
 
 
 if __name__ == "__main__":
