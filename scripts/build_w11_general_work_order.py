@@ -11,14 +11,46 @@ from pathlib import Path
 from typing import Any
 
 ARMS = ("flat_http", "recorded_continuation")
+W10_POLICIES = ["fixed", "unconstrained", "gap", "gated", "full"]
 
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def frozen_result_limit(
+    manifest: dict[str, Any],
+    *,
+    cases_sha256: str,
+    case_count: int,
+    repetitions: int,
+) -> int:
+    if manifest.get("schema_version") != "enterprise-evaluation/w10-policy-run/1":
+        raise ValueError("unsupported W10 run manifest schema")
+    expected = case_count * len(W10_POLICIES) * repetitions
+    if (
+        manifest.get("cases_sha256") != cases_sha256
+        or manifest.get("records") != expected
+        or manifest.get("completed") != expected
+        or manifest.get("failed") != 0
+        or manifest.get("failed_attempts") != 0
+        or manifest.get("repetitions") != repetitions
+        or manifest.get("policies") != W10_POLICIES
+    ):
+        raise ValueError("W10 run manifest does not prove a complete matching case run")
+    value = manifest.get("result_limit")
+    if type(value) is not int or not 1 <= value <= 20:
+        raise ValueError("W10 run manifest has an invalid result limit")
+    return value
+
+
 def build(
-    summary: dict[str, Any], cases: dict[str, Any], *, seed: int, repetitions: int
+    summary: dict[str, Any],
+    cases: dict[str, Any],
+    *,
+    seed: int,
+    repetitions: int,
+    result_limit: int,
 ) -> dict[str, Any]:
     if summary.get("schema_version") != "enterprise-evaluation/w10-summary/1":
         raise ValueError("unsupported W10 summary schema")
@@ -26,6 +58,8 @@ def build(
         raise ValueError("W10 must be complete before the W11 work order is built")
     if repetitions != 3:
         raise ValueError("the frozen W11 protocol requires exactly three repetitions")
+    if type(result_limit) is not int or not 1 <= result_limit <= 20:
+        raise ValueError("W10 result limit must be an integer from 1 to 20")
     selected = set(summary.get("selected_challenge_types", []))
     known_types = {str(case["challenge_type"]) for case in cases.get("cases", [])}
     if not selected <= known_types:
@@ -58,6 +92,7 @@ def build(
         "schema_version": "enterprise-evaluation/w11-general-work-order/1",
         "seed": seed,
         "repetitions": repetitions,
+        "result_limit": result_limit,
         "arms": list(ARMS),
         "policy_by_challenge_type": policy_by_type,
         "entries": entries,
@@ -68,20 +103,43 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--w10-summary", type=Path, required=True)
     parser.add_argument("--cases", type=Path, required=True)
+    parser.add_argument("--w10-run-manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=11052026)
     parser.add_argument("--repetitions", type=int, default=3)
     args = parser.parse_args()
     summary = json.loads(args.w10_summary.read_text())
     cases = json.loads(args.cases.read_text())
-    result = build(summary, cases, seed=args.seed, repetitions=args.repetitions)
+    run_manifest = json.loads(args.w10_run_manifest.read_text())
+    result_limit = frozen_result_limit(
+        run_manifest,
+        cases_sha256=digest(args.cases),
+        case_count=len(cases.get("cases", [])),
+        repetitions=args.repetitions,
+    )
+    result = build(
+        summary,
+        cases,
+        seed=args.seed,
+        repetitions=args.repetitions,
+        result_limit=result_limit,
+    )
     result["inputs"] = {
         "w10_summary_sha256": digest(args.w10_summary),
         "cases_sha256": digest(args.cases),
+        "w10_run_manifest_sha256": digest(args.w10_run_manifest),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
-    print(json.dumps({"entries": len(result["entries"]), "policy_by_challenge_type": result["policy_by_challenge_type"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "entries": len(result["entries"]),
+                "policy_by_challenge_type": result["policy_by_challenge_type"],
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

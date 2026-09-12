@@ -1,5 +1,18 @@
 # W11 research log
 
+## 2026-09-11 — W10 result-limit binding
+
+The readiness audit found that the W11 retrieval runner had an independent
+ten-result default even though the valid W10 execution uses its frozen
+eight-result cap. That would have changed the candidate pool and made the
+transport comparison unfair. No scored W11 run had started.
+
+The work-order builder now derives the cap from the completed W10 challenge
+manifest and verifies the exact case digest, five-policy order, three
+repetitions, record and completion counts, and absence of failed trials or
+failed attempts. Both arms consume that bound from the resulting work order.
+The independent runner default has been removed.
+
 ## 2026-09-11 — installed workflow-composition surface
 
 The installed source revision also exposes a versioned artifact-composition

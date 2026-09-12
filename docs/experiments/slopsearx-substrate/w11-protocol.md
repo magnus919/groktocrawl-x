@@ -79,6 +79,13 @@ scope, result limits, acquisition rules, and final assessment. A1 may change
 transport and persistence, but it may not generate a query, decide that a gap
 is closed, or stop research on SlopSearX's behalf.
 
+The per-query result cap is copied from the completed W10 challenge run
+manifest. The work-order builder rejects a manifest whose case digest, policy
+set, repetitions, record counts, failure counts, or result limit do not match
+the W11 input. Both W11 arms read the bound from that work order; the runner has
+no independent default that could silently give either arm a different search
+surface from W10.
+
 Before freezing the work order, resolve the ordinary HTTP `general` category
 through SlopSearX's no-dispatch scope preview. Re-preview that selected list as
 an explicit engine scope and require exact equality. Freeze the resulting

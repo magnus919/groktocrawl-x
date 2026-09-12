@@ -41,8 +41,7 @@ def load_w10_record(
     records_dir: Path, entry: dict[str, Any]
 ) -> tuple[dict[str, Any], Path]:
     filename = (
-        f"{entry['case_id']}--{entry['control_policy']}--"
-        f"{entry['repetition']}.json"
+        f"{entry['case_id']}--{entry['control_policy']}--{entry['repetition']}.json"
     )
     path = records_dir / filename
     if not path.is_file():
@@ -57,7 +56,9 @@ def load_w10_record(
 
 def frozen_queries(record: dict[str, Any]) -> list[str]:
     queries = [item.get("query") for item in record.get("attempts", [])]
-    if not queries or not all(isinstance(item, str) and item.strip() for item in queries):
+    if not queries or not all(
+        isinstance(item, str) and item.strip() for item in queries
+    ):
         raise ValueError("W10 source record has no valid executed query sequence")
     return queries
 
@@ -138,7 +139,6 @@ def main() -> int:
     parser.add_argument("--http-base-url", required=True)
     parser.add_argument("--mcp-endpoint", required=True)
     parser.add_argument("--token-env", default="SLOPSEARX_MCP_AUTH_TOKEN")
-    parser.add_argument("--max-results", type=int, default=10)
     args = parser.parse_args()
     if args.public_output.resolve() == args.private_output.resolve():
         raise ValueError("public and private output directories must differ")
@@ -147,7 +147,10 @@ def main() -> int:
     args.private_output.chmod(0o700)
     work_order = json.loads(args.work_order.read_text())
     scope = json.loads(args.scope.read_text())
-    if work_order.get("schema_version") != "enterprise-evaluation/w11-general-work-order/1":
+    if (
+        work_order.get("schema_version")
+        != "enterprise-evaluation/w11-general-work-order/1"
+    ):
         raise ValueError("unsupported W11 work-order schema")
     if not scope.get("scope_equal") or scope.get("dispatches") != 0:
         raise ValueError("scope-equivalence preflight did not pass")
@@ -155,6 +158,9 @@ def main() -> int:
     if engines != scope["research_arm"]["initial_plan_engines"]:
         raise ValueError("W11 arm engine scopes differ")
     entries = work_order["entries"]
+    max_results = work_order.get("result_limit")
+    if type(max_results) is not int or not 1 <= max_results <= 20:
+        raise ValueError("W11 work order lacks the frozen W10 result limit")
     validate_pair_plans(entries, args.w10_records)
 
     token = os.environ.get(args.token_env, "")
@@ -197,24 +203,28 @@ def main() -> int:
                     )
                     failures += 1
                 continue
-            idempotency_key = "w11-" + digest(name + digest(source_path.read_bytes()))[:32]
+            idempotency_key = (
+                "w11-" + digest(name + digest(source_path.read_bytes()))[:32]
+            )
             started = time.monotonic()
             try:
                 job = None
                 if entry["arm"] == "flat_http":
                     raw = flat_http_searches(
-                        http_client, queries, engines, max_results=args.max_results
+                        http_client, queries, engines, max_results=max_results
                     )
                 elif entry["arm"] == "recorded_continuation":
                     if not token:
                         raise ValueError("MCP bearer token must not be empty")
-                    with W11McpClient(args.mcp_endpoint, token, timeout_seconds=180) as mcp:
+                    with W11McpClient(
+                        args.mcp_endpoint, token, timeout_seconds=180
+                    ) as mcp:
                         raw, job = recorded_continuation_searches(
                             mcp,
                             question=queries[0],
                             queries=queries,
                             engines=engines,
-                            max_results=args.max_results,
+                            max_results=max_results,
                             idempotency_key=idempotency_key,
                         )
                 else:
@@ -222,7 +232,12 @@ def main() -> int:
                 elapsed_ms = (time.monotonic() - started) * 1000
                 atomic_json(
                     private_path,
-                    {"entry": entry, "retrieval": raw, "job": job, "elapsed_ms": elapsed_ms},
+                    {
+                        "entry": entry,
+                        "retrieval": raw,
+                        "job": job,
+                        "elapsed_ms": elapsed_ms,
+                    },
                     mode=0o600,
                 )
                 atomic_json(
@@ -241,7 +256,11 @@ def main() -> int:
                 failures += 1
                 atomic_json(
                     private_path,
-                    {"entry": entry, "error_type": type(error).__name__, "error": str(error)},
+                    {
+                        "entry": entry,
+                        "error_type": type(error).__name__,
+                        "error": str(error),
+                    },
                     mode=0o600,
                 )
                 atomic_json(
