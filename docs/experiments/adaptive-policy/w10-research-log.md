@@ -14,12 +14,18 @@ and the combined summary and blinded adjudication packet are complete.
 Independent adjudication is pinned to the Hermes `luna` model alias. Every
 observation uses a fresh one-shot session, the full rubric must validate before
 its private checkpoint is written, and malformed attempts remain preserved for
-the audit. Sixteen disjoint execution lanes reduce elapsed time without changing
+the audit. Twelve disjoint execution lanes reduce elapsed time without changing
 the unit of review. Their identity sets were checked against the original
 packet: all 4,487 observations occur exactly once, with no omission or overlap.
 The shared checkpoints remain resumable, and no intermediate judgment or
 private evidence is used to infer the outcome before the complete record is
 assembled and validated.
+
+Concurrency was tuned from four to eight and briefly to sixteen lanes. The
+sixteen-lane probe produced repeated 210-second transport timeouts, so execution
+settled at twelve lanes rather than spending review capacity on long retries.
+Those timeout attempts remain in the private failure audit and do not become
+judgments or policy outcomes.
 
 ## 2026-09-11 — independent-review handoff smoke
 
