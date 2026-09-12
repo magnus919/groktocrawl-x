@@ -2,6 +2,35 @@
 
 Status: **template frozen before live execution**
 
+## 2026-09-11 — adjudication recording gate
+
+The completed-run handoff already builds a blinded packet containing the seeded
+10% source sample and every required disagreement. It did not define a strict
+way to record the independent review. A new validator now requires complete,
+one-to-one judgments, agent-review and blinding disclosures, bounded rubric
+values, and exact packet/manifest hashes before producing a public result.
+Private excerpts and written rationales do not enter the public artifact.
+
+This closes the mechanical handoff from model grades to agent adjudication. It
+does not prejudge any observation and does not modify the frozen runner,
+measurement cases, prompts, or model grades.
+
+The downstream analysis applies reviewed source-usefulness and claim-closure
+judgments only to their selected observations, reports model/agent agreement by
+rubric dimension and selection reason, and recomputes the complete decision as
+an adjudication sensitivity. The frozen model-graded result remains the primary
+analysis. A changed sensitivity decision must be reported rather than silently
+rewriting the primary result.
+
+The public accounting builder closes the remaining dossier handoff without
+copying private research material into Git. It counts every trial, executed
+query, candidate, search sighting, acquisition, admission, exclusion,
+source-to-claim link, proposal disposition, and terminal stop reason. It also
+binds the private acquisition files through a canonical hash manifest and
+reports min/median/max variation by policy and challenge type. The builder
+fails closed when the frozen summary, record counts, private-file counts, or
+required disposition fields do not agree.
+
 This is the durable accounting record for the W10 study. The runner fills the
 machine-readable records; the final synthesis updates the tables below. A study
 run is incomplete while any retained or rejected candidate lacks a recorded
