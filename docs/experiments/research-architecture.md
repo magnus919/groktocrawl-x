@@ -53,7 +53,7 @@ flowchart TD
     D --> E
     E --> F[Verification and constrained rendering]
     F --> G[Summary, analysis and dossiers]
-    H[Durable execution owner: choice pending] -. recovery and ownership .-> B
+    H[Durable execution owner: bounded Valkey ledger] -. recovery and ownership .-> B
     H -. consistent commits .-> D
     H -. consistent commits .-> E
 ```
@@ -107,7 +107,11 @@ operator docs and tests in the implementation PR. Do not change upstream ADR sta
 In particular, the mainline preference for Valkey-native durability and deferral of
 Temporal is an input to D5, not a constraint on its outcome.
 
-## Architecture foundation draft status
+## Architecture foundation and historical progress record
+
+This section preserves the chronological evidence trail. Statements such as
+"remaining" or "proposed" describe the checkpoint immediately around them; use
+the [GitHub execution tracker](#github-execution-tracker) for current status.
 
 Following merged PR #2, [issue #3](https://github.com/magnus919/groktocrawl-x/issues/3)
 tracks the first W1 decision package:
