@@ -117,5 +117,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0078 | [Define Durable Research Backup and Artifact Authority](0078-define-durable-research-backup-and-artifact-authority.md) | proposed |
 | 0079 | [Consolidate Retained and Vector Storage in PostgreSQL](0079-consolidate-retained-and-vector-storage-in-postgresql.md) | accepted |
 | 0080 | [Construct Source-Bound Answer Units](0080-construct-source-bound-answer-units.md) | rejected |
+| 0081 | [Select a Bounded Adaptive Research Policy](0081-select-a-bounded-adaptive-research-policy.md) | proposed |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
