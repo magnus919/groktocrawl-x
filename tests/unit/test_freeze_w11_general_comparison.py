@@ -159,7 +159,11 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
         "preflight_path": preflight_path,
         "compatibility_path": compatibility_path,
         "source_commit": "b" * 40,
-        "groktocrawl_image_digest": "sha256:" + "c" * 64,
+        "groktocrawl_source_commit": "d" * 40,
+        "groktocrawl_image_digests": {
+            "agent": "sha256:" + "c" * 64,
+            "scraper": "sha256:" + "e" * 64,
+        },
         "model": "local",
         "protocol_path": text_paths["protocol"],
         "analysis_plan_path": text_paths["analysis"],

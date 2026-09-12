@@ -69,7 +69,8 @@ def build_freeze(
     preflight_path: Path,
     compatibility_path: Path,
     source_commit: str,
-    groktocrawl_image_digest: str,
+    groktocrawl_source_commit: str,
+    groktocrawl_image_digests: dict[str, str],
     model: str,
     protocol_path: Path,
     analysis_plan_path: Path,
@@ -167,8 +168,13 @@ def build_freeze(
 
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
         raise ValueError("source commit must be a full lowercase Git SHA")
-    if not re.fullmatch(r"sha256:[0-9a-f]{64}", groktocrawl_image_digest):
-        raise ValueError("GroktoCrawl image digest must be a full sha256 digest")
+    if not re.fullmatch(r"[0-9a-f]{40}", groktocrawl_source_commit):
+        raise ValueError("GroktoCrawl source commit must be a full lowercase Git SHA")
+    if set(groktocrawl_image_digests) != {"agent", "scraper"} or any(
+        not re.fullmatch(r"sha256:[0-9a-f]{64}", value)
+        for value in groktocrawl_image_digests.values()
+    ):
+        raise ValueError("GroktoCrawl agent and scraper images require full sha256 digests")
     if not model.strip():
         raise ValueError("model route must not be empty")
 
@@ -181,8 +187,11 @@ def build_freeze(
     return {
         "schema_version": "enterprise-evaluation/w11-general-freeze/1",
         "frozen_at": datetime.now(UTC).isoformat(),
-        "source_commit": source_commit,
-        "groktocrawl_image_digest": groktocrawl_image_digest,
+        "evaluation_source_commit": source_commit,
+        "groktocrawl": {
+            "source_commit": groktocrawl_source_commit,
+            "image_digests": groktocrawl_image_digests,
+        },
         "model_route": model,
         "design": {
             "case_count": case_count,
@@ -273,12 +282,24 @@ def main() -> int:
     parser.add_argument("--preflight", type=Path, required=True)
     parser.add_argument("--compatibility-before", type=Path, required=True)
     parser.add_argument("--source-commit", required=True)
-    parser.add_argument("--groktocrawl-image-digest", required=True)
+    parser.add_argument("--groktocrawl-source-commit", required=True)
+    parser.add_argument(
+        "--groktocrawl-image-digest",
+        action="append",
+        required=True,
+        metavar="SERVICE=SHA256",
+    )
     parser.add_argument("--model", required=True)
     parser.add_argument("--protocol", type=Path, required=True)
     parser.add_argument("--analysis-plan", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    image_digests = {}
+    for item in args.groktocrawl_image_digest:
+        service, separator, value = item.partition("=")
+        if not separator or service in image_digests:
+            raise ValueError("GroktoCrawl image digests must be unique SERVICE=SHA256 pairs")
+        image_digests[service] = value
     result = build_freeze(
         w10_summary_path=args.w10_summary,
         w10_manifest_path=args.w10_run_manifest,
@@ -289,7 +310,8 @@ def main() -> int:
         preflight_path=args.preflight,
         compatibility_path=args.compatibility_before,
         source_commit=args.source_commit,
-        groktocrawl_image_digest=args.groktocrawl_image_digest,
+        groktocrawl_source_commit=args.groktocrawl_source_commit,
+        groktocrawl_image_digests=image_digests,
         model=args.model,
         protocol_path=args.protocol,
         analysis_plan_path=args.analysis_plan,
