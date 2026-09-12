@@ -444,6 +444,104 @@
         "tests/test_dependency_dossier.py::TestWorkflow::test_start_is_idempotent_and_conflicts_on_identity_change",
         "tests/test_dependency_dossier.py::TestWorkflow::test_predispatch_charge_survives_interrupted_execution"
       ]
+    },
+    {
+      "case_id": "w11-composition-01-snapshot-research",
+      "family": "workflow_composition",
+      "scenario": "A retained search snapshot seeds a bounded research job and the request is replayed.",
+      "expected": [
+        "derived_from_lineage_preserved",
+        "same_destination_on_replay",
+        "changed_source_conflicts",
+        "no_admission_dispatch"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_snapshot_to_research_is_idempotent_and_traversable"
+      ]
+    },
+    {
+      "case_id": "w11-composition-02-saved-transition",
+      "family": "workflow_composition",
+      "scenario": "A comparable saved-search report seeds research or supplies the query for staged search.",
+      "expected": [
+        "saved_report_lineage_preserved",
+        "query_derived_without_copying",
+        "explicit_query_conflict",
+        "no_admission_dispatch"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_saved_report_composes_into_research_and_explicit_staged_plan"
+      ]
+    },
+    {
+      "case_id": "w11-composition-03-dossier-seeds",
+      "family": "workflow_composition",
+      "scenario": "A snapshot, result, or entity group seeds a dependency dossier.",
+      "expected": [
+        "source_identity_preserved",
+        "v1_and_v2_entities_supported",
+        "destination_grants_rechecked",
+        "no_admission_dispatch"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_snapshot_result_and_entity_group_seed_dossiers_without_dispatch"
+      ]
+    },
+    {
+      "case_id": "w11-composition-04-manifest-sources",
+      "family": "workflow_composition",
+      "scenario": "Selected staged-search and research artifacts export bounded manifests.",
+      "expected": [
+        "source_lineage_preserved",
+        "retained_results_selected",
+        "manifest_bound_enforced",
+        "observations_not_certified"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_staged_and_research_sources_export_bounded_manifests"
+      ]
+    },
+    {
+      "case_id": "w11-composition-05-lifecycle-policy",
+      "family": "workflow_composition",
+      "scenario": "Malformed, unsupported, expired, foreign-tenant, or policy-denied sources are supplied.",
+      "expected": [
+        "stable_failure_reason",
+        "rejected_before_dispatch",
+        "rejected_before_destination_state",
+        "no_cross_tenant_disclosure"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_source_lifecycle_policy_and_contract_fail_closed_before_dispatch"
+      ]
+    },
+    {
+      "case_id": "w11-composition-06-partial-conflict",
+      "family": "workflow_composition",
+      "scenario": "A partial, incomparable, truncated, or conflicting source is supplied.",
+      "expected": [
+        "source_state_explicit",
+        "input_conflict_explicit",
+        "no_silent_fresh_search",
+        "no_admission_dispatch"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_partial_incomparable_truncated_and_conflicting_sources_are_explicit"
+      ]
+    },
+    {
+      "case_id": "w11-composition-07-truncation",
+      "family": "workflow_composition",
+      "scenario": "A snapshot or selected staged snapshot exceeds the research source-admission bound.",
+      "expected": [
+        "source_truncated",
+        "destination_not_created",
+        "no_research_dispatch",
+        "retained_source_unchanged"
+      ],
+      "reference_tests": [
+        "tests/test_workflow_composition.py::test_research_rejects_truncated_snapshot_and_staged_snapshot_sources"
+      ]
     }
   ]
 }

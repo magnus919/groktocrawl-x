@@ -1,5 +1,25 @@
 # W11 research log
 
+## 2026-09-11 — installed workflow-composition surface
+
+The installed source revision also exposes a versioned artifact-composition
+contract that was not explicit in the first W11 family matrix. This matters to
+the future substrate: a retained search, saved report, selected staged search,
+entity group, result, research attempt, or research job can seed a later
+bounded workflow without copying evidence through model prose.
+
+W11 now treats composition as a separate seven-case hard-gate family. It
+requires explicit lineage, idempotent replay, current-policy revalidation,
+destination-owned budgets and grants, bounded manifests, and atomic rejection
+before persistence or dispatch. Partial, incomparable, expired, foreign,
+truncated, conflicting, and unsupported sources must remain explicit. These
+cases establish mechanics and do not contribute to the general research score.
+
+All seven exact upstream composition tests passed at the pinned proof revision.
+The complete reference packet now proves 40 cases through 120 local passes and
+three deliberate local skips that passed against isolated Valkey. There are no
+failed or unresolved references.
+
 ## 2026-09-11 — installed 0.5 baseline and reference contracts
 
 The HAL2000 GroktoCrawl deployment was rechecked after the operator reported

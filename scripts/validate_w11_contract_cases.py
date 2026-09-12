@@ -17,6 +17,7 @@ EXPECTED_FAMILY_COUNTS = {
     "retrieval_provenance": 7,
     "saved_search": 5,
     "staged_search": 8,
+    "workflow_composition": 7,
 }
 CASE_ID = re.compile(r"w11-[a-z0-9]+(?:-[a-z0-9]+)+")
 TEST_REFERENCE = re.compile(r"tests/test_[a-z0-9_]+\.py(?:::[A-Za-z0-9_]+)*")

@@ -183,6 +183,21 @@ set with explicit expected identifiers and relations. Report identity,
 provenance, conflict preservation, completeness, and unsupported cases. Do not
 generalize dossier results to open-domain research.
 
+### F. Workflow composition and lineage
+
+Exercise every supported transition that W11 may depend on: retained snapshots
+into research, saved reports into research or staged search, snapshot/result/
+entity evidence into dependency dossiers, and staged/research artifacts into
+manifests. Composition must preserve an explicit `derived_from` edge, retain
+the destination's own budgets and grants, and perform no engine dispatch while
+validating or admitting the source.
+
+Reject malformed, expired, foreign-tenant, policy-denied, partial,
+incomparable, truncated, unsupported, and conflicting sources before creating
+destination state or calling an engine. An idempotent replay must return the
+same destination identity; changing its source must conflict. These mechanics
+are a hard gate and remain separate from the Family A research-quality score.
+
 ## 4. Scoring and uncertainty
 
 - Compute all quality measures per case, then compare paired arm differences.

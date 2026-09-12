@@ -7,9 +7,9 @@
   },
   "evidence": {
     "local_suite": {
-      "sha256": "9a62a54eef99effd3b397388670306d458f01624b859c9d675000c83d77fba88",
-      "tests": 116,
-      "passed": 113,
+      "sha256": "3b846667bcf12e94160b06f8b73f4cc62690edcf128c1984016d036b783d6ec8",
+      "tests": 123,
+      "passed": 120,
       "failed": 0,
       "skipped": 3
     },
@@ -21,7 +21,7 @@
       "skipped": 0
     }
   },
-  "case_count": 33,
+  "case_count": 40,
   "all_cases_passed": true,
   "unresolved_references": [],
   "cases": [
@@ -421,6 +421,90 @@
         },
         {
           "reference": "tests/test_dependency_dossier.py::TestWorkflow::test_predispatch_charge_survives_interrupted_execution",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-01-snapshot-research",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_snapshot_to_research_is_idempotent_and_traversable",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-02-saved-transition",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_saved_report_composes_into_research_and_explicit_staged_plan",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-03-dossier-seeds",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_snapshot_result_and_entity_group_seed_dossiers_without_dispatch",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-04-manifest-sources",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_staged_and_research_sources_export_bounded_manifests",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-05-lifecycle-policy",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_source_lifecycle_policy_and_contract_fail_closed_before_dispatch",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-06-partial-conflict",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_partial_incomparable_truncated_and_conflicting_sources_are_explicit",
+          "status": "passed",
+          "proof": "local"
+        }
+      ]
+    },
+    {
+      "case_id": "w11-composition-07-truncation",
+      "family": "workflow_composition",
+      "status": "passed",
+      "references": [
+        {
+          "reference": "tests/test_workflow_composition.py::test_research_rejects_truncated_snapshot_and_staged_snapshot_sources",
           "status": "passed",
           "proof": "local"
         }
