@@ -1,6 +1,19 @@
 # W10 adaptive-query research log
 
-Status: **template frozen before live execution**
+Status: **live study in progress; protocol remains frozen**
+
+## 2026-09-11 — independent-review handoff smoke
+
+The adjudication handoff now sends each blinded observation to a fresh Hermes
+one-shot through a private query file. The runner disables repository rules and
+outside tools for the review, treats supplied excerpts as untrusted evidence,
+validates the complete rubric before checkpointing, removes the prompt file after
+the call, and resumes already completed observations without another model call.
+
+A one-item synthetic source-grade smoke completed through the installed Hermes
+CLI. Its response contained exactly the required fields, all five quality scores
+were within the frozen zero-to-two range, and no prompt file remained. The smoke
+contains no experiment outcome and does not enter the W10 analysis.
 
 ## 2026-09-11 — adjudication recording gate
 
