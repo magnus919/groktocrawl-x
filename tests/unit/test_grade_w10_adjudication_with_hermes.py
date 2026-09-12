@@ -8,6 +8,7 @@ import pytest
 from scripts.grade_w10_adjudication_with_hermes import (
     grade_packet,
     parse_json_response,
+    prompt_for,
     run_command,
 )
 
@@ -215,3 +216,32 @@ def test_exhausted_item_can_be_deferred_without_blocking_later_items(tmp_path):
     assert [item["observation_id"] for item in result["items"]] == ["claim-1"]
     assert result["unresolved_observation_ids"] == ["source-1"]
     assert (tmp_path / "claim-1.json").exists()
+
+
+def test_resume_reuses_identical_prompt_left_by_killed_process(tmp_path):
+    value = packet()
+    value["items"] = value["items"][:1]
+    stale = tmp_path / "source-1.prompt.txt"
+    stale.parent.mkdir(parents=True, exist_ok=True)
+    stale.write_text(prompt_for(value["items"][0]))
+
+    result = grade_packet(
+        value,
+        tmp_path,
+        lambda _: json.dumps(
+            {
+                "currency": 2,
+                "relevance": 2,
+                "authority": 1,
+                "accuracy": 2,
+                "purpose": 2,
+                "passage_support": "supports",
+                "useful": True,
+                "derivative_or_copied": False,
+                "rationale": "The passage directly supports the claim.",
+            }
+        ),
+    )
+
+    assert len(result["items"]) == 1
+    assert not stale.exists()
