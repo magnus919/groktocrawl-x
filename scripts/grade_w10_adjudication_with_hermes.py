@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import signal
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -28,6 +29,31 @@ SCORE_FIELDS = {"currency", "relevance", "authority", "accuracy", "purpose"}
 PASSAGE_SUPPORT = {"supports", "challenges", "mixed", "irrelevant", "ambiguous"}
 CLAIM_STATUS = {"closed", "partial", "open", "ambiguous"}
 CONTRADICTION = {"adequate", "inadequate", "not_applicable", "ambiguous"}
+
+
+def run_command(command: list[str], *, timeout: float) -> str:
+    """Run a grader command and kill its entire process group on timeout."""
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
+        raise
+    if process.returncode:
+        raise subprocess.CalledProcessError(
+            process.returncode,
+            command,
+            output=stdout,
+            stderr=stderr,
+        )
+    return stdout
 
 
 def parse_json_response(text: str) -> dict[str, Any]:
@@ -227,14 +253,7 @@ def main() -> int:
         ]
         if args.model:
             command.extend(["--model", args.model])
-        completed = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=210,
-        )
-        return completed.stdout
+        return run_command(command, timeout=210)
 
     result = grade_packet(
         json.loads(args.packet.read_text()),
