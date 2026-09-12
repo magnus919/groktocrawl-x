@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from scripts.freeze_w11_general_comparison import (
+    MAX_CHECKPOINT_BYTES as FROZEN_MAX_CHECKPOINT_BYTES,
+)
 from scripts.freeze_w11_general_comparison import build_freeze, write_exclusive
 from scripts.prepare_w11_arm import (
     GRANTS,
@@ -12,6 +15,9 @@ from scripts.prepare_w11_arm import (
     SLOPSEARX_SOURCE_REVISION,
     SLOPSEARX_VERSION,
     arm_environment,
+)
+from scripts.run_w11_general_retrieval import (
+    MAX_CHECKPOINT_BYTES as RUNTIME_MAX_CHECKPOINT_BYTES,
 )
 
 
@@ -165,6 +171,7 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
 
 
 def test_build_freeze_binds_design_limits_and_redacted_inputs(tmp_path: Path) -> None:
+    assert FROZEN_MAX_CHECKPOINT_BYTES == RUNTIME_MAX_CHECKPOINT_BYTES
     result = build_freeze(**_inputs(tmp_path))
 
     assert result["design"]["trial_count"] == 72
@@ -179,7 +186,7 @@ def test_build_freeze_binds_design_limits_and_redacted_inputs(tmp_path: Path) ->
         "stored_bytes": 754974720,
         "interpretation": (
             "Experiment-wide upper bounds. Elapsed time covers retrieval and grading "
-            "phases; stored bytes allow 10 MiB of retained public/private evidence per trial."
+            "phases; stored bytes allow 5 MiB for each public and private checkpoint."
         ),
     }
     encoded = json.dumps(result)

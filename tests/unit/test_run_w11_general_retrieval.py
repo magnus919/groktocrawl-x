@@ -52,6 +52,13 @@ def test_private_checkpoint_mode_is_explicit(tmp_path: Path) -> None:
     assert path.stat().st_mode & 0o777 == 0o600
 
 
+def test_checkpoint_rejects_oversized_evidence(tmp_path: Path) -> None:
+    path = tmp_path / "too-large.json"
+    with pytest.raises(ValueError, match="evidence limit"):
+        atomic_json(path, {"raw": "too large"}, max_bytes=5)
+    assert not path.exists()
+
+
 def test_pair_validation_rejects_missing_arm(tmp_path: Path) -> None:
     _write_record(tmp_path / "case-1--full--0.json")
     with pytest.raises(ValueError, match="both W11 arms"):

@@ -23,16 +23,29 @@ from scripts.w11_retrieval_transports import (
     recorded_continuation_searches,
 )
 
+MAX_CHECKPOINT_BYTES = 5 * 1024 * 1024
+
 
 def digest(value: str | bytes) -> str:
     raw = value.encode() if isinstance(value, str) else value
     return hashlib.sha256(raw).hexdigest()
 
 
-def atomic_json(path: Path, value: Any, *, mode: int = 0o644) -> None:
+def atomic_json(
+    path: Path,
+    value: Any,
+    *,
+    mode: int = 0o644,
+    max_bytes: int = MAX_CHECKPOINT_BYTES,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    if len(encoded) > max_bytes:
+        raise ValueError(
+            f"checkpoint exceeds the {max_bytes}-byte W11 evidence limit"
+        )
+    temporary.write_bytes(encoded)
     temporary.chmod(mode)
     temporary.replace(path)
 

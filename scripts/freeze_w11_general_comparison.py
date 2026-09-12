@@ -28,7 +28,7 @@ REPETITIONS = 3
 MAX_QUERIES_PER_TRIAL = 3
 MAX_MODEL_CALLS_PER_TRIAL = 1
 MAX_SECONDS_PER_PHASE = 180
-MAX_STORED_BYTES_PER_TRIAL = 10 * 1024 * 1024
+MAX_CHECKPOINT_BYTES = 5 * 1024 * 1024
 EXPECTED_ENABLED_GRANTS = ["research"]
 
 
@@ -206,10 +206,10 @@ def build_freeze(
             "engine_attempts": engine_attempt_limit,
             "admitted_results": admitted_result_limit,
             "elapsed_seconds": expected_trials * MAX_SECONDS_PER_PHASE * 2,
-            "stored_bytes": expected_trials * MAX_STORED_BYTES_PER_TRIAL,
+            "stored_bytes": expected_trials * MAX_CHECKPOINT_BYTES * 2,
             "interpretation": (
                 "Experiment-wide upper bounds. Elapsed time covers retrieval and grading "
-                "phases; stored bytes allow 10 MiB of retained public/private evidence per trial."
+                "phases; stored bytes allow 5 MiB for each public and private checkpoint."
             ),
         },
         "w10_control": {
