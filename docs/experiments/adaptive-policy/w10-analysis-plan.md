@@ -90,6 +90,10 @@ Any adoption recommendation must state the trigger, proposal requirements,
 admission rule, stop rule, hard budgets, observed benefit, observed harm, and
 the cases to which the evidence does not generalize. A future experiment must
 name the uncertainty it resolves and the result that would change the decision.
+Record the final choice in the versioned `w10-policy-selection` artifact. It binds
+the primary summary, adjudication sensitivity, accounting dossier, challenge
+cases, and ADR-0081. A decision-changing adjudication sensitivity can select only
+the new-experiment outcome and must not silently authorize W11 measurement.
 
 ## Research-methodology completion check
 
