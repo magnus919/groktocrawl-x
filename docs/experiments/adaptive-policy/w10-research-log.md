@@ -22,6 +22,15 @@ an adjudication sensitivity. The frozen model-graded result remains the primary
 analysis. A changed sensitivity decision must be reported rather than silently
 rewriting the primary result.
 
+The public accounting builder closes the remaining dossier handoff without
+copying private research material into Git. It counts every trial, executed
+query, candidate, search sighting, acquisition, admission, exclusion,
+source-to-claim link, proposal disposition, and terminal stop reason. It also
+binds the private acquisition files through a canonical hash manifest and
+reports min/median/max variation by policy and challenge type. The builder
+fails closed when the frozen summary, record counts, private-file counts, or
+required disposition fields do not agree.
+
 This is the durable accounting record for the W10 study. The runner fills the
 machine-readable records; the final synthesis updates the tables below. A study
 run is incomplete while any retained or rejected candidate lacks a recorded
