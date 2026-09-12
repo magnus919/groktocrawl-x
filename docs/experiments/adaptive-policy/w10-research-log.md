@@ -15,6 +15,13 @@ This closes the mechanical handoff from model grades to agent adjudication. It
 does not prejudge any observation and does not modify the frozen runner,
 measurement cases, prompts, or model grades.
 
+The downstream analysis applies reviewed source-usefulness and claim-closure
+judgments only to their selected observations, reports model/agent agreement by
+rubric dimension and selection reason, and recomputes the complete decision as
+an adjudication sensitivity. The frozen model-graded result remains the primary
+analysis. A changed sensitivity decision must be reported rather than silently
+rewriting the primary result.
+
 This is the durable accounting record for the W10 study. The runner fills the
 machine-readable records; the final synthesis updates the tables below. A study
 run is incomplete while any retained or rejected candidate lacks a recorded
