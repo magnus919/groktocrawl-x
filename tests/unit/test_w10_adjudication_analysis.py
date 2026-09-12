@@ -27,6 +27,7 @@ def record(policy="fixed"):
                     "supports_or_challenges": True,
                     "quality": {
                         "currency": 2,
+                        "relevance": 2,
                         "authority": 1,
                         "accuracy": 2,
                         "purpose": 2,
@@ -59,6 +60,7 @@ def adjudication(item_record):
                 "verdict": {
                     "useful": False,
                     "currency": 2,
+                    "relevance": 2,
                     "authority": 2,
                     "accuracy": 2,
                     "purpose": 2,
@@ -86,7 +88,7 @@ def test_adjudication_overrides_only_selected_judgments_and_reports_agreement():
     ]
     assert adjusted[0]["gap_results"][0]["status"] == "open"
     assert agreement["source_usefulness"]["agreement"] == 0
-    assert agreement["source_quality_components"]["agreement"] == 0.75
+    assert agreement["source_quality_components"]["agreement"] == 0.8
     assert agreement["claim_status"]["agreement"] == 0
 
 

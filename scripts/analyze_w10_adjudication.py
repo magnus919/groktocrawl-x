@@ -118,7 +118,13 @@ def apply_adjudication(
             model_useful = bool(assessment.get("supports_or_challenges"))
             source_reviewed += 1
             source_useful_matches += model_useful == agent_useful
-            for field in ("currency", "authority", "accuracy", "purpose"):
+            for field in (
+                "currency",
+                "relevance",
+                "authority",
+                "accuracy",
+                "purpose",
+            ):
                 model_value = (assessment.get("quality") or {}).get(field)
                 agent_value = verdict.get(field)
                 if type(model_value) is int and type(agent_value) is int:

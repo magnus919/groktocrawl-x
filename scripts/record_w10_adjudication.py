@@ -59,15 +59,24 @@ def validate_and_build(
     *,
     packet_bytes: bytes,
 ) -> dict[str, Any]:
-    if packet.get("schema_version") != "enterprise-evaluation/w10-adjudication-private/1":
+    if (
+        packet.get("schema_version")
+        != "enterprise-evaluation/w10-adjudication-private/1"
+    ):
         raise ValueError("unsupported private packet schema")
     if packet.get("blind_to_policy_and_repetition") is not True:
         raise ValueError("private packet is not blinded")
-    if manifest.get("schema_version") != "enterprise-evaluation/w10-adjudication-manifest/1":
+    if (
+        manifest.get("schema_version")
+        != "enterprise-evaluation/w10-adjudication-manifest/1"
+    ):
         raise ValueError("unsupported adjudication manifest schema")
     if manifest.get("private_packet_sha256") != digest(packet_bytes):
         raise ValueError("private packet digest does not match manifest")
-    if responses.get("schema_version") != "enterprise-evaluation/w10-adjudication-responses/1":
+    if (
+        responses.get("schema_version")
+        != "enterprise-evaluation/w10-adjudication-responses/1"
+    ):
         raise ValueError("unsupported response schema")
     if responses.get("reviewer_kind") != "agent":
         raise ValueError("reviewer_kind must disclose agent review")
@@ -95,7 +104,9 @@ def validate_and_build(
     if set(response_by_id) != expected:
         missing = sorted(expected - set(response_by_id))
         extra = sorted(set(response_by_id) - expected)
-        raise ValueError(f"response observation set mismatch; missing={missing}, extra={extra}")
+        raise ValueError(
+            f"response observation set mismatch; missing={missing}, extra={extra}"
+        )
 
     public_items: list[dict[str, Any]] = []
     source_count = 0
@@ -104,11 +115,16 @@ def validate_and_build(
         private_item = packet_by_id[observation_id]
         public_item = manifest_by_id[observation_id]
         response = response_by_id[observation_id]
-        expected_hash = digest(json.dumps(private_item, ensure_ascii=False, sort_keys=True))
+        expected_hash = digest(
+            json.dumps(private_item, ensure_ascii=False, sort_keys=True)
+        )
         if public_item.get("private_item_sha256") != expected_hash:
             raise ValueError(f"private item digest mismatch for {observation_id}")
         item_type = private_item.get("item_type")
-        if public_item.get("item_type") != item_type or response.get("item_type") != item_type:
+        if (
+            public_item.get("item_type") != item_type
+            or response.get("item_type") != item_type
+        ):
             raise ValueError(f"item type mismatch for {observation_id}")
         rationale = response.get("rationale")
         if not isinstance(rationale, str) or not rationale.strip():
@@ -118,8 +134,8 @@ def validate_and_build(
         if item_type == "source_grade":
             source_count += 1
             verdict = {
-                "relevant": _require_bool(response, "relevant"),
                 "currency": _require_score(response, "currency"),
+                "relevance": _require_score(response, "relevance"),
                 "authority": _require_score(response, "authority"),
                 "accuracy": _require_score(response, "accuracy"),
                 "purpose": _require_score(response, "purpose"),
@@ -127,9 +143,7 @@ def validate_and_build(
                     response, "passage_support", SOURCE_SUPPORT
                 ),
                 "useful": _require_bool(response, "useful"),
-                "derivative_or_copied": _require_bool(
-                    response, "derivative_or_copied"
-                ),
+                "derivative_or_copied": _require_bool(response, "derivative_or_copied"),
             }
         elif item_type == "claim_closure":
             claim_count += 1

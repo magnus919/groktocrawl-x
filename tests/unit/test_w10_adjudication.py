@@ -58,8 +58,8 @@ def fixtures():
             {
                 "observation_id": "source-1",
                 "item_type": "source_grade",
-                "relevant": True,
                 "currency": 2,
+                "relevance": 2,
                 "authority": 2,
                 "accuracy": 2,
                 "purpose": 2,
@@ -82,9 +82,7 @@ def fixtures():
 
 def test_valid_adjudication_emits_only_public_verdicts_and_hashes():
     packet, manifest, responses, packet_bytes = fixtures()
-    result = validate_and_build(
-        packet, manifest, responses, packet_bytes=packet_bytes
-    )
+    result = validate_and_build(packet, manifest, responses, packet_bytes=packet_bytes)
     assert result["counts"] == {
         "selected_observations": 2,
         "source_grades": 1,
