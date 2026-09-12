@@ -1,5 +1,9 @@
 # W11 research log
 
+The [premeasurement operator assessment](w11-operator-assessment.md) consolidates
+the observed topology, configuration burden, failure modes, recovery evidence, and
+rollback path. Its adoption judgment remains deferred until Family A is scored.
+
 ## 2026-09-11 — W10 result-limit binding
 
 The readiness audit found that the W11 retrieval runner had an independent
