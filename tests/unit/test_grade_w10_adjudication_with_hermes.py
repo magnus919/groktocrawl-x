@@ -1,10 +1,14 @@
 import json
+import subprocess
+import sys
+import time
 
 import pytest
 
 from scripts.grade_w10_adjudication_with_hermes import (
     grade_packet,
     parse_json_response,
+    run_command,
 )
 
 
@@ -31,6 +35,24 @@ def packet():
 def test_parse_accepts_plain_or_fenced_json():
     assert parse_json_response('{"a": 1}') == {"a": 1}
     assert parse_json_response('```json\n{"a": 1}\n```') == {"a": 1}
+
+
+def test_timeout_kills_descendants_that_inherit_output_pipes():
+    command = [
+        sys.executable,
+        "-c",
+        (
+            "import subprocess, sys, time; "
+            "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)']); "
+            "time.sleep(30)"
+        ),
+    ]
+    started = time.monotonic()
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        run_command(command, timeout=0.1)
+
+    assert time.monotonic() - started < 2
 
 
 def test_grades_each_item_once_and_resumes_from_private_checkpoints(tmp_path):
