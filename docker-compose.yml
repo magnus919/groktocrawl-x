@@ -11,7 +11,7 @@ services:
       retries: 20
 
   slopsearx:
-    image: ghcr.io/magnus919/slopsearx@sha256:91194d146d205b1cf4688c1989da8f5f6b599a9627be23fd1ee7a4e488fda5b7
+    image: ghcr.io/magnus919/slopsearx@sha256:4cd9c04ae4ef2f154a104cd95cf2219d603e461c9449f4392ce562b0541dd2d3
     restart: unless-stopped
     # SLOPSEARX_HOST_PORT moves only the published HOST side; the container
     # stays on 8080. Lets co-tenant compose stacks on a shared Docker host
@@ -29,7 +29,7 @@ services:
       retries: 3
 
   slopsearx-mcp:
-    image: ghcr.io/magnus919/slopsearx@sha256:91194d146d205b1cf4688c1989da8f5f6b599a9627be23fd1ee7a4e488fda5b7
+    image: ghcr.io/magnus919/slopsearx@sha256:4cd9c04ae4ef2f154a104cd95cf2219d603e461c9449f4392ce562b0541dd2d3
     # The MCP companion must never run unauthenticated, but a required-token
     # guard using the Compose `:?` operator would abort a no-config
     # `docker compose up` at load time (Compose interpolates the whole file
@@ -38,7 +38,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ -z "$MCP_AUTH_TOKEN" ]; then
+        if [ -z "$$MCP_AUTH_TOKEN" ]; then
           echo "error: SLOPSEARX_MCP_AUTH_TOKEN must be set to a non-empty value when the mcp profile is enabled" >&2
           exit 1
         fi
@@ -63,9 +63,14 @@ services:
       # off until explicitly enabled. Set values in .env to opt in, e.g.
       # MCP_GRANT_SECURITY=1. An empty value means "no override" upstream.
       - MCP_GRANT_JOBS=${MCP_GRANT_JOBS:-}
+      - MCP_GRANT_DEPENDENCY_DOSSIER=${MCP_GRANT_DEPENDENCY_DOSSIER:-}
       - MCP_GRANT_SCIENCE=${MCP_GRANT_SCIENCE:-}
       - MCP_GRANT_RESEARCH=${MCP_GRANT_RESEARCH:-}
+      - MCP_GRANT_RETRIEVAL_RECEIPTS=${MCP_GRANT_RETRIEVAL_RECEIPTS:-}
+      - MCP_GRANT_SAVED_SEARCHES=${MCP_GRANT_SAVED_SEARCHES:-}
+      - MCP_GRANT_SAVED_SEARCH_EVENTS=${MCP_GRANT_SAVED_SEARCH_EVENTS:-}
       - MCP_GRANT_SECURITY=${MCP_GRANT_SECURITY:-}
+      - MCP_GRANT_STAGED_SEARCH=${MCP_GRANT_STAGED_SEARCH:-}
       - MCP_TARGETED_SENSITIVE_ALLOWED=${MCP_TARGETED_SENSITIVE_ALLOWED:-}
     depends_on:
       valkey:

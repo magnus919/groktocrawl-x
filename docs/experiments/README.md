@@ -36,7 +36,7 @@ frozen protocol or completed evidence packet to make history look current.
 | Storage and recovery | [Storage evaluation](storage/pgvector-qdrant-evaluation.md), [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Recovery and pgvector decisions accepted for the experimental deployment |
 | Replacement rehearsal | [Operational pilot protocol](w9-operational-pilot-protocol.md), [evidence](evidence/replacement-rehearsal/) | Week-long operational pilot and final adoption decision remain open |
 | Adaptive research policy | [W10 brief](adaptive-policy/w10-research-brief.md), [frozen protocol](adaptive-policy/w10-frozen-protocol.md) | Matched evaluation is running |
-| SlopSearX research substrate | [Issue #318](https://github.com/magnus919/groktocrawl-x/issues/318) | Premeasurement comparison design is open on the stacked W11 branch |
+| SlopSearX research substrate | [W11 brief](slopsearx-substrate/w11-research-brief.md), [W11 protocol](slopsearx-substrate/w11-protocol.md), [operator assessment](slopsearx-substrate/w11-operator-assessment.md) | Premeasurement comparison design is open on the stacked W11 branch |
 
 Update this guide and the roadmap whenever an ADR changes state, a workstream
 starts or finishes, or a new experiment becomes part of the replacement decision.
