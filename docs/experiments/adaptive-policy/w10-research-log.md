@@ -30,8 +30,9 @@ additional judgments completed, despite no increase in recorded failures. The
 user also confirmed that the subscription-backed provider is likely being rate
 limited. Two lanes were cleanly stopped after their in-flight calls; their
 completed checkpoints remain reusable and no partial response was accepted.
-The operational ceiling is now two concurrent Luna calls, with a further
-reduction to one if congestion persists. Those
+Two concurrent calls still completed only three additional judgments during a
+sustained check and produced another 210-second timeout. The operational ceiling
+is therefore one concurrent Luna call. Those
 timeout attempts remain in the private failure audit and do not become judgments
 or policy outcomes.
 
