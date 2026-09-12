@@ -83,6 +83,9 @@ def validate_and_build(
     reviewer_model = responses.get("reviewer_model")
     if not isinstance(reviewer_model, str) or not reviewer_model.strip():
         raise ValueError("reviewer_model must disclose the model route")
+    reviewer_transport = responses.get("reviewer_transport")
+    if not isinstance(reviewer_transport, str) or not reviewer_transport.strip():
+        raise ValueError("reviewer_transport must disclose the request path")
     if responses.get("blind_to_policy_and_repetition") is not True:
         raise ValueError("responses must attest blinded review")
 
@@ -173,6 +176,7 @@ def validate_and_build(
         "schema_version": "enterprise-evaluation/w10-adjudication-public/1",
         "reviewer_kind": "agent",
         "reviewer_model": reviewer_model,
+        "reviewer_transport": reviewer_transport,
         "blind_to_policy_and_repetition": True,
         "private_packet_sha256": digest(packet_bytes),
         "manifest_sha256": digest(
