@@ -4,6 +4,28 @@ The [premeasurement operator assessment](w11-operator-assessment.md) consolidate
 the observed topology, configuration burden, failure modes, recovery evidence, and
 rollback path. Its adoption judgment remains deferred until Family A is scored.
 
+## 2026-09-12 — final W10 selection handoff
+
+The dependency audit found that the prepared W11 freeze consumed W10's primary
+summary directly. That summary is intentionally produced before adjudication and
+cannot distinguish a supported fixed-policy decision from an inconclusive result
+that requires another experiment. Treating both as an empty adaptive selection
+could have started W11 without a completed W10 decision.
+
+W10 now emits a separate secret-free policy-selection artifact after primary
+analysis, adjudication sensitivity, and accounting are complete. The artifact
+binds those inputs, the challenge cases, and ADR-0081 by digest. A sensitivity
+that changes the decision can select only the follow-up-experiment outcome and
+cannot authorize W11 measurement. The W11 work-order builder and freeze now
+consume this final artifact, verify its challenge-type inventory, and fail closed
+when W10 does not authorize measurement.
+
+Merging the current W10 branch also exposed two proposed records numbered 0081.
+The W10 policy decision retains ADR-0081; the later W11 retrieval-ownership
+proposal is ADR-0082. Eighty focused W11 tests passed after the stacked merge,
+and the narrower 18-test selection/freeze suite, Ruff, documentation surface
+check, and refreshed topology CI all passed after the handoff correction.
+
 ## 2026-09-11 — W10 result-limit binding
 
 The readiness audit found that the W11 retrieval runner had an independent
