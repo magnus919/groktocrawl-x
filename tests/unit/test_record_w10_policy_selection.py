@@ -1,3 +1,9 @@
+import hashlib
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from scripts.record_w10_policy_selection import build_selection
@@ -112,3 +118,67 @@ def test_adaptive_outcomes_cannot_exceed_primary_evidence():
 def test_incomplete_or_unbound_inputs_fail_closed(field, value, message):
     with pytest.raises(ValueError, match=message):
         build(**{field: value})
+
+
+def test_cli_writes_a_digest_bound_selection(tmp_path: Path):
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps(CASES))
+    primary_path = tmp_path / "primary.json"
+    primary_path.write_text(json.dumps(PRIMARY))
+    primary_sha = hashlib.sha256(primary_path.read_bytes()).hexdigest()
+    adjudication_path = tmp_path / "adjudication.json"
+    adjudication_path.write_text(
+        json.dumps(
+            {
+                **ADJUDICATION,
+                "primary_summary_sha256": primary_sha,
+            }
+        )
+    )
+    accounting_path = tmp_path / "accounting.json"
+    accounting_path.write_text(
+        json.dumps(
+            {
+                **ACCOUNTING,
+                "inputs": {"summary_sha256": primary_sha},
+            }
+        )
+    )
+    output_path = tmp_path / "selection.json"
+    script = Path(__file__).parents[2] / "scripts" / "record_w10_policy_selection.py"
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--primary-summary",
+            str(primary_path),
+            "--adjudication-analysis",
+            str(adjudication_path),
+            "--accounting",
+            str(accounting_path),
+            "--challenge-cases",
+            str(cases_path),
+            "--outcome",
+            "bounded_recovery",
+            "--selected-challenge-type",
+            "freshness",
+            "--rationale",
+            "Freshness passed every frozen gate.",
+            "--reversal-condition",
+            "A repeated study fails a frozen gate.",
+            "--output",
+            str(output_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    result = json.loads(output_path.read_text())
+    assert result["schema_version"] == "enterprise-evaluation/w10-policy-selection/1"
+    assert result["w11_measurement_authorized"] is True
+    assert result["inputs"]["primary_summary"] == primary_sha
+    assert result["inputs"]["challenge_cases"] == hashlib.sha256(
+        cases_path.read_bytes()
+    ).hexdigest()
