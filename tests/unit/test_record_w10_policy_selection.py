@@ -7,11 +7,16 @@ PRIMARY = {
     "schema_version": "enterprise-evaluation/w10-summary/1",
     "complete": True,
     "selected_challenge_types": ["freshness"],
+    "decision": "allow_bounded_adaptation_for_selected_types",
 }
 ADJUDICATION = {
     "schema_version": "enterprise-evaluation/w10-adjudication-analysis/1",
     "primary_summary_sha256": SHA,
     "decision_changed": False,
+    "primary_decision": "allow_bounded_adaptation_for_selected_types",
+    "adjudicated_sensitivity_decision": (
+        "allow_bounded_adaptation_for_selected_types"
+    ),
 }
 ACCOUNTING = {
     "schema_version": "enterprise-evaluation/w10-public-accounting/1",
@@ -63,13 +68,26 @@ def test_fixed_selection_has_no_adaptive_types():
 
 
 def test_decision_changing_sensitivity_requires_followup():
-    changed = {**ADJUDICATION, "decision_changed": True}
+    changed = {
+        **ADJUDICATION,
+        "decision_changed": True,
+        "adjudicated_sensitivity_decision": "retain_fixed_default",
+    }
     with pytest.raises(ValueError, match="requires a follow-up"):
         build(adjudication=changed)
     result = build(
         "run_followup_experiment", selected=[], adjudication=changed
     )
     assert result["w11_measurement_authorized"] is False
+
+
+def test_inconsistent_adjudication_decision_relationship_fails_closed():
+    inconsistent = {
+        **ADJUDICATION,
+        "adjudicated_sensitivity_decision": "retain_fixed_default",
+    }
+    with pytest.raises(ValueError, match="relationship is inconsistent"):
+        build(adjudication=inconsistent)
 
 
 def test_adaptive_outcomes_cannot_exceed_primary_evidence():
