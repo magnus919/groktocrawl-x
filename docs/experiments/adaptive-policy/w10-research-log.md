@@ -2,6 +2,19 @@
 
 Status: **template frozen before live execution**
 
+## 2026-09-11 — adjudication recording gate
+
+The completed-run handoff already builds a blinded packet containing the seeded
+10% source sample and every required disagreement. It did not define a strict
+way to record the independent review. A new validator now requires complete,
+one-to-one judgments, agent-review and blinding disclosures, bounded rubric
+values, and exact packet/manifest hashes before producing a public result.
+Private excerpts and written rationales do not enter the public artifact.
+
+This closes the mechanical handoff from model grades to agent adjudication. It
+does not prejudge any observation and does not modify the frozen runner,
+measurement cases, prompts, or model grades.
+
 This is the durable accounting record for the W10 study. The runner fills the
 machine-readable records; the final synthesis updates the tables below. A study
 run is incomplete while any retained or rejected candidate lacks a recorded
