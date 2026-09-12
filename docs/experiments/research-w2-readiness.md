@@ -1,8 +1,15 @@
 # W2 fixture readiness checkpoint
 
+> **Historical checkpoint.** This document records the W2 state when it was
+> written. ADR-0074 and ADR-0079 were accepted later, and provider-backed
+> evaluations were subsequently authorized. See the
+> [GitHub execution tracker](research-architecture.md#github-execution-tracker)
+> for current status. The limitations below remain useful evidence about what
+> this bounded fixture did and did not establish.
+
 Scope: experimental GroktoCrawl X only; not a mainline replacement. Foundation
 ADRs 0067–0070 and 0072 are accepted for bounded fixtures. Storage 0071 is accepted for bounded experimental exploration per issue #47;
-runtime adoption 0073 and recovery 0074 remain proposed. This checkpoint accompanies issue
+runtime adoption 0073 and recovery 0074 were proposed at this checkpoint. This checkpoint accompanies issue
 [#31](https://github.com/magnus919/groktocrawl-x/issues/31).
 
 ## Current conclusion
@@ -55,8 +62,8 @@ before moving beyond the bounded fixture scope.
 | Independent semantic reviewers | Name primary and adjudicating reviewers and define blinded rubric/adjudication for support, scope, conflict, freshness and render additions | Magnus authorized Hermes as a separate AI reviewer and retains human calibration/adjudication. Held-out output labels are not collected yet; one-human limitations remain explicit. |
 | Measurement thresholds and resources | Record quality/latency/resource regression bounds with rationale, hardware, run budgets, seeds/order and uncertainty plan | Must be explicit before applicable comparisons. Existing protocol minima are not measured results or an authorized series. |
 | Complete IR contract | Review each prototype field against ADR-0069, freeze the consolidated schema and reader/version policy, and resolve D3 interchange dependencies | Keep prototype names until this is complete. See the current field/version review below; isolated storage exploration is already accepted. |
-| Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | Current external-provider budget is zero. No provider work is authorized here. |
-| Runtime/storage/recovery decisions | Use accepted ADR-0071 exploration gates; ADR-0073/0074 remain proposed | Preserve the pgvector-versus-Qdrant consolidation evaluation and conditional PostgreSQL-native recovery option; PostgreSQL exploration is approved, not production/vector adoption. |
+| Provider-backed execution, if needed | Specify local/provider model and exact spending ceiling before connecting a real verifier or running it | At this checkpoint, the external-provider budget was zero and no provider work was authorized. |
+| Runtime/storage/recovery decisions | Use accepted ADR-0071 exploration gates; ADR-0073/0074 were proposed at this checkpoint | Preserve the pgvector-versus-Qdrant consolidation evaluation and conditional PostgreSQL-native recovery option; PostgreSQL exploration was approved, not production/vector adoption. |
 
 The authoritative unresolved fields remain in
 [`research-preflight.json`](research-preflight.json). Null means unresolved; this
