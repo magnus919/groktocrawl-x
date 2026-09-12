@@ -81,7 +81,11 @@ def test_render_produces_readable_three_level_pyramid_with_sources():
         summary,
         accounting,
         adjudication,
-        input_digests={"summary": "a" * 64, "accounting": "b" * 64, "adjudication": "c" * 64},
+        input_digests={
+            "summary": "a" * 64,
+            "accounting": "b" * 64,
+            "adjudication": "c" * 64,
+        },
     )
     assert set(documents) == {
         "00-index.md",
@@ -92,10 +96,14 @@ def test_render_produces_readable_three_level_pyramid_with_sources():
         "03-dossiers/adjudication.md",
         "03-dossiers/method.md",
     }
-    assert "Keep fixed-query retrieval as the default" in documents[
-        "01-summary/findings.md"
-    ]
-    assert all(document.rstrip().endswith("w10-research-log.md)") or "## SOURCES" in document for document in documents.values())
+    assert (
+        "Keep fixed-query retrieval as the default"
+        in documents["01-summary/findings.md"]
+    )
+    assert all(
+        document.rstrip().endswith("w10-research-log.md)") or "## SOURCES" in document
+        for document in documents.values()
+    )
     assert all("## SOURCES" in document for document in documents.values())
 
 
@@ -107,10 +115,13 @@ def test_render_rejects_an_unbound_adjudication():
             summary,
             accounting,
             adjudication,
-            input_digests={"summary": "a" * 64, "accounting": "b" * 64, "adjudication": "c" * 64},
+            input_digests={
+                "summary": "a" * 64,
+                "accounting": "b" * 64,
+                "adjudication": "c" * 64,
+            },
         )
     except ValueError as error:
         assert "does not bind" in str(error)
     else:
         raise AssertionError("unbound adjudication was accepted")
-

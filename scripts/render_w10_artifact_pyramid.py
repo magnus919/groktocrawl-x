@@ -129,11 +129,11 @@ reported as a sensitivity and does not overwrite it.
 
 ## What the experiment established
 
-- The complete record contains {totals['completed_trials']} completed trials and
-  {totals['failed_trials']} failed trials.
-- The W8 anchor gate {'passed' if anchor['gate']['passed'] else 'did not pass'}.
+- The complete record contains {totals["completed_trials"]} completed trials and
+  {totals["failed_trials"]} failed trials.
+- The W8 anchor gate {"passed" if anchor["gate"]["passed"] else "did not pass"}.
 - The primary decision selected {len(selected)} adaptive challenge type(s).
-- Independent adjudication {'changed' if changed else 'did not change'} the
+- Independent adjudication {"changed" if changed else "did not change"} the
   decision in the declared sensitivity analysis. Its result was `{sensitivity}`.
 
 ## Practical consequence
@@ -158,9 +158,9 @@ repetitions.
 
 ## Anchor gate
 
-- Weighted-closure change, full versus fixed: {percent(anchor['gate']['closure_delta'])}
-- Precision change, full versus fixed: {percent(anchor['gate']['precision_delta'])}
-- Frozen non-inferiority gate: **{'pass' if anchor['gate']['passed'] else 'fail'}**
+- Weighted-closure change, full versus fixed: {percent(anchor["gate"]["closure_delta"])}
+- Precision change, full versus fixed: {percent(anchor["gate"]["precision_delta"])}
+- Frozen non-inferiority gate: **{"pass" if anchor["gate"]["passed"] else "fail"}**
 
 Passing the anchor means the policy did not exceed the declared degradation
 margin on the reused W8 cases. It does not itself prove a benefit.
@@ -180,7 +180,7 @@ margin on the reused W8 cases. It does not itself prove a benefit.
 - Removing one challenge case changed the selected gap types in
   {len(changed_cases)} of {len(loo)} leave-one-case-out checks.
 - Equal claim weights selected:
-  {', '.join(summary['sensitivity']['equal_claim_weights']['selected_types']) or 'none'}.
+  {", ".join(summary["sensitivity"]["equal_claim_weights"]["selected_types"]) or "none"}.
 - Unavailable sources were excluded from admission and claim closure in the
   primary calculation.
 - Ambiguous claim closure was treated as open.
@@ -188,7 +188,7 @@ margin on the reused W8 cases. It does not itself prove a benefit.
 ## Independent review
 
 The independent agent review was blind to policy and repetition. Its sensitivity
-decision was `{sensitivity}`; this {'differs from' if changed else 'matches'} the
+decision was `{sensitivity}`; this {"differs from" if changed else "matches"} the
 primary decision `{decision}`. Agreement details and selection reasons are in the
 adjudication dossier.
 
@@ -206,21 +206,21 @@ URLs, titles, excerpts, model responses, private paths, or credentials.
 
 | Item | Count |
 |---|---:|
-| Expected trials | {totals['expected_trials']} |
-| Observed trials | {totals['observed_trials']} |
-| Executed queries | {totals['executed_queries']} |
-| Candidate records | {totals['candidate_records']} |
-| Search-result sightings | {totals['search_result_sightings']} |
-| Acquired candidates | {totals['acquired_candidates']} |
-| Admitted candidates | {totals['admitted_candidates']} |
-| Excluded candidates | {totals['excluded_candidates']} |
-| Source-to-claim links | {totals['source_to_claim_links']} |
+| Expected trials | {totals["expected_trials"]} |
+| Observed trials | {totals["observed_trials"]} |
+| Executed queries | {totals["executed_queries"]} |
+| Candidate records | {totals["candidate_records"]} |
+| Search-result sightings | {totals["search_result_sightings"]} |
+| Acquired candidates | {totals["acquired_candidates"]} |
+| Admitted candidates | {totals["admitted_candidates"]} |
+| Excluded candidates | {totals["excluded_candidates"]} |
+| Source-to-claim links | {totals["source_to_claim_links"]} |
 
 ## Variation by policy
 
 {_variation_rows(accounting)}
 
-The private acquisition manifest binds {accounting['inputs']['private_acquisition_manifest']['files']}
+The private acquisition manifest binds {accounting["inputs"]["private_acquisition_manifest"]["files"]}
 files by digest without publishing their contents.
 """ + sources(
         "`w10-accounting.json` in the retained evidence package",
@@ -236,13 +236,13 @@ It is a sensitivity analysis; the primary model grades remain unchanged.
 
 | Judgment | Reviewed | Agreement |
 |---|---:|---:|
-| Source usefulness | {agreement['source_usefulness']['reviewed']} | {percent(agreement['source_usefulness']['agreement'])} |
-| Source quality components | {agreement['source_quality_components']['reviewed']} | {percent(agreement['source_quality_components']['agreement'])} |
-| Claim status | {agreement['claim_status']['reviewed']} | {percent(agreement['claim_status']['agreement'])} |
+| Source usefulness | {agreement["source_usefulness"]["reviewed"]} | {percent(agreement["source_usefulness"]["agreement"])} |
+| Source quality components | {agreement["source_quality_components"]["reviewed"]} | {percent(agreement["source_quality_components"]["agreement"])} |
+| Claim status | {agreement["claim_status"]["reviewed"]} | {percent(agreement["claim_status"]["agreement"])} |
 
 - Primary decision: `{decision}`
 - Adjudicated sensitivity: `{sensitivity}`
-- Decision changed: **{'yes' if changed else 'no'}**
+- Decision changed: **{"yes" if changed else "no"}**
 
 Agreement measures consistency, not truth. Any material disagreement remains part
 of the decision record.
@@ -260,9 +260,9 @@ adjudication selected by the frozen protocol.
 
 ## Input identities
 
-- Primary summary SHA-256: `{input_digests['summary']}`
-- Public accounting SHA-256: `{input_digests['accounting']}`
-- Adjudication analysis SHA-256: `{input_digests['adjudication']}`
+- Primary summary SHA-256: `{input_digests["summary"]}`
+- Public accounting SHA-256: `{input_digests["accounting"]}`
+- Adjudication analysis SHA-256: `{input_digests["adjudication"]}`
 
 ## Limits
 
