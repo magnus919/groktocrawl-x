@@ -70,8 +70,14 @@ def build_selection(
         raise ValueError("accounting is not bound to the primary summary")
 
     changed = adjudication.get("decision_changed")
-    if type(changed) is not bool:
-        raise ValueError("adjudication analysis must declare decision_changed")
+    primary_decision = adjudication.get("primary_decision")
+    sensitivity_decision = adjudication.get("adjudicated_sensitivity_decision")
+    if (
+        type(changed) is not bool
+        or primary_decision != primary.get("decision")
+        or changed != (primary_decision != sensitivity_decision)
+    ):
+        raise ValueError("adjudication decision relationship is inconsistent")
     if changed and outcome != "run_followup_experiment":
         raise ValueError("a decision-changing sensitivity requires a follow-up experiment")
 
