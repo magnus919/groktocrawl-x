@@ -164,3 +164,24 @@ def test_retries_and_privately_preserves_invalid_responses(tmp_path):
         '{"rationale": "missing fields"}'
     )
     assert all(path.stat().st_mode & 0o777 == 0o600 for path in failures.iterdir())
+
+
+def test_repeated_resume_failures_keep_prior_diagnostics(tmp_path):
+    value = packet()
+    value["items"] = value["items"][:1]
+
+    for _ in range(2):
+        with pytest.raises(ValueError, match="fields"):
+            grade_packet(
+                value,
+                tmp_path,
+                lambda _: '{"rationale": "missing fields"}',
+                max_attempts=1,
+            )
+
+    failures = list((tmp_path / "failures").glob("*.error.txt"))
+    assert len(failures) == 2
+    assert {path.name for path in failures} == {
+        "source-1--attempt-1.error.txt",
+        "source-1--attempt-1--retry-2.error.txt",
+    }

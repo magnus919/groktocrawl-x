@@ -80,6 +80,9 @@ def validate_and_build(
         raise ValueError("unsupported response schema")
     if responses.get("reviewer_kind") != "agent":
         raise ValueError("reviewer_kind must disclose agent review")
+    reviewer_model = responses.get("reviewer_model")
+    if not isinstance(reviewer_model, str) or not reviewer_model.strip():
+        raise ValueError("reviewer_model must disclose the model route")
     if responses.get("blind_to_policy_and_repetition") is not True:
         raise ValueError("responses must attest blinded review")
 
@@ -169,6 +172,7 @@ def validate_and_build(
     return {
         "schema_version": "enterprise-evaluation/w10-adjudication-public/1",
         "reviewer_kind": "agent",
+        "reviewer_model": reviewer_model,
         "blind_to_policy_and_repetition": True,
         "private_packet_sha256": digest(packet_bytes),
         "manifest_sha256": digest(

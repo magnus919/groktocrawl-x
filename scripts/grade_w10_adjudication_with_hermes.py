@@ -42,7 +42,7 @@ def run_command(command: list[str], *, timeout: float) -> str:
     )
     try:
         stdout, stderr = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
         os.killpg(process.pid, signal.SIGKILL)
         process.communicate()
         raise
@@ -138,6 +138,18 @@ def write_exclusive(path: Path, text: str, *, mode: int = 0o600) -> None:
         handle.write(text)
 
 
+def failure_stem_for(
+    failures: Path, observation_id: str, attempt: int
+) -> Path:
+    base = failures / f"{observation_id}--attempt-{attempt}"
+    candidate = base
+    retry = 2
+    while candidate.with_suffix(".error.txt").exists():
+        candidate = failures / f"{base.name}--retry-{retry}"
+        retry += 1
+    return candidate
+
+
 def grade_packet(
     packet: dict[str, Any],
     checkpoint_dir: Path,
@@ -191,7 +203,9 @@ def grade_packet(
                     break
                 except Exception as error:
                     failures.mkdir(parents=True, exist_ok=True, mode=0o700)
-                    failure_stem = failures / f"{observation_id}--attempt-{attempt}"
+                    failure_stem = failure_stem_for(
+                        failures, observation_id, attempt
+                    )
                     write_exclusive(
                         failure_stem.with_suffix(".error.txt"),
                         f"{type(error).__name__}: {error}\n",
@@ -261,6 +275,7 @@ def main() -> int:
         invoke,
         max_attempts=args.max_attempts,
     )
+    result["reviewer_model"] = args.model or "default"
     write_exclusive(
         args.output,
         json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
