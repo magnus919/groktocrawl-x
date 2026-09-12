@@ -24,7 +24,14 @@ assembled and validated.
 Concurrency was tested at four, eight, twelve, and sixteen lanes. Higher lane
 counts produced repeated 210-second transport timeouts consistent with provider
 queueing or subscription rate limits, without a dependable throughput gain.
-Execution therefore returned to the previously clean four-lane ceiling. Those
+Execution therefore first returned to four lanes. A subsequent sustained check
+showed provider saturation: all four calls remained occupied while only four
+additional judgments completed, despite no increase in recorded failures. The
+user also confirmed that the subscription-backed provider is likely being rate
+limited. Two lanes were cleanly stopped after their in-flight calls; their
+completed checkpoints remain reusable and no partial response was accepted.
+The operational ceiling is now two concurrent Luna calls, with a further
+reduction to one if congestion persists. Those
 timeout attempts remain in the private failure audit and do not become judgments
 or policy outcomes.
 
