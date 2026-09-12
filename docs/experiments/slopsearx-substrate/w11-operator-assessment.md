@@ -68,8 +68,16 @@ admission, synthesis, verification, and publication. SlopSearX owns bounded sear
 execution, attempt accounting, snapshots, and retrieval provenance only when the
 caller selects the experimental path.
 
-Rollback is operationally narrow: stop using the recorded-continuation transport
-and disable the `mcp` profile. Ordinary HTTP search remains available and no
+The proposed rollback is operationally narrow: stop admitting recorded-continuation
+work, account for outstanding jobs, switch new requests to ordinary HTTP search,
+and explicitly stop `slopsearx-mcp` in the intended Compose project. Removing a
+profile from a later invocation does not stop an already-running container. Keep
+the companion out of subsequent startup commands; do not disable other MCP services
+that happen to share the profile. Verify ordinary HTTP search and the GroktoCrawl
+client journey after the switch. This complete rollback sequence has not yet been
+rehearsed and remains an adoption gate.
+
+Ordinary HTTP search remains available and no
 GroktoCrawl artifact schema or PostgreSQL data must be migrated back. Retained
 SlopSearX workflow records may be kept for audit or expired under their declared
 policy; rollback must not require deleting them.
