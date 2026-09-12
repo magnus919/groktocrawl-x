@@ -60,7 +60,7 @@ def _sha256(value: object) -> str:
 
 def build_freeze(
     *,
-    w10_summary_path: Path,
+    w10_selection_path: Path,
     w10_manifest_path: Path,
     cases_path: Path,
     work_order_path: Path,
@@ -79,7 +79,9 @@ def build_freeze(
     retrieval_summary_path: Path,
     quality_summary_path: Path,
 ) -> dict[str, Any]:
-    summary = load(w10_summary_path, "enterprise-evaluation/w10-summary/1")
+    selection = load(
+        w10_selection_path, "enterprise-evaluation/w10-policy-selection/1"
+    )
     manifest = load(w10_manifest_path, "enterprise-evaluation/w10-policy-run/1")
     cases = json.loads(cases_path.read_text())
     work_order = load(work_order_path, "enterprise-evaluation/w11-general-work-order/1")
@@ -90,8 +92,10 @@ def build_freeze(
         compatibility_path, "enterprise-evaluation/w11-http-compatibility/1"
     )
 
-    if summary.get("complete") is not True:
-        raise ValueError("W10 summary is incomplete")
+    if selection.get("complete") is not True:
+        raise ValueError("W10 policy selection is incomplete")
+    if selection.get("w11_measurement_authorized") is not True:
+        raise ValueError("W10 did not authorize W11 measurement")
     if manifest.get("completed") != manifest.get("records") or any(
         manifest.get(field) != 0 for field in ("failed", "failed_attempts")
     ):
@@ -100,7 +104,7 @@ def build_freeze(
         raise ValueError("W10 manifest does not bind the supplied cases")
     inputs = work_order.get("inputs", {})
     expected_inputs = {
-        "w10_summary_sha256": digest(w10_summary_path),
+        "w10_selection_sha256": digest(w10_selection_path),
         "cases_sha256": digest(cases_path),
         "w10_run_manifest_sha256": digest(w10_manifest_path),
     }
@@ -222,9 +226,10 @@ def build_freeze(
             ),
         },
         "w10_control": {
-            "selected_challenge_types": summary.get("selected_challenge_types", []),
+            "outcome": selection.get("outcome"),
+            "selected_challenge_types": selection.get("selected_challenge_types", []),
             "policy_by_challenge_type": work_order.get("policy_by_challenge_type"),
-            "w10_summary_sha256": digest(w10_summary_path),
+            "w10_selection_sha256": digest(w10_selection_path),
             "w10_run_manifest_sha256": digest(w10_manifest_path),
             "cases_sha256": digest(cases_path),
         },
@@ -273,7 +278,7 @@ def write_exclusive(path: Path, value: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--w10-summary", type=Path, required=True)
+    parser.add_argument("--w10-selection", type=Path, required=True)
     parser.add_argument("--w10-run-manifest", type=Path, required=True)
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--work-order", type=Path, required=True)
@@ -301,7 +306,7 @@ def main() -> int:
             raise ValueError("GroktoCrawl image digests must be unique SERVICE=SHA256 pairs")
         image_digests[service] = value
     result = build_freeze(
-        w10_summary_path=args.w10_summary,
+        w10_selection_path=args.w10_selection,
         w10_manifest_path=args.w10_run_manifest,
         cases_path=args.cases,
         work_order_path=args.work_order,

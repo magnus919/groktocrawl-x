@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the W11 A0/A1 work order from a completed W10 decision."""
+"""Build the W11 A0/A1 work order from the final W10 policy selection."""
 
 from __future__ import annotations
 
@@ -45,23 +45,30 @@ def frozen_result_limit(
 
 
 def build(
-    summary: dict[str, Any],
+    selection: dict[str, Any],
     cases: dict[str, Any],
     *,
     seed: int,
     repetitions: int,
     result_limit: int,
 ) -> dict[str, Any]:
-    if summary.get("schema_version") != "enterprise-evaluation/w10-summary/1":
-        raise ValueError("unsupported W10 summary schema")
-    if summary.get("complete") is not True:
-        raise ValueError("W10 must be complete before the W11 work order is built")
+    if (
+        selection.get("schema_version")
+        != "enterprise-evaluation/w10-policy-selection/1"
+    ):
+        raise ValueError("unsupported W10 policy-selection schema")
+    if selection.get("complete") is not True:
+        raise ValueError("W10 selection must be complete before W11 is built")
+    if selection.get("w11_measurement_authorized") is not True:
+        raise ValueError("W10 did not authorize W11 measurement")
     if repetitions != 3:
         raise ValueError("the frozen W11 protocol requires exactly three repetitions")
     if type(result_limit) is not int or not 1 <= result_limit <= 20:
         raise ValueError("W10 result limit must be an integer from 1 to 20")
-    selected = set(summary.get("selected_challenge_types", []))
+    selected = set(selection.get("selected_challenge_types", []))
     known_types = {str(case["challenge_type"]) for case in cases.get("cases", [])}
+    if set(selection.get("known_challenge_types", [])) != known_types:
+        raise ValueError("W10 selection does not match the W11 challenge types")
     if not selected <= known_types:
         raise ValueError("W10 selected an unknown challenge type")
 
@@ -101,15 +108,17 @@ def build(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--w10-summary", type=Path, required=True)
+    parser.add_argument("--w10-selection", type=Path, required=True)
     parser.add_argument("--cases", type=Path, required=True)
     parser.add_argument("--w10-run-manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=11052026)
     parser.add_argument("--repetitions", type=int, default=3)
     args = parser.parse_args()
-    summary = json.loads(args.w10_summary.read_text())
+    selection = json.loads(args.w10_selection.read_text())
     cases = json.loads(args.cases.read_text())
+    if (selection.get("inputs") or {}).get("challenge_cases") != digest(args.cases):
+        raise ValueError("W10 selection is not bound to the supplied challenge cases")
     run_manifest = json.loads(args.w10_run_manifest.read_text())
     result_limit = frozen_result_limit(
         run_manifest,
@@ -118,14 +127,14 @@ def main() -> int:
         repetitions=args.repetitions,
     )
     result = build(
-        summary,
+        selection,
         cases,
         seed=args.seed,
         repetitions=args.repetitions,
         result_limit=result_limit,
     )
     result["inputs"] = {
-        "w10_summary_sha256": digest(args.w10_summary),
+        "w10_selection_sha256": digest(args.w10_selection),
         "cases_sha256": digest(args.cases),
         "w10_run_manifest_sha256": digest(args.w10_run_manifest),
     }

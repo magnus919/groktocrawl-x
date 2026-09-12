@@ -44,12 +44,15 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
         ]
     }
     cases_path = _write(tmp_path / "cases.json", cases)
-    summary_path = _write(
-        tmp_path / "summary.json",
+    selection_path = _write(
+        tmp_path / "selection.json",
         {
-            "schema_version": "enterprise-evaluation/w10-summary/1",
+            "schema_version": "enterprise-evaluation/w10-policy-selection/1",
             "complete": True,
+            "outcome": "bounded_recovery",
+            "w11_measurement_authorized": True,
             "selected_challenge_types": ["freshness"],
+            "known_challenge_types": ["authority", "freshness"],
         },
     )
     manifest_path = _write(
@@ -86,7 +89,7 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
             "policy_by_challenge_type": {"authority": "fixed", "freshness": "full"},
             "entries": entries,
             "inputs": {
-                "w10_summary_sha256": _digest(summary_path),
+                "w10_selection_sha256": _digest(selection_path),
                 "cases_sha256": _digest(cases_path),
                 "w10_run_manifest_sha256": _digest(manifest_path),
             },
@@ -150,7 +153,7 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
         text_paths[name] = tmp_path / f"{name}.txt"
         text_paths[name].write_text(name)
     return {
-        "w10_summary_path": summary_path,
+        "w10_selection_path": selection_path,
         "w10_manifest_path": manifest_path,
         "cases_path": cases_path,
         "work_order_path": work_order_path,

@@ -14,16 +14,18 @@ CASES = {
 }
 
 
-def _summary(*, complete: bool = True) -> dict:
+def _selection(*, complete: bool = True, authorized: bool = True) -> dict:
     return {
-        "schema_version": "enterprise-evaluation/w10-summary/1",
+        "schema_version": "enterprise-evaluation/w10-policy-selection/1",
         "complete": complete,
+        "w11_measurement_authorized": authorized,
         "selected_challenge_types": ["freshness"],
+        "known_challenge_types": ["freshness", "identity"],
     }
 
 
 def test_build_maps_selected_types_and_counterbalances_arms() -> None:
-    result = build(_summary(), CASES, seed=7, repetitions=3, result_limit=8)
+    result = build(_selection(), CASES, seed=7, repetitions=3, result_limit=8)
     assert result["policy_by_challenge_type"] == {
         "freshness": "full",
         "identity": "fixed",
@@ -39,10 +41,10 @@ def test_build_maps_selected_types_and_counterbalances_arms() -> None:
             }
 
 
-def test_build_rejects_partial_w10_summary() -> None:
+def test_build_rejects_partial_w10_selection() -> None:
     try:
         build(
-            _summary(complete=False),
+            _selection(complete=False),
             CASES,
             seed=7,
             repetitions=3,
@@ -51,14 +53,32 @@ def test_build_rejects_partial_w10_summary() -> None:
     except ValueError as error:
         assert "must be complete" in str(error)
     else:
-        raise AssertionError("partial W10 summary was accepted")
+        raise AssertionError("partial W10 selection was accepted")
+
+
+def test_build_rejects_inconclusive_w10_selection() -> None:
+    with pytest.raises(ValueError, match="did not authorize"):
+        build(
+            _selection(authorized=False),
+            CASES,
+            seed=7,
+            repetitions=3,
+            result_limit=8,
+        )
+
+
+def test_build_rejects_mismatched_challenge_type_inventory() -> None:
+    selection = _selection()
+    selection["known_challenge_types"] = ["freshness"]
+    with pytest.raises(ValueError, match="does not match"):
+        build(selection, CASES, seed=7, repetitions=3, result_limit=8)
 
 
 def test_build_rejects_unknown_selected_type() -> None:
-    summary = _summary()
-    summary["selected_challenge_types"] = ["unknown"]
+    selection = _selection()
+    selection["selected_challenge_types"] = ["unknown"]
     try:
-        build(summary, CASES, seed=7, repetitions=3, result_limit=8)
+        build(selection, CASES, seed=7, repetitions=3, result_limit=8)
     except ValueError as error:
         assert "unknown challenge type" in str(error)
     else:
@@ -67,7 +87,7 @@ def test_build_rejects_unknown_selected_type() -> None:
 
 def test_build_rejects_an_unfrozen_result_limit() -> None:
     try:
-        build(_summary(), CASES, seed=7, repetitions=3, result_limit=0)
+        build(_selection(), CASES, seed=7, repetitions=3, result_limit=0)
     except ValueError as error:
         assert "result limit" in str(error)
     else:

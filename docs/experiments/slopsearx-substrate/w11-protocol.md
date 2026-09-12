@@ -93,10 +93,12 @@ engine names. A0 supplies that explicit list to HTTP search and A1 supplies the
 same list in its caller-authored research plan. This prevents a category versus
 intent routing difference from being mistaken for a transport effect.
 
-The challenge work order is generated only from a completed W10 summary. For
+The challenge work order is generated only from the final W10 policy-selection
+artifact, after primary and adjudicated analyses are complete. For
 each challenge type selected by W10, both W11 arms use the W10 `full` policy;
 all other types use `fixed`. The generator rejects partial W10 results and
-freezes the exact summary and case-file digests. It counterbalances A0/A1 order
+rejects a follow-up-experiment disposition that does not authorize W11. It
+freezes the exact selection and case-file digests. It counterbalances A0/A1 order
 within every case and repetition so transport order cannot be chosen after
 outcomes are visible.
 
