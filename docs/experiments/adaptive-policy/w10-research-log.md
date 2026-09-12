@@ -2,6 +2,19 @@
 
 Status: **live study in progress; protocol remains frozen**
 
+## 2026-09-12 — reviewer route changed to General
+
+The LiteLLM deployment removed the `luna` model alias. Continuing part of one
+scored adjudication with another model would confound reviewer behavior with the
+retrieval-policy comparison, so the 985 valid Luna checkpoints are retained as
+an incomplete, non-scoring run. They are not mixed with the replacement run.
+
+Independent adjudication restarts from the unchanged blinded 4,487-observation
+packet using the Hermes `general` model alias. Ten disjoint lanes are authorized
+for this route. The frozen cases, rubric, validation, private failure retention,
+and downstream analysis remain unchanged. Only the reviewer route and its
+operational concurrency change.
+
 ## 2026-09-12 — completed measurement and independent adjudication
 
 The refrozen challenge produced 180 valid completed trials. The matched W8
@@ -11,7 +24,7 @@ original failed attempts remain separately preserved for the missing-data
 audit; they were not reclassified as policy outcomes. Both run validators pass,
 and the combined summary and blinded adjudication packet are complete.
 
-Independent adjudication is pinned to the Hermes `luna` model alias. Every
+The initial independent adjudication was pinned to the Hermes `luna` model alias. Every
 observation uses a fresh one-shot session, the full rubric must validate before
 its private checkpoint is written, and malformed attempts remain preserved for
 the audit. Four disjoint execution lanes reduce elapsed time without changing
@@ -32,7 +45,7 @@ limited. Two lanes were cleanly stopped after their in-flight calls; their
 completed checkpoints remain reusable and no partial response was accepted.
 Two concurrent calls still completed only three additional judgments during a
 sustained check and produced another 210-second timeout. The operational ceiling
-is therefore one concurrent Luna call. Those
+was therefore one concurrent Luna call. Those
 timeout attempts remain in the private failure audit and do not become judgments
 or policy outcomes.
 

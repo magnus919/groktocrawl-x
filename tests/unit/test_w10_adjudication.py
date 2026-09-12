@@ -53,6 +53,7 @@ def fixtures():
     responses = {
         "schema_version": "enterprise-evaluation/w10-adjudication-responses/1",
         "reviewer_kind": "agent",
+        "reviewer_model": "general",
         "blind_to_policy_and_repetition": True,
         "items": [
             {
@@ -122,6 +123,13 @@ def test_agent_and_blinding_disclosures_are_required():
     packet, manifest, responses, packet_bytes = fixtures()
     responses["reviewer_kind"] = "human"
     with pytest.raises(ValueError, match="agent review"):
+        validate_and_build(packet, manifest, responses, packet_bytes=packet_bytes)
+
+
+def test_reviewer_model_disclosure_is_required():
+    packet, manifest, responses, packet_bytes = fixtures()
+    responses.pop("reviewer_model")
+    with pytest.raises(ValueError, match="model route"):
         validate_and_build(packet, manifest, responses, packet_bytes=packet_bytes)
 
 
