@@ -15,6 +15,16 @@ for this route. The frozen cases, rubric, validation, private failure retention,
 and downstream analysis remain unchanged. Only the reviewer route and its
 operational concurrency change.
 
+The Hermes agent CLI then proved unsuitable as the transport for General: eleven
+valid judgments were retained as non-scoring diagnostics, while repeated calls
+spent the 180-second run budget in model reasoning and timed out. A direct,
+OpenAI-compatible probe to the same LiteLLM `general` alias completed the identical
+frozen judgment in 20.55 seconds with a valid response after 1,881 completion
+tokens. Scored adjudication therefore restarts cleanly again through direct chat
+completions, with 8,192 completion tokens, one fresh request per observation, and
+ten disjoint lanes. The public artifact must disclose both model and transport;
+neither partial client run is mixed into scoring.
+
 ## 2026-09-12 — completed measurement and independent adjudication
 
 The refrozen challenge produced 180 valid completed trials. The matched W8

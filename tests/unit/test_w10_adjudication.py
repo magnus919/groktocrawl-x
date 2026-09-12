@@ -54,6 +54,7 @@ def fixtures():
         "schema_version": "enterprise-evaluation/w10-adjudication-responses/1",
         "reviewer_kind": "agent",
         "reviewer_model": "general",
+        "reviewer_transport": "openai_chat_completions",
         "blind_to_policy_and_repetition": True,
         "items": [
             {
@@ -130,6 +131,13 @@ def test_reviewer_model_disclosure_is_required():
     packet, manifest, responses, packet_bytes = fixtures()
     responses.pop("reviewer_model")
     with pytest.raises(ValueError, match="model route"):
+        validate_and_build(packet, manifest, responses, packet_bytes=packet_bytes)
+
+
+def test_reviewer_transport_disclosure_is_required():
+    packet, manifest, responses, packet_bytes = fixtures()
+    responses.pop("reviewer_transport")
+    with pytest.raises(ValueError, match="request path"):
         validate_and_build(packet, manifest, responses, packet_bytes=packet_bytes)
 
 
