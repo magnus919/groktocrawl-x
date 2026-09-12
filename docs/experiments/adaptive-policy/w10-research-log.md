@@ -2,6 +2,25 @@
 
 Status: **live study in progress; protocol remains frozen**
 
+## 2026-09-12 — completed measurement and independent adjudication
+
+The refrozen challenge produced 180 valid completed trials. The matched W8
+anchor produced 360 valid completed trials after a resumable recovery pass
+repaired 15 identities interrupted by model-gateway transport failures. The
+original failed attempts remain separately preserved for the missing-data
+audit; they were not reclassified as policy outcomes. Both run validators pass,
+and the combined summary and blinded adjudication packet are complete.
+
+Independent adjudication is pinned to the Hermes `luna` model alias. Every
+observation uses a fresh one-shot session, the full rubric must validate before
+its private checkpoint is written, and malformed attempts remain preserved for
+the audit. Four disjoint execution lanes reduce elapsed time without changing
+the unit of review. Their identity sets were checked against the original
+packet: all 4,487 observations occur exactly once, with no omission or overlap.
+The shared checkpoints remain resumable, and no intermediate judgment or
+private evidence is used to infer the outcome before the complete record is
+assembled and validated.
+
 ## 2026-09-11 — independent-review handoff smoke
 
 The adjudication handoff now sends each blinded observation to a fresh Hermes
