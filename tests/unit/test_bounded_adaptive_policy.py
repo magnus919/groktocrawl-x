@@ -1,3 +1,5 @@
+import importlib.util
+
 import pytest
 from agent.experimental.bounded_adaptive_policy import (
     CandidateAssessment,
@@ -124,8 +126,15 @@ def test_stop_order_is_reproducible_from_recorded_state():
     )
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is installed only in the optional W10 experiment lane",
+    owner="repository-maintainer",
+    issue="#314",
+    classification="retained",
+    environment="default test lane excludes the optional LangGraph dependency",
+)  # type: ignore[call-arg]
 def test_langgraph_trace_preserves_event_order_and_is_deterministic():
-    pytest.importorskip("langgraph")
     events = (
         {"type": "gap", "gap_id": "quality"},
         {"type": "proposal", "admitted": True},
@@ -136,7 +145,14 @@ def test_langgraph_trace_preserves_event_order_and_is_deterministic():
     assert first == replay_policy_trace(events)
 
 
+@pytest.mark.skipif(
+    importlib.util.find_spec("langgraph") is None,
+    reason="LangGraph is installed only in the optional W10 experiment lane",
+    owner="repository-maintainer",
+    issue="#314",
+    classification="retained",
+    environment="default test lane excludes the optional LangGraph dependency",
+)  # type: ignore[call-arg]
 def test_langgraph_trace_scales_recursion_limit_to_a_complete_audit_trail():
-    pytest.importorskip("langgraph")
     events = tuple({"type": "candidate", "candidate_id": str(i)} for i in range(40))
     assert len(replay_policy_trace(events)) == 40
