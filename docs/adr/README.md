@@ -28,7 +28,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Status legend:** accepted ADRs describe decisions used by the current implementation. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
 
-**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, and 0079.
+**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, and 0081.
 
 **Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073 and 0076–0078.
 
@@ -117,6 +117,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0078 | [Define Durable Research Backup and Artifact Authority](0078-define-durable-research-backup-and-artifact-authority.md) | proposed |
 | 0079 | [Consolidate Retained and Vector Storage in PostgreSQL](0079-consolidate-retained-and-vector-storage-in-postgresql.md) | accepted |
 | 0080 | [Construct Source-Bound Answer Units](0080-construct-source-bound-answer-units.md) | rejected |
-| 0081 | [Select a Bounded Adaptive Research Policy](0081-select-a-bounded-adaptive-research-policy.md) | proposed |
+| 0081 | [Select a Bounded Adaptive Research Policy](0081-select-a-bounded-adaptive-research-policy.md) | accepted; fixed retrieval retained after W10 |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.

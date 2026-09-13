@@ -136,12 +136,12 @@ only evidence that favors adaptation.
 
 | Evidence item | H0 fixed sufficient | H1 query drift | H2 weak admission | H3 late stopping | H4 challenge-specific benefit | H5 grading sensitivity |
 |---|---|---|---|---|---|---|
-| Primary metrics by case and repetition | Pending | Pending | Pending | Pending | Pending | Pending |
-| Query proposal and gate decisions | Pending | Pending | Pending | Pending | Pending | Pending |
-| Candidate exclusions and marginal value | Pending | Pending | Pending | Pending | Pending | Pending |
-| Stop reasons and work bounds | Pending | Pending | Pending | Pending | Pending | Pending |
-| Blind grades and adjudications | Pending | Pending | Pending | Pending | Pending | Pending |
-| Leave-one-case-out and missing-data sensitivities | Pending | Pending | Pending | Pending | Pending | Pending |
+| Primary metrics by case and repetition | Supported: no type passed | Partly supported | Supported | Strongly supported | Not demonstrated | Weakened |
+| Query proposal and gate decisions | Follow-ups rarely added value | Accepted too many weak continuations | Non-diagnostic | 88.9% unnecessary-query rate | No repeatable type benefit | Grading sensitivity did not change decision |
+| Candidate exclusions and marginal value | Fixed still closed more claims | Gap binding did not rescue policy | Filtering improved anchor precision from 43.0% to 51.0% | Non-diagnostic | No type passed | Adjudicated decision unchanged |
+| Stop reasons and work bounds | Fixed needed one search | Non-diagnostic | Non-diagnostic | Only 11.1% of follow-ups gained evidence | No type passed | Stop disagreement remained visible under adjudication |
+| Blind grades and adjudications | Supported by both graders | Partly supported | Supported | Supported | Not demonstrated | Decision robust despite low item agreement |
+| Leave-one-case-out and missing-data sensitivities | Supported in 11 of 12 removals | Non-diagnostic | Non-diagnostic | Non-diagnostic | One fragile `missing_primary` signal | Case composition remains a boundary |
 
 Use `consistent`, `inconsistent`, or `not diagnostic` in the completed matrix.
 Prefer the hypothesis with the fewest important inconsistencies. Identify any
@@ -209,16 +209,37 @@ no issues. The retained five-file evidence tree
 `pre-execution-keyed-assessment-smoke` has canonical manifest SHA-256
 `2258d1d76015393a14482d27ee1a7055f8a716f04f21db1a3a7c63b0f19f4366`.
 
+## Final result
+
+The valid execution completed all 540 planned trials. The public accounting
+contains 929 executed queries, 6,736 candidate records, 3,595 acquired
+candidates, 3,331 admissions, 3,405 exclusions, and 5,133 source-to-claim links.
+The direct `general` adjudication completed all 4,487 selected observations with
+no unresolved items. Its declared sensitivity preserved the primary
+`retain_fixed_default` decision.
+
+The full policy lost 33.3 percentage points of weighted closure against fixed
+retrieval on the W8 anchor. Only 11.1% of its follow-up queries produced a
+declared evidence gain, 88.9% occurred after the final gain, and 21 of 40
+interim `all gaps closed` judgments disagreed with the independent final gap
+assessment. No challenge type passed any repetition. ADR-0081 therefore keeps
+fixed retrieval as the experimental default and authorizes W11 to use it as the
+control.
+
+The [Artifact Pyramid](../evidence/adaptive-policy/w10-final/00-index.md)
+contains the complete reader-facing outcome, competing explanations,
+pre-mortem, sensitivity analysis, and secret-free machine-readable evidence.
+
 ## Completion gate
 
-- [ ] Every executed search appears in the query log.
-- [ ] Every candidate appears in the source ledger, including exclusions.
-- [ ] Every retained source is linked to a claim or recorded research purpose.
-- [ ] Blind grades and manual adjudications are durable and discoverable.
-- [ ] The hypothesis matrix and all required sensitivity analyses are complete.
-- [ ] Environment, software, model, and dataset digests permit reproduction.
-- [ ] No essential evidence exists only in chat or an untracked temporary file.
-- [ ] The boundary measures and four-way decision form in
+- [x] Every executed search appears in the query log.
+- [x] Every candidate appears in the source ledger, including exclusions.
+- [x] Every retained source is linked to a claim or recorded research purpose.
+- [x] Blind grades and agent adjudications are durable and discoverable.
+- [x] The hypothesis matrix and all required sensitivity analyses are complete.
+- [x] Environment, software, model, and dataset digests permit reproduction.
+- [x] No essential evidence exists only in chat or an untracked temporary file.
+- [x] The boundary measures and four-way decision form in
   `w10-analysis-plan.md` are complete.
 
 ## Final artifact pyramid

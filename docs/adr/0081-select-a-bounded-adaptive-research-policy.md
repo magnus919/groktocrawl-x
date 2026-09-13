@@ -1,6 +1,6 @@
 # Select a Bounded Adaptive Research Policy
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-12
 - Scope: experimental research architecture in `magnus919/groktocrawl-x` only
@@ -21,9 +21,8 @@ state. The study separates the W8 reproducibility anchor from challenge cases fo
 unsupported claims, contradictions, authority or currency gaps, publisher
 independence, and entity ambiguity.
 
-This record is proposed while blinded adjudication and analysis are incomplete.
-Its criteria are fixed before the arm map is revealed. Proposal status does not
-authorize changing the default retrieval policy.
+The criteria were fixed before the arm map was revealed. The complete study now
+contains 540 of 540 planned trials and 4,487 of 4,487 blinded adjudications.
 
 ## Decision Drivers
 
@@ -49,16 +48,34 @@ unless new evidence overturns its observed inability to stop selectively.
 
 ## Decision Outcome
 
-Pending completion of the frozen W10 analysis. The outcome must select exactly one
-considered option and state:
+Keep fixed-query retrieval as the default. No tested challenge type qualified
+for adaptive recovery, so this decision selects no adaptive trigger, proposal
+rule, admission rule, or stopping policy for the product path.
 
-- the eligible gap types and deterministic trigger;
-- query-proposal and source-admission requirements;
-- the stop rule and hard search, source, model-call, and elapsed-time budgets;
-- observed benefit, harm, case interaction, and run-to-run variation;
-- sensitivity to adjudication, importance weights, unavailable sources, and
-  leave-one-case-out analysis;
-- evidence that would reverse the decision.
+The full bounded policy failed the frozen non-inferiority gate on the reused W8
+anchor: weighted claim closure fell from 86.4% to 53.0%, a 33.3 percentage-point
+loss. Precision fell 1.5 points, remaining within that individual margin, but
+only 11.1% of follow-up queries produced a declared evidence gain and 88.9% were
+executed after the final gain. The full policy also failed every challenge-type
+replacement gate in all three repetitions. All 540 trials completed within the
+hard bounds, so the result is about research value rather than transport failure
+or budget enforcement.
+
+The independent blinded review covered 4,211 source judgments and 276 claim
+closures. Agreement was imperfect, but applying those judgments as the declared
+sensitivity produced the same `retain_fixed_default` decision. Equal claim
+weights also preserved the failed anchor gate. One of twelve leave-one-case-out
+checks selected `missing_primary` before applying the anchor gate, showing a
+narrow case-composition sensitivity that is insufficient for adoption.
+
+This decision does not reject future adaptive research. A new policy may be
+reconsidered when it changes the control mechanism rather than merely retuning
+the failed policy and then clears the same matched value, precision, unnecessary
+work, failure, and anchor non-inferiority gates. Promising directions include
+using deterministic evidence-state changes to trigger continuation, requiring
+observed retrieval receipts before spending another query, or using SlopSearX's
+bounded continuation workflow while GroktoCrawl retains ownership of research
+state and budgets.
 
 Policy 5 may replace fixed retrieval for a named challenge type only when, in that
 stratum and at least two of three repetitions, it improves weighted claim closure
@@ -71,24 +88,25 @@ If no policy clears every applicable gate, fixed retrieval remains the default.
 
 ## Consequences
 
-Until this record is decided, the experimental stack retains fixed-query
-SlopSearX retrieval as its default. W11 may prepare integration contracts but
-cannot choose its adaptive control arm before W10 identifies the selected policy.
+The experimental stack retains fixed-query SlopSearX retrieval as its default.
+W11 may now use that path as its frozen control while measuring SlopSearX's
+recorded continuation substrate. W11 measures substrate capability; it cannot
+silently adopt the W10 policy or reinterpret this result as approval for
+unbounded autonomous search.
 
-An accepted adaptive option will add explicit gap, proposal, candidate-disposition,
-marginal-value, and stop state to the research path. The controller remains owner
-of budgets and terminal decisions; a model cannot expand limits or publish merely
-because it requests more research. A fixed-query path remains available for
-ineligible cases and rollback.
+The explicit gap, proposal, candidate-disposition, marginal-value, stop, and
+budget records remain useful experimental contracts. They explain failures and
+make future policies comparable even though this policy was not selected.
 
 ## Confirmation
 
-The decision requires the complete secret-free W10 adjudication record, primary
-and adjudicated sensitivity analyses, full accounting dossier, Artifact Pyramid,
-competing-hypothesis matrix, pre-mortem, and outcome report. The retained private
-packet must match its frozen manifest and account for every query, candidate,
-exclusion, source, failure, and adjudication. Missing or malformed review output
-cannot become a favorable judgment.
+The [W10 evidence package](../experiments/evidence/adaptive-policy/w10-final/00-index.md)
+contains the secret-free adjudication record, primary and adjudicated sensitivity
+analyses, full accounting dossier, Artifact Pyramid, competing-hypothesis matrix,
+pre-mortem, and outcome report. Its retained private packet matches the frozen
+manifest and accounts for every query, candidate, exclusion, source, failure,
+and adjudication. The public accounting reports 929 executed queries, 6,736
+candidate records, 3,595 acquired candidates, and 5,133 source-to-claim links.
 
 CI confirms the record and its public artifacts are internally consistent. The
 decision is reviewed in the W10 pull request. Acceptance applies only to the
