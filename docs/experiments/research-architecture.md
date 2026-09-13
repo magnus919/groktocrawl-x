@@ -9,12 +9,13 @@
 - Input: [discussion #427 and its Knowledge IR follow-up](https://github.com/groktopus/groktocrawl/discussions/427)
 - Tracking issue: [#1](https://github.com/magnus919/groktocrawl-x/issues/1)
 - Proposed charter: [ADR-0067](../adr/0067-establish-an-independent-research-architecture-experiment.md)
+- Experiment index: [experiment documentation guide](README.md)
 
 **This is an experimental fork, not a replacement for mainline GroktoCrawl.**
 The owner authorized creating and planning the fork, explicitly including new ADRs
-that can overturn inherited architecture. Specific technical decisions below are
-open until their ADRs are reviewed. This plan does not authorize a mainline rewrite,
-production migration, paid evaluation run, or upstream release.
+that can overturn inherited architecture. Technical decisions are governed by their
+current ADR status and confirmation evidence. This plan does not authorize a
+mainline rewrite, production migration, or upstream release.
 
 The repository preserves upstream main's complete reachable Git history. It is a
 separate GitHub repository, as requested after GitHub returned the owner's existing
@@ -52,7 +53,7 @@ flowchart TD
     D --> E
     E --> F[Verification and constrained rendering]
     F --> G[Summary, analysis and dossiers]
-    H[Durable execution owner: choice pending] -. recovery and ownership .-> B
+    H[Durable execution owner: bounded Valkey ledger] -. recovery and ownership .-> B
     H -. consistent commits .-> D
     H -. consistent commits .-> E
 ```
@@ -106,7 +107,11 @@ operator docs and tests in the implementation PR. Do not change upstream ADR sta
 In particular, the mainline preference for Valkey-native durability and deferral of
 Temporal is an input to D5, not a constraint on its outcome.
 
-## Architecture foundation draft status
+## Architecture foundation and historical progress record
+
+This section preserves the chronological evidence trail. Statements such as
+"remaining" or "proposed" describe the checkpoint immediately around them; use
+the [GitHub execution tracker](#github-execution-tracker) for current status.
 
 Following merged PR #2, [issue #3](https://github.com/magnus919/groktocrawl-x/issues/3)
 tracks the first W1 decision package:
@@ -118,7 +123,7 @@ tracks the first W1 decision package:
   snapshot hashes, evidence locators, expected claims/verification, three renderings
   and failure variants. It is synthetic design evidence, not a runtime test result.
 
-D3 now has a proposed storage decision in [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md),
+D3 has an accepted bounded-exploration decision in [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md),
 tracked by [issue #5](https://github.com/magnus919/groktocrawl-x/issues/5), with a
 [lifecycle and failure matrix](research-storage-lifecycle.md). It recommends a
 single authoritative PostgreSQL store for bounded evidence and metadata, subject
@@ -180,34 +185,33 @@ reviewed provider decision remain open in #201. The follow-up
 [sustained shadow-lag packet](evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/)
 recorded 360 matching comparisons, bounded all 240 shadow write completions within
 75 ms, passed concurrent retained-artifact checks, and restored exact parity after
-an outage. It supports the reversible experimental cutover proposed in
+an outage. It supports the reversible experimental cutover accepted in
 [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md);
 The subsequent
 [application serving packet](evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/)
 passed pinned response parity, synchronous mutation, provider-outage, concurrent
 shared-database, and rollback checks. Qdrant remains the rollback target until
-ADR-0079 is reviewed and an explicit experimental rollback window completes.
+the explicit experimental rollback window completes.
 D6 has an accepted client contract in [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md),
 tracked by [issue #9](https://github.com/magnus919/groktocrawl-x/issues/9), with
 [wire examples and confirmation scenarios](research-client-protocol.md). It recommends
 an explicit experimental route family, progress-only streaming before audited
 publication, one pinned terminal result, bounded replay and compact session references.
 D4 has a proposed comparison contract in [ADR-0073](../adr/0073-compare-research-runtimes-under-one-policy.md).
-D5 has a proposed recovery contract in [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md),
+D5 has an accepted recovery contract in [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md),
 with a shared [conformance/crash matrix](research-execution-confirmation.md), tracked
 by [issue #11](https://github.com/magnus919/groktocrawl-x/issues/11). These frame the
-remaining choices: runtime and recovery infrastructure selection remain open until
-their evidence gates pass. All seven decision packages now have draft records;
-ADRs 0067–0070 and 0072 were accepted by Magnus on 2026-09-05 for a bounded
-fixture-backed prototype. ADRs 0071, 0073 and 0074 remain proposed.
+remaining runtime choice: ADR-0073 remains proposed while the imperative reference
+remains authoritative and LangGraph is available for advanced workflows. The
+bounded accepted scopes are recorded in the [ADR index](../adr/README.md).
 The [W1 acceptance review](research-acceptance-review.md) and
 [draft preflight manifest](research-preflight.json) pin existing regression evidence
 and identify the decisions and baseline inputs still required.
 Inherited ADR metadata records only the accepted experimental successor scopes;
-inherited endpoint implementations remain unchanged. W1 remains incomplete until its
-required decisions and baseline evidence meet their gates. The bounded W2 fixture
-prototype is underway under the explicitly accepted foundation contracts; the
-comparative preflight remains incomplete.
+inherited endpoint implementations remain unchanged. The W1 baseline and candidate
+comparison are complete. W2 produced a bounded executable fixture and exposed
+semantic-generalization limits that later evaluations carry forward. The current
+state of every active workstream is maintained in the tracker below.
 
 ## Work breakdown and sequencing
 
@@ -229,11 +233,12 @@ and review queues. Re-estimate after W1; these are not delivery dates.
 | W7 | Evaluate, pilot and decide / maintainer + evaluation owner | W5, W6, D7 | **Complete.** The [held-out comparison](enterprise-evaluation/w7-candidate-d-outcome-2026-09-11.md) rejected Candidate D: it completed 4 of 150 attempts versus 134 for the incumbent and exceeded the median-latency limit. The four completed outputs could not establish a quality improvement. ADR-0080 is rejected for this candidate; its useful evidence and publication constraints remain input to future design. | Complete 2026-09-11 |
 | W8 | Adaptively acquire sufficient evidence / retrieval + research owner | W7 decision | **Complete.** The [retrieval comparison](enterprise-evaluation/w8-retrieval-comparison-2026-09-11.md) retained current SlopSearX. The [bounded planning comparison](enterprise-evaluation/w8-adaptive-planning-outcome-2026-09-11.md) retained query formulation as a recovery tool but rejected indiscriminate model stopping. The [diversity comparison](enterprise-evaluation/w8-source-diversity-outcome-2026-09-11.md) selects bounded quality and publisher independence, while deliberate opposition remains conditional. The [freshness and identity comparison](enterprise-evaluation/w8-freshness-identity-outcome-2026-09-11.md) requires exact retrieval, separate nullable times, canonical/content deduplication with retained provenance, and explicit link-rot evidence. The [blinded source-equivalence audit](enterprise-evaluation/w8-source-equivalence-outcome-2026-09-11.md) found useful evidence in every attempted case but higher precision for the fixed-query baseline, confirming adaptive formulation belongs behind explicit evidence gaps. SlopSearX changes must be additive, optional, generally useful and backward compatible. | Complete 2026-09-11 |
 | W9 | Rehearse the replacement candidate / maintainer + operations owner | W8; accepted deployment manifest | **In progress.** The isolated candidate is frozen and deployed, and the matched compatibility comparison passed all declared journeys in three runs per arm. Migration and rollback now pass with PostgreSQL authority and a retained Qdrant fallback. Complete the bounded side-by-side pilot and publish the evidence-based architecture/adoption decision | 7-day observation window plus active setup and review |
-| W10 | Harden adaptive research policy / research owner | W9 candidate freeze; W8 source-equivalence evidence | Compare fixed retrieval with gap-triggered query generation, proposal gates, marginal-value admission, and deterministic stopping. Keep fixed-query retrieval as the default unless the matched evaluation demonstrates better research value within bounds. | Active experiment after the W9 candidate freeze |
+| W10 | Harden adaptive research policy / research owner | W9 candidate freeze; W8 source-equivalence evidence | **Complete.** The [W10 evidence package](evidence/adaptive-policy/w10-final/00-index.md) accounts for all 540 trials and 4,487 blinded adjudications. The full bounded policy lost 33.3 percentage points of weighted closure on the W8 anchor, only 11.1% of follow-ups produced an evidence gain, and no challenge type passed. [ADR-0081](../adr/0081-select-a-bounded-adaptive-research-policy.md) keeps fixed retrieval as the default while preserving the state contracts for future policy experiments. | Complete 2026-09-12 |
+| W11 | Evaluate SlopSearX research workflows / retrieval + research owner | W10 evidence and SlopSearX 0.5 capability freeze | Compare GroktoCrawl-owned flat-search coordination with caller-directed continuation, bounded staged search, and receipt/manifest/entity integration. Keep one research owner, preserve ordinary SearXNG behavior, and evaluate saved searches and dependency dossiers as separate capability slices. | 3–5 days |
 
-Expected planning range for a single contributor: **30–51 active days**, before
+Expected planning range for a single contributor: **33–56 active days**, before
 uncertainty and review/provisioning delays. Capacity is uncommitted. The dependency
-path is W0 → W1 → W2 → (W3 and W4) → W5 → W6 recovery acceptance → W7 → W8. W3 and W4
+path is W0 → W1 → W2 → (W3 and W4) → W5 → W6 recovery acceptance → W7 → W8 → W10 → W11. W3 and W4
 can overlap after W2. W6 client contract tests can begin after D6, and interface
 work can overlap W5; recovery claims cannot. Storage contracts, CI access, and
 runtime selection can each move the completion date. Do not schedule downstream
@@ -249,15 +254,16 @@ gate.
 
 | Workstream | Milestone | Execution issue | Current state |
 |---|---|---|---|
-| W0–W2 | [Foundation history](https://github.com/magnus919/groktocrawl-x/milestone/6) | [#1](https://github.com/magnus919/groktocrawl-x/issues/1), [#116](https://github.com/magnus919/groktocrawl-x/issues/116) | The incumbent run and 30-case primary semantic review are complete: 70.1% strict support, 72.9% coverage, 70.1% citation correctness, and one critical authorization finding. Bounds and controls are pinned. Review exposure makes the original packet calibration-only for future implementation; candidate identity, a fresh independently curated packet, human adjudication, and authorization remain open |
-| W3 | [Retention and reuse](https://github.com/magnus919/groktocrawl-x/milestone/1) | [#108 export](https://github.com/magnus919/groktocrawl-x/issues/108), [#109 import](https://github.com/magnus919/groktocrawl-x/issues/109), [#122 restore](https://github.com/magnus919/groktocrawl-x/issues/122), [#201 vector gates](https://github.com/magnus919/groktocrawl-x/issues/201), [#230 shadow lag](https://github.com/magnus919/groktocrawl-x/issues/230) | Bounded export/import, restore/deletion continuity, vector provider comparisons, fault/scale/migration evidence, the live application shadow pilot, and the sustained shared-database lag check are complete. The [sustained packet](evidence/storage-vector-evaluation/2026-09-09-shadow-lag-sustained/) recorded 360 matching comparisons and exact post-outage parity. [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) proposes a reversible experimental pgvector cutover; Qdrant remains authoritative until ADR review and the application cutover/rollback rehearsal pass |
+| W0–W2 | [Foundation history](https://github.com/magnus919/groktocrawl-x/milestone/6) | [#1](https://github.com/magnus919/groktocrawl-x/issues/1), [#116](https://github.com/magnus919/groktocrawl-x/issues/116) | Fork setup and W1 are complete. The replacement packet was independently curated and approved; the 300-attempt paired comparison rejected Candidate B on completion, latency, token use, and semantic quality. W2 delivered the bounded evidence-to-artifact fixture, with its semantic and generalization limits explicitly retained for later work. |
+| W3 | [Retention and reuse](https://github.com/magnus919/groktocrawl-x/milestone/1) | [#108 export](https://github.com/magnus919/groktocrawl-x/issues/108), [#109 import](https://github.com/magnus919/groktocrawl-x/issues/109), [#122 restore](https://github.com/magnus919/groktocrawl-x/issues/122), [#201 vector gates](https://github.com/magnus919/groktocrawl-x/issues/201), [#230 shadow lag](https://github.com/magnus919/groktocrawl-x/issues/230) | Bounded export/import, restore/deletion continuity, provider comparisons, fault/scale/migration evidence, application shadowing, pgvector serving cutover, and rollback rehearsal are complete. ADR-0079 is accepted for the experimental deployment. Qdrant remains available through the W9 rollback window; its eventual removal depends on that window passing. |
 | W4 | [Runtime comparison](https://github.com/magnus919/groktocrawl-x/milestone/2) | [#110](https://github.com/magnus919/groktocrawl-x/issues/110), [#245](https://github.com/magnus919/groktocrawl-x/issues/245) | Complete with 1,320 conforming records: 720 bounded workflow; [420 replanning/specialist](evidence/future-runtime/2026-09-09/); [60 guidance](evidence/future-runtime/2026-09-10-guidance/); [60 forks](evidence/future-runtime/2026-09-10-forks/); and [60 capability evolution](evidence/future-runtime/2026-09-10-capabilities/). ADR-0073 recommends the imperative reference plus an optional advanced LangGraph runtime, subject to decider review, a real-user pilot, and checkpoint operating gates. |
 | W5 | [Durable execution and recovery](https://github.com/magnus919/groktocrawl-x/milestone/3) | [#111](https://github.com/magnus919/groktocrawl-x/issues/111) | Contract fixture merged by [PR #118](https://github.com/magnus919/groktocrawl-x/pull/118); the bounded Valkey ownership ledger and hosted recovery lane merged in [PR #135](https://github.com/magnus919/groktocrawl-x/pull/135); checkpoint and terminal-projection persistence merged in [PR #137](https://github.com/magnus919/groktocrawl-x/pull/137); durable status recovery and persisted cancellation are merged in [PR #139](https://github.com/magnus919/groktocrawl-x/pull/139); bounded artifact-byte and terminal-event recovery is merged in [PR #142](https://github.com/magnus919/groktocrawl-x/pull/142); provider ambiguity and terminal-race evidence is merged in [PR #144](https://github.com/magnus919/groktocrawl-x/pull/144); the complete crash/cancel matrix is merged in [PR #146](https://github.com/magnus919/groktocrawl-x/pull/146); validated backup/restore, reclaim-after-restore behavior and durable deletion tombstones are merged in [PR #148](https://github.com/magnus919/groktocrawl-x/pull/148), with hosted evidence recorded in [the W5 packet](durable-backup-restore.md) and proposed [ADR-0078](../adr/0078-define-durable-research-backup-and-artifact-authority.md). [PR #243](https://github.com/magnus919/groktocrawl-x/pull/243) established the atomic PostgreSQL artifact-set store; [PR #244](https://github.com/magnus919/groktocrawl-x/pull/244) wired it through the durable route with compact Valkey pointers, deterministic reconciliation, and PostgreSQL-first deletion; [PR #247](https://github.com/magnus919/groktocrawl-x/pull/247) passed the combined PostgreSQL/Valkey restore rehearsal. Accepted [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md) selects the bounded Valkey ledger as execution owner while keeping orchestration replaceable. W5 is complete; W6 must now prove the recovered client journey across HTTP, SSE, CLI, and MCP. |
 | W6 | [Verified client protocols](https://github.com/magnus919/groktocrawl-x/milestone/4) | [#112](https://github.com/magnus919/groktocrawl-x/issues/112) | Contract, golden traces and opt-in capabilities merged by [PR #119](https://github.com/magnus919/groktocrawl-x/pull/119), [PR #120](https://github.com/magnus919/groktocrawl-x/pull/120) and [PR #121](https://github.com/magnus919/groktocrawl-x/pull/121); CLI/MCP capability-discovery parity is implemented in [PR #128](https://github.com/magnus919/groktocrawl-x/pull/128), the bounded fixture run/artifact/evidence adapter merged in [PR #129](https://github.com/magnus919/groktocrawl-x/pull/129), and the matching CLI/MCP journey merged in [PR #130](https://github.com/magnus919/groktocrawl-x/pull/130); attachment-only session support merged in [PR #131](https://github.com/magnus919/groktocrawl-x/pull/131); bounded foreign-scope and deletion-tombstone race evidence merged in [PR #133](https://github.com/magnus919/groktocrawl-x/pull/133). [PR #251](https://github.com/magnus919/groktocrawl-x/pull/251) passed the recovered HTTP/SSE/CLI/MCP artifact journey with scope and deletion continuity. W6 is complete for the bounded experimental route. |
 | W7 | [Evaluation and adoption decision](https://github.com/magnus919/groktocrawl-x/milestone/5) | [#103](https://github.com/magnus919/groktocrawl-x/issues/103), [#113](https://github.com/magnus919/groktocrawl-x/issues/113), [#280](https://github.com/magnus919/groktocrawl-x/issues/280) | Complete; Candidate D rejected, umbrella #103 continues through W8 and replacement rehearsal |
 | W8 | [Adaptive evidence acquisition](https://github.com/magnus919/groktocrawl-x/milestone/7) | [#294 retrieval](https://github.com/magnus919/groktocrawl-x/issues/294), [#295 planning](https://github.com/magnus919/groktocrawl-x/issues/295), [#296 diversity](https://github.com/magnus919/groktocrawl-x/issues/296), [#297 freshness](https://github.com/magnus919/groktocrawl-x/issues/297), [#307 source equivalence](https://github.com/magnus919/groktocrawl-x/issues/307), [SlopSearX #307](https://github.com/magnus919/SlopSearX/issues/307), [SlopSearX #309](https://github.com/magnus919/SlopSearX/issues/309) | Complete; fixed-query retrieval remains the default, with bounded adaptive formulation reserved for explicit evidence gaps |
-| W9 | [Replacement rehearsal](https://github.com/magnus919/groktocrawl-x/milestone/8) | [#308 deployment](https://github.com/magnus919/groktocrawl-x/issues/308), [#309 compatibility](https://github.com/magnus919/groktocrawl-x/issues/309), [#310 migration and rollback](https://github.com/magnus919/groktocrawl-x/issues/310), [#311 operational pilot](https://github.com/magnus919/groktocrawl-x/issues/311), [#312 adoption decision](https://github.com/magnus919/groktocrawl-x/issues/312) | In progress; the [isolated candidate freeze](evidence/replacement-rehearsal/2026-09-11-candidate-freeze/) verifies all ten services and one coherent HTTP/SSE/CLI/MCP artifact journey at an exact revision. The [matched compatibility comparison](evidence/replacement-rehearsal/2026-09-11-compatibility/) passed all declared journeys in three runs per arm without a candidate-only regression. The [migration and rollback rehearsal](evidence/replacement-rehearsal/2026-09-11-migration-rollback/) passed and ADR-0079 is accepted; Qdrant remains through the rollback window. The bounded pilot and adoption decision remain. |
-| W10 | [Adaptive research policy hardening](https://github.com/magnus919/groktocrawl-x/milestone/9) | [#314 bounded adaptive-query policies](https://github.com/magnus919/groktocrawl-x/issues/314) | Planned after the W9 candidate freeze; tests whether stricter boundaries turn adaptive query generation into a reliable improvement |
+| W9 | [Replacement rehearsal](https://github.com/magnus919/groktocrawl-x/milestone/8) | [#308 deployment](https://github.com/magnus919/groktocrawl-x/issues/308), [#309 compatibility](https://github.com/magnus919/groktocrawl-x/issues/309), [#310 migration and rollback](https://github.com/magnus919/groktocrawl-x/issues/310), [#311 operational pilot](https://github.com/magnus919/groktocrawl-x/issues/311), [#312 adoption decision](https://github.com/magnus919/groktocrawl-x/issues/312) | In progress; the [isolated candidate freeze](evidence/replacement-rehearsal/2026-09-11-candidate-freeze/) verifies all ten services and one coherent HTTP/SSE/CLI/MCP artifact journey at an exact revision. The [matched compatibility comparison](evidence/replacement-rehearsal/2026-09-11-compatibility/) passed all declared journeys in three runs per arm without a candidate-only regression. The [migration and rollback rehearsal](evidence/replacement-rehearsal/2026-09-11-migration-rollback/) and its post-merge Runtime CI passed; ADR-0079 is accepted and Qdrant remains through the rollback window. The bounded pilot began at 2026-09-11T17:26:19Z; checkpoint 0 passed 12 representative requests. It cannot complete before 2026-09-18T17:26:19Z. The remaining checkpoints and adoption decision remain. |
+| W10 | [Adaptive research policy hardening](https://github.com/magnus919/groktocrawl-x/milestone/9) | [#314 bounded adaptive-query policies](https://github.com/magnus919/groktocrawl-x/issues/314) | Complete. All 540 trials, 929 queries, 6,736 candidate records, and 4,487 blinded adjudications are accounted for. Primary, equal-weight, leave-one-case-out, and independent-adjudication analyses retain fixed retrieval. The secret-free [Artifact Pyramid](evidence/adaptive-policy/w10-final/00-index.md), decision pre-mortem, policy-selection record, and accepted ADR-0081 make the result reproducible and authorize W11 measurement against the fixed control. |
+| W11 | [SlopSearX research substrate integration](https://github.com/magnus919/groktocrawl-x/milestone/10) | [#318](https://github.com/magnus919/groktocrawl-x/issues/318), [PR #319](https://github.com/magnus919/groktocrawl-x/pull/319) | Preparation is in progress behind W10. SlopSearX 0.5.0 is pinned by source and image digest. Research-only grant isolation, ordinary SearXNG compatibility, no-dispatch engine-scope equivalence, and deterministic capability slices have passed. The scored flat-search versus recorded-continuation comparison now has a frozen analysis plan, W10-bound work-order builder, fail-closed freeze gate, matched result limit, and enforced evidence ceiling. Scored measurement remains prohibited until W10 completes and supplies the selected control policy. |
 
 ## Slice acceptance details
 
@@ -764,7 +770,7 @@ portable export format, retention promise or complete `knowledge-ir/1`. A caller
 must establish the trusted history prefix; validating a separately supplied chain
 cannot prove omitted or rewritten history does not exist elsewhere.
 
-## W2 assessment provenance and readiness checkpoint
+## Historical W2 assessment provenance and readiness checkpoint
 
 Issue #31 adds explicit `FixtureAssessment` records and `AssessmentLink` mappings
 from claim IDs to record IDs in the verification envelope. Each assessment binds
@@ -785,5 +791,8 @@ Existing assessed fixture payloads now require explicit provenance; old enums ar
 not automatically certified. No persisted/public payload migration occurs. See the
 [W2 readiness checkpoint](research-w2-readiness.md) for requirement-level evidence,
 remaining contract limits and the workload/reviewer/threshold decisions needed for
-a meaningful next evaluation gate. W2 and independent semantic verification remain
-incomplete; proposed storage/runtime/recovery decisions are unchanged.
+a meaningful next evaluation gate. At this checkpoint, W2 and independent semantic
+verification remained incomplete. Later storage and recovery decisions and all
+current workstream status are recorded in the
+[GitHub execution tracker](#github-execution-tracker); the bounded-fixture limits
+described here remain part of the experiment record.

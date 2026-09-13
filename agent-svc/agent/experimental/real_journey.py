@@ -1,6 +1,7 @@
 """Model construction and executed review over caller-acquired source material."""
 
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
@@ -174,10 +175,17 @@ async def research_from_sources(
     complete: Complete,
     scope_id: str,
     model: str = "local",
+    clock: Callable[[], datetime] | None = None,
 ) -> JourneyResult:
     """Construct, check and audit a bounded root; no retained publication yet."""
+    execution_clock = clock or (lambda: datetime.now(UTC))
     constructed = await construct_research(
-        objective, sources, complete=complete, scope_id=scope_id, model=model
+        objective,
+        sources,
+        complete=complete,
+        scope_id=scope_id,
+        model=model,
+        clock=execution_clock,
     )
     adapter = ModelReviewAdapter(
         provider="configured-litellm",
@@ -265,7 +273,7 @@ async def research_from_sources(
             auditor=auditor,
             audit=audit,
             artifact_set_id=identity,
-            clock=lambda: datetime.now(UTC),
+            clock=execution_clock,
             timeout_seconds=120,
             verification_registrations=(
                 (adapter.reviewer, verify),
