@@ -22,10 +22,56 @@ PARSE_UPLOAD_TTL = 3 * 60 * 60  # 3 hours, matches parse-svc/config.py
 _ATOMIC_GETDEL_SCRIPT = """
 local data = redis.call('GET', KEYS[1])
 if data then
+    local content_type = redis.call('GET', KEYS[2])
+    local filename = redis.call('GET', KEYS[3])
     redis.call('DEL', KEYS[1], KEYS[2], KEYS[3], KEYS[4])
+    return {data, content_type or false, filename or false}
 end
-return data
+return nil
 """
+
+
+def _consume_upload(r: Any, upload_id: str) -> tuple[bytes, str, str] | None:
+    """Atomically consume staged bytes and the metadata needed to parse them."""
+    keys = [
+        f"parse:upload:{upload_id}:data",
+        f"parse:upload:{upload_id}:content_type",
+        f"parse:upload:{upload_id}:filename",
+        f"parse:upload:{upload_id}",
+    ]
+    consumed = r.register_script(_ATOMIC_GETDEL_SCRIPT)(keys=keys)
+    if not consumed:
+        return None
+
+    content, content_type_raw, filename_raw = consumed
+    content_type = (
+        content_type_raw.decode()
+        if isinstance(content_type_raw, bytes)
+        else "application/octet-stream"
+    )
+    filename = (
+        filename_raw.decode()
+        if isinstance(filename_raw, bytes)
+        else "uploaded_file"
+    )
+    return content, content_type, filename
+
+
+def _parse_upstream_response(resp: httpx.Response) -> Any:
+    """Return a successful Parse payload or raise a stable upstream error."""
+    try:
+        payload = resp.json()
+    except Exception as exc:
+        raise UpstreamError(
+            detail="Parse service returned invalid response",
+            details={"status_code": resp.status_code},
+        ) from exc
+    if resp.status_code >= 400:
+        raise UpstreamError(
+            detail=str(payload.get("detail", "Parse service request failed")),
+            details={"status_code": resp.status_code},
+        )
+    return payload
 
 
 @router.put("/v2/parse/upload/{upload_id}")
@@ -90,28 +136,13 @@ async def parse_file(request: Request) -> Any:
         from redis import Redis
 
         r = Redis.from_url("redis://valkey:6379/0", decode_responses=False)
-        data_key = f"parse:upload:{upload_id_str}:data"
-        ct_key = f"parse:upload:{upload_id_str}:content_type"
-        fn_key = f"parse:upload:{upload_id_str}:filename"
-        meta_key = f"parse:upload:{upload_id_str}"
-        getdel = r.register_script(_ATOMIC_GETDEL_SCRIPT)
-        content = getdel(keys=[data_key, ct_key, fn_key, meta_key])
-        if content is None:
+        consumed = _consume_upload(r, upload_id_str)
+        if consumed is None:
             raise InvalidRequestError(
                 detail="Upload data not found or expired",
                 details={"upload_id": upload_id_str},
             )
-        # These keys were deleted atomically by Lua; try to read headers
-        # from a fresh GET — they'll be None if the Lua script already
-        # deleted them (normal case).
-        fn_val = r.get(fn_key)
-        filename = fn_val.decode() if isinstance(fn_val, bytes) else "uploaded_file"
-        ct_val = r.get(ct_key)
-        content_type = (
-            ct_val.decode() if isinstance(ct_val, bytes) else "application/octet-stream"
-        )
-        # Clean up any remaining keys (should already be deleted by Lua)
-        r.delete(meta_key, ct_key, fn_key)
+        content, content_type, filename = consumed
 
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
@@ -119,13 +150,7 @@ async def parse_file(request: Request) -> Any:
                 files={"file": (filename, content, content_type)},
                 data={"ocr": ocr},
             )
-            try:
-                return resp.json()
-            except Exception:
-                raise UpstreamError(
-                    detail="Parse service returned invalid response",
-                    details={"status_code": resp.status_code},
-                )
+            return _parse_upstream_response(resp)
 
     # Direct mode: file in multipart form
     if "file" not in form:
@@ -147,9 +172,4 @@ async def parse_file(request: Request) -> Any:
             },
             data={"ocr": ocr},
         )
-        try:
-            return resp.json()
-        except Exception:
-            raise UpstreamError(
-                detail=f"Parse service error: {resp.text[:200]}"
-            ) from None
+        return _parse_upstream_response(resp)
