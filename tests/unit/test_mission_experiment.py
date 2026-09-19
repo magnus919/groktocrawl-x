@@ -6,6 +6,7 @@ from agent.experimental.mission_experiment import (
     build_downstream_prompt,
     build_work_order,
     sealed_grade_candidate,
+    sealed_candidate_id,
     validate_downstream_result,
     work_order_record,
 )
@@ -104,6 +105,16 @@ def test_result_validation_and_blinding(arm):
     assert set(sealed) == {"candidate_id", "answer", "citations", "claims"}
     assert "obligation_results" not in sealed
     assert arm not in json.dumps(sealed)
+
+
+def test_sealed_candidate_identity_does_not_reveal_arm_or_case():
+    control = sealed_candidate_id("mission-straightforward-delivery-r1-control")
+    treatment = sealed_candidate_id("mission-straightforward-delivery-r1-treatment")
+    assert control != treatment
+    assert control.startswith("candidate-")
+    assert "control" not in control
+    assert "treatment" not in treatment
+    assert "delivery" not in control
 
 
 def test_control_cannot_receive_treatment_obligations():

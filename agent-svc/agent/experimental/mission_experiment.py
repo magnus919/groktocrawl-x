@@ -22,6 +22,14 @@ def canonical_digest(value: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def sealed_candidate_id(trial_id: str) -> str:
+    """Return an opaque stable identity without an arm or case label."""
+
+    return "candidate-" + hashlib.sha256(
+        ("research-mission-candidate/1\0" + trial_id).encode()
+    ).hexdigest()[:20]
+
+
 @dataclass(frozen=True)
 class WorkItem:
     trial_id: str
