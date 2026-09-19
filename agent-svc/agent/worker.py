@@ -693,6 +693,7 @@ async def _process_crawl_async(
             "pages": result.pages,
             "errors": result.errors,
             "robots_blocked": result.robots_blocked,
+            "outcome_summary": result.outcome_summary,
         }
         if verbose:
             payload["filtered_out"] = result.filtered_out

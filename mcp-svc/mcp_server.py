@@ -154,6 +154,8 @@ def _resp(data: dict[str, Any]) -> str:
             }
             if "status_code" in data:
                 error_obj["status_code"] = data["status_code"]
+            if "error_code" in data:
+                error_obj["error_code"] = data["error_code"]
             return _json_text(error_obj)
     return _json_text(data)
 

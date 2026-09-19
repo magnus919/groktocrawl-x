@@ -323,11 +323,16 @@ class TestFindSimilarWebModeRerank:
         # raw searxng order was Beta, Gamma, Alpha — Beta must be dropped.
         assert [r["title"] for r in results] == ["Alpha", "Gamma"]
 
-        # Mapping contract: dicts expose exactly url/title/description.
+        # Result semantics expose quality and provenance, not just transport success.
         for item in results:
-            assert set(item.keys()) == {"url", "title", "description"}
             assert item["url"].startswith("https://")
             assert item["description"].endswith("description")
+            assert 0.0 <= item["score"] <= 1.0
+            assert item["confidence"] in {"low", "medium", "high"}
+            assert item["metadata_complete"] is True
+            assert item["provenance"]["source"] == "web_search"
+        assert results[0]["raw_rank"] == 3
+        assert results[0]["rank"] == 1
 
         # Full pipeline ran: scrape -> search -> embed(query) -> embed(batch).
         assert len(semantic.embed_calls) == 2

@@ -486,6 +486,25 @@ class TestContentBlocks:
         assert "400" in err_text
         assert "Invalid URL" in err_text
 
+    async def test_error_result_preserves_barrier_error_code(self, monkeypatch):
+        _patch_client(
+            monkeypatch,
+            {
+                "scrape": {
+                    "error": "Barrier or challenge content detected",
+                    "error_code": "BARRIER_DETECTED",
+                    "status_code": 502,
+                },
+            },
+        )
+        from mcp.server.fastmcp.exceptions import ToolError
+
+        with pytest.raises(ToolError) as exc_info:
+            await mcp.call_tool("scrape", {"url": "https://example.com/challenge"})
+        error_text = str(exc_info.value)
+        assert '"error_code": "BARRIER_DETECTED"' in error_text
+        assert '"status_code": 502' in error_text
+
 
 # ── Tool Call Routing (VAL-MCP-C01, C02, D04, E01, E06) ───────────
 

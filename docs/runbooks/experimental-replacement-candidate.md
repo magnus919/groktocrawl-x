@@ -132,6 +132,8 @@ The verifier fails unless all of these complete:
 - one admitted research run, completed artifact set, and terminal SSE replay;
 - retrieval of the manifest plus summary, analysis, and dossier bytes;
 - one real SlopSearX search through HTTP and through the repository CLI;
+- bounded text and structured-output requests through the configured model
+  provider and model alias;
 - MCP initialization and the `research_capabilities` tool;
 - capture of the source revision, lockfile and Compose hashes, resolved container
   image identities, and running service state.
@@ -139,6 +141,11 @@ The verifier fails unless all of these complete:
 The JSON receipt deliberately excludes environment values, credentials, private
 addresses, and artifact bodies. Review it before copying it into the W9 evidence
 packet.
+
+Container health and ordinary search only prove that the API and retrieval
+dependencies are reachable. They do not prove that the configured model alias
+can serve research work. The two model probes are therefore readiness gates;
+their receipt records only readiness, HTTP class, and latency.
 
 ## Run a time-gated pilot checkpoint
 

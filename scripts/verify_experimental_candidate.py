@@ -213,6 +213,52 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         if not search_payload.get("success") or search_result_count == 0:
             raise RuntimeError("HTTP search returned no usable results")
 
+        # Basic service health and retrieval can remain green while the
+        # configured model alias is unavailable. Exercise the same public
+        # model-backed path used by research, once for text and once for
+        # schema-constrained output. Keep the receipt to status and shape;
+        # provider bodies and credentials are intentionally never persisted.
+        model_probes: dict[str, dict[str, Any]] = {}
+        for probe_name, output_schema in (
+            ("text", None),
+            (
+                "structured",
+                {
+                    "type": "object",
+                    "properties": {"topic": {"type": "string"}},
+                    "required": ["topic"],
+                    "additionalProperties": False,
+                },
+            ),
+        ):
+            started = time.monotonic()
+            payload: dict[str, Any] = {
+                "query": "What is retrieval augmented generation?",
+                "limit": 1,
+                "search_type": "rich",
+                "system_prompt": "Answer in one short sentence.",
+            }
+            if output_schema is not None:
+                payload["output_schema"] = output_schema
+            response = await client.post("/v2/search", json=payload)
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"model_provider/{probe_name} readiness failed "
+                    f"with HTTP {response.status_code // 100}xx"
+                )
+            body = response.json()
+            if not body.get("success"):
+                raise RuntimeError(f"model_provider/{probe_name} readiness failed")
+            if output_schema is not None and not isinstance(body.get("output"), dict):
+                raise RuntimeError(
+                    "model_provider/structured readiness returned no structured output"
+                )
+            model_probes[probe_name] = {
+                "status": "ready",
+                "http_class": "2xx",
+                "latency_ms": round((time.monotonic() - started) * 1000, 1),
+            }
+
     cli_env = {**os.environ, "GROKTOCRAWL_API_KEY": args.api_key}
     cli_search = json.loads(
         _run(
@@ -436,6 +482,7 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         },
         "semantic": semantic_health,
         "search": {"result_count": search_result_count},
+        "model_provider": model_probes,
         "cli": {
             "search_result_count": cli_result_count,
             "research_state": cli_status["state"],
