@@ -59,9 +59,10 @@ def test_exact_supported_verification_round_trips(packet, verifier):
         result(packet, verifier), packet=packet, verifier=verifier
     )
     assert checked.verdict == "supported"
-    assert IndependentClaimVerification.model_validate(
-        checked.model_dump(mode="json")
-    ) == checked
+    assert (
+        IndependentClaimVerification.model_validate(checked.model_dump(mode="json"))
+        == checked
+    )
 
 
 def test_changed_input_is_rejected_even_when_rehashed(packet, verifier):
@@ -102,9 +103,7 @@ def test_changed_verifier_is_rejected(packet, verifier):
         ({"confidence": 69}, "exceeds verifier verdict"),
     ],
 )
-def test_unsafe_or_untraceable_verdicts_fail_closed(
-    packet, verifier, changes, match
-):
+def test_unsafe_or_untraceable_verdicts_fail_closed(packet, verifier, changes, match):
     with pytest.raises(ValueError, match=match):
         IndependentClaimVerification.model_validate(result(packet, verifier, **changes))
 
@@ -116,15 +115,43 @@ def test_unknown_authority_fields_are_rejected(packet, verifier):
         IndependentClaimVerification.model_validate(data)
 
 
+def test_contradiction_spans_are_a_subset_of_cited_evidence(packet, verifier):
+    checked = IndependentClaimVerification.model_validate(
+        result(
+            packet,
+            verifier,
+            verdict="contradicted",
+            contradiction_span_ids=["span-1"],
+            publish_recommendation=False,
+        )
+    )
+    assert checked.contradiction_span_ids == ("span-1",)
+
+    with pytest.raises(ValueError, match="included in cited evidence"):
+        IndependentClaimVerification.model_validate(
+            result(
+                packet,
+                verifier,
+                verdict="contradicted",
+                evidence_span_ids=[],
+                contradiction_span_ids=["span-1"],
+                publish_recommendation=False,
+            )
+        )
+
+
 def test_frozen_corpus_satisfies_design_guards():
     corpus = load_claim_verification_corpus(
         "docs/experiments/claim-verification/w12.3-cases.json"
     )
     assert len(corpus.cases) == 12
     assert sum(case.reference.publish for case in corpus.cases) == 4
-    assert sum(
-        case.packet.risk == "high"
-        and case.control_publish
-        and not case.reference.publish
-        for case in corpus.cases
-    ) == 5
+    assert (
+        sum(
+            case.packet.risk == "high"
+            and case.control_publish
+            and not case.reference.publish
+            for case in corpus.cases
+        )
+        == 5
+    )

@@ -69,11 +69,15 @@ class IndependentClaimVerification(Record):
         if self.checked_input_digest != self.checked_input.input_digest():
             raise ValueError("verification input digest mismatch")
         available = {item.span_id for item in self.checked_input.evidence}
-        cited = (*self.evidence_span_ids, *self.contradiction_span_ids)
-        if len(cited) != len(set(cited)):
+        if len(self.evidence_span_ids) != len(set(self.evidence_span_ids)) or len(
+            self.contradiction_span_ids
+        ) != len(set(self.contradiction_span_ids)):
             raise ValueError("verification evidence references must be unique")
-        if not set(cited) <= available:
+        cited = set(self.evidence_span_ids) | set(self.contradiction_span_ids)
+        if not cited <= available:
             raise ValueError("verification references unavailable evidence")
+        if not set(self.contradiction_span_ids) <= set(self.evidence_span_ids):
+            raise ValueError("contradiction spans must be included in cited evidence")
         if self.verdict == "supported" and not self.evidence_span_ids:
             raise ValueError("supported verdict requires supporting evidence")
         if self.verdict == "contradicted" and not self.contradiction_span_ids:

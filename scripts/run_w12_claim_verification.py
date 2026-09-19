@@ -50,6 +50,16 @@ def verify_one(
     verifier = IndependentVerifier(
         route="local-litellm", model=model, prompt_version="w12.3-verifier/1"
     )
+    required_output = {
+        "verdict": "supported | contradicted | insufficient | indeterminate",
+        "evidence_span_ids": ["Every span used in the judgment"],
+        "contradiction_span_ids": [
+            "The subset of cited spans that contradict the claim"
+        ],
+        "confidence": 0,
+        "publish_recommendation": False,
+        "reason": "Brief evidence-grounded reason.",
+    }
     prompt = {
         "task": (
             "Independently verify the claim using only the exact evidence spans. "
@@ -58,9 +68,12 @@ def verify_one(
             "means an admitted span conflicts with it. Insufficient means the "
             "required evidence is absent or derivative-only. Indeterminate means "
             "identity or interpretation cannot be resolved. Recommend publication "
-            "only for supported claims with confidence at least 70. Return exactly "
-            "the required JSON fields without wrappers."
+            "only for supported claims with confidence at least 70. Every "
+            "contradiction_span_id must also appear in evidence_span_ids. Return "
+            "one JSON object with exactly the keys shown in required_output. Do not "
+            "rename, group, wrap, or add fields."
         ),
+        "required_output": required_output,
         "claim": packet.claim,
         "risk": packet.risk,
         "evidence_obligation": packet.evidence_obligation,
