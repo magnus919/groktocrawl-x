@@ -1281,6 +1281,10 @@ class Client:
 
     # ---- Parse ----
 
+    def request_parse_upload(self) -> dict[str, Any]:
+        """Reserve a server-generated upload ID for staged parsing."""
+        return self._request("POST", "/parse/upload-url")
+
     def parse_file(self, filepath, ocr="local"):
         import requests
 
@@ -2819,12 +2823,13 @@ def cmd_parse(client: Client, args: argparse.Namespace) -> None:
 def cmd_parse_upload(client: Client, args: argparse.Namespace) -> None:
     """Upload a file for two-step parsing via PUT /v2/parse/upload/{upload_id}."""
     if client.dry_run:
+        upload_id = args.upload_id or "<server-generated>"
         emit(
-            f"[dry-run] Would upload {args.file} for upload_id={args.upload_id}",
+            f"[dry-run] Would upload {args.file} for upload_id={upload_id}",
             {
                 "dry_run": True,
                 "command": "parse-upload",
-                "upload_id": args.upload_id,
+                "upload_id": upload_id,
                 "file": args.file,
             },
         )
@@ -2834,7 +2839,11 @@ def cmd_parse_upload(client: Client, args: argparse.Namespace) -> None:
         die(f"File not found: {args.file}")
 
     try:
-        result = client.parse_upload_file(args.upload_id, args.file)
+        upload_id = args.upload_id
+        if not upload_id:
+            reservation = client.request_parse_upload()
+            upload_id = reservation["upload_id"]
+        result = client.parse_upload_file(upload_id, args.file)
     except ApiError as e:
         die(e)
 
@@ -3307,7 +3316,9 @@ def make_parser() -> argparse.ArgumentParser:
         "parse-upload", help="Upload a file for two-step parsing"
     )
     p_parse_upload.add_argument(
-        "upload_id", help="Upload ID (client-chosen unique string)"
+        "upload_id",
+        nargs="?",
+        help="Previously reserved upload ID (default: request one from the server)",
     )
     p_parse_upload.add_argument(
         "--file", required=True, help="Path to the file to upload"

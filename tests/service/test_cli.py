@@ -946,6 +946,18 @@ class TestCmdBatchScrape:
 class TestClientParseUpload:
     """Tests for direct and staged parse client requests."""
 
+    def test_request_parse_upload_uses_authenticated_client_request(self, client):
+        """Upload reservation uses the common authenticated request path."""
+        with patch.object(
+            client,
+            "_request",
+            return_value={"success": True, "upload_id": "reserved-1"},
+        ) as request:
+            result = client.request_parse_upload()
+
+        request.assert_called_once_with("POST", "/parse/upload-url")
+        assert result["upload_id"] == "reserved-1"
+
     def test_parse_file_sends_explicit_hosted_ocr_mode(self, client, tmp_path):
         """parse_file sends the opt-in OCR mode as multipart form data."""
         document = tmp_path / "scan.pdf"
@@ -1137,6 +1149,35 @@ class TestCmdParseUpload:
             }
             cmd_parse_upload(mock_client, mock_args)
             mock_client.parse_upload_file.assert_called_once_with("up-1", tmp_path)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_cmd_parse_upload_reserves_id_when_omitted(self):
+        """parse-upload completes the public reservation and upload sequence."""
+        cmd_parse_upload = _cli_ns["cmd_parse_upload"]
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"hello")
+            tmp_path = tmp.name
+        try:
+            mock_args = MagicMock(upload_id=None, file=tmp_path)
+            mock_client = MagicMock(dry_run=False)
+            mock_client.request_parse_upload.return_value = {
+                "success": True,
+                "upload_id": "reserved-1",
+            }
+            mock_client.parse_upload_file.return_value = {
+                "status": "uploaded",
+                "upload_id": "reserved-1",
+            }
+
+            cmd_parse_upload(mock_client, mock_args)
+
+            mock_client.request_parse_upload.assert_called_once_with()
+            mock_client.parse_upload_file.assert_called_once_with(
+                "reserved-1", tmp_path
+            )
         finally:
             os.unlink(tmp_path)
 
@@ -1333,6 +1374,12 @@ class TestParseUploadParser:
         assert args.upload_id == "my-id"
         assert args.file == "/tmp/report.pdf"
         assert args.command == "parse-upload"
+
+    def test_parse_upload_id_is_optional(self):
+        """parse-upload can ask the server to generate its upload ID."""
+        parser = _cli_ns["make_parser"]()
+        args = parser.parse_args(["parse-upload", "--file", "/tmp/report.pdf"])
+        assert args.upload_id is None
 
     def test_parse_upload_file_required(self):
         """parse-upload --file is required."""
