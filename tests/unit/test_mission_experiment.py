@@ -4,12 +4,16 @@ from pathlib import Path
 import pytest
 from agent.experimental.mission_experiment import (
     build_downstream_prompt,
+    build_grade_prompt,
+    build_grade_work_order,
     build_intake_prompt,
     build_intake_work_order,
     build_work_order,
+    grade_work_order_record,
     intake_work_order_record,
     sealed_candidate_id,
     sealed_grade_candidate,
+    validate_candidate_grade,
     validate_downstream_result,
     validate_intake_result,
     work_order_record,
@@ -92,6 +96,18 @@ def test_intake_work_order_is_reproducible_and_complete():
     for case in cases:
         assert sum(item.case_id == case.case_id for item in first) == 3
     assert intake_work_order_record(first, seed=20260919)["seed"] == 20260919
+
+
+def test_grade_work_order_is_blinded_reproducible_and_complete():
+    downstream = build_work_order(corpus().cases, seed=20260919)
+    grades = build_grade_work_order(downstream, seed=20260919)
+    assert grades == build_grade_work_order(downstream, seed=20260919)
+    assert len(grades) == 72
+    assert len({item.candidate_id for item in grades}) == 72
+    encoded = json.dumps(grade_work_order_record(grades, seed=20260919))
+    assert "control" not in encoded
+    assert "treatment" not in encoded
+    assert "trial_id" not in encoded
 
 
 def test_prompts_hold_sources_constant_but_isolate_contract_shape():
@@ -185,3 +201,37 @@ def test_intake_result_enforces_action_shape():
                 "rationale": "Invalid mixed response.",
             }
         )
+
+
+def test_grade_prompt_is_blind_and_grade_closes_obligations():
+    case = corpus().cases[0]
+    candidate = sealed_grade_candidate(
+        validate_downstream_result(result(case, "control"), case=case, arm="control"),
+        candidate_id="candidate-opaque",
+    )
+    prompt = build_grade_prompt(case, sources=source_pack(case), candidate=candidate)
+    encoded = json.dumps(prompt)
+    assert "control" not in encoded
+    assert "treatment" not in encoded
+    grade = validate_candidate_grade(
+        {
+            "obligation_grades": {
+                item.obligation_id: {
+                    "status": "closed",
+                    "source_ids": [case.source_ids[0]],
+                    "rationale": "The evidence supports the required point.",
+                }
+                for item in case.reference_mission.obligations
+            },
+            "scope_violations": [],
+            "supported_material_claims": 1,
+            "total_material_claims": 1,
+            "decision_usefulness": 90,
+            "decision_usefulness_rationale": "The answer supports the decision.",
+            "appropriate_abstention": "not_applicable",
+            "hard_boundary_failure": False,
+            "hard_boundary_rationale": "No hard boundary failure was found.",
+        },
+        case=case,
+    )
+    assert grade.decision_usefulness == 90

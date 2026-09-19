@@ -11,8 +11,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "agent-svc"))
 
 from agent.experimental.mission_experiment import (
+    build_grade_work_order,
     build_intake_work_order,
     build_work_order,
+    grade_work_order_record,
     intake_work_order_record,
     work_order_record,
 )
@@ -43,6 +45,15 @@ def main() -> int:
         + "\n"
     )
     print(intake_output.relative_to(ROOT))
+    grade_order = build_grade_work_order(order, seed=seed)
+    grade_output = experiment_dir / "w12.1-grade-work-order.json"
+    grade_output.write_text(
+        json.dumps(
+            grade_work_order_record(grade_order, seed=seed), indent=2, sort_keys=True
+        )
+        + "\n"
+    )
+    print(grade_output.relative_to(ROOT))
     return 0
 
 

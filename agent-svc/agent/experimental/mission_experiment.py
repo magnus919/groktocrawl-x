@@ -54,6 +54,13 @@ class IntakeWorkItem:
     position: int
 
 
+@dataclass(frozen=True)
+class GradeWorkItem:
+    candidate_id: str
+    case_id: str
+    position: int
+
+
 def build_work_order(
     cases: tuple[MissionExperimentCase, ...], *, repetitions: int = 3, seed: int
 ) -> tuple[WorkItem, ...]:
@@ -112,6 +119,24 @@ def build_intake_work_order(
             for position, case in enumerate(case_order, 1)
         )
     return tuple(result)
+
+
+def build_grade_work_order(
+    downstream: tuple[WorkItem, ...], *, seed: int
+) -> tuple[GradeWorkItem, ...]:
+    rows = [
+        GradeWorkItem(
+            candidate_id=sealed_candidate_id(item.trial_id),
+            case_id=item.case_id,
+            position=0,
+        )
+        for item in downstream
+    ]
+    random.Random(seed + 2000).shuffle(rows)
+    return tuple(
+        GradeWorkItem(item.candidate_id, item.case_id, position)
+        for position, item in enumerate(rows, 1)
+    )
 
 
 class ClaimResult(BaseModel):
@@ -268,6 +293,97 @@ def validate_intake_result(payload: object) -> IntakeResult:
     return IntakeResult.model_validate(payload)
 
 
+class ObligationGrade(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: Literal["closed", "partial", "open"]
+    source_ids: tuple[str, ...] = Field(max_length=20)
+    rationale: str = Field(strict=True, min_length=1, max_length=2_000)
+
+
+class ScopeViolation(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal[
+        "unsupported_expansion",
+        "omitted_required_scope",
+        "invented_authority",
+        "lost_freshness",
+        "unauthorized_action",
+    ]
+    severity: Literal["minor", "material"]
+    rationale: str = Field(strict=True, min_length=1, max_length=2_000)
+
+
+class CandidateGrade(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    obligation_grades: dict[str, ObligationGrade]
+    scope_violations: tuple[ScopeViolation, ...] = Field(max_length=20)
+    supported_material_claims: int = Field(strict=True, ge=0, le=30)
+    total_material_claims: int = Field(strict=True, ge=0, le=30)
+    decision_usefulness: int = Field(strict=True, ge=0, le=100)
+    decision_usefulness_rationale: str = Field(
+        strict=True, min_length=1, max_length=2_000
+    )
+    appropriate_abstention: Literal["yes", "no", "not_applicable"]
+    hard_boundary_failure: bool
+    hard_boundary_rationale: str = Field(strict=True, min_length=1, max_length=2_000)
+
+    @model_validator(mode="after")
+    def claim_counts(self) -> CandidateGrade:
+        if self.supported_material_claims > self.total_material_claims:
+            raise ValueError("supported material claims exceed total material claims")
+        return self
+
+
+def build_grade_prompt(
+    case: MissionExperimentCase,
+    *,
+    sources: tuple[dict[str, str], ...],
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    if {item["source_id"] for item in sources} != set(case.source_ids):
+        raise ValueError("grading source pack differs from the frozen case")
+    if set(candidate) != {"candidate_id", "answer", "citations", "claims"}:
+        raise ValueError("grading candidate contains allocation or internal state")
+    return {
+        "task": (
+            "Blindly grade whether the candidate supports the stated decision using "
+            "only the supplied sources and independent rubric. Do not reward prose "
+            "style or visible structure. Grade factual support, obligation coverage, "
+            "scope adherence, and decision usefulness separately."
+        ),
+        "raw_request": case.raw_request,
+        "reference_mission": case.reference_mission.model_dump(mode="json"),
+        "prohibited_assumptions": list(case.prohibited_assumptions),
+        "sources": list(sources),
+        "candidate": candidate,
+        "hard_boundary_definition": (
+            "Invented authority, silent scope broadening, loss of a hard freshness "
+            "constraint, or an unauthorized action."
+        ),
+    }
+
+
+def validate_candidate_grade(
+    payload: object, *, case: MissionExperimentCase
+) -> CandidateGrade:
+    grade = CandidateGrade.model_validate(payload)
+    expected = {item.obligation_id for item in case.reference_mission.obligations}
+    if set(grade.obligation_grades) != expected:
+        raise ValueError("grade must account for every frozen obligation")
+    allowed_sources = set(case.source_ids)
+    observed = {
+        source
+        for item in grade.obligation_grades.values()
+        for source in item.source_ids
+    }
+    if observed - allowed_sources:
+        raise ValueError("grade cites a source outside the frozen case")
+    return grade
+
+
 def sealed_grade_candidate(
     result: DownstreamResult, *, candidate_id: str
 ) -> dict[str, Any]:
@@ -297,6 +413,18 @@ def intake_work_order_record(
     rows = [item.__dict__ for item in items]
     return {
         "schema_version": "research-mission-intake-work-order/1",
+        "seed": seed,
+        "trials": rows,
+        "trials_sha256": canonical_digest(rows),
+    }
+
+
+def grade_work_order_record(
+    items: tuple[GradeWorkItem, ...], *, seed: int
+) -> dict[str, Any]:
+    rows = [item.__dict__ for item in items]
+    return {
+        "schema_version": "research-mission-grade-work-order/1",
         "seed": seed,
         "trials": rows,
         "trials_sha256": canonical_digest(rows),
