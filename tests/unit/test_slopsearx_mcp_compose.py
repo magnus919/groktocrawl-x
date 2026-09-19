@@ -44,7 +44,7 @@ def test_direct_slopsearx_mcp_is_opt_in_and_uses_shared_wiring():
     environment = _environment(service)
 
     assert service["image"] == (
-        "ghcr.io/magnus919/slopsearx@sha256:4cd9c04ae4ef2f154a104cd95cf2219d603e461c9449f4392ce562b0541dd2d3"
+        "ghcr.io/magnus919/slopsearx@sha256:91194d146d205b1cf4688c1989da8f5f6b599a9627be23fd1ee7a4e488fda5b7"
     )
     assert COMPOSE["services"]["slopsearx"]["image"] == service["image"]
     # Gated behind a profile so a no-config `docker compose up` does not start
