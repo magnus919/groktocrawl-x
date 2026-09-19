@@ -9,6 +9,7 @@ from typing import Any, Protocol
 import httpx
 
 TERMINAL = {"succeeded", "partial", "failed", "cancelled", "expired"}
+HTTP_ATTEMPTS = 3
 
 
 class ToolCaller(Protocol):
@@ -31,22 +32,29 @@ def flat_http_searches(
     engines: list[str],
     *,
     max_results: int,
+    wait: Callable[[float], None] = time.sleep,
 ) -> list[dict[str, Any]]:
     """Execute the frozen query sequence through the SearXNG HTTP surface."""
     if not queries or not engines:
         raise ValueError("queries and engines must not be empty")
     records = []
     for query in queries:
-        response = client.get(
-            "/search",
-            params={
-                "q": query,
-                "format": "json",
-                "language": "en",
-                "pageno": 1,
-                "engines": ",".join(engines),
-            },
-        )
+        for attempt in range(HTTP_ATTEMPTS):
+            response = client.get(
+                "/search",
+                params={
+                    "q": query,
+                    "format": "json",
+                    "language": "en",
+                    "pageno": 1,
+                    "engines": ",".join(engines),
+                },
+            )
+            if response.status_code != 429 or attempt == HTTP_ATTEMPTS - 1:
+                break
+            retry_after = response.headers.get("Retry-After", "")
+            delay = float(retry_after) if retry_after.isdigit() else 2**attempt
+            wait(min(delay, 5.0))
         response.raise_for_status()
         payload = response.json()
         results = payload.get("results")
@@ -129,13 +137,14 @@ def recorded_continuation_searches(
             "extend_research",
         )
         job = _poll(client, job_id, timeout_seconds=timeout_seconds, wait=wait)
-    _require(
-        client.call_tool(
-            "slopsearx_update_research",
-            {"job_id": job_id, "complete": True, "rationale": "Frozen caller plan executed."},
-        ),
-        "update_research",
+    update = client.call_tool(
+        "slopsearx_update_research",
+        {"job_id": job_id, "complete": True, "rationale": "Frozen caller plan executed."},
     )
+    # SlopSearX 0.5 models this mutation as a notification and may return no
+    # content on success. A structured error must still fail closed.
+    if update is not None:
+        _require(update, "update_research")
     job = _require(client.call_tool("slopsearx_get_job", {"job_id": job_id}), "get_job")
     observed_queries = [item.get("query") for item in job.get("queries", [])]
     if observed_queries != queries:

@@ -26,6 +26,16 @@ The freeze gate now distinguishes the two policy-only grants, `jobs` and
 appear in the live disabled set and return `tool_disabled` before measurement
 can begin.
 
+An initial execution attempt was rejected before scoring. All 36 recorded
+continuation trials reached SlopSearX but the client treated the workflow's
+successful empty completion response as an error. Six of 36 flat HTTP trials
+also encountered HTTP 429 responses. The 30 partial HTTP checkpoints are not a
+valid comparison and will be discarded with the failures. The corrected runner
+accepts an empty completion notification, still rejects structured errors, and
+allows at most three HTTP attempts with bounded `Retry-After` handling. The
+freeze's request ceiling includes those attempts. Measurement restarts from an
+empty checkpoint directory under a new frozen manifest.
+
 The private handoff records contain the committed case queries and remain
 outside the repository. This packet contains no result content, model response,
 credential, or private network address. The recovery path fails closed if W10

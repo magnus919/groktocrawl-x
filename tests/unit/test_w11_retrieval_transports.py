@@ -19,6 +19,25 @@ def test_flat_http_uses_frozen_explicit_scope() -> None:
     assert result[0]["engines"] == ["a", "b"]
 
 
+def test_flat_http_retries_rate_limit_with_bounded_backoff() -> None:
+    attempts = 0
+    waits = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            return httpx.Response(429, headers={"Retry-After": "1"})
+        return httpx.Response(200, json={"results": []})
+
+    with httpx.Client(
+        base_url="https://search.test", transport=httpx.MockTransport(handler)
+    ) as client:
+        flat_http_searches(client, ["q"], ["a"], max_results=1, wait=waits.append)
+    assert attempts == 3
+    assert waits == [1.0, 1.0]
+
+
 class FakeMcp:
     def __init__(self) -> None:
         self.queries = ["q0"]
@@ -32,7 +51,7 @@ class FakeMcp:
             self.queries.append(arguments["query"])
             return {"job_id": "job-1", "state": "queued"}
         if name == "slopsearx_update_research":
-            return {"job_id": "job-1", "caller_completed": True}
+            return None
         if name == "slopsearx_read_results":
             return {"results": [{"url": f'https://example.com/{arguments["cursor"]}'}]}
         if name == "slopsearx_get_job":

@@ -22,6 +22,7 @@ from scripts.prepare_w11_arm import (
     SLOPSEARX_SOURCE_REVISION,
     SLOPSEARX_VERSION,
 )
+from scripts.w11_retrieval_transports import HTTP_ATTEMPTS
 
 ARMS = ["flat_http", "recorded_continuation"]
 REPETITIONS = 3
@@ -234,7 +235,7 @@ def build_freeze(
     result_limit = work_order["result_limit"]
     pair_count = case_count * REPETITIONS
     distinct_query_limit = pair_count * MAX_QUERIES_PER_TRIAL
-    search_attempt_limit = expected_trials * MAX_QUERIES_PER_TRIAL
+    search_attempt_limit = expected_trials * MAX_QUERIES_PER_TRIAL * HTTP_ATTEMPTS
     engine_attempt_limit = search_attempt_limit * len(http_engines)
     admitted_result_limit = expected_trials * 8
     return {
