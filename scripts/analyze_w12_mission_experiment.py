@@ -46,6 +46,69 @@ def usage_cost(receipt: dict[str, Any]) -> float:
     return float(value) if isinstance(value, int | float) else 0.0
 
 
+def status_credit(status: str, *, partial_as_open: bool = False) -> float:
+    if status == "closed":
+        return 1.0
+    if status == "partial" and not partial_as_open:
+        return 0.5
+    return 0.0
+
+
+def coverage_for(
+    grade: dict[str, Any],
+    weights: dict[str, int],
+    *,
+    equal_weights: bool = False,
+    partial_as_open: bool = False,
+) -> tuple[float, float]:
+    numerator = sum(
+        status_credit(value["status"], partial_as_open=partial_as_open)
+        * (1 if equal_weights else weights[key])
+        for key, value in grade["obligation_grades"].items()
+    )
+    denominator = float(len(weights) if equal_weights else sum(weights.values()))
+    return numerator, denominator
+
+
+def difficult_repetition_gates(
+    rows: list[dict[str, Any]],
+    *,
+    coverage_key: str = "weighted_coverage",
+    target_strata: set[str] = TARGET_STRATA,
+) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for repetition in (1, 2, 3):
+        target = [
+            row
+            for row in rows
+            if row["repetition"] == repetition and row["stratum"] in target_strata
+        ]
+        arms: dict[str, dict[str, float]] = {}
+        for arm in ("control", "treatment"):
+            arm_rows = [row for row in target if row["arm"] == arm]
+            arms[arm] = {
+                "coverage": statistics.mean(row[coverage_key] for row in arm_rows),
+                "scope_violations": float(
+                    sum(row["scope_violations"] for row in arm_rows)
+                ),
+            }
+        gain = arms["treatment"]["coverage"] - arms["control"]["coverage"]
+        reduction = relative_reduction(
+            arms["control"]["scope_violations"], arms["treatment"]["scope_violations"]
+        )
+        result.append(
+            {
+                "repetition": repetition,
+                "control": arms["control"],
+                "treatment": arms["treatment"],
+                "coverage_gain": gain,
+                "scope_violation_relative_reduction": reduction,
+                "passes": gain >= 0.10 and reduction is not None and reduction >= 0.30,
+            }
+        )
+    return result
+
+
 def analyze(run_dir: Path) -> dict[str, Any]:
     experiment_dir = ROOT / "docs/experiments/research-mission"
     source_path = ROOT / "docs/experiments/enterprise-evaluation/corpus.json"
@@ -70,12 +133,13 @@ def analyze(run_dir: Path) -> dict[str, Any]:
             item.obligation_id: item.weight
             for item in case.reference_mission.obligations
         }
-        closed_weight = sum(
-            obligation_weights[key]
-            for key, value in grade["obligation_grades"].items()
-            if value["status"] == "closed"
+        covered_weight, total_weight = coverage_for(grade, obligation_weights)
+        equal_covered, equal_total = coverage_for(
+            grade, obligation_weights, equal_weights=True
         )
-        total_weight = sum(obligation_weights.values())
+        open_covered, open_total = coverage_for(
+            grade, obligation_weights, partial_as_open=True
+        )
         trial_rows.append(
             {
                 "trial_id": trial["trial_id"],
@@ -84,14 +148,11 @@ def analyze(run_dir: Path) -> dict[str, Any]:
                 "stratum": case.stratum,
                 "arm": trial["arm"],
                 "repetition": trial["repetition"],
-                "closed_weight": closed_weight,
+                "covered_weight": covered_weight,
                 "total_weight": total_weight,
-                "weighted_coverage": closed_weight / total_weight,
-                "equal_weight_coverage": sum(
-                    value["status"] == "closed"
-                    for value in grade["obligation_grades"].values()
-                )
-                / len(grade["obligation_grades"]),
+                "weighted_coverage": covered_weight / total_weight,
+                "equal_weight_coverage": equal_covered / equal_total,
+                "partial_as_open_coverage": open_covered / open_total,
                 "scope_violations": len(grade["scope_violations"]),
                 "material_scope_violations": sum(
                     item["severity"] == "material" for item in grade["scope_violations"]
@@ -111,38 +172,7 @@ def analyze(run_dir: Path) -> dict[str, Any]:
     by_pair = {
         (row["case_id"], row["repetition"], row["arm"]): row for row in trial_rows
     }
-    repetition_gates: list[dict[str, Any]] = []
-    for repetition in (1, 2, 3):
-        target = [
-            row
-            for row in trial_rows
-            if row["repetition"] == repetition and row["stratum"] in TARGET_STRATA
-        ]
-        arms: dict[str, dict[str, float]] = {}
-        for arm in ("control", "treatment"):
-            rows = [row for row in target if row["arm"] == arm]
-            arms[arm] = {
-                "coverage": sum(row["closed_weight"] for row in rows)
-                / sum(row["total_weight"] for row in rows),
-                "scope_violations": float(sum(row["scope_violations"] for row in rows)),
-            }
-        coverage_gain = arms["treatment"]["coverage"] - arms["control"]["coverage"]
-        reduction = relative_reduction(
-            arms["control"]["scope_violations"],
-            arms["treatment"]["scope_violations"],
-        )
-        repetition_gates.append(
-            {
-                "repetition": repetition,
-                "control": arms["control"],
-                "treatment": arms["treatment"],
-                "coverage_gain": coverage_gain,
-                "scope_violation_relative_reduction": reduction,
-                "passes": coverage_gain >= 0.10
-                and reduction is not None
-                and reduction >= 0.30,
-            }
-        )
+    repetition_gates = difficult_repetition_gates(trial_rows)
 
     paired_rows = []
     for case in corpus.cases:
@@ -216,6 +246,73 @@ def analyze(run_dir: Path) -> dict[str, Any]:
             len(item["correction_actions"]) for item in intake_grades
         ),
     }
+    adjudicated = {
+        path.stem: load(path)["grade"]
+        for path in (run_dir / "public/adjudications").glob("*.json")
+        if load(path).get("status") == "completed"
+    }
+    adjudicated_rows = []
+    for row in trial_rows:
+        replacement = adjudicated.get(row["candidate_id"])
+        if replacement is None:
+            adjudicated_rows.append(row)
+            continue
+        case = cases[row["case_id"]]
+        weights = {
+            item.obligation_id: item.weight
+            for item in case.reference_mission.obligations
+        }
+        covered, total = coverage_for(replacement, weights)
+        revised = dict(row)
+        revised.update(
+            weighted_coverage=covered / total,
+            scope_violations=len(replacement["scope_violations"]),
+            decision_usefulness=replacement["decision_usefulness"],
+            hard_boundary_failure=replacement["hard_boundary_failure"],
+        )
+        adjudicated_rows.append(revised)
+    leave_one_out = []
+    for stratum in sorted(TARGET_STRATA):
+        case_ids = sorted(case.case_id for case in corpus.cases if case.stratum == stratum)
+        for case_id in case_ids:
+            rows = [
+                row
+                for row in trial_rows
+                if not (row["stratum"] == stratum and row["case_id"] == case_id)
+            ]
+            leave_one_out.append(
+                {
+                    "stratum": stratum,
+                    "omitted_case_id": case_id,
+                    "repetition_gates": difficult_repetition_gates(
+                        rows, target_strata={stratum}
+                    ),
+                }
+            )
+    intake_trials = [
+        load(path)
+        for path in (run_dir / "public/intake").glob("*.json")
+        if load(path).get("status") == "completed"
+    ]
+    clarification_ops = {}
+    for name, predicate in {
+        "clarification": lambda item: item["result"]["action"] == "clarify",
+        "without_clarification": lambda item: item["result"]["action"] != "clarify",
+    }.items():
+        rows = [item for item in intake_trials if predicate(item)]
+        clarification_ops[name] = {
+            "count": len(rows),
+            "p95_latency_ms": percentile(
+                [item["receipt"]["latency_ms"] for item in rows], 0.95
+            ),
+            "total_cost": sum(usage_cost(item["receipt"]) for item in rows),
+        }
+    failed_trials = [
+        load(path)
+        for directory in ("trials", "intake", "grades", "intake-grades", "adjudications")
+        for path in (run_dir / "public" / directory).glob("*.json")
+        if load(path).get("status") == "failed"
+    ]
     return {
         "schema_version": "research-mission-analysis/1",
         "trial_count": len(trial_rows),
@@ -233,6 +330,25 @@ def analyze(run_dir: Path) -> dict[str, Any]:
             "hard_boundary": boundary_gate,
         },
         "intake": intake,
+        "sensitivity": {
+            "equal_obligation_weights": difficult_repetition_gates(
+                trial_rows, coverage_key="equal_weight_coverage"
+            ),
+            "partial_grades_counted_open": difficult_repetition_gates(
+                trial_rows, coverage_key="partial_as_open_coverage"
+            ),
+            "leave_one_case_out": leave_one_out,
+            "failed_trials": {
+                "count": len(failed_trials),
+                "missing_case_analysis": "identical_to_primary" if not failed_trials else "reported_separately",
+                "worst_case_analysis": "identical_to_primary" if not failed_trials else "reported_separately",
+            },
+            "adjudicated_grades": {
+                "count": len(adjudicated),
+                "repetition_gates": difficult_repetition_gates(adjudicated_rows),
+            },
+            "clarification_operations": clarification_ops,
+        },
         "disposition": disposition,
     }
 

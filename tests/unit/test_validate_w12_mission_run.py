@@ -10,5 +10,5 @@ SPEC.loader.exec_module(validator)
 
 def test_validator_rejects_an_empty_run(tmp_path):
     issues = validator.validate_run(tmp_path, expected_revision="a" * 40)
-    assert len(issues) == 4
-    assert all("manifest or summary is missing" in issue for issue in issues)
+    assert len(issues) == 5
+    assert all("missing" in issue for issue in issues)

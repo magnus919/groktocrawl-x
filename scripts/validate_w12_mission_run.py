@@ -131,7 +131,86 @@ def validate_run(run_dir: Path, *, expected_revision: str) -> list[str]:
     _validate_intake_grades(
         run_dir, expected_revision, cases, intake_candidates, issues
     )
+    _validate_adjudications(
+        run_dir, expected_revision, cases, sources, candidates, issues
+    )
     return issues
+
+
+def _validate_adjudications(
+    run_dir: Path,
+    expected_revision: str,
+    cases: dict[str, Any],
+    sources: dict[str, dict[str, str]],
+    candidates: dict[str, dict[str, Any]],
+    issues: list[str],
+) -> None:
+    public_dir = run_dir / "public"
+    work_path = public_dir / "adjudication-work-order.json"
+    manifest_path = public_dir / "adjudication-manifest.json"
+    summary_path = public_dir / "adjudication-summary.json"
+    if not all(path.exists() for path in (work_path, manifest_path, summary_path)):
+        issues.append("adjudication: work order, manifest, or summary is missing")
+        return
+    work, manifest, summary = load(work_path), load(manifest_path), load(summary_path)
+    rows = work.get("trials", [])
+    expected_digest = hashlib.sha256(
+        json.dumps(rows, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+    ).hexdigest()
+    if work.get("trials_sha256") != expected_digest:
+        issues.append("adjudication: work order digest does not close")
+    selection_digest = hashlib.sha256(
+        json.dumps(work, separators=(",", ":"), sort_keys=True).encode()
+    ).hexdigest()
+    if manifest.get("selection_sha256") != selection_digest:
+        issues.append("adjudication: selection digest does not close")
+    if manifest.get("work_order_sha256") != expected_digest:
+        issues.append("adjudication: manifest work order differs")
+    if manifest.get("source_revision") != expected_revision:
+        issues.append("adjudication: source revision differs")
+    if summary.get("attempted") != len(rows):
+        issues.append("adjudication: attempted count differs")
+    if summary.get("completed") != len(rows) or summary.get("failed") != 0:
+        issues.append("adjudication: run is not completely successful")
+    if len({row.get("candidate_id") for row in rows}) != len(rows):
+        issues.append("adjudication: candidate identity is duplicated")
+    for row in rows:
+        candidate_id = row.get("candidate_id")
+        case_id = row.get("case_id")
+        if candidate_id not in candidates or case_id not in cases:
+            issues.append(f"{candidate_id}: adjudication candidate or case is missing")
+            continue
+        public_path = public_dir / "adjudications" / f"{candidate_id}.json"
+        private_path = run_dir / "private/adjudications" / f"{candidate_id}.json"
+        if not public_path.exists():
+            issues.append(f"{candidate_id}: adjudication is missing")
+            continue
+        public = load(public_path)
+        if public.get("status") != "completed":
+            issues.append(f"{candidate_id}: adjudication is not completed")
+            continue
+        case = cases[case_id]
+        source_pack = tuple(sources[source_id] for source_id in case.source_ids)
+        content = check_private_completion(
+            private_path,
+            public,
+            identity=f"{candidate_id} adjudication",
+            expected_prompt=build_grade_prompt(
+                case, sources=source_pack, candidate=candidates[candidate_id]
+            ),
+            issues=issues,
+        )
+        if content is None:
+            continue
+        try:
+            replayed = validate_candidate_grade(
+                json.loads(content), case=case
+            ).model_dump(mode="json")
+        except Exception as error:
+            issues.append(f"{candidate_id}: adjudication is invalid: {error}")
+            continue
+        if public.get("grade") != replayed:
+            issues.append(f"{candidate_id}: adjudication does not replay")
 
 
 def _validate_downstream(

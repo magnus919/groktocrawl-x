@@ -19,6 +19,20 @@ def test_scope_reduction_does_not_claim_improvement_from_two_zeroes():
     assert analysis.relative_reduction(0, 1) == -float("inf")
 
 
+def test_partial_credit_and_conservative_sensitivity_are_distinct():
+    grade = {
+        "obligation_grades": {
+            "o1": {"status": "closed"},
+            "o2": {"status": "partial"},
+            "o3": {"status": "open"},
+        }
+    }
+    weights = {"o1": 5, "o2": 3, "o3": 1}
+    assert analysis.coverage_for(grade, weights) == (6.5, 9.0)
+    assert analysis.coverage_for(grade, weights, equal_weights=True) == (1.5, 3.0)
+    assert analysis.coverage_for(grade, weights, partial_as_open=True) == (5.0, 9.0)
+
+
 def test_markdown_renders_the_mechanical_decision():
     rendered = analysis.render_markdown(
         {
