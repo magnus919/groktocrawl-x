@@ -21,10 +21,11 @@ def cases():
 
 def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
     case = cases()[0]
-    monkeypatch.setattr(
-        runner.downstream,
-        "model_json",
-        lambda **_kwargs: (
+    requested = {}
+
+    def fake_model_json(**kwargs):
+        requested.update(kwargs)
+        return (
             "not-json",
             {
                 "returned_model": "general",
@@ -33,7 +34,12 @@ def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
                 "tool_calls": False,
             },
             '{"raw":"envelope"}',
-        ),
+        )
+
+    monkeypatch.setattr(
+        runner.downstream,
+        "model_json",
+        fake_model_json,
     )
     item = runner.IntakeWorkItem("intake-1", case.case_id, 1, 1)
     outcome = runner.execute_intake(
@@ -53,6 +59,7 @@ def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
     assert private["raw_envelope"] == '{"raw":"envelope"}'
     public = json.loads((tmp_path / "public/intake/intake-1.json").read_text())
     assert public["error_type"] == "JSONDecodeError"
+    assert requested["reasoning_effort"] == "minimal"
 
 
 def test_intake_response_schema_closes_the_top_level_envelope():

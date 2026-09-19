@@ -69,6 +69,7 @@ def execute_intake(
             prompt=prompt,
             timeout=timeout,
             max_attempts=max_attempts,
+            reasoning_effort="minimal",
         )
         downstream.write_json(
             private_path,

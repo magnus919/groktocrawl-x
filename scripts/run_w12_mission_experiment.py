@@ -125,6 +125,8 @@ def model_json(
     prompt: dict[str, Any],
     timeout: float,
     max_attempts: int,
+    reasoning_effort: str = "low",
+    max_tokens: int = 10000,
 ) -> tuple[str | None, dict[str, Any], str]:
     request = {
         "model": model,
@@ -140,8 +142,8 @@ def model_json(
             {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
         ],
         "temperature": 0,
-        "max_tokens": 10000,
-        "reasoning_effort": "low",
+        "max_tokens": max_tokens,
+        "reasoning_effort": reasoning_effort,
         "response_format": (
             {
                 "type": "json_schema",
