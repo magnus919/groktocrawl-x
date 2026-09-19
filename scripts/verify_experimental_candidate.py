@@ -138,6 +138,14 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         health = health_response.json()
         if health.get("status") != "ok":
             raise RuntimeError(f"candidate health is {health.get('status')!r}")
+        runtime = health.get("runtime", {})
+        expected_revision = _run(["git", "rev-parse", "HEAD"])
+        if runtime.get("revision") != expected_revision:
+            raise RuntimeError(
+                "candidate runtime revision does not match the checked-out source"
+            )
+        if not str(runtime.get("model", "")).strip():
+            raise RuntimeError("candidate runtime does not report its model alias")
 
         capability_response = await client.get(
             "/experimental/research/v1/capabilities"
@@ -458,7 +466,7 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "schema_version": "experimental-candidate-verification/1",
         "verified_at_unix": int(time.time()),
-        "git_revision": _run(["git", "rev-parse", "HEAD"]),
+        "git_revision": expected_revision,
         "source": {
             "compose_sha256": hashlib.sha256(
                 Path(args.compose_file).read_bytes()
@@ -468,6 +476,7 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
             ).hexdigest(),
         },
         "service_health": health,
+        "runtime": runtime,
         "research": {
             "run_id": run_id,
             "research_id": run["research_id"],

@@ -246,6 +246,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:?Set LLM_BASE_URL in the private candidate environment file}
       LLM_API_KEY: ${LLM_API_KEY:?Set LLM_API_KEY in the private candidate environment file}
       LLM_MODEL: ${LLM_MODEL:-local}
+      GROKTOCRAWL_REVISION: ${CANDIDATE_IMAGE_TAG:-dev}
       LLM_CALL_TIMEOUT: ${LLM_CALL_TIMEOUT:-300}
       FEATURE_EXPERIMENTAL_RESEARCH: "true"
       FEATURE_EXPERIMENTAL_RESEARCH_RUNS: "true"

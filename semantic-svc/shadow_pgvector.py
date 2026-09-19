@@ -84,6 +84,8 @@ class ShadowSearchResult:
     url: str
     title: str
     score: float
+    description: str = ""
+    indexed_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -288,7 +290,9 @@ class PgvectorShadowStore:
                 self._connect()
                 .execute(
                     f"""SELECT point_id, url, title,
-                    1 - (embedding <=> %s::vector) AS score
+                    1 - (embedding <=> %s::vector) AS score,
+                    COALESCE(payload->>'content_excerpt', ''),
+                    payload->>'last_indexed_at'
                 FROM {self.config.schema}.{self.config.table}
                 WHERE model=%s AND deleted=false
                 ORDER BY embedding <=> %s::vector, point_id
@@ -298,7 +302,14 @@ class PgvectorShadowStore:
                 .fetchall()
             )
         return [
-            ShadowSearchResult(int(row[0]), str(row[1]), str(row[2]), float(row[3]))
+            ShadowSearchResult(
+                int(row[0]),
+                str(row[1]),
+                str(row[2]),
+                float(row[3]),
+                str(row[4]),
+                str(row[5]) if row[5] is not None else None,
+            )
             for row in rows
         ]
 

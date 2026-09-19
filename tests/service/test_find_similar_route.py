@@ -164,7 +164,8 @@ class TestFindSimilarHealthyContracts:
         first, second = body["data"]
         assert first["url"] == "https://a.com"
         assert first["description"] == "c" * 200  # truncated at 200 chars
-        assert second["description"] == ""  # no content key -> empty
+        assert second["description"] == "# Herbs"  # hydrated from the live page
+        assert second["metadata_complete"] is True
 
     def test_genuinely_empty_index_returns_success_with_empty_data(self, client):
         """A clean empty result is success, never an error (issue #588)."""
@@ -338,3 +339,16 @@ class TestFindSimilarWebModeRerank:
         assert len(semantic.embed_calls) == 2
         assert len(semantic.embed_calls[0]) == 1  # query markdown
         assert len(semantic.embed_calls[1]) == 3  # candidate descriptions
+
+    def test_web_query_skips_leading_browser_boilerplate(self):
+        from agent.research.similar import _web_query
+
+        query = _web_query(
+            "Python Success Stories",
+            "JavaScript is disabled. Enable JavaScript to continue.\n\n"
+            "Organizations describe how Python improved scientific computing.",
+        )
+
+        assert query.startswith("Python Success Stories")
+        assert "scientific computing" in query
+        assert "JavaScript" not in query
