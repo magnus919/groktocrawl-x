@@ -98,6 +98,38 @@ class TestClientAuthentication:
 
         assert "Authorization" not in request.call_args.kwargs["headers"]
 
+
+class TestSearchRetrievalContract:
+    """Search retrieval mode is consistent for sync and streaming requests."""
+
+    def test_search_parser_defines_retrieval_mode_for_streaming(self):
+        parser = _cli_ns["make_parser"]()
+        args = parser.parse_args(["search", "fixture", "--stream"])
+        assert args.retrieval_mode == "keyword"
+
+    def test_search_parser_accepts_explicit_retrieval_mode(self):
+        parser = _cli_ns["make_parser"]()
+        args = parser.parse_args(
+            ["search", "fixture", "--stream", "--retrieval-mode", "hybrid"]
+        )
+        assert args.retrieval_mode == "hybrid"
+
+    def test_sync_search_sends_retrieval_mode(self, client):
+        with patch.object(client, "_request", return_value={"data": {}}) as request:
+            client.search("fixture", retrieval_mode="semantic")
+        assert request.call_args.kwargs["json_data"]["retrieval_mode"] == "semantic"
+
+    def test_stream_search_uses_authenticated_retry_path(self, client):
+        response = MagicMock()
+        with patch.object(
+            client, "_post_stream_with_retry", return_value=response
+        ) as request:
+            result = client.search_stream("fixture", retrieval_mode="vector")
+        assert result == {"_stream": response}
+        data = request.call_args.args[1]
+        assert data["retrieval_mode"] == "vector"
+        assert data["stream"] is True
+
     def test_api_error_preserves_structured_captcha_body(self, client):
         response = MagicMock()
         response.status_code = 502
@@ -919,10 +951,13 @@ class TestClientParseUpload:
         document = tmp_path / "scan.pdf"
         document.write_bytes(b"%PDF-1.4 fake scan")
 
-        def _fake_post(url, files=None, data=None, timeout=None):
+        client.api_key = "parse-test-key"
+
+        def _fake_post(url, files=None, data=None, headers=None, timeout=None):
             assert "/parse" in url
             assert files is not None
             assert data == {"ocr": "hosted"}
+            assert headers == {"Authorization": "Bearer parse-test-key"}
 
             class FakeResp:
                 status_code = 200
@@ -945,11 +980,14 @@ class TestClientParseUpload:
     def test_parse_upload_file_sends_correct_data(self, client):
         """parse_upload_file sends PUT with correct URL, headers, and body."""
 
+        client.api_key = "parse-test-key"
+
         def _fake_put(url, data=None, headers=None, timeout=None):
             assert "/parse/upload/my-upload-1" in url
             assert headers["Content-Type"] == "application/pdf"
             # X-Filename should match the temp file's basename
             assert headers["X-Filename"].endswith(".pdf")
+            assert headers["Authorization"] == "Bearer parse-test-key"
             assert data == b"fake pdf content"
 
             class FakeResp:
@@ -980,9 +1018,12 @@ class TestClientParseUpload:
     def test_parse_with_upload_id_sends_form_field(self, client):
         """parse_with_upload_id sends POST with upload_id in form data."""
 
-        def _fake_post(url, data=None, timeout=None):
+        client.api_key = "parse-test-key"
+
+        def _fake_post(url, data=None, headers=None, timeout=None):
             assert "/parse" in url
             assert data == {"upload_id": "my-upload-2"}
+            assert headers == {"Authorization": "Bearer parse-test-key"}
 
             class FakeResp:
                 status_code = 200
@@ -1051,7 +1092,7 @@ class TestClientParseUpload:
         """parse_with_upload_id raises ApiError on 4xx response."""
         api_error_cls = _cli_ns["ApiError"]
 
-        def _fake_post(url, data=None, timeout=None):
+        def _fake_post(url, data=None, headers=None, timeout=None):
             class FakeResp:
                 status_code = 400
 
