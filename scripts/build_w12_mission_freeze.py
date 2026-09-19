@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v2.json"
+OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v3.json"
 
 PINNED_FILES = (
     "docs/experiments/enterprise-evaluation/corpus.json",
@@ -24,6 +24,7 @@ PINNED_FILES = (
     "agent-svc/agent/experimental/mission_experiment.py",
     "agent-svc/agent/experimental/research_mission.py",
     "scripts/grade_w12_mission_experiment.py",
+    "scripts/adjudicate_w12_mission_experiment.py",
     "scripts/grade_w12_mission_intake.py",
     "scripts/run_w12_mission_experiment.py",
     "scripts/run_w12_mission_intake.py",
@@ -46,10 +47,10 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     payload = {
-        "schema_version": "research-mission-experiment-freeze/2",
+        "schema_version": "research-mission-experiment-freeze/3",
         "status": "frozen_before_measurement",
-        "supersedes": "w12.1-freeze.json",
-        "predecessor_disposition": "excluded_after_failure_guardrail",
+        "supersedes": "w12.1-freeze-v2.json",
+        "predecessor_disposition": "excluded_after_incomplete_analysis_audit",
         "source_revision": revision,
         "domain": "agentic engineering software factory in the enterprise",
         "model_route": "general",
@@ -66,12 +67,15 @@ def main() -> int:
         "intake_trial_count": 36,
         "downstream_grade_count": 72,
         "intake_grade_count": 36,
-        "measured_call_ceiling": 216,
-        "required_preflight": "one excluded control and one excluded treatment trial",
+        "maximum_adjudication_count": 72,
+        "measured_call_ceiling": 288,
+        "required_preflight": "reuse the passing v2 matched preflight only if downstream executable hashes remain identical",
         "bounded_corrections": [
             "exact common output field names included in both arm prompts",
             "exact provider envelope retained before content validation",
             "low reasoning effort and 10000 completion-token ceiling",
+            "complete six declared sensitivity outputs",
+            "independent automated regrade lane with replay validation",
         ],
         "files": {name: sha256(ROOT / name) for name in PINNED_FILES},
     }
