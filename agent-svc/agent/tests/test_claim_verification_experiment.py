@@ -5,6 +5,7 @@ from agent.experimental.claim_verification_experiment import (
     ClaimVerificationPacket,
     IndependentClaimVerification,
     IndependentVerifier,
+    load_claim_verification_corpus,
     validate_independent_verification,
 )
 
@@ -113,3 +114,17 @@ def test_unknown_authority_fields_are_rejected(packet, verifier):
     data["human_approved"] = True
     with pytest.raises(ValueError):
         IndependentClaimVerification.model_validate(data)
+
+
+def test_frozen_corpus_satisfies_design_guards():
+    corpus = load_claim_verification_corpus(
+        "docs/experiments/claim-verification/w12.3-cases.json"
+    )
+    assert len(corpus.cases) == 12
+    assert sum(case.reference.publish for case in corpus.cases) == 4
+    assert sum(
+        case.packet.risk == "high"
+        and case.control_publish
+        and not case.reference.publish
+        for case in corpus.cases
+    ) == 5

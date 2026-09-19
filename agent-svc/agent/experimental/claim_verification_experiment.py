@@ -121,6 +121,33 @@ class ClaimVerificationCase(Record):
         return self
 
 
+class ClaimVerificationCorpus(Record):
+    schema_version: Literal["claim-verification-corpus/1"]
+    cases: tuple[ClaimVerificationCase, ...] = Field(min_length=12, max_length=100)
+
+    @model_validator(mode="after")
+    def distinct_cases(self) -> Self:
+        identities = [case.packet.case_id for case in self.cases]
+        if len(identities) != len(set(identities)):
+            raise ValueError("claim verification case IDs must be unique")
+        if sum(case.reference.publish for case in self.cases) < 4:
+            raise ValueError("corpus requires at least four publishable claims")
+        high_risk_false_accepts = sum(
+            case.packet.risk == "high"
+            and case.control_publish
+            and not case.reference.publish
+            for case in self.cases
+        )
+        if high_risk_false_accepts < 3:
+            raise ValueError("corpus requires at least three high-risk false accepts")
+        return self
+
+
+def load_claim_verification_corpus(path: str) -> ClaimVerificationCorpus:
+    with open(path, encoding="utf-8") as handle:
+        return ClaimVerificationCorpus.model_validate(json.load(handle))
+
+
 def validate_independent_verification(
     payload: object,
     *,
