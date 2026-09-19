@@ -42,6 +42,19 @@ def test_accepts_private_persistent_files(
     validate(_write_candidate_files(tmp_path / "candidate"))
 
 
+@pytest.mark.parametrize("quote", ["'", '"'])
+def test_accepts_compose_env_quoted_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, quote: str
+) -> None:
+    _treat_tmp_path_as_persistent(monkeypatch)
+    env_file = _write_candidate_files(tmp_path / "candidate")
+    text = env_file.read_text()
+    for value in (REVISION, "private-api-key", "private-llm-key"):
+        text = text.replace(f"={value}", f"={quote}{value}{quote}")
+    env_file.write_text(text)
+    validate(env_file)
+
+
 @pytest.mark.parametrize("root", [Path("/tmp"), Path("/private/tmp"), Path("/var/tmp")])
 def test_rejects_volatile_environment_file(root: Path) -> None:
     with pytest.raises(ValueError, match="volatile temporary storage"):

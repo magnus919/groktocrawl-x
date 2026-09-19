@@ -212,7 +212,7 @@ services:
     ports:
       - target: 8080
         published: "${CANDIDATE_AGENT_PORT:-18080}"
-        host_ip: 127.0.0.1
+        host_ip: "${CANDIDATE_BIND_IP:-127.0.0.1}"
     environment:
       API_KEY: ${CANDIDATE_API_KEY:?Set CANDIDATE_API_KEY in the private candidate environment file}
       VALKEY_URL: redis://candidate-valkey:6379/1
@@ -280,7 +280,7 @@ services:
     ports:
       - target: 8002
         published: "${CANDIDATE_MCP_PORT:-18002}"
-        host_ip: 127.0.0.1
+        host_ip: "${CANDIDATE_BIND_IP:-127.0.0.1}"
     environment:
       GROKTOCRAWL_URL: http://candidate-agent:8080
       GROKTOCRAWL_API_KEY: ${CANDIDATE_API_KEY:?Set CANDIDATE_API_KEY in the private candidate environment file}

@@ -5,7 +5,7 @@
 - Architecture decider: Magnus Hedemark (`magnus919`)
 - Decision issue: [#312](https://github.com/magnus919/groktocrawl-x/issues/312)
 - Frozen candidate revision: `e4301eb32dd3b1e4ef83aec658fba754a2be31ec`
-- Earliest decision date: `2026-09-26T02:19:40Z`
+- Earliest decision date: `2026-09-26T13:42:50Z`
 
 **This experimental fork does not replace mainline GroktoCrawl by itself.** A
 successful W9 decision can adopt the candidate for continued use in this fork.
@@ -22,9 +22,12 @@ if the restarted operational pilot passes its remaining checkpoints.
 
 The recommendation is not final. The first operational window failed after a
 host restart because private bind sources were stored under volatile `/tmp` paths.
-That failure is retained. The corrected window started on 2026-09-19 with
-persistent private configuration, and checkpoint 0 passed. Checkpoint 1 cannot
-count before 2026-09-22; the final checkpoint and decision cannot count before
+That failure is retained. A corrected loopback-only window passed checkpoint 0.
+The owner then chose real client traffic as the stronger pilot workload, so the
+API and MCP network boundary changed and the clock restarted at
+`2026-09-19T13:42:50Z`. Its checkpoint 0 passed with all 12 declared
+operations. Checkpoint 1 cannot count
+before 2026-09-22; the final checkpoint and decision cannot count before
 2026-09-26.
 
 ## Requirement-by-requirement matrix
@@ -38,7 +41,7 @@ count before 2026-09-22; the final checkpoint and decision cannot count before
 | HTTP, SSE, CLI, and MCP expose one coherent retained artifact | Passed | [Client protocol](research-client-protocol.md), [conformance matrix](client-protocol-conformance.md), [recovered-journey PR #251](https://github.com/magnus919/groktocrawl-x/pull/251) | Confirm cross-client equality again at each remaining pilot checkpoint. |
 | PostgreSQL can be the durable authority and pgvector can serve semantic search | Passed for the experimental deployment | [Storage evaluation](storage/pgvector-qdrant-evaluation.md), [application cutover packet](evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Keep Qdrant available until the operational rollback window passes; removal is separate work. |
 | Migration to the candidate and rollback to the incumbent are rehearsed | Passed | [Migration and rollback packet](evidence/replacement-rehearsal/2026-09-11-migration-rollback/README.md) | Preserve the tested rollback path through the final decision. |
-| Candidate operates over the required real-time window | Pending | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [restart and checkpoint 0](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md) | Run checkpoint 1 at or after `2026-09-22T02:19:40Z` and checkpoint 2 at or after `2026-09-26T02:19:40Z`. Require at least 30 successful representative operations and all pass rules. |
+| Candidate operates over the required real-time window | In progress: checkpoint 0 passed; 12 of at least 30 operations passed | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [retained loopback checkpoint](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md), [network pilot restart](evidence/replacement-rehearsal/2026-09-19-network-pilot-restart/README.md) | Run checkpoint 1 at or after `2026-09-22T13:42:50Z` and checkpoint 2 at or after `2026-09-26T13:42:50Z`. Require at least 30 successful representative operations and all pass rules. |
 | Resource use fits ordinary operation on the home-lab host | Provisional pass at bounded scale | [Compatibility resource summary](evidence/replacement-rehearsal/2026-09-11-compatibility/resource-summary.json), [pilot protocol limits](w9-operational-pilot-protocol.md#limits) | Compare all three checkpoint snapshots and report any repeated material regression. Do not claim production capacity. |
 | Operator burden is acceptable | Revised after a real failure | [Retained restart failure and correction](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md), [operator runbook](../runbooks/experimental-replacement-candidate.md) | Confirm the guarded checkpoint runner works twice without manual reconstruction. Keep persistent private-file placement in the runbook. |
 | Limits and residual risks are explicit | Passed for the preflight | [Pilot limits](w9-operational-pilot-protocol.md#limits), this report | Carry the limits into the final recommendation and create follow-up issues for any newly observed gap. |
