@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 from agent.experimental.research_thread import (
+    ThreadAnswer,
+    build_followup_prompt,
     build_thread_work_order,
     load_thread_experiment_corpus,
     validate_research_thread,
@@ -178,3 +180,20 @@ def test_answer_citations_are_closed_to_case() -> None:
             },
             case,
         )
+
+
+def test_followup_arms_receive_identical_source_snapshots() -> None:
+    case = load_thread_experiment_corpus(CASES).cases[0]
+    prior = ThreadAnswer(
+        change_events=(),
+        current_truths=("Earlier state.",),
+        historical_truths=(),
+        unresolved=(),
+        citations=(case.initial_sources[0].snapshot_id,),
+        answer="Earlier state.",
+    )
+    control = build_followup_prompt(case, arm="control", prior_answer=prior)
+    treatment = build_followup_prompt(case, arm="treatment", prior_answer=prior)
+    assert control["source_snapshots"] == treatment["source_snapshots"]
+    assert "research_thread" not in control
+    assert "research_thread" in treatment

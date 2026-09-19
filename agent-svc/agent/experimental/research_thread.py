@@ -430,8 +430,9 @@ def build_followup_prompt(
             "Cite snapshot_id values. Do not infer identity from name similarity."
         ),
         "question": case.question,
-        "current_sources": [
-            source.model_dump(mode="json") for source in case.followup_sources
+        "source_snapshots": [
+            source.model_dump(mode="json")
+            for source in (*case.initial_sources, *case.followup_sources)
         ],
         "output_contract": answer_schema(case),
     }
