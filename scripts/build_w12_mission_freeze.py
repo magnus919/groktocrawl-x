@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v6.json"
+OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v7.json"
 
 PINNED_FILES = (
     "docs/experiments/enterprise-evaluation/corpus.json",
@@ -47,15 +47,15 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     payload = {
-        "schema_version": "research-mission-experiment-freeze/6",
+        "schema_version": "research-mission-experiment-freeze/7",
         "status": "frozen_before_measurement",
-        "supersedes": "w12.1-freeze-v5.json",
-        "predecessor_disposition": "excluded_after_intake_reasoning_exhaustion",
+        "supersedes": "w12.1-freeze-v6.json",
+        "predecessor_disposition": "preflight_failed_before_measurement",
         "source_revision": revision,
         "domain": "agentic engineering software factory in the enterprise",
         "model_route": "general",
         "reasoning_effort": {"intake": "minimal", "all_other_lanes": "low"},
-        "maximum_completion_tokens": 10000,
+        "maximum_completion_tokens": {"intake": 20000, "all_other_lanes": 10000},
         "model_identity_policy": "record provider-returned identity on every call",
         "endpoint_origin": "https://gpuslut.brandyapple.com/",
         "concurrency": 5,
@@ -69,7 +69,7 @@ def main() -> int:
         "intake_grade_count": 36,
         "maximum_adjudication_count": 72,
         "measured_call_ceiling": 288,
-        "required_preflight": "one excluded control, one excluded treatment, and the two difficult intake cases that exhausted v5",
+        "required_preflight": "the recovery-portability intake case that exhausted v6",
         "bounded_corrections": [
             "exact common output field names included in both arm prompts",
             "exact provider envelope retained before content validation",
@@ -80,6 +80,7 @@ def main() -> int:
             "frozen conservative assignment for missing candidates",
             "provider-enforced strict JSON Schema for intake results",
             "minimal reasoning effort for intake normalization only",
+            "20000-token completion ceiling for intake normalization only",
         ],
         "files": {name: sha256(ROOT / name) for name in PINNED_FILES},
     }
