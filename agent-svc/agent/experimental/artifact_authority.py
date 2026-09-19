@@ -152,7 +152,7 @@ class ArtifactAuthority(SourceStore):
                     "SELECT version FROM research_staging.schema_version"
                 )
             ).fetchall()
-            if version != [{"version": 14}]:
+            if version not in ([{"version": 14}], [{"version": 15}]):
                 raise StorageConflictError("artifact authority schema unavailable")
             prior = await (
                 await conn.execute(

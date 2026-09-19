@@ -124,6 +124,28 @@ def create_app() -> FastAPI:
         api_key=settings.llm_api_key,
         model=settings.llm_model,
     )
+    provenance_transport = None
+    provenance_adapter = None
+    provenance_values = (
+        settings.slopsearx_provenance_profile,
+        settings.slopsearx_provenance_mcp_url,
+        settings.slopsearx_provenance_token,
+    )
+    if any(provenance_values):
+        if not all(provenance_values):
+            raise ValueError("SlopSearX provenance profile configuration is incomplete")
+        from .experimental.slopsearx_provenance import (
+            McpProvenanceTransport,
+            SlopSearXProvenanceAdapter,
+        )
+
+        provenance_transport = McpProvenanceTransport(
+            settings.slopsearx_provenance_mcp_url,
+            settings.slopsearx_provenance_token,
+        )
+        provenance_adapter = SlopSearXProvenanceAdapter(
+            provenance_transport, profile=settings.slopsearx_provenance_profile
+        )
 
     # ── Rate limiter ──────────────────────────────────────────────
     rate_limit_count, rate_limit_window = SlidingWindowRateLimiter.parse_limit(
@@ -172,6 +194,7 @@ def create_app() -> FastAPI:
     app.state.llm_base_url = settings.llm_base_url
     app.state.llm_api_key = settings.llm_api_key
     app.state.llm_model = settings.llm_model
+    app.state.slopsearx_provenance = provenance_adapter
     app.state.semantic_url = settings.semantic_url
     app.state.research_memory = ResearchMemory(
         redis_url=redis_url,
@@ -227,6 +250,16 @@ def create_app() -> FastAPI:
             browser_url="http://browser-svc:8012",
             portal_url="http://portal-svc:8081",
         )
+        if app.state.slopsearx_provenance is not None:
+            try:
+                provenance_health = await app.state.slopsearx_provenance.check_profile()
+            except Exception as error:
+                provenance_health = {
+                    "status": "down",
+                    "detail": type(error).__name__,
+                }
+                result["status"] = "degraded"
+            result.setdefault("checks", {})["slopsearx_provenance"] = provenance_health
         # Record health check outcomes as metrics
         dh_gauge = METRICS.gauge(
             "dependency_health",
@@ -331,6 +364,8 @@ def create_app() -> FastAPI:
         This runs inside a running event loop (unlike module-level
         ``asyncio.create_task()`` which would fail at import time).
         """
+        if app.state.slopsearx_provenance is not None:
+            await app.state.slopsearx_provenance.check_profile()
         app.state.task_tracker.create_background_task(
             start_analytics_exporter(redis_url=app.state.valkey_url)
         )
@@ -349,6 +384,8 @@ def create_app() -> FastAPI:
         await app.state.scraper_client.close()
         await app.state.searxng_client.close()
         await app.state.llm_client.close()
+        if provenance_transport is not None:
+            await provenance_transport.close()
 
     return app
 
