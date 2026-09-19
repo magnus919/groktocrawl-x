@@ -8,6 +8,7 @@ def test_override_enables_only_receipt_grant() -> None:
     assert "@sha256:" in value["services"]["slopsearx-mcp"]["image"]
     environment = value["services"]["slopsearx-mcp"]["environment"]
     assert environment["MCP_GRANT_RETRIEVAL_RECEIPTS"] == "1"
+    assert environment["MCP_SNAPSHOT_TTL_SECONDS"].endswith(":-3600}")
     assert all(
         setting == "0"
         for name, setting in environment.items()
