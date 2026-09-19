@@ -17,6 +17,9 @@ and binds them to the final W10 selection and complete public accounting.
   surface before measurement.
 - `scope-equivalence.json` proves that both arms start with the same frozen
   seven-engine search scope without dispatching a query.
+- `w11-freeze.json` binds the 72-trial design, exact source and container
+  identities, model route, resource ceilings, analysis plan, and every public
+  input hash before the first scored query.
 
 The freeze gate now distinguishes the two policy-only grants, `jobs` and
 `science`, from grants written to the Compose arm manifest. Both still have to
