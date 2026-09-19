@@ -1,6 +1,6 @@
 # Narrow SlopSearX provenance adapter
 
-Status: **implementation in progress; internal contract complete**
+Status: **implementation in progress; contract and opt-in transport complete**
 
 This adapter implements the narrow W11 adoption selected by
 [ADR-0082](../adr/0082-delegate-bounded-retrieval-to-slopsearx.md). Ordinary
@@ -35,13 +35,20 @@ reference. Receipt keys are derived from the GroktoCrawl owner, SlopSearX result
 identity, and exact capture observation, so retry after timeout or restart
 replays the same mutation.
 
+The production transport opens a dedicated authenticated MCP session lazily,
+serializes calls within that session, and never logs the bearer token. Enabling
+the profile requires all three settings: profile name, absolute MCP endpoint,
+and its dedicated token. Partial configuration fails service construction. A
+profile capability failure blocks startup and appears as a degraded dependency
+in aggregate health. With the settings absent, no MCP client is created.
+
 ## Remaining production slice
 
-The next implementation milestone supplies the authenticated MCP transport,
-bounded durable reference storage, deployment configuration, aggregate health,
-retention cleanup, and rollback switch. Those pieces must pass an isolated live
-recovery check before issue #327 can close. Disabling the profile must leave
-ordinary HTTP search and existing deployments unchanged.
+The next implementation milestone supplies bounded durable reference storage,
+retention cleanup, an isolated deployment profile, and the rollback exercise.
+Those pieces must pass an isolated live recovery check before issue #327 can
+close. Disabling the profile leaves ordinary HTTP search and existing
+deployments unchanged.
 
 The contract and recovery behavior are based on the [W11 provenance and
 recovery evidence](evidence/slopsearx-substrate/2026-09-11-isolated-provenance/)

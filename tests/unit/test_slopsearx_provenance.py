@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 import pytest
 from agent.experimental.slopsearx_provenance import (
     CaptureObservation,
+    McpProvenanceTransport,
     ProvenanceUnavailableError,
     SlopSearXProvenanceAdapter,
     receipt_idempotency_key,
@@ -128,3 +130,47 @@ async def test_expired_snapshot_fails_without_minting_reference() -> None:
 def test_observation_must_be_complete() -> None:
     with pytest.raises(ValueError, match="incomplete"):
         CaptureObservation(status="succeeded").receipt_fields()
+
+
+@pytest.mark.asyncio
+async def test_transport_initializes_once_and_preserves_session() -> None:
+    requests: list[dict[str, Any]] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        body = __import__("json").loads(request.content)
+        requests.append(body)
+        if body["method"] == "initialize":
+            return httpx.Response(
+                200,
+                headers={"mcp-session-id": "session-1"},
+                json={"jsonrpc": "2.0", "id": 0, "result": {}},
+            )
+        if body["method"] == "notifications/initialized":
+            assert request.headers["mcp-session-id"] == "session-1"
+            return httpx.Response(202, json={})
+        assert request.headers["mcp-session-id"] == "session-1"
+        return httpx.Response(
+            200,
+            json={
+                "jsonrpc": "2.0",
+                "id": body["id"],
+                "result": {"structuredContent": {"status": "available"}},
+            },
+        )
+
+    transport = McpProvenanceTransport(
+        "https://search.test/mcp",
+        "secret",
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        assert await transport.call_tool("one", {}) == {"status": "available"}
+        assert await transport.call_tool("two", {}) == {"status": "available"}
+    finally:
+        await transport.close()
+    assert [request["method"] for request in requests] == [
+        "initialize",
+        "notifications/initialized",
+        "tools/call",
+        "tools/call",
+    ]

@@ -6,10 +6,13 @@ research completion, verification, synthesis, or publication authority.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 from dataclasses import asdict, dataclass
 from typing import Any, Protocol
+
+import httpx
 
 PROFILE = "retrieval-provenance-v1"
 HANDOFF_CONTRACT = "slopsearx.retrieval_handoff"
@@ -27,6 +30,140 @@ class ProvenanceUnavailableError(RuntimeError):
 
 class ToolCaller(Protocol):
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any: ...
+
+
+def _decode_response(response: httpx.Response) -> dict[str, Any]:
+    if not response.content:
+        return {}
+    if "text/event-stream" not in response.headers.get("content-type", "").casefold():
+        value = response.json()
+        if isinstance(value, dict):
+            return value
+        raise ProvenanceUnavailableError("MCP response was not an object")
+    data: list[str] = []
+    for line in response.text.splitlines():
+        if line.startswith("data:"):
+            data.append(line.removeprefix("data:").lstrip())
+        elif not line and data:
+            break
+    if not data:
+        raise ProvenanceUnavailableError("MCP response contained no data event")
+    value = json.loads("\n".join(data))
+    if not isinstance(value, dict):
+        raise ProvenanceUnavailableError("MCP data event was not an object")
+    return value
+
+
+def _tool_payload(envelope: dict[str, Any]) -> Any:
+    if "error" in envelope:
+        error = envelope["error"]
+        code = error.get("code", "transport_error") if isinstance(error, dict) else "transport_error"
+        raise ProvenanceUnavailableError(f"MCP request failed: {code}")
+    result = envelope.get("result")
+    if not isinstance(result, dict):
+        raise ProvenanceUnavailableError("MCP tool response lacked a result")
+    if result.get("structuredContent") is not None:
+        return result["structuredContent"]
+    content = result.get("content")
+    if isinstance(content, list) and content:
+        first = content[0]
+        if isinstance(first, dict) and first.get("type") == "text":
+            text = first.get("text")
+            if isinstance(text, str):
+                try:
+                    return json.loads(text)
+                except json.JSONDecodeError:
+                    return text
+    return result
+
+
+class McpProvenanceTransport:
+    """Small lazy async MCP transport scoped to the provenance credential."""
+
+    def __init__(
+        self,
+        endpoint: str,
+        token: str,
+        *,
+        timeout_seconds: float = 30,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        if not endpoint.startswith(("http://", "https://")):
+            raise ValueError("provenance MCP endpoint must be absolute HTTP(S)")
+        if not token:
+            raise ValueError("provenance MCP token is required")
+        self._endpoint = endpoint
+        self._client = httpx.AsyncClient(
+            timeout=timeout_seconds,
+            transport=transport,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+            },
+        )
+        self._session_id: str | None = None
+        self._next_id = 0
+        self._lock = asyncio.Lock()
+
+    async def close(self) -> None:
+        await self._client.aclose()
+
+    async def _post(self, body: dict[str, Any]) -> dict[str, Any]:
+        headers: dict[str, str] = {}
+        if self._session_id:
+            headers.update(
+                {
+                    "Mcp-Session-Id": self._session_id,
+                    "MCP-Protocol-Version": "2025-11-25",
+                }
+            )
+        try:
+            response = await self._client.post(self._endpoint, json=body, headers=headers)
+            response.raise_for_status()
+            envelope = _decode_response(response)
+        except (httpx.HTTPError, json.JSONDecodeError) as error:
+            raise ProvenanceUnavailableError(
+                f"MCP transport failed: {type(error).__name__}"
+            ) from error
+        session_id = response.headers.get("mcp-session-id")
+        if session_id:
+            self._session_id = session_id
+        return envelope
+
+    async def _initialize(self) -> None:
+        if self._session_id:
+            return
+        envelope = await self._post(
+            {
+                "jsonrpc": "2.0",
+                "id": self._next_id,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "groktocrawl-provenance", "version": "1"},
+                },
+            }
+        )
+        self._next_id += 1
+        if not self._session_id or not isinstance(envelope.get("result"), dict):
+            raise ProvenanceUnavailableError("MCP initialization failed")
+        await self._post({"jsonrpc": "2.0", "method": "notifications/initialized"})
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        async with self._lock:
+            await self._initialize()
+            envelope = await self._post(
+                {
+                    "jsonrpc": "2.0",
+                    "id": self._next_id,
+                    "method": "tools/call",
+                    "params": {"name": name, "arguments": arguments},
+                }
+            )
+            self._next_id += 1
+            return _tool_payload(envelope)
 
 
 @dataclass(frozen=True)

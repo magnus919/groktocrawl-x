@@ -295,6 +295,9 @@ services:
     environment:
       - VALKEY_URL=${VALKEY_URL:-redis://valkey:6379/0}
       - SEARXNG_URL=${SEARXNG_URL:-http://slopsearx:8080}
+      - SLOPSEARX_PROVENANCE_PROFILE=${SLOPSEARX_PROVENANCE_PROFILE:-}
+      - SLOPSEARX_PROVENANCE_MCP_URL=${SLOPSEARX_PROVENANCE_MCP_URL:-}
+      - SLOPSEARX_PROVENANCE_TOKEN=${SLOPSEARX_PROVENANCE_TOKEN:-}
       - SCRAPER_URL=${SCRAPER_URL:-http://scraper-svc:8001}
       - SEMANTIC_URL=${SEMANTIC_URL:-http://semantic-svc:8003}
       - LLM_BASE_URL=${LLM_BASE_URL:-http://llm-svc:8011/v1}
