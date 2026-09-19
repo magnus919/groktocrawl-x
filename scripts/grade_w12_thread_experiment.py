@@ -45,6 +45,8 @@ def grade_one(
     api_key: str,
     model: str,
     timeout: float,
+    max_attempts: int,
+    max_tokens: int,
 ) -> dict[str, str]:
     identity = candidate_id(trial["trial_id"])
     output = public_dir / "grades" / f"{identity}.json"
@@ -104,9 +106,9 @@ def grade_one(
             schema=grade_schema(),
             prompt=prompt,
             timeout=timeout,
-            max_attempts=3,
+            max_attempts=max_attempts,
             reasoning_effort="minimal",
-            max_tokens=20000,
+            max_tokens=max_tokens,
         )
         transport.write_json(
             private_dir / "grades" / f"{identity}.json",
@@ -171,10 +173,16 @@ def main() -> int:
     parser.add_argument("--model", default="general")
     parser.add_argument("--concurrency", type=int, default=5)
     parser.add_argument("--timeout", type=float, default=600)
+    parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument("--max-tokens", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=20260919)
     args = parser.parse_args()
     if not 1 <= args.concurrency <= 10:
         raise SystemExit("concurrency must be between 1 and 10")
+    if not 1 <= args.max_attempts <= 3:
+        raise SystemExit("max-attempts must be between 1 and 3")
+    if not 1000 <= args.max_tokens <= 20000:
+        raise SystemExit("max-tokens must be between 1000 and 20000")
     base_url = args.base_url or os.getenv("LLM_BASE_URL")
     api_key = args.api_key or os.getenv("LLM_API_KEY")
     if args.env_file:
@@ -204,6 +212,8 @@ def main() -> int:
                 api_key=api_key,
                 model=args.model,
                 timeout=args.timeout,
+                max_attempts=args.max_attempts,
+                max_tokens=args.max_tokens,
             )
             for trial in trials
         ]
