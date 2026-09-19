@@ -11,6 +11,10 @@ QUESTION = "What does the pilot establish?"
 TEXT = "Pilot lead time fell. Causation is unproven."
 
 
+def journey_clock():
+    return datetime(2026, 9, 7, tzinfo=UTC)
+
+
 def proposal():
     return {
         "schema_version": "research-construction/4",
@@ -153,6 +157,7 @@ async def test_model_journey_executes_checks_and_audit_without_fixture_provenanc
         (CapturedSource("https://example.test/pilot", TEXT, "2026-09-06T00:00:00Z"),),
         complete=complete,
         scope_id="test-scope",
+        clock=journey_clock,
     )
     assert not result.candidate.fixture_only
     assert len(result.reports) == 3
@@ -219,6 +224,7 @@ async def test_query_dispatches_acquisition_then_real_contract_journey():
         acquire=acquire,
         complete=complete,
         scope_id="test-scope",
+        clock=journey_clock,
     )
     assert not result.candidate.fixture_only
     assert events[:2] == ["search", "acquire"]

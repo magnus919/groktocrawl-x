@@ -11,16 +11,28 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from scripts.build_w10_adjudication_packet import digest
-from scripts.summarize_w10_adaptive_policy import (
-    aggregate,
-    challenge_decision,
-    gate,
-    read_cases,
-    read_policy_positions,
-    read_records,
-    summarize_stratum,
-)
+try:
+    from scripts.build_w10_adjudication_packet import digest
+    from scripts.summarize_w10_adaptive_policy import (
+        aggregate,
+        challenge_decision,
+        gate,
+        read_cases,
+        read_policy_positions,
+        read_records,
+        summarize_stratum,
+    )
+except ModuleNotFoundError:  # Direct execution places scripts/ on sys.path.
+    from build_w10_adjudication_packet import digest
+    from summarize_w10_adaptive_policy import (
+        aggregate,
+        challenge_decision,
+        gate,
+        read_cases,
+        read_policy_positions,
+        read_records,
+        summarize_stratum,
+    )
 
 
 def file_digest(path: Path) -> str:

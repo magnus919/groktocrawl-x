@@ -11,7 +11,10 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from scripts.summarize_w10_adaptive_policy import POLICIES, read_cases, read_records
+try:
+    from scripts.summarize_w10_adaptive_policy import POLICIES, read_cases, read_records
+except ModuleNotFoundError:  # Direct execution places scripts/ on sys.path.
+    from summarize_w10_adaptive_policy import POLICIES, read_cases, read_records
 
 
 def file_digest(path: Path) -> str:

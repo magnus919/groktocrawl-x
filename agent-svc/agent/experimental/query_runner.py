@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from datetime import datetime
 from urllib.parse import urlsplit
 
 from .consolidated_journey import JourneyResult
@@ -22,6 +23,7 @@ async def run_query(
     scope_id: str,
     model: str = "local",
     source_limit: int = 3,
+    clock: Callable[[], datetime] | None = None,
 ) -> JourneyResult:
     """One search, up to three acquisitions, one construction, executed reviews.
 
@@ -72,5 +74,10 @@ async def run_query(
                 raise ValueError("acquisition exceeded research byte budget")
             sources.append(source)
         return await research_from_sources(
-            objective, tuple(sources), complete=complete, scope_id=scope_id, model=model
+            objective,
+            tuple(sources),
+            complete=complete,
+            scope_id=scope_id,
+            model=model,
+            clock=clock,
         )
