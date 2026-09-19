@@ -120,5 +120,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0081 | [Select a Bounded Adaptive Research Policy](0081-select-a-bounded-adaptive-research-policy.md) | accepted; fixed retrieval retained after W10 |
 | 0082 | [Delegate Bounded Retrieval Execution to SlopSearX](0082-delegate-bounded-retrieval-to-slopsearx.md) | accepted; narrow opt-in contracts only |
 | 0083 | [Retain Prose Intake Over Universal Research Missions](0083-retain-prose-intake-over-universal-research-missions.md) | proposed; W12.1 evidence rejects universal typed intake |
+| 0084 | [Retain Independent Research Roots Over Default Longitudinal Threads](0084-retain-independent-research-roots-over-default-threads.md) | proposed; W12.2 evidence rejects default thread injection |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
