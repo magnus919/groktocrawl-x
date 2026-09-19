@@ -75,7 +75,12 @@ def checkpoint_due(state: dict[str, Any], checkpoint: int) -> datetime:
         raise ValueError(
             f"checkpoint {checkpoint} is invalid after {completed} completed checkpoints"
         )
-    key = "next_checkpoint_not_before" if checkpoint == 1 else "earliest_completion_at"
+    if checkpoint == 0:
+        key = "started_at"
+    elif checkpoint == 1:
+        key = "next_checkpoint_not_before"
+    else:
+        key = "earliest_completion_at"
     return parse_time(str(state[key]))
 
 
@@ -116,7 +121,11 @@ def execute(args: argparse.Namespace, *, now: datetime | None = None) -> Path:
         )
         if not api_key or "\n" in api_key:
             raise RuntimeError("candidate API key could not be resolved from Compose")
-        child_env = {**os.environ, "CANDIDATE_API_KEY": api_key}
+        child_env = {
+            **os.environ,
+            "CANDIDATE_API_KEY": api_key,
+            "GROKTOCRAWL_API_KEY": api_key,
+        }
 
         compatibility = partial / "compatibility.json"
         run(
@@ -203,7 +212,7 @@ def execute(args: argparse.Namespace, *, now: datetime | None = None) -> Path:
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description=__doc__)
-    value.add_argument("--checkpoint", type=int, choices=(1, 2), required=True)
+    value.add_argument("--checkpoint", type=int, choices=(0, 1, 2), required=True)
     value.add_argument(
         "--state-file",
         type=Path,

@@ -13,6 +13,7 @@ def state(path: Path, *, completed: int = 1) -> Path:
         json.dumps(
             {
                 "completed_checkpoints": completed,
+                "started_at": "2026-09-19T13:42:50Z",
                 "next_checkpoint_not_before": "2026-09-22T02:19:40Z",
                 "earliest_completion_at": "2026-09-26T02:19:40Z",
                 "candidate_revision": "candidate",
@@ -50,6 +51,16 @@ def test_refuses_out_of_order_checkpoint(tmp_path: Path) -> None:
     current.checkpoint = 2
     with pytest.raises(ValueError, match="invalid after 1"):
         checkpoint.execute(current, now=datetime(2026, 9, 26, 2, 19, 40, tzinfo=UTC))
+
+
+def test_restart_checkpoint_uses_started_at_gate(tmp_path: Path) -> None:
+    current = args(tmp_path)
+    current.checkpoint = 0
+    current.state_file = state(tmp_path / "restart-state.json", completed=0)
+    with pytest.raises(RuntimeError, match="cannot count before"):
+        checkpoint.execute(
+            current, now=datetime(2026, 9, 19, 13, 42, 49, tzinfo=UTC)
+        )
 
 
 def test_resolves_effective_key_and_publishes_atomically(
@@ -92,4 +103,5 @@ def test_resolves_effective_key_and_publishes_atomically(
         if any(value.endswith("run_w9_compatibility.py") for value in item[0])
     ]
     assert child_calls[0][1]["CANDIDATE_API_KEY"] == "effective-value"
+    assert child_calls[0][1]["GROKTOCRAWL_API_KEY"] == "effective-value"
     assert "effective-value" not in " ".join(child_calls[0][0])

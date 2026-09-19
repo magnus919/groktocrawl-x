@@ -3,7 +3,8 @@
 This runbook deploys the `groktocrawl-x` replacement candidate as an isolated
 experiment. It does not replace the mainline GroktoCrawl project or switch the
 existing production deployment. The candidate has its own Compose project,
-containers, images, networks, volumes, database, and loopback-only ports.
+containers, images, networks, volumes, database, and separately configurable
+published ports.
 
 The first candidate uses PostgreSQL as the authority for retained research
 artifacts and pgvector for semantic serving. Qdrant remains in the candidate as
@@ -25,10 +26,15 @@ mutated by this procedure.
 | Portal health dependency | `candidate-portal` | no independent durable authority |
 | MCP transport | `candidate-mcp` | no independent durable authority |
 
-Only the HTTP API and MCP transport publish ports, both on `127.0.0.1` by
-default. The project name is fixed as `groktocrawl-x-candidate`; every service
-and volume also carries a candidate-specific name. Do not combine this file with
-`docker-compose.yml`.
+Only the HTTP API and MCP transport publish ports. Both bind to `127.0.0.1` by
+default. Set `CANDIDATE_BIND_IP` to a specific trusted interface, or to
+`0.0.0.0` when the host's network policy is the intended boundary. When MCP is
+reachable beyond loopback, list every expected Host value in
+`MCP_ALLOWED_HOSTS`. The HTTP API remains protected by
+`CANDIDATE_API_KEY`; the MCP transport carries that credential internally and
+must be exposed only on a trusted network. The project name is fixed as
+`groktocrawl-x-candidate`; every service and volume also carries a
+candidate-specific name. Do not combine this file with `docker-compose.yml`.
 
 ## Prepare a clean target
 
@@ -57,6 +63,8 @@ Edit `$CANDIDATE_CONFIG/candidate.env`:
 - set `CANDIDATE_IMAGE_TAG` to the full checked-out Git revision;
 - set the PostgreSQL password-file path to the file just created;
 - set `CANDIDATE_API_KEY` to the value in the API-key file;
+- leave `CANDIDATE_BIND_IP=127.0.0.1` for host-local use, or set the intended
+  trusted interface and matching `MCP_ALLOWED_HOSTS` values;
 - set the working LiteLLM TLS URL and private key for `gpuslut01`;
 - set the SlopSearX search-provider key.
 
@@ -134,7 +142,8 @@ packet.
 
 ## Run a time-gated pilot checkpoint
 
-Use the checkpoint runner for checkpoint 1 and checkpoint 2. It reads the tracked
+Use the checkpoint runner for restart checkpoint 0, checkpoint 1, and checkpoint
+2. It reads the tracked
 pilot state, refuses an early or out-of-order checkpoint, resolves the effective
 API key from the running container rather than parsing quoted environment text,
 runs the compatibility and cross-client research journeys, captures a bounded
@@ -143,13 +152,14 @@ resource snapshot, and publishes the packet only after every step succeeds.
 ```sh
 UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run \
   scripts/run_w9_pilot_checkpoint.py \
-  --checkpoint 1 \
+  --checkpoint 0 \
   --env-file "$CANDIDATE_ENV" \
   --compose-file "$CANDIDATE_COMPOSE" \
   --output-dir /tmp/w9-checkpoint-1
 ```
 
-For the final checkpoint, use `--checkpoint 2` and a new output directory. A
+After a passed restart checkpoint, use `--checkpoint 1` and then
+`--checkpoint 2`, each with a new output directory. A
 failure packet is retained beside the requested output path with a `.failed-*`
 suffix. Do not rename it into a successful packet or advance the tracked pilot
 state. After success, review the secret-free receipts, copy them into the W9
