@@ -215,7 +215,7 @@ def build_downstream_prompt(
     source_ids = {item["source_id"] for item in sources}
     if source_ids != set(case.source_ids):
         raise ValueError("trial source pack differs from the frozen case")
-    common = {
+    common: dict[str, Any] = {
         "task": (
             "Produce a decision-support answer using only the supplied source pack. "
             "Cite source_id values, preserve contradictions, and state unresolved limits."
