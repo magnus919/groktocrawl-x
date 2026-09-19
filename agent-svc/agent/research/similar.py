@@ -101,6 +101,19 @@ async def _run_find_similar_qdrant(
                 "url": r.get("url", ""),
                 "title": r.get("title", ""),
                 "description": r.get("content", "")[:200] if r.get("content") else "",
+                "score": r.get("score"),
+                "confidence": _confidence(r.get("score")),
+                "metadata_complete": bool(
+                    str(r.get("title", "")).strip()
+                    and str(r.get("content", "")).strip()
+                ),
+                "provenance": {
+                    "source": "local_vector_index",
+                    "indexed_at": r.get("indexed_at"),
+                    "index_freshness": (
+                        "known" if r.get("indexed_at") else "unavailable"
+                    ),
+                },
             }
             for r in vector_results
         ]
@@ -154,9 +167,17 @@ async def _run_find_similar_web(
             {
                 "url": r.get("url", ""),
                 "title": r.get("title", ""),
-                "description": r.get("description", ""),
+                "description": r.get("description") or r.get("content") or "",
+                "raw_rank": index + 1,
+                "provenance": {
+                    "source": "web_search",
+                    "engines": r.get("engines") or [],
+                    "index_freshness": "not_applicable",
+                    "query_representation": "title_and_leading_content",
+                },
             }
-            for r in results_list[: limit * 2]
+            for index, r in enumerate(results_list[: limit * 2])
+            if r.get("url")
         ]
         texts_to_embed = [f"{c['title']} {c['description']}" for c in candidates]
         if not texts_to_embed:
@@ -178,15 +199,29 @@ async def _run_find_similar_web(
         scored.sort(key=lambda x: x[0], reverse=True)
 
         # 7. Return top N
-        return [
-            {
-                "url": c["url"],
-                "title": c["title"],
-                "description": c["description"],
-            }
-            for _, c in scored[:limit]
-        ]
+        ranked = []
+        for rank, (score, candidate) in enumerate(scored[:limit], start=1):
+            metadata_complete = bool(
+                candidate["title"].strip() and candidate["description"].strip()
+            )
+            ranked.append(
+                {
+                    **candidate,
+                    "score": round(score, 6),
+                    "rank": rank,
+                    "confidence": _confidence(score),
+                    "metadata_complete": metadata_complete,
+                }
+            )
+        return ranked
     finally:
         await scraper.close()
         await semantic.close()
         await searxng.close()
+
+
+def _confidence(score: object) -> str:
+    """Map a cosine score to a deliberately coarse caller-facing band."""
+    if not isinstance(score, int | float):
+        return "unknown"
+    return "high" if score >= 0.75 else "medium" if score >= 0.5 else "low"

@@ -6,11 +6,11 @@
 
 ## Crawl, map, and monitors
 
-`/v2/map` discovers site URLs. `/v2/crawl` runs a breadth-first crawl with sitemap modes, path filters, depth/page limits, concurrency, delay, cache age controls, deduplication, per-page results/errors, webhooks, and SSE progress. Monitors schedule scrape or search checks and notify configured webhooks when a change is detected.
+`/v2/map` discovers site URLs. `/v2/crawl` runs a breadth-first crawl with sitemap modes, path filters, depth/page limits, concurrency, delay, cache age controls, deduplication, per-page results/errors, webhooks, and SSE progress. Terminal crawl responses include an `outcomeSummary` with discovered, filtered, robots-blocked, failed, barrier-rejected, duplicate, and retained counts. Empty completed crawls also carry a stable reason such as `all_urls_filtered` or `all_fetches_failed`. Monitors schedule scrape or search checks and notify configured webhooks when a change is detected.
 
 ## Search and semantic retrieval
 
-Search uses SlopSearX for discovery and supports content enrichment, `fast`, `rich`, and deeper modes. Semantic and hybrid retrieval use the embedding service and Qdrant; `/v2/find-similar` finds related pages from the local index or web-assisted reranking. Semantic indexing is best effort and never blocks a scrape or crawl result.
+Search uses SlopSearX for discovery and supports content enrichment, `fast`, `rich`, and deeper modes. Semantic and hybrid retrieval use the embedding service and Qdrant; `/v2/find-similar` finds related pages from the local index or web-assisted reranking. Web similarity results include their cosine score, confidence band, raw and reranked positions, metadata-completeness flag, and search provenance so clients can distinguish weak leads from strong matches. Semantic indexing is best effort and never blocks a scrape or crawl result.
 
 ## Research, plans, sessions, and memory
 

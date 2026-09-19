@@ -124,6 +124,15 @@ def _retry_after_seconds(response: httpx.Response) -> float:
     return _MIN_RETRY_WAIT_SECONDS
 
 
+def _extract_response_body(response: httpx.Response) -> dict[str, Any]:
+    """Return a safe, machine-readable upstream error body when possible."""
+    try:
+        body = response.json()
+    except (ValueError, TypeError):
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
 def _extract_response_detail(response: httpx.Response) -> str:
     """Extract a human-readable detail from an error response body.
 
@@ -131,7 +140,7 @@ def _extract_response_detail(response: httpx.Response) -> str:
     keys), then falls back to the raw text (truncated).
     """
     try:
-        body = response.json()
+        body = _extract_response_body(response)
         if isinstance(body, dict):
             # FastAPI-style validation errors have a 'detail' key
             if "detail" in body:
@@ -220,10 +229,18 @@ class GroktocrawlClient:
 
     # ── helpers ─────────────────────────────────────────────────
 
-    def _error_result(self, msg: str, *, status_code: int | None = None) -> dict:
+    def _error_result(
+        self,
+        msg: str,
+        *,
+        status_code: int | None = None,
+        error_code: str | None = None,
+    ) -> dict:
         result: dict[str, Any] = {"error": msg}
         if status_code is not None:
             result["status_code"] = status_code
+        if error_code:
+            result["error_code"] = error_code
         return result
 
     async def _request(
@@ -265,6 +282,8 @@ class GroktocrawlClient:
                     continue
                 duration = time.monotonic() - start
                 detail = _extract_response_detail(exc.response)
+                upstream_body = _extract_response_body(exc.response)
+                error_code = upstream_body.get("error_code")
                 if status_code == 429:
                     # Retry budget exhausted — report distinctly from a
                     # one-off 429 so callers can distinguish.
@@ -290,6 +309,7 @@ class GroktocrawlClient:
                 return self._error_result(
                     f"HTTP {status_code}: {detail}",
                     status_code=status_code,
+                    error_code=error_code if isinstance(error_code, str) else None,
                 )
             except httpx.TimeoutException:
                 duration = time.monotonic() - start

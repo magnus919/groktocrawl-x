@@ -203,6 +203,25 @@ class TestErrorPropagation:
         assert result["status_code"] == 502
         assert "502" in result["error"]
 
+    def test_http_error_preserves_machine_readable_error_code(self):
+        client = _make_matched_client(
+            {
+                ("POST", "/v2/scrape"): _error_handler(
+                    502,
+                    {
+                        "success": False,
+                        "error": "Barrier or challenge content detected",
+                        "error_code": "BARRIER_DETECTED",
+                    },
+                )
+            }
+        )
+
+        result = asyncio.run(client.scrape("https://example.com/challenge"))
+
+        assert result["status_code"] == 502
+        assert result["error_code"] == "BARRIER_DETECTED"
+
     def test_http_401_auth_failure(self):
         """VAL-MCP-H03: Invalid API key propagates as 401 error."""
         client = _make_matched_client(

@@ -788,6 +788,7 @@ class CrawlStatusResponse(BaseModel):
     credits_used: int | None = None
     data: list[dict[str, Any]] | None = None
     error: str | None = None
+    outcome_summary: dict[str, Any] | None = None
     next: str | None = Field(
         default=None,
         description=(
