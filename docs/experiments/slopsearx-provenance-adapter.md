@@ -60,6 +60,13 @@ and retained references remain inert audit metadata until their owning artifact
 set expires or is deleted. The additive table need not be dropped during
 rollback. Issue #327 closes only after that live evidence passes.
 
+The isolated deployment profile is `compose.slopsearx-provenance.yml`. It
+overrides every broad SlopSearX MCP grant to false, enables only retrieval
+receipts, uses one dedicated bearer token for both ends of the connection, and
+waits for MCP health before starting the agent. Start it explicitly with both
+the override and Compose's `mcp` profile; the file is absent from ordinary
+deployment commands.
+
 The contract and recovery behavior are based on the [W11 provenance and
 recovery evidence](evidence/slopsearx-substrate/2026-09-11-isolated-provenance/)
 and the final [W11 findings](slopsearx-substrate/w11-findings.md).
