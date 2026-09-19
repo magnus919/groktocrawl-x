@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze.json"
+OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v2.json"
 
 PINNED_FILES = (
     "docs/experiments/enterprise-evaluation/corpus.json",
@@ -28,6 +28,7 @@ PINNED_FILES = (
     "scripts/run_w12_mission_experiment.py",
     "scripts/run_w12_mission_intake.py",
     "scripts/validate_w12_mission_run.py",
+    "scripts/analyze_w12_mission_experiment.py",
     "uv.lock",
 )
 
@@ -45,11 +46,15 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     payload = {
-        "schema_version": "research-mission-experiment-freeze/1",
+        "schema_version": "research-mission-experiment-freeze/2",
         "status": "frozen_before_measurement",
+        "supersedes": "w12.1-freeze.json",
+        "predecessor_disposition": "excluded_after_failure_guardrail",
         "source_revision": revision,
         "domain": "agentic engineering software factory in the enterprise",
         "model_route": "general",
+        "reasoning_effort": "low",
+        "maximum_completion_tokens": 10000,
         "model_identity_policy": "record provider-returned identity on every call",
         "endpoint_origin": "https://gpuslut.brandyapple.com/",
         "concurrency": 5,
@@ -62,6 +67,12 @@ def main() -> int:
         "downstream_grade_count": 72,
         "intake_grade_count": 36,
         "measured_call_ceiling": 216,
+        "required_preflight": "one excluded control and one excluded treatment trial",
+        "bounded_corrections": [
+            "exact common output field names included in both arm prompts",
+            "exact provider envelope retained before content validation",
+            "low reasoning effort and 10000 completion-token ceiling",
+        ],
         "files": {name: sha256(ROOT / name) for name in PINNED_FILES},
     }
     OUTPUT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
