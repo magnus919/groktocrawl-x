@@ -17,8 +17,8 @@
     "trial_count": 72,
     "work_order_seed": 11052026
   },
-  "evaluation_source_commit": "eb4a0ded58dcee4b61dd1b59358c17286daca6bb",
-  "frozen_at": "2026-09-19T01:34:15.385909+00:00",
+  "evaluation_source_commit": "eba24b665e4b0aa8b63ef7d52505242d88cfbaa3",
+  "frozen_at": "2026-09-19T01:37:53.033614+00:00",
   "groktocrawl": {
     "image_digests": {
       "agent": "sha256:092d7ac8f8c4c04bfbaef0a4a109543d40f1afb9ed5c27df434a472349aec205",
@@ -43,10 +43,10 @@
     "admitted_results": 576,
     "distinct_queries": 108,
     "elapsed_seconds": 25920,
-    "engine_attempts": 1512,
+    "engine_attempts": 4536,
     "interpretation": "Experiment-wide upper bounds. Elapsed time covers retrieval and grading phases; stored bytes allow 5 MiB for each public and private checkpoint.",
     "model_calls": 72,
-    "search_attempts": 216,
+    "search_attempts": 648,
     "stored_bytes": 754974720
   },
   "model_route": "general",
