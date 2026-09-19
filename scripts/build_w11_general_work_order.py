@@ -25,9 +25,17 @@ def frozen_result_limit(
     case_count: int,
     repetitions: int,
 ) -> int:
-    if manifest.get("schema_version") != "enterprise-evaluation/w10-policy-run/1":
+    schema = manifest.get("schema_version")
+    if schema == "enterprise-evaluation/w10-policy-run/1":
+        expected = case_count * len(W10_POLICIES) * repetitions
+        expected_policies = W10_POLICIES
+    elif schema == "enterprise-evaluation/w11-fixed-control-handoff/1":
+        expected = case_count * repetitions
+        expected_policies = ["fixed"]
+        if manifest.get("query_source") != "committed_frozen_case_query":
+            raise ValueError("W11 handoff has an unsupported query source")
+    else:
         raise ValueError("unsupported W10 run manifest schema")
-    expected = case_count * len(W10_POLICIES) * repetitions
     if (
         manifest.get("cases_sha256") != cases_sha256
         or manifest.get("records") != expected
@@ -35,7 +43,7 @@ def frozen_result_limit(
         or manifest.get("failed") != 0
         or manifest.get("failed_attempts") != 0
         or manifest.get("repetitions") != repetitions
-        or manifest.get("policies") != W10_POLICIES
+        or manifest.get("policies") != expected_policies
     ):
         raise ValueError("W10 run manifest does not prove a complete matching case run")
     value = manifest.get("result_limit")

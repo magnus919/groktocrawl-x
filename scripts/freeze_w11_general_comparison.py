@@ -82,7 +82,12 @@ def build_freeze(
     selection = load(
         w10_selection_path, "enterprise-evaluation/w10-policy-selection/1"
     )
-    manifest = load(w10_manifest_path, "enterprise-evaluation/w10-policy-run/1")
+    manifest = json.loads(w10_manifest_path.read_text())
+    if manifest.get("schema_version") not in {
+        "enterprise-evaluation/w10-policy-run/1",
+        "enterprise-evaluation/w11-fixed-control-handoff/1",
+    }:
+        raise ValueError("W10 manifest has an unsupported schema")
     cases = json.loads(cases_path.read_text())
     work_order = load(work_order_path, "enterprise-evaluation/w11-general-work-order/1")
     scope = load(scope_path, "enterprise-evaluation/w11-scope-equivalence/1")

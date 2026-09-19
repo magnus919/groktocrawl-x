@@ -60,6 +60,12 @@ def load_w10_record(
     if not path.is_file():
         raise ValueError(f"missing W10 source record: {filename}")
     record = json.loads(path.read_text())
+    if record.get("schema_version") not in {
+        None,
+        "enterprise-evaluation/w10-policy-trial/1",
+        "enterprise-evaluation/w11-fixed-control-record/1",
+    }:
+        raise ValueError(f"unsupported W10 source record schema: {filename}")
     identity = (record.get("case_id"), record.get("policy"), record.get("repetition"))
     expected = (entry["case_id"], entry["control_policy"], entry["repetition"])
     if identity != expected or record.get("status") != "completed":

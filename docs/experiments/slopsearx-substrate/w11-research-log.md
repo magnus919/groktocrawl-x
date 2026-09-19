@@ -4,6 +4,29 @@ The [premeasurement operator assessment](w11-operator-assessment.md) consolidate
 the observed topology, configuration burden, failure modes, recovery evidence, and
 rollback path. Its adoption judgment remains deferred until Family A is scored.
 
+## 2026-09-19 — resumed fixed-control handoff
+
+The original private W10 trial directory disappeared with the temporary
+worktree during the authorized pause. No scored W11 measurement had begun. The
+committed W10 decision, challenge cases, public accounting, and final evidence
+package remain complete and hash-bound.
+
+W10 selected fixed retrieval for every challenge type. Under that policy, each
+control plan is exactly the committed initial case query; it contains no
+model-generated follow-up query. W11 now builds an explicit recovery handoff
+from those public artifacts rather than recreating or claiming possession of
+the deleted private trial records. The builder requires the final W10
+selection to authorize W11, requires every public accounting gate to pass,
+requires zero failed trials, binds all inputs by SHA-256, and emits exactly 36
+fixed records for 12 cases and three repetitions. The already frozen
+eight-result W10 cap remains unchanged.
+
+The recovered handoff produced 36 records and the counterbalanced W11 work
+order produced 72 arm trials. All six challenge types map to fixed retrieval.
+Focused handoff, work-order, runner, and freeze tests passed before live
+measurement. This recovery is valid only for the all-fixed W10 outcome; the
+builder fails closed if any challenge type selects an adaptive policy.
+
 ## 2026-09-12 — final W10 selection handoff
 
 The dependency audit found that the prepared W11 freeze consumed W10's primary

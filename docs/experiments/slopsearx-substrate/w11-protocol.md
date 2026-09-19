@@ -86,6 +86,13 @@ the W11 input. Both W11 arms read the bound from that work order; the runner has
 no independent default that could silently give either arm a different search
 surface from W10.
 
+If the private W10 directory is unavailable and the final W10 decision selects
+fixed retrieval for every challenge type, a recovery handoff may derive the
+single-query plans from the committed challenge cases. That handoff must bind
+the final selection and complete public accounting by digest, retain the frozen
+W10 result limit, and fail closed for any adaptive selection. It is a derived
+control-plan artifact, not a reconstruction of deleted retrieval results.
+
 Before freezing the work order, resolve the ordinary HTTP `general` category
 through SlopSearX's no-dispatch scope preview. Re-preview that selected list as
 an explicit engine scope and require exact equality. Freeze the resulting
