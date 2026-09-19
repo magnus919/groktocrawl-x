@@ -20,6 +20,10 @@ CREATE TABLE research_staging.slopsearx_provenance_references (
 CREATE INDEX slopsearx_provenance_expiry_idx
     ON research_staging.slopsearx_provenance_references(remote_expires_at);
 
+ALTER TABLE research_staging.schema_version
+    DROP CONSTRAINT schema_version_version_check;
+ALTER TABLE research_staging.schema_version
+    ADD CHECK (version IN (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15));
 UPDATE research_staging.schema_version SET version = 15;
 
 COMMIT;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from agent.experimental.slopsearx_provenance import (
@@ -35,3 +36,12 @@ def test_reference_document_is_canonical_and_bounded() -> None:
 def test_reference_cannot_grant_research_authority(field: str, value: bool) -> None:
     with pytest.raises(ValueError, match="cannot grant"):
         reference_document(replace(reference(), **{field: value}))
+
+
+def test_migration_extends_schema_version_constraint() -> None:
+    sql = Path(
+        "agent-svc/agent/experimental/migrations/015_slopsearx_provenance_references.sql"
+    ).read_text()
+    assert "DROP CONSTRAINT schema_version_version_check" in sql
+    assert "13,14,15" in sql
+    assert "SET version = 15" in sql
