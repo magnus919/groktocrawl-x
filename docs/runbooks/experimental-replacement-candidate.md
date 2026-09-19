@@ -132,6 +132,29 @@ The JSON receipt deliberately excludes environment values, credentials, private
 addresses, and artifact bodies. Review it before copying it into the W9 evidence
 packet.
 
+## Run a time-gated pilot checkpoint
+
+Use the checkpoint runner for checkpoint 1 and checkpoint 2. It reads the tracked
+pilot state, refuses an early or out-of-order checkpoint, resolves the effective
+API key from the running container rather than parsing quoted environment text,
+runs the compatibility and cross-client research journeys, captures a bounded
+resource snapshot, and publishes the packet only after every step succeeds.
+
+```sh
+UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run \
+  scripts/run_w9_pilot_checkpoint.py \
+  --checkpoint 1 \
+  --env-file "$CANDIDATE_ENV" \
+  --compose-file "$CANDIDATE_COMPOSE" \
+  --output-dir /tmp/w9-checkpoint-1
+```
+
+For the final checkpoint, use `--checkpoint 2` and a new output directory. A
+failure packet is retained beside the requested output path with a `.failed-*`
+suffix. Do not rename it into a successful packet or advance the tracked pilot
+state. After success, review the secret-free receipts, copy them into the W9
+evidence directory, update `w9-pilot-state.json`, and commit them together.
+
 ## Stop without destroying evidence
 
 ```sh
