@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **real client traffic pilot active; checkpoint 0 passed**
+Status: **repaired real-client pilot active; checkpoint 0 passed**
 
 ## Question and decision
 
@@ -14,8 +14,8 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Restarted: `2026-09-19T13:42:50Z`
-- Earliest completion: `2026-09-26T13:42:50Z`
+- Restarted: `2026-09-19T18:12:36.512533Z`
+- Earliest completion: `2026-09-26T18:12:36.512533Z`
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -52,12 +52,18 @@ candidate source and runtime image revisions did not change.
 
 The corrected loopback-only window then passed checkpoint 0. It was deliberately
 ended on 2026-09-19 when the owner chose to route normal client use through the
-candidate. Publishing the API and MCP ports on the trusted home-lab and Tailscale
-interfaces changed the operational configuration boundary, so the clock and
-successful-operation count restarted again. The earlier checkpoint remains valid
-evidence about the loopback configuration, but it does not count toward this
-real-use window. The new window passed checkpoint 0 at `2026-09-19T13:51:26Z` with all 12 declared operations
-successful.
+candidate. Publishing the API and MCP ports on trusted host interfaces changed
+the operational configuration boundary, so the clock and successful-operation
+count restarted again.
+
+A subsequent real-client audit found three runtime defects: streaming search
+failed in the CLI, the candidate omitted Parse, and web similarity timed out
+before embeddings completed. Repairing those defects and the staged Parse
+metadata loss discovered during verification changed the deployed runtime. The
+preceding real-use window remains retained evidence but cannot count toward the
+final stability gate. The repaired window began at
+`2026-09-19T18:12:36.512533Z` and passed checkpoint 0 at
+`2026-09-19T18:15:21.395820Z` with all 12 declared operations successful.
 
 ## Observations
 
