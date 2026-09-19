@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Build the deterministic counterbalanced W12.1 downstream work order."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "agent-svc"))
+
+from agent.experimental.mission_experiment import build_work_order, work_order_record
+from agent.experimental.research_mission import load_mission_experiment_corpus
+
+
+def main() -> int:
+    experiment_dir = ROOT / "docs/experiments/research-mission"
+    corpus = load_mission_experiment_corpus(
+        experiment_dir / "w12.1-cases.json",
+        source_corpus_path=ROOT / "docs/experiments/enterprise-evaluation/corpus.json",
+    )
+    seed = 20260919
+    order = build_work_order(corpus.cases, repetitions=3, seed=seed)
+    output = experiment_dir / "w12.1-work-order.json"
+    output.write_text(
+        json.dumps(work_order_record(order, seed=seed), indent=2, sort_keys=True) + "\n"
+    )
+    print(output.relative_to(ROOT))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

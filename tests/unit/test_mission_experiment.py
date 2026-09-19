@@ -1,0 +1,129 @@
+import json
+from pathlib import Path
+
+import pytest
+from agent.experimental.mission_experiment import (
+    build_downstream_prompt,
+    build_work_order,
+    sealed_grade_candidate,
+    validate_downstream_result,
+    work_order_record,
+)
+from agent.experimental.research_mission import load_mission_experiment_corpus
+
+
+def corpus():
+    return load_mission_experiment_corpus(
+        Path("docs/experiments/research-mission/w12.1-cases.json"),
+        source_corpus_path=Path("docs/experiments/enterprise-evaluation/corpus.json"),
+    )
+
+
+def source_pack(case):
+    source_payload = json.loads(
+        Path("docs/experiments/enterprise-evaluation/corpus.json").read_bytes()
+    )
+    by_id = {item["source_id"]: item for item in source_payload["sources"]}
+    return tuple(
+        {
+            "source_id": source_id,
+            "title": by_id[source_id]["title"],
+            "text": by_id[source_id]["text"],
+        }
+        for source_id in case.source_ids
+    )
+
+
+def result(case, arm):
+    payload = {
+        "answer": "The evidence supports a bounded answer [delivery-policy].",
+        "citations": [case.source_ids[0]],
+        "claims": [
+            {
+                "text": "A bounded claim.",
+                "source_ids": [case.source_ids[0]],
+                "uncertainty": "No uncertainty beyond the supplied fixture.",
+            }
+        ],
+        "obligation_results": None,
+    }
+    if arm == "treatment":
+        payload["obligation_results"] = {
+            item.obligation_id: {
+                "status": "supported",
+                "source_ids": [case.source_ids[0]],
+                "rationale": "The source directly addresses the obligation.",
+            }
+            for item in case.reference_mission.obligations
+        }
+    return payload
+
+
+def test_work_order_is_reproducible_complete_and_counterbalanced():
+    cases = corpus().cases
+    first = build_work_order(cases, seed=20260919)
+    assert first == build_work_order(cases, seed=20260919)
+    assert len(first) == 72
+    assert len({item.trial_id for item in first}) == 72
+    for case in cases:
+        rows = [item for item in first if item.case_id == case.case_id]
+        assert {item.arm for item in rows} == {"control", "treatment"}
+        assert len(rows) == 6
+        assert [item.arm for item in rows[:2]] == [item.arm for item in rows[4:6]]
+        assert [item.arm for item in rows[:2]] == list(
+            reversed([item.arm for item in rows[2:4]])
+        )
+    assert work_order_record(first, seed=20260919) == work_order_record(
+        first, seed=20260919
+    )
+
+
+def test_prompts_hold_sources_constant_but_isolate_contract_shape():
+    case = corpus().cases[0]
+    sources = source_pack(case)
+    control = build_downstream_prompt(case, sources=sources, arm="control")
+    treatment = build_downstream_prompt(case, sources=sources, arm="treatment")
+    assert control["sources"] == treatment["sources"]
+    assert "research_request" in control
+    assert "research_mission" not in control
+    assert "research_mission" in treatment
+    assert "research_request" not in treatment
+
+
+def test_prompt_rejects_a_changed_source_pack():
+    case = corpus().cases[0]
+    with pytest.raises(ValueError, match="differs from the frozen case"):
+        build_downstream_prompt(case, sources=(), arm="control")
+
+
+@pytest.mark.parametrize("arm", ["control", "treatment"])
+def test_result_validation_and_blinding(arm):
+    case = corpus().cases[0]
+    validated = validate_downstream_result(result(case, arm), case=case, arm=arm)
+    sealed = sealed_grade_candidate(validated, candidate_id="sealed-1")
+    assert set(sealed) == {"candidate_id", "answer", "citations", "claims"}
+    assert "obligation_results" not in sealed
+    assert arm not in json.dumps(sealed)
+
+
+def test_control_cannot_receive_treatment_obligations():
+    case = corpus().cases[0]
+    with pytest.raises(ValueError, match="control result"):
+        validate_downstream_result(result(case, "treatment"), case=case, arm="control")
+
+
+def test_treatment_must_close_the_exact_obligation_identity_set():
+    case = corpus().cases[0]
+    payload = result(case, "treatment")
+    payload["obligation_results"]["invented"] = payload["obligation_results"].pop("o1")
+    with pytest.raises(ValueError, match="every frozen obligation"):
+        validate_downstream_result(payload, case=case, arm="treatment")
+
+
+def test_results_cannot_cite_out_of_packet_sources():
+    case = corpus().cases[0]
+    payload = result(case, "control")
+    payload["citations"] = ["outside-source"]
+    payload["claims"][0]["source_ids"] = ["outside-source"]
+    with pytest.raises(ValueError, match="outside the frozen case"):
+        validate_downstream_result(payload, case=case, arm="control")
