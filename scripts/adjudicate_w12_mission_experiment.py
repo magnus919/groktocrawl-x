@@ -43,6 +43,14 @@ grader = import_script(
 )
 
 
+def canonical_digest(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+        ).encode()
+    ).hexdigest()
+
+
 def select_adjudications(
     *,
     grade_records: dict[str, dict[str, Any]],
@@ -221,7 +229,7 @@ def main() -> int:
         "selection_rule": "every hard boundary and high-weight non-closure, plus a seeded 20 percent of remaining candidates",
         "trials": work,
     }
-    work_record["trials_sha256"] = downstream.canonical_digest(work)
+    work_record["trials_sha256"] = canonical_digest(work)
     downstream.write_json(
         args.run_dir / "public/adjudication-work-order.json", work_record
     )

@@ -47,3 +47,9 @@ def test_selection_includes_seeded_sample_and_high_weight_nonclosure():
     assert [item["position"] for item in selected] == list(
         range(1, len(selected) + 1)
     )
+
+
+def test_canonical_digest_is_stable_across_mapping_order():
+    assert adjudicator.canonical_digest({"a": 1, "b": 2}) == (
+        adjudicator.canonical_digest({"b": 2, "a": 1})
+    )
