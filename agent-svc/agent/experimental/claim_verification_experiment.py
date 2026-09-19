@@ -30,9 +30,7 @@ class ClaimVerificationPacket(Record):
     claim: Text
     risk: Literal["low", "high"]
     evidence_obligation: Text
-    evidence: tuple[VerificationEvidenceSpan, ...] = Field(
-        min_length=1, max_length=20
-    )
+    evidence: tuple[VerificationEvidenceSpan, ...] = Field(min_length=1, max_length=20)
 
     @model_validator(mode="after")
     def unique_evidence(self) -> Self:
@@ -161,3 +159,40 @@ def validate_independent_verification(
     if result.verifier != IndependentVerifier.model_validate(verifier):
         raise ValueError("verification differs from expected verifier")
     return result
+
+
+def verifier_output_schema(packet: ClaimVerificationPacket) -> dict:
+    span_ids = [item.span_id for item in packet.evidence]
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "verdict": {
+                "type": "string",
+                "enum": ["supported", "contradicted", "insufficient", "indeterminate"],
+            },
+            "evidence_span_ids": {
+                "type": "array",
+                "uniqueItems": True,
+                "maxItems": 20,
+                "items": {"type": "string", "enum": span_ids},
+            },
+            "contradiction_span_ids": {
+                "type": "array",
+                "uniqueItems": True,
+                "maxItems": 20,
+                "items": {"type": "string", "enum": span_ids},
+            },
+            "confidence": {"type": "integer", "minimum": 0, "maximum": 100},
+            "publish_recommendation": {"type": "boolean"},
+            "reason": {"type": "string", "minLength": 1, "maxLength": 3000},
+        },
+        "required": [
+            "verdict",
+            "evidence_span_ids",
+            "contradiction_span_ids",
+            "confidence",
+            "publish_recommendation",
+            "reason",
+        ],
+    }
