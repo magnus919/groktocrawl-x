@@ -14,8 +14,8 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Restarted: `2026-09-19T19:00:53.139536Z`
-- Earliest completion: `2026-09-26T19:00:53.139536Z`
+- Restarted: `2026-09-19T21:46:56.859244Z`
+- Earliest completion: `2026-09-26T21:46:56.859244Z`
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -72,6 +72,15 @@ runtime once more. The preceding repaired window remains retained evidence but
 cannot count toward the final stability gate. The final window began at
 `2026-09-19T19:00:53.139536Z` and passed checkpoint 0 at
 `2026-09-19T19:03:37.101501Z` with all 12 declared operations successful.
+An independent agent-use audit then showed that model-backed operations failed
+for most of its observation window while retrieval and document workflows
+remained available. Candidate logs traced the common failure to a retired model
+alias left in deployment configuration. Correcting the alias restored rich
+search, grounded answer, focused agent research, and structured extraction in
+serial smoke tests. Because inference identity is a frozen boundary, the failed
+window remains evidence but cannot count toward the final gate. The corrected
+window began at `2026-09-19T21:46:56.859244Z` and passed checkpoint 0 at
+`2026-09-19T21:50:36.553057Z` with all 12 declared operations successful.
 
 ## Observations
 
