@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, Self
@@ -276,3 +277,180 @@ def validate_research_thread(
     if (thread.scope_id, thread.thread_id) != (scope_id, thread_id):
         raise ValueError("thread differs from expected scope or identity")
     return thread
+
+
+class ThreadAnswer(Record):
+    change_events: tuple[Text, ...] = Field(max_length=20)
+    current_truths: tuple[Text, ...] = Field(max_length=20)
+    historical_truths: tuple[Text, ...] = Field(max_length=20)
+    unresolved: tuple[Text, ...] = Field(max_length=20)
+    citations: tuple[Identity, ...] = Field(max_length=30)
+    answer: Text
+
+
+class ThreadGrade(Record):
+    change_accuracy: int = Field(strict=True, ge=0, le=100)
+    current_accuracy: int = Field(strict=True, ge=0, le=100)
+    historical_preservation: int = Field(strict=True, ge=0, le=100)
+    unresolved_accuracy: int = Field(strict=True, ge=0, le=100)
+    usefulness: int = Field(strict=True, ge=0, le=100)
+    false_merge: bool
+    stale_current_leak: bool
+    lost_history: bool
+    unsupported_claims: int = Field(strict=True, ge=0, le=20)
+    rationale: Text
+
+
+class ThreadWorkItem(Record):
+    trial_id: Identity
+    case_id: Identity
+    repetition: int = Field(strict=True, ge=1, le=3)
+    arm: Literal["control", "treatment"]
+    position: int = Field(strict=True, ge=0)
+
+
+def build_thread_work_order(
+    corpus: ThreadExperimentCorpus, *, seed: int
+) -> tuple[ThreadWorkItem, ...]:
+    rng = random.Random(seed)
+    result: list[ThreadWorkItem] = []
+    position = 0
+    for repetition in range(1, 4):
+        cases = list(corpus.cases)
+        rng.shuffle(cases)
+        for case in cases:
+            arms: list[Literal["control", "treatment"]] = ["control", "treatment"]
+            if (repetition + sum(case.case_id.encode())) % 2:
+                arms.reverse()
+            for arm in arms:
+                result.append(
+                    ThreadWorkItem(
+                        trial_id=f"{case.case_id}-r{repetition}-{arm}",
+                        case_id=case.case_id,
+                        repetition=repetition,
+                        arm=arm,
+                        position=position,
+                    )
+                )
+                position += 1
+    return tuple(result)
+
+
+def answer_schema(case: ThreadExperimentCase) -> dict:
+    snapshot_ids = [
+        source.snapshot_id
+        for source in (*case.initial_sources, *case.followup_sources)
+    ]
+    text_array = {
+        "type": "array",
+        "maxItems": 20,
+        "items": {"type": "string", "minLength": 1, "maxLength": 2000},
+    }
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "change_events": text_array,
+            "current_truths": text_array,
+            "historical_truths": text_array,
+            "unresolved": text_array,
+            "citations": {
+                "type": "array",
+                "maxItems": 30,
+                "items": {"type": "string", "enum": snapshot_ids},
+            },
+            "answer": {"type": "string", "minLength": 1, "maxLength": 10000},
+        },
+        "required": [
+            "change_events",
+            "current_truths",
+            "historical_truths",
+            "unresolved",
+            "citations",
+            "answer",
+        ],
+    }
+
+
+def grade_schema() -> dict:
+    score = {"type": "integer", "minimum": 0, "maximum": 100}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "change_accuracy": score,
+            "current_accuracy": score,
+            "historical_preservation": score,
+            "unresolved_accuracy": score,
+            "usefulness": score,
+            "false_merge": {"type": "boolean"},
+            "stale_current_leak": {"type": "boolean"},
+            "lost_history": {"type": "boolean"},
+            "unsupported_claims": {"type": "integer", "minimum": 0, "maximum": 20},
+            "rationale": {"type": "string", "minLength": 1, "maxLength": 3000},
+        },
+        "required": [
+            "change_accuracy",
+            "current_accuracy",
+            "historical_preservation",
+            "unresolved_accuracy",
+            "usefulness",
+            "false_merge",
+            "stale_current_leak",
+            "lost_history",
+            "unsupported_claims",
+            "rationale",
+        ],
+    }
+
+
+def validate_thread_answer(
+    payload: object, case: ThreadExperimentCase
+) -> ThreadAnswer:
+    answer = ThreadAnswer.model_validate(payload)
+    allowed = {
+        source.snapshot_id
+        for source in (*case.initial_sources, *case.followup_sources)
+    }
+    if set(answer.citations) - allowed:
+        raise ValueError("answer cites a snapshot outside the frozen case")
+    return answer
+
+
+def build_followup_prompt(
+    case: ThreadExperimentCase,
+    *,
+    arm: Literal["control", "treatment"],
+    prior_answer: ThreadAnswer,
+) -> dict:
+    prompt = {
+        "task": (
+            "Answer using only supplied source snapshots. Separate what changed, "
+            "what is current, what remains historically valid, and what is unresolved. "
+            "Cite snapshot_id values. Do not infer identity from name similarity."
+        ),
+        "question": case.question,
+        "current_sources": [
+            source.model_dump(mode="json") for source in case.followup_sources
+        ],
+        "output_contract": answer_schema(case),
+    }
+    if arm == "treatment":
+        prompt["research_thread"] = {
+            "schema_version": THREAD_SCHEMA,
+            "subjects": [item.model_dump(mode="json") for item in case.subjects],
+            "prior_root": {
+                "question": case.initial_question,
+                "sources": [
+                    source.model_dump(mode="json") for source in case.initial_sources
+                ],
+                "answer": prior_answer.model_dump(mode="json"),
+            },
+            "rules": [
+                "Prior prose is context, not evidence.",
+                "Only source snapshots may support factual claims.",
+                "Preserve earlier claims as historical when later evidence changes.",
+                "Keep distinct subject identifiers separate.",
+            ],
+        }
+    return prompt

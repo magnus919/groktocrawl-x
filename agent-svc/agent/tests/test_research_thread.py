@@ -3,8 +3,10 @@ from pathlib import Path
 
 import pytest
 from agent.experimental.research_thread import (
+    build_thread_work_order,
     load_thread_experiment_corpus,
     validate_research_thread,
+    validate_thread_answer,
 )
 
 CASES = (
@@ -144,3 +146,35 @@ def test_frozen_corpus_has_every_longitudinal_stratum() -> None:
         "near_match",
         "no_change",
     }
+
+
+def test_work_order_is_paired_and_repeatable() -> None:
+    corpus = load_thread_experiment_corpus(CASES)
+    first = build_thread_work_order(corpus, seed=20260919)
+    second = build_thread_work_order(corpus, seed=20260919)
+    assert first == second
+    assert len(first) == 54
+    assert {
+        (item.case_id, item.repetition, item.arm) for item in first
+    } == {
+        (case.case_id, repetition, arm)
+        for case in corpus.cases
+        for repetition in range(1, 4)
+        for arm in ("control", "treatment")
+    }
+
+
+def test_answer_citations_are_closed_to_case() -> None:
+    case = load_thread_experiment_corpus(CASES).cases[0]
+    with pytest.raises(ValueError, match="outside the frozen case"):
+        validate_thread_answer(
+            {
+                "change_events": [],
+                "current_truths": [],
+                "historical_truths": [],
+                "unresolved": ["not established"],
+                "citations": ["unknown-snapshot"],
+                "answer": "The answer is unresolved.",
+            },
+            case,
+        )
