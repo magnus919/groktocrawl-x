@@ -2,6 +2,9 @@
 # `--profile mcp`. Ordinary deployments do not load these grants or settings.
 services:
   slopsearx-mcp:
+    # W11-tested release containing the receipt/manifest contracts selected by
+    # ADR-0082. Kept isolated from the ordinary HTTP search image.
+    image: ghcr.io/magnus919/slopsearx@sha256:4cd9c04ae4ef2f154a104cd95cf2219d603e461c9449f4392ce562b0541dd2d3
     environment:
       MCP_AUTH_TOKEN: ${SLOPSEARX_PROVENANCE_TOKEN:?Set a dedicated provenance token}
       MCP_GRANT_RETRIEVAL_RECEIPTS: "1"

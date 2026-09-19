@@ -5,6 +5,7 @@ import yaml
 
 def test_override_enables_only_receipt_grant() -> None:
     value = yaml.safe_load(Path("compose.slopsearx-provenance.yml").read_text())
+    assert "@sha256:" in value["services"]["slopsearx-mcp"]["image"]
     environment = value["services"]["slopsearx-mcp"]["environment"]
     assert environment["MCP_GRANT_RETRIEVAL_RECEIPTS"] == "1"
     assert all(
