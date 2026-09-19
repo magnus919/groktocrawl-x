@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import agent
 import httpx
 import pytest
 from agent.exceptions import UpstreamError
@@ -12,7 +13,7 @@ from agent.exceptions import UpstreamError
 
 def _load_parse_route():
     """Load the route without importing unrelated optional route dependencies."""
-    routes_dir = Path(__file__).resolve().parents[2] / "agent-svc" / "agent" / "routes"
+    routes_dir = Path(agent.__file__).resolve().parent / "routes"
     package = ModuleType("agent.routes")
     package.__path__ = [str(routes_dir)]  # type: ignore[attr-defined]
     previous_package = sys.modules.get("agent.routes")
