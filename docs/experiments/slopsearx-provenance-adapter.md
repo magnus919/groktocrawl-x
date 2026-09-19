@@ -1,6 +1,6 @@
 # Narrow SlopSearX provenance adapter
 
-Status: **implementation in progress; contract, transport, and storage complete**
+Status: **implemented and live-verified**
 
 This adapter implements the narrow W11 adoption selected by
 [ADR-0082](../adr/0082-delegate-bounded-retrieval-to-slopsearx.md). Ordinary
@@ -53,12 +53,10 @@ artifact set. The remote snapshot expiry is retained separately so operators
 and readers can distinguish a durable audit identity from still-readable remote
 state.
 
-The next implementation milestone supplies an isolated deployment profile and
-the live timeout/restart/expiry/rollback exercise. Disabling the profile is the
-rollback switch: no MCP client is created, ordinary HTTP search remains active,
-and retained references remain inert audit metadata until their owning artifact
-set expires or is deleted. The additive table need not be dropped during
-rollback. Issue #327 closes only after that live evidence passes.
+Disabling the profile is the rollback switch: no MCP client is created,
+ordinary HTTP search remains active, and retained references remain inert audit
+metadata until their owning artifact set expires or is deleted. The additive
+table need not be dropped during rollback.
 
 The isolated deployment profile is `compose.slopsearx-provenance.yml`. It
 overrides every broad SlopSearX MCP grant to false, enables only retrieval
@@ -66,6 +64,12 @@ receipts, uses one dedicated bearer token for both ends of the connection, and
 waits for MCP health before starting the agent. Start it explicitly with both
 the override and Compose's `mcp` profile; the file is absent from ordinary
 deployment commands.
+
+The [live evidence packet](evidence/slopsearx-provenance/2026-09-19-live-adapter/)
+passes receipt replay, missing and expired state, broad-grant rejection, fresh
+schema-15 bootstrap, and stop/restart rollback. The exercise also retained and
+fixed two defects it discovered: the wrong service-policy tool and a missing
+schema-version constraint extension.
 
 The contract and recovery behavior are based on the [W11 provenance and
 recovery evidence](evidence/slopsearx-substrate/2026-09-11-isolated-provenance/)
