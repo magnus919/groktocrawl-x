@@ -33,19 +33,26 @@ and volume also carries a candidate-specific name. Do not combine this file with
 ## Prepare a clean target
 
 Check out the exact reviewed revision on the target host. Then create private
-credentials outside the repository:
+credentials outside the repository in persistent per-user storage:
 
 ```sh
 umask 077
-openssl rand -hex 32 > /tmp/groktocrawl-x-postgres-password
-openssl rand -hex 32 > /tmp/groktocrawl-x-api-key
-cp .env.experimental-candidate.sample /tmp/groktocrawl-x-candidate.env
-chmod 600 /tmp/groktocrawl-x-postgres-password \
-  /tmp/groktocrawl-x-api-key \
-  /tmp/groktocrawl-x-candidate.env
+export CANDIDATE_CONFIG="$HOME/.config/groktocrawl-x-candidate"
+mkdir -p "$CANDIDATE_CONFIG"
+chmod 700 "$CANDIDATE_CONFIG"
+openssl rand -hex 32 > "$CANDIDATE_CONFIG/postgres-password"
+openssl rand -hex 32 > "$CANDIDATE_CONFIG/api-key"
+cp .env.experimental-candidate.sample "$CANDIDATE_CONFIG/candidate.env"
+chmod 600 "$CANDIDATE_CONFIG/postgres-password" \
+  "$CANDIDATE_CONFIG/api-key" \
+  "$CANDIDATE_CONFIG/candidate.env"
 ```
 
-Edit `/tmp/groktocrawl-x-candidate.env`:
+Do not put these files under `/tmp`, `/private/tmp`, or `/var/tmp`. Compose reads
+the PostgreSQL credential from its host path whenever it creates the container;
+a host cleanup or restart can therefore make the stack impossible to recreate.
+
+Edit `$CANDIDATE_CONFIG/candidate.env`:
 
 - set `CANDIDATE_IMAGE_TAG` to the full checked-out Git revision;
 - set the PostgreSQL password-file path to the file just created;
@@ -55,7 +62,12 @@ Edit `/tmp/groktocrawl-x-candidate.env`:
 
 The checked-in sample selects LiteLLM's `local` model alias. Keep secrets in
 the private environment and credential files; never add them to a receipt or
-commit them.
+commit them. Validate the private files before invoking Compose:
+
+```sh
+python3 scripts/validate_experimental_candidate_config.py \
+  "$CANDIDATE_CONFIG/candidate.env"
+```
 
 On a genuinely clean target, this command must return no candidate resources:
 
@@ -72,9 +84,10 @@ volumes merely to make the clean-start check pass.
 Use the same file and private environment for every command:
 
 ```sh
-export CANDIDATE_ENV=/tmp/groktocrawl-x-candidate.env
+export CANDIDATE_ENV="$HOME/.config/groktocrawl-x-candidate/candidate.env"
 export CANDIDATE_COMPOSE=compose.experimental-candidate.yml
 
+python3 scripts/validate_experimental_candidate_config.py "$CANDIDATE_ENV"
 docker compose --env-file "$CANDIDATE_ENV" -f "$CANDIDATE_COMPOSE" config --quiet
 docker compose --env-file "$CANDIDATE_ENV" -f "$CANDIDATE_COMPOSE" config --services
 docker compose --env-file "$CANDIDATE_ENV" -f "$CANDIDATE_COMPOSE" build --pull
@@ -93,7 +106,9 @@ Load only the candidate API key into the verifier process and write the receipt
 outside the repository first:
 
 ```sh
-export CANDIDATE_API_KEY=$(sed -n 's/^CANDIDATE_API_KEY=//p' "$CANDIDATE_ENV")
+export CANDIDATE_API_KEY=$(docker compose \
+  --env-file "$CANDIDATE_ENV" -f "$CANDIDATE_COMPOSE" \
+  exec -T candidate-agent printenv API_KEY)
 UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run \
   scripts/verify_experimental_candidate.py \
   --env-file "$CANDIDATE_ENV" \

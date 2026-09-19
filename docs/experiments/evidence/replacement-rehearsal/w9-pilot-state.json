@@ -1,18 +1,27 @@
 {
   "candidate_revision": "e4301eb32dd3b1e4ef83aec658fba754a2be31ec",
   "completed_checkpoints": 1,
-  "earliest_completion_at": "2026-09-18T17:26:19Z",
-  "next_checkpoint_not_before": "2026-09-14T17:26:19Z",
+  "earliest_completion_at": "2026-09-26T02:19:40Z",
+  "next_checkpoint_not_before": "2026-09-22T02:19:40Z",
   "notes": [
-    "Checkpoint 0 passed with 12 representative requests.",
-    "A host-Python setup attempt stopped before any product request; the checkout virtual environment was then used."
+    "The original pilot window failed after a host restart because volatile private-file bind sources prevented container recreation.",
+    "The outage remains failed operational evidence; the clock and successful-request count restarted.",
+    "Private configuration now uses persistent per-user storage with owner-only permissions.",
+    "Restart checkpoint 0 passed all 11 inherited journeys and one experimental cross-client research journey.",
+    "A quoted-key observation-command error stopped at the first scrape request and is retained separately; the corrected command then passed."
   ],
+  "previous_window": {
+    "interrupted_at": "2026-09-16T21:50:00Z",
+    "outcome": "failed_operational_restart",
+    "started_at": "2026-09-11T17:26:19Z",
+    "successful_requests": 12
+  },
   "required_checkpoints": 3,
   "required_elapsed_days": 7,
   "required_successful_requests": 30,
   "runtime_revision": "6b46bc9a3f44a1571ad68d5453fef90edc99466b",
   "schema_version": "w9-operational-pilot-state/1",
-  "started_at": "2026-09-11T17:26:19Z",
+  "started_at": "2026-09-19T02:19:40Z",
   "status": "in_progress",
   "successful_requests": 12
 }

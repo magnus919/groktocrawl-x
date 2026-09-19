@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **frozen before the pilot began**
+Status: **restarted after failed operational evidence; checkpoint 0 passed**
 
 ## Question and decision
 
@@ -14,8 +14,8 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Start: `2026-09-11T17:26:19Z`
-- Earliest completion: `2026-09-18T17:26:19Z`
+- Restarted: `2026-09-19T02:19:40Z`
+- Earliest completion: `2026-09-26T02:19:40Z`
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -41,6 +41,13 @@ No cache is deliberately cleared between checkpoints. No failed attempt is
 discarded. Configuration or code changes restart the seven-day window unless
 they only correct observation tooling and leave the deployed candidate revision
 and runtime configuration unchanged.
+
+The original window failed after a host restart: the private environment and
+PostgreSQL secret bind sources had been placed under volatile temporary storage,
+so Compose could not recreate the stopped containers. The outage remains in the
+evidence record. Moving the same private values to persistent per-user storage
+changed the operational configuration boundary, so the pilot restarted. The
+candidate source and runtime image revisions did not change.
 
 ## Observations
 
