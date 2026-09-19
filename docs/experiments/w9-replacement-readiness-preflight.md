@@ -56,6 +56,11 @@ the following dispositions remain recommendations.
 | [ADR-0077: trusted consolidated bundle import](../adr/0077-trusted-consolidated-bundle-import.md) | Proposed | **Accept for trusted-server experimental import.** Exact validation, origin authority, bounded grants, idempotent receipts, and deletion/expiry behavior were exercised through the retained-artifact work. | Decider review; keep public and cross-trust import out of scope. |
 | [ADR-0078: durable backup and artifact authority](../adr/0078-define-durable-research-backup-and-artifact-authority.md) | Proposed | **Revise and accept.** PostgreSQL is now the authoritative artifact store while Valkey owns bounded execution state, receipts, indexes, and deletion continuity. | Decider review; preserve the explicit absence of production disaster-recovery RPO/RTO proof. |
 | [ADR-0079: consolidate storage in PostgreSQL](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Accepted | **Retain.** PostgreSQL authority and pgvector serving passed cutover and rollback evidence. | W9 operational window must pass before proposing removal of Qdrant from the experimental steady-state stack. |
+| [ADR-0083: retain prose intake](../adr/0083-retain-prose-intake-over-universal-research-missions.md) | Proposed | **Accept.** Keep prose as the default and reject universal Research Mission normalization. Preserve smaller typed contracts for explicitly triggered workflows. | Decider review; any successor needs a narrower trigger and a new frozen comparison. |
+| [ADR-0084: retain independent research roots](../adr/0084-retain-independent-research-roots-over-default-threads.md) | Proposed | **Accept.** Keep independent durable roots and construct explicit comparisons for follow-up research. Reject default accumulated-thread injection. | Decider review; any continuity feature must prevent stale-current leakage and prove value in a narrower trial. |
+| [ADR-0085: independent semantic verification](../adr/0085-add-independent-semantic-verification-before-claim-publication.md) | Proposed | **Accept for experimental rollout.** The verifier removed the tested critical false accepts and missed contradictions without rejecting supported claims. | Decider review; live false-rejection, latency, case-mix, and rollback calibration remain required before stable-path promotion. |
+| [ADR-0086: evidence-obligation continuation](../adr/0086-add-bounded-evidence-obligation-continuation.md) | Proposed | **Accept as an opt-in experiment.** Continue only for a named open obligation and stop on closure, zero gain, or the shared budget. Fixed retrieval remains the stable default. | Decider review; automatic obligation authoring and live retrieval yield remain unproven. |
+| [ADR-0087: retain the generalist default](../adr/0087-retain-generalist-over-generic-specialist-fanout.md) | Proposed | **Accept.** Reject generic specialist fan-out and retain one research owner. Preserve the typed handoff for narrower task-specific experiments. | Decider review; future specialist work needs a calibrated router, a separable task class, and independent evaluation. |
 
 ## D1-D7 decision coverage
 
@@ -81,7 +86,8 @@ After the final eligible checkpoint:
 4. If every gate passed, choose **adopt for the experimental fork**, apply the
    ADR dispositions above, and state the retained limits in the decision.
 5. Synchronize the roadmap, experiment index, README, operator runbook, issues
-   #311 and #312, milestone 8, and umbrella issue #103 in the same change set.
+   #311 and #312, milestone 8, umbrella issue #103, and the original plan issue
+   #1 in the same change set.
 
 The final report must distinguish three conclusions: fitness for continued use in
 the experimental fork, readiness for this home-lab deployment, and any later
