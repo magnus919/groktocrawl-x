@@ -1,8 +1,8 @@
 {
-  "candidate_revision": "a52d4cfd8e0f10f46fbc5f0662d21ccf1521e827",
+  "candidate_revision": "b6ecca0d7183a6349b31db018b81e347cdea6e38",
   "completed_checkpoints": 1,
-  "earliest_completion_at": "2026-09-26T18:12:36.512533Z",
-  "next_checkpoint_not_before": "2026-09-22T18:12:36.512533Z",
+  "earliest_completion_at": "2026-09-26T19:00:53.139536Z",
+  "next_checkpoint_not_before": "2026-09-22T19:00:53.139536Z",
   "notes": [
     "The original pilot window failed after a host restart because volatile private-file bind sources prevented container recreation.",
     "The outage remains failed operational evidence; the clock and successful-request count restarted.",
@@ -16,7 +16,9 @@
     "A real-client audit found streaming-search, candidate Parse wiring, and semantic timeout failures; the reviewed fixes invalidated the preceding window.",
     "Live follow-up found and repaired staged Parse metadata consumption before the final runtime freeze.",
     "The repaired runtime passed streaming search, direct and staged Parse, and web similarity checks without changing client configuration.",
-    "The final runtime checkpoint 0 passed all 12 declared operations at 2026-09-19T18:15:21Z."
+    "The final runtime checkpoint 0 passed all 12 declared operations at 2026-09-19T18:15:21Z.",
+    "Live verification found that staged Parse still required an internal upload reservation; the public reservation route and automatic CLI flow were restored.",
+    "The final runtime checkpoint 0 passed all 12 declared operations at 2026-09-19T19:03:37Z."
   ],
   "previous_windows": [
     {
@@ -36,14 +38,20 @@
       "outcome": "runtime_changed_to_repair_live_feature_boundaries",
       "started_at": "2026-09-19T13:42:50Z",
       "successful_requests": 12
+    },
+    {
+      "ended_at": "2026-09-19T19:00:53.139536Z",
+      "outcome": "runtime_changed_to_restore_public_staged_parse_reservation",
+      "started_at": "2026-09-19T18:12:36.512533Z",
+      "successful_requests": 12
     }
   ],
   "required_checkpoints": 3,
   "required_elapsed_days": 7,
   "required_successful_requests": 30,
-  "runtime_revision": "a52d4cfd8e0f10f46fbc5f0662d21ccf1521e827",
+  "runtime_revision": "b6ecca0d7183a6349b31db018b81e347cdea6e38",
   "schema_version": "w9-operational-pilot-state/2",
-  "started_at": "2026-09-19T18:12:36.512533Z",
+  "started_at": "2026-09-19T19:00:53.139536Z",
   "status": "in_progress",
   "successful_requests": 12
 }

@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **repaired real-client pilot active; checkpoint 0 passed**
+Status: **final real-client pilot active; checkpoint 0 passed**
 
 ## Question and decision
 
@@ -14,8 +14,8 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Restarted: `2026-09-19T18:12:36.512533Z`
-- Earliest completion: `2026-09-26T18:12:36.512533Z`
+- Restarted: `2026-09-19T19:00:53.139536Z`
+- Earliest completion: `2026-09-26T19:00:53.139536Z`
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -30,10 +30,11 @@ Health probes and job-status polling do not count toward the request minimum.
 
 ## Frozen boundaries
 
-- Candidate: `groktocrawl-x-candidate` on the candidate host, with key-protected API port 18080 and allowlisted MCP port 18002 published on the trusted home-lab and
-  Tailscale interfaces.
+- Candidate: `groktocrawl-x-candidate` on the candidate host, with a
+  key-protected API and allowlisted MCP service published on configured trusted
+  interfaces.
 - Search: the pinned SlopSearX image already matched to the incumbent.
-- Inference: LiteLLM's `local` model through the incumbent home-lab TLS route.
+- Inference: the configured OpenAI-compatible provider and pinned model alias.
 - Artifact authority: PostgreSQL schema 14.
 - Semantic serving: pgvector, with Qdrant retained as the tested rollback copy.
 - Fixtures and operation bounds: the W9 compatibility protocol.
@@ -64,6 +65,13 @@ preceding real-use window remains retained evidence but cannot count toward the
 final stability gate. The repaired window began at
 `2026-09-19T18:12:36.512533Z` and passed checkpoint 0 at
 `2026-09-19T18:15:21.395820Z` with all 12 declared operations successful.
+Live verification then showed that the public staged Parse workflow could not
+reserve an upload identifier without an internal storage write. Restoring the
+authenticated reservation route and automatic CLI reservation changed the
+runtime once more. The preceding repaired window remains retained evidence but
+cannot count toward the final stability gate. The final window began at
+`2026-09-19T19:00:53.139536Z` and passed checkpoint 0 at
+`2026-09-19T19:03:37.101501Z` with all 12 declared operations successful.
 
 ## Observations
 
@@ -101,7 +109,7 @@ once; it is not silently converted into a pass.
 
 ## Limits
 
-This pilot uses one home-lab candidate, a small fixed fixture set, and three
+This pilot uses one candidate host, a small fixed fixture set, and three
 scheduled suites. It does not measure multi-user saturation, regional failure,
 Internet-wide acquisition, physical disaster recovery, or production support
 load. Resource snapshots on this host are diagnostic rather than capacity proof.
