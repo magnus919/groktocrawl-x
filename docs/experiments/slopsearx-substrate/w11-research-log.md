@@ -459,3 +459,29 @@ evidence; the search was not repeated. Its hard gate passed. This supports the
 dossier as a conservative evidence-organizing workflow. It does not prove the
 completeness or truth of the underlying dependency investigation, and the result
 remains separate from open-domain W11 quality scoring.
+
+## 2026-09-19 — general-comparison retrieval
+
+The isolated research arm was recreated from the frozen SlopSearX 0.5 image on
+a dedicated Compose project, network, Valkey volume, credentials, and ports.
+Fresh preflight evidence enabled only the research grant, proved all eight
+other specialist grants denied dispatch, passed the SearXNG-compatible HTTP
+checks, and resolved an identical seven-engine scope for both transports.
+
+Two pre-score setup runs were excluded. The first exposed that the client
+expected a structured completion object while SlopSearX returns a plain-text
+acknowledgement; it also exposed temporary HTTP 429 responses. The runner was
+corrected to accept non-empty text acknowledgements while preserving structured
+error checks and to use at most five bounded HTTP attempts. The request ceiling
+was expanded before the replacement freeze. A clean run then completed 71 of
+72 trials; the one exhausted rate-limit checkpoint was cleared and resumed
+under the same manifest. All other checkpoints remained byte-stable.
+
+The final retrieval record contains 36 complete pairs. Every pair preserved the
+same query plan, query hash, engine scope, and result URLs, with Jaccard 1.0.
+The workflow-accounting hard gate failed in all 36 recorded-continuation runs.
+Each job filled its exact eight-result budget and became terminal with
+`result_budget_exhausted` before GroktoCrawl could declare completion. The later
+completion update was acknowledged but did not change `caller_completed` from
+false. This is an ownership-contract failure. Subsequent model grading is
+diagnostic evidence only and cannot turn this result into an adoption pass.

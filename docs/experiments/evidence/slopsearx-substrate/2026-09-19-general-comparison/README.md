@@ -1,6 +1,6 @@
 # W11 general-comparison execution packet
 
-Status: **isolated research arm verified; scored measurement pending**
+Status: **retrieval complete; caller-authority hard gate failed; diagnostic grading pending**
 
 W10 selected fixed retrieval for every challenge type. The original private
 trial directory was unavailable after the authorized pause, so this packet
@@ -40,3 +40,16 @@ The private handoff records contain the committed case queries and remain
 outside the repository. This packet contains no result content, model response,
 credential, or private network address. The recovery path fails closed if W10
 selects any adaptive policy.
+
+The completed retrieval has 36 matched pairs and no missing or failed final
+trials. Query plans, query hashes, and engine scopes match in every pair, and
+the result-set Jaccard score is 1.0 for every pair. Recorded continuation added
+a median 26.731 ms.
+
+The retrieval hard gate nevertheless failed. Every recorded workflow reached
+its eight-result budget and entered `succeeded` with
+`stop_reason: result_budget_exhausted` before GroktoCrawl's completion update.
+The update was acknowledged, but the terminal record retained
+`caller_completed: false`. This violates the frozen ownership rule that
+GroktoCrawl alone declares research complete. Quality grading continues only as
+a diagnostic and cannot override this hard-gate failure.
