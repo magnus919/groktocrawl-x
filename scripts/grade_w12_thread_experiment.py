@@ -50,6 +50,18 @@ def grade_one(
     output = public_dir / "grades" / f"{identity}.json"
     if output.exists() and json.loads(output.read_bytes()).get("status") == "completed":
         return {"candidate_id": identity, "status": "resumed_completed"}
+    required_output = {
+        "change_accuracy": 0,
+        "current_accuracy": 0,
+        "historical_preservation": 0,
+        "unresolved_accuracy": 0,
+        "usefulness": 0,
+        "false_merge": False,
+        "stale_current_leak": False,
+        "lost_history": False,
+        "unsupported_claims": 0,
+        "rationale": "Brief justification grounded in the reference and sources.",
+    }
     prompt = {
         "task": (
             "Grade the candidate against the reference ledger and exact sources. "
@@ -57,9 +69,23 @@ def grade_one(
             "A near-match capability transfer is a false merge. Old evidence stated "
             "as current is stale-current leakage. Every score is an INTEGER ON A "
             "0 TO 100 SCALE: 100 means fully correct, 50 means half correct, and 0 "
-            "means wholly wrong or omitted. Never use a 0-to-1 scale. Return only "
-            "the required JSON fields exactly as named."
+            "means wholly wrong or omitted. Never use a 0-to-1 scale. Return one "
+            "JSON object with exactly the keys shown in required_output. Do not "
+            "rename, group, wrap, or add fields."
         ),
+        "required_output": required_output,
+        "field_rules": {
+            "change_accuracy": "Accuracy and completeness of what changed.",
+            "current_accuracy": "Accuracy and completeness of current truths.",
+            "historical_preservation": "Preservation of earlier truths as historical, not current.",
+            "unresolved_accuracy": "Accuracy of what remains unresolved; do not reward invented peripheral questions.",
+            "usefulness": "Decision usefulness and auditability of the answer.",
+            "false_merge": "True only if distinct subjects or capabilities were merged.",
+            "stale_current_leak": "True only if superseded evidence was stated as current.",
+            "lost_history": "True only if a historically valid claim was omitted or rewritten.",
+            "unsupported_claims": "Count unsupported factual claims, from 0 through 20.",
+            "rationale": "A concise explanation of the scores and failure flags.",
+        },
         "question": case.question,
         "reference": case.expected.model_dump(mode="json"),
         "sources": [
@@ -82,6 +108,16 @@ def grade_one(
             reasoning_effort="minimal",
             max_tokens=20000,
         )
+        transport.write_json(
+            private_dir / "grades" / f"{identity}.json",
+            {
+                "prompt": prompt,
+                "completion": content,
+                "receipt": receipt,
+                "envelope": envelope,
+            },
+            private=True,
+        )
         if (
             content is None
             or receipt["finish_reason"] != "stop"
@@ -90,11 +126,6 @@ def grade_one(
         ):
             raise ValueError("model completion is not a final grade")
         grade = ThreadGrade.model_validate(json.loads(content))
-        transport.write_json(
-            private_dir / "grades" / f"{identity}.json",
-            {"prompt": prompt, "completion": content, "envelope": envelope},
-            private=True,
-        )
         transport.write_json(
             output,
             {
@@ -111,6 +142,7 @@ def grade_one(
         )
         return {"candidate_id": identity, "status": "completed"}
     except Exception as error:
+        failure_receipt = locals().get("receipt")
         transport.write_json(
             output,
             {
@@ -123,6 +155,7 @@ def grade_one(
                 "completed_at": datetime.now(UTC).isoformat(),
                 "error_type": type(error).__name__,
                 "error": str(error),
+                "receipt": failure_receipt,
             },
         )
         return {"candidate_id": identity, "status": "failed"}
