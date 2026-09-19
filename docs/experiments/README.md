@@ -37,7 +37,7 @@ frozen protocol or completed evidence packet to make history look current.
 | Replacement rehearsal | [Operational pilot protocol](w9-operational-pilot-protocol.md), [evidence](evidence/replacement-rehearsal/) | Week-long operational pilot and final adoption decision remain open |
 | Adaptive research policy | [W10 brief](adaptive-policy/w10-research-brief.md), [frozen protocol](adaptive-policy/w10-frozen-protocol.md) | Matched evaluation is running |
 | SlopSearX research substrate | [W11 findings](slopsearx-substrate/w11-findings.md), [protocol](slopsearx-substrate/w11-protocol.md), [operator assessment](slopsearx-substrate/w11-operator-assessment.md) | Complete. Narrow adoption keeps HTTP search as default, rejects broad recorded continuation, and retains selected opt-in provenance and recovery contracts. |
-| Research Mission contract | [W12.1 brief](research-mission/w12.1-experiment-brief.md), [protocol](research-mission/w12.1-protocol.md), [analysis plan](research-mission/w12.1-analysis-plan.md) | Preregistered. Corpus, tooling, and freeze manifest must be pinned before measurement. |
+| Research Mission contract | [W12.1 brief](research-mission/w12.1-experiment-brief.md), [protocol](research-mission/w12.1-protocol.md), [analysis plan](research-mission/w12.1-analysis-plan.md), [freeze](research-mission/w12.1-freeze.json) | Frozen before measurement. Twelve cases, four work orders, executable lanes, and the independent validator are pinned; preflight and measured execution are next. |
 
 Update this guide and the roadmap whenever an ADR changes state, a workstream
 starts or finishes, or a new experiment becomes part of the replacement decision.
