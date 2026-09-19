@@ -33,6 +33,13 @@ def main() -> int:
         for path in (args.run_dir / "public/grades").glob("*.json")
         if (record := json.loads(path.read_bytes())).get("status") == "completed"
     ]
+    latency_by_arm: dict[str, list[float]] = defaultdict(list)
+    tokens_by_arm: dict[str, list[int]] = defaultdict(list)
+    for trial in trials.values():
+        receipt = trial["receipt"]
+        latency_by_arm[trial["arm"]].append(float(receipt["latency_ms"]))
+        usage = receipt.get("usage") or {}
+        tokens_by_arm[trial["arm"]].append(int(usage.get("total_tokens") or 0))
     paired: dict[tuple[str, int], dict[str, dict]] = defaultdict(dict)
     for record in grades:
         trial = trials[record["trial_id"]]
@@ -63,11 +70,40 @@ def main() -> int:
         str(rep): round(mean(values), 3) for rep, values in repetition_effects.items()
     }
     repetitions_over_ten = sum(value >= 10 for value in by_repetition.values())
+    mean_latency = {
+        arm: round(mean(values), 3) for arm, values in latency_by_arm.items()
+    }
+    latency_reduction = (
+        (mean_latency["control"] - mean_latency["treatment"])
+        / mean_latency["control"]
+        * 100
+        if mean_latency.get("control")
+        else 0.0
+    )
+    mean_tokens = {
+        arm: round(mean(values), 3) for arm, values in tokens_by_arm.items()
+    }
+    no_change_effects = [
+        item["effect_points"] for item in effects if item["case_id"] == "stable-anchor"
+    ]
+    no_change_noninferior = bool(no_change_effects) and min(no_change_effects) >= -2
+    run_summary = json.loads((args.run_dir / "public/run-summary.json").read_bytes())
+    trial_failure_rate = run_summary["failed"] / max(
+        1, run_summary["completed"] + run_summary["failed"]
+    )
     grade_summary = json.loads((args.run_dir / "public/grade-summary.json").read_bytes())
     failure_rate = grade_summary["failed"] / max(1, grade_summary["completed"] + grade_summary["failed"])
+    operational_pass = trial_failure_rate < 0.10 and failure_rate < 0.10
+    efficiency_pass = latency_reduction >= 25
     decision = (
         "adopt_narrow_thread_contract"
-        if repetitions_over_ten >= 2 and not hard_failures and failure_rate < 0.10
+        if (
+            repetitions_over_ten >= 2
+            and not hard_failures
+            and operational_pass
+            and efficiency_pass
+            and no_change_noninferior
+        )
         else "reject_or_revise"
     )
     result = {
@@ -79,11 +115,19 @@ def main() -> int:
         "repetitions_at_or_above_10_points": repetitions_over_ten,
         "hard_failure_count": len(hard_failures),
         "hard_failures": hard_failures,
+        "mean_latency_ms_by_arm": mean_latency,
+        "treatment_latency_reduction_percent": round(latency_reduction, 3),
+        "mean_total_tokens_by_arm": mean_tokens,
+        "efficiency_gate_pass": efficiency_pass,
+        "no_change_effect_points": no_change_effects,
+        "no_change_noninferiority_pass": no_change_noninferior,
+        "trial_failure_rate": round(trial_failure_rate, 6),
         "grade_failure_rate": round(failure_rate, 6),
+        "operational_gate_pass": operational_pass,
         "effects": effects,
         "limitations": [
             "Model grading is blinded but not human adjudication.",
-            "Efficiency gate requires receipt analysis before final adoption.",
+            "Latency covers model completion, not live retrieval, because the frozen source pack is pre-supplied.",
             "The synthetic corpus establishes causal behavior, not production prevalence.",
         ],
     }
