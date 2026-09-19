@@ -1,6 +1,10 @@
 """Bounded longitudinal research-thread records; never an authority for truth."""
 
+from __future__ import annotations
+
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import Field, field_validator, model_validator
@@ -8,6 +12,85 @@ from pydantic import Field, field_validator, model_validator
 from .knowledge import Identity, Record, Text
 
 THREAD_SCHEMA = "research-thread-experiment/1"
+
+
+class ThreadExperimentSource(Record):
+    snapshot_id: Identity
+    subject_id: Identity
+    lineage_id: Identity
+    title: Text
+    text: Text
+    source_role: Literal["primary", "independent", "derivative", "unavailable"]
+
+
+class ExpectedThreadOutcome(Record):
+    change_events: tuple[Text, ...] = Field(max_length=20)
+    current_truths: tuple[Text, ...] = Field(max_length=20)
+    historical_truths: tuple[Text, ...] = Field(max_length=20)
+    unresolved: tuple[Text, ...] = Field(max_length=20)
+    prohibited_merges: tuple[Text, ...] = Field(max_length=20)
+
+
+class ThreadExperimentCase(Record):
+    case_id: Identity
+    stratum: Literal[
+        "changed",
+        "terminology",
+        "derivative",
+        "contradiction",
+        "historical",
+        "resolved",
+        "unavailable",
+        "near_match",
+        "no_change",
+    ]
+    question: Text
+    initial_question: Text
+    subjects: tuple[ThreadSubject, ...] = Field(min_length=1, max_length=5)
+    initial_sources: tuple[ThreadExperimentSource, ...] = Field(min_length=1, max_length=10)
+    followup_sources: tuple[ThreadExperimentSource, ...] = Field(min_length=1, max_length=10)
+    expected: ExpectedThreadOutcome
+
+    @model_validator(mode="after")
+    def case_integrity(self) -> Self:
+        subjects = {item.subject_id for item in self.subjects}
+        sources = (*self.initial_sources, *self.followup_sources)
+        snapshot_ids = [item.snapshot_id for item in sources]
+        if len(snapshot_ids) != len(set(snapshot_ids)):
+            raise ValueError("case snapshot identities must be distinct")
+        if {item.subject_id for item in sources} - subjects:
+            raise ValueError("case source references an unknown subject")
+        if self.stratum == "near_match" and len(subjects) < 2:
+            raise ValueError("near-match case requires distinct subjects")
+        return self
+
+
+class ThreadExperimentCorpus(Record):
+    schema_version: Literal["research-thread-corpus/1"]
+    cases: tuple[ThreadExperimentCase, ...] = Field(min_length=9, max_length=20)
+
+    @model_validator(mode="after")
+    def complete_strata(self) -> Self:
+        expected = {
+            "changed",
+            "terminology",
+            "derivative",
+            "contradiction",
+            "historical",
+            "resolved",
+            "unavailable",
+            "near_match",
+            "no_change",
+        }
+        if {case.stratum for case in self.cases} != expected:
+            raise ValueError("corpus must contain every longitudinal stratum")
+        if len({case.case_id for case in self.cases}) != len(self.cases):
+            raise ValueError("case identities must be distinct")
+        return self
+
+
+def load_thread_experiment_corpus(path: Path) -> ThreadExperimentCorpus:
+    return ThreadExperimentCorpus.model_validate(json.loads(path.read_bytes()))
 
 
 class ThreadSubject(Record):

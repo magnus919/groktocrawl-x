@@ -1,7 +1,15 @@
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
-from agent.experimental.research_thread import validate_research_thread
+from agent.experimental.research_thread import (
+    load_thread_experiment_corpus,
+    validate_research_thread,
+)
+
+CASES = (
+    Path(__file__).parents[3] / "docs/experiments/research-thread/w12.2-cases.json"
+)
 
 
 def thread_payload() -> dict:
@@ -120,3 +128,19 @@ def test_rejects_caller_identity_mismatch() -> None:
         validate_research_thread(
             thread_payload(), scope_id="scope-b", thread_id="thread-a"
         )
+
+
+def test_frozen_corpus_has_every_longitudinal_stratum() -> None:
+    corpus = load_thread_experiment_corpus(CASES)
+    assert len(corpus.cases) == 9
+    assert {case.stratum for case in corpus.cases} == {
+        "changed",
+        "terminology",
+        "derivative",
+        "contradiction",
+        "historical",
+        "resolved",
+        "unavailable",
+        "near_match",
+        "no_change",
+    }
