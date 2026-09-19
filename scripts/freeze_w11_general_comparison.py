@@ -30,6 +30,7 @@ MAX_MODEL_CALLS_PER_TRIAL = 1
 MAX_SECONDS_PER_PHASE = 180
 MAX_CHECKPOINT_BYTES = 5 * 1024 * 1024
 EXPECTED_ENABLED_GRANTS = ["research"]
+PREFLIGHT_ONLY_GRANTS = {"jobs", "science"}
 
 
 def digest(path: Path) -> str:
@@ -199,15 +200,18 @@ def build_freeze(
 
     _identity(preflight.get("slopsearx", {}), label="preflight")
     observed = preflight.get("slopsearx", {}).get("grants", {})
+    expected_preflight_disabled = sorted(
+        (set(GRANTS) | PREFLIGHT_ONLY_GRANTS) - {"research"}
+    )
     if (
         observed.get("enabled") != EXPECTED_ENABLED_GRANTS
         or observed.get("disabled") != sorted(set(observed.get("disabled", [])))
-        or set(observed.get("disabled", [])) != set(GRANTS) - {"research"}
+        or observed.get("disabled") != expected_preflight_disabled
         or observed.get("targeted_sensitive_allowed") is not False
     ):
         raise ValueError("live preflight grants do not match the research arm")
     probes = preflight.get("mcp", {}).get("disabled_grant_probes", {})
-    if set(probes) != set(GRANTS) - {"research"} or any(
+    if set(probes) != set(expected_preflight_disabled) or any(
         item.get("error_code") != "tool_disabled" for item in probes.values()
     ):
         raise ValueError("live disabled-grant probes did not all fail closed")

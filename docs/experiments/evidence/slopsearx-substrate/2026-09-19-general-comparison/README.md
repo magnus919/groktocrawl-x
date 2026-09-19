@@ -1,6 +1,6 @@
 # W11 general-comparison execution packet
 
-Status: **control handoff and work order frozen; live measurement pending**
+Status: **isolated research arm verified; scored measurement pending**
 
 W10 selected fixed retrieval for every challenge type. The original private
 trial directory was unavailable after the authorized pause, so this packet
@@ -11,6 +11,17 @@ and binds them to the final W10 selection and complete public accounting.
   controls and the frozen eight-result search limit.
 - `w11-work-order.json` counterbalances 72 flat HTTP and recorded-continuation
   trials across 12 cases and three repetitions.
+- `preflight.json` records the live release identity, exact enabled and disabled
+  grants, and fail-closed probes for every disabled specialist workflow.
+- `http-compatibility-before.json` records a passing SearXNG-compatible HTTP
+  surface before measurement.
+- `scope-equivalence.json` proves that both arms start with the same frozen
+  seven-engine search scope without dispatching a query.
+
+The freeze gate now distinguishes the two policy-only grants, `jobs` and
+`science`, from grants written to the Compose arm manifest. Both still have to
+appear in the live disabled set and return `tool_disabled` before measurement
+can begin.
 
 The private handoff records contain the committed case queries and remain
 outside the repository. This packet contains no result content, model response,

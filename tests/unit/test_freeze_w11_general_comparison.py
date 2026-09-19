@@ -116,7 +116,7 @@ def _inputs(tmp_path: Path) -> dict[str, Path | str]:
         "research", token="token", brave_api_key="key", mcp_port=8120, http_port=8121
     )
     arm_path = _write(tmp_path / "arm.json", arm)
-    disabled = sorted(set(GRANTS) - {"research"})
+    disabled = sorted((set(GRANTS) | {"jobs", "science"}) - {"research"})
     preflight_path = _write(
         tmp_path / "preflight.json",
         {
