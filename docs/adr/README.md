@@ -123,5 +123,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0084 | [Retain Independent Research Roots Over Default Longitudinal Threads](0084-retain-independent-research-roots-over-default-threads.md) | proposed; W12.2 evidence rejects default thread injection |
 | 0085 | [Add Independent Semantic Verification Before Claim Publication](0085-add-independent-semantic-verification-before-claim-publication.md) | proposed; W12.3 evidence supports a bounded experimental stage |
 | 0086 | [Add Bounded Evidence-Obligation Continuation](0086-add-bounded-evidence-obligation-continuation.md) | proposed; W12.4 supports an opt-in control contract pending live calibration |
+| 0087 | [Retain the Generalist Over Generic Specialist Fan-Out](0087-retain-generalist-over-generic-specialist-fanout.md) | proposed; W12.5 rejects generic fan-out while preserving typed handoffs |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
