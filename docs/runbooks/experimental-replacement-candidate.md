@@ -65,7 +65,7 @@ Edit `$CANDIDATE_CONFIG/candidate.env`:
 - set `CANDIDATE_API_KEY` to the value in the API-key file;
 - leave `CANDIDATE_BIND_IP=127.0.0.1` for host-local use, or set the intended
   trusted interface and matching `MCP_ALLOWED_HOSTS` values;
-- set the working LiteLLM TLS URL and private key for `gpuslut01`;
+- set the working LiteLLM TLS URL and private key for `inference.example.internal`;
 - set the SlopSearX search-provider key.
 
 The checked-in sample selects LiteLLM's `local` model alias. Keep secrets in

@@ -2,7 +2,7 @@
   "schema_version": "pgvector-application-shadow-pilot/1",
   "repository": "magnus919/groktocrawl-x",
   "commit": "fb9b8b2",
-  "host": "gpuslut01",
+  "host": "inference.example.internal",
   "time_window_utc": "2026-09-09T07:30:43Z/2026-09-09T07:46:00Z",
   "corpus": "synthetic pilot.invalid documents only",
   "semantic_image_id": "sha256:491e0ef263d4baf6645ee5a1d16c3dc037197a43b8e9e89de83fb781f1329bee",

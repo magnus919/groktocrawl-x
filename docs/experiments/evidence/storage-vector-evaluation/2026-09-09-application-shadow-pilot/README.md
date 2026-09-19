@@ -1,7 +1,7 @@
 # Application-level pgvector shadow pilot
 
 This packet records the first live application-level shadow run on the isolated
-`gpuslut01` home-lab deployment. It used synthetic `pilot.invalid` documents.
+`inference.example.internal` home-lab deployment. It used synthetic `pilot.invalid` documents.
 Qdrant served every response; PostgreSQL never became a serving dependency.
 
 ## Result

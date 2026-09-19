@@ -95,7 +95,7 @@ ADRs remain proposed; pgvector/Qdrant consolidation remains a separate evaluatio
 
 ## CLI reviewer invocation
 
-Local installation: `/Users/magnus/.local/bin/hermes`. A fresh one-shot design review
+Local installation: `hermes`. A fresh one-shot design review
 can use `hermes --ignore-rules -t todo -z "..." --usage-file /tmp/review-usage.json`.
 The prompt must request no tools and must contain only the review packet. `-z`
 prints the final response to stdout, but automatically bypasses tool approvals;

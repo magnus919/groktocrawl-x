@@ -1,7 +1,7 @@
 # W12.3 independent claim-verification evidence
 
 This packet contains the secret-free public evidence for the frozen W12.3
-comparison. Private prompts and provider envelopes remain on `gpuslut01`; public
+comparison. Private prompts and provider envelopes remain on `inference.example.internal`; public
 records retain their digests, model identity, usage, and latency.
 
 ## Result

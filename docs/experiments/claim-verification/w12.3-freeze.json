@@ -3,7 +3,7 @@
   "status": "frozen_before_measurement",
   "source_revision": "1daac3b172b566f9a0fe01c364c5ef094a020744",
   "model_route": "general",
-  "endpoint_origin": "http://192.168.1.132:4000/",
+  "endpoint_origin": "http://inference.example.internal:4000/",
   "verifier_route": "local-litellm",
   "verifier_prompt_version": "w12.3-verifier/1",
   "case_count": 12,

@@ -131,11 +131,11 @@ class TestFromEnv:
         assert client._default_timeout == 120.0
 
     def test_groktocrawl_url(self, monkeypatch):
-        monkeypatch.setenv("GROKTOCRAWL_URL", "http://saru:8080")
+        monkeypatch.setenv("GROKTOCRAWL_URL", "http://deployment.example.internal:8080")
         monkeypatch.delenv("GROKTOCRAWL_API_URL", raising=False)
         monkeypatch.delenv("GROKTOCRAWL_API_KEY", raising=False)
         client = GroktocrawlClient.from_env()
-        assert client._base_url == "http://saru:8080"
+        assert client._base_url == "http://deployment.example.internal:8080"
 
     def test_fallback_to_groktocrawl_api_url(self, monkeypatch):
         monkeypatch.delenv("GROKTOCRAWL_URL", raising=False)
@@ -1446,12 +1446,12 @@ class TestRecoveryAfterOutage:
 
 class TestURLConstruction:
     def test_trailing_slash_stripped(self):
-        client = GroktocrawlClient(base_url="http://saru:8080/", api_key=None)
-        assert client._base_url == "http://saru:8080"
+        client = GroktocrawlClient(base_url="http://deployment.example.internal:8080/", api_key=None)
+        assert client._base_url == "http://deployment.example.internal:8080"
 
     def test_subpath_in_base_url(self):
-        client = GroktocrawlClient(base_url="http://saru:8080/api", api_key=None)
-        assert client._base_url == "http://saru:8080/api"
+        client = GroktocrawlClient(base_url="http://deployment.example.internal:8080/api", api_key=None)
+        assert client._base_url == "http://deployment.example.internal:8080/api"
 
 
 class TestLifecycle:

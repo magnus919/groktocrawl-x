@@ -81,7 +81,7 @@ class TestTransportSecurity:
         import mcp_server as mod
 
         monkeypatch.setenv(
-            "MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*,[::1]:*,hal2000:*"
+            "MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*,[::1]:*,incumbent.example.internal:*"
         )
         ts = mod._build_transport_security()
         assert ts.enable_dns_rebinding_protection is True
@@ -89,32 +89,32 @@ class TestTransportSecurity:
             "localhost:*",
             "127.0.0.1:*",
             "[::1]:*",
-            "hal2000:*",
+            "incumbent.example.internal:*",
         ]
 
     def test_build_transport_security_ignores_empty_entries(self, monkeypatch):
         """Trailing/empty comma entries are dropped, not kept as empty hosts."""
         import mcp_server as mod
 
-        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "hal2000:*, ,localhost:*,")
+        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "incumbent.example.internal:*, ,localhost:*,")
         ts = mod._build_transport_security()
         assert ts.enable_dns_rebinding_protection is True
-        assert ts.allowed_hosts == ["hal2000:*", "localhost:*"]
+        assert ts.allowed_hosts == ["incumbent.example.internal:*", "localhost:*"]
 
     def test_build_transport_security_derives_origins(self, monkeypatch):
         """allowed_origins mirror the host allowlist under http and https."""
         import mcp_server as mod
 
-        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "hal2000:*")
+        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "incumbent.example.internal:*")
         monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
         ts = mod._build_transport_security()
-        assert ts.allowed_origins == ["http://hal2000:*", "https://hal2000:*"]
+        assert ts.allowed_origins == ["http://incumbent.example.internal:*", "https://incumbent.example.internal:*"]
 
     def test_build_transport_security_origins_override(self, monkeypatch):
         """MCP_ALLOWED_ORIGINS overrides the host-derived origin default."""
         import mcp_server as mod
 
-        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "hal2000:*")
+        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "incumbent.example.internal:*")
         monkeypatch.setenv(
             "MCP_ALLOWED_ORIGINS", "http://client.example:*,https://client.example:*"
         )

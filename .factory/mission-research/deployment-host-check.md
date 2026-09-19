@@ -1,13 +1,13 @@
-# Saru Docker Infrastructure Check
+# Deployment host Docker Infrastructure Check
 
 **Date:** 2026-07-03
-**Host:** saru (confirmed via `hostname`)
+**Host:** deployment.example.internal (confirmed via `hostname`)
 
 ---
 
 ## 1. Docker Status
 
-✅ **Docker is fully operational** on saru. `docker ps` returned a large list of running containers (30+).
+✅ **Docker is fully operational** on deployment.example.internal. `docker ps` returned a large list of running containers (30+).
 
 ## 2. Docker Compose
 
@@ -30,9 +30,9 @@ The groktocrawl Docker Compose project was started from a **GitHub Actions runne
 - **Compose config path:** `/runner/work/groktocrawl/groktocrawl/docker-compose.yml`
 - **Working directory:** `/runner/work/groktocrawl/groktocrawl`
 
-⚠️ **The source directory no longer exists on saru.** The path `/runner/work/groktocrawl/groktocrawl/` now only contains an `ofelia/` subdirectory — the compose file and project source have been cleaned up. However, the **containers are still running** because they were started with `docker compose` and haven't been stopped.
+⚠️ **The source directory no longer exists on deployment.example.internal.** The path `/runner/work/groktocrawl/groktocrawl/` now only contains an `ofelia/` subdirectory — the compose file and project source have been cleaned up. However, the **containers are still running** because they were started with `docker compose` and haven't been stopped.
 
-⚠️ **The local development path `/Volumes/tank01/magnus/git/groktocrawl` does not exist on saru.** This is a macOS path; saru is a Linux machine.
+⚠️ **The local development path `/path/to/groktocrawl` does not exist on deployment.example.internal.** This is a macOS path; deployment.example.internal is a Linux machine.
 
 ### Running Groktocrawl Services
 
@@ -71,7 +71,7 @@ These compose services are **not running**:
 | 9417 | cAdvisor | Container monitoring |
 | 11434 | Ollama | Local LLM inference (localhost only) |
 
-## 6. Other Infrastructure Running on Saru
+## 6. Other Infrastructure Running on Deployment host
 
 - **Traefik** (v3.7) — Reverse proxy handling 80/443
 - **Grafana stack** — Grafana + Prometheus + Loki + Promtail for monitoring
@@ -87,10 +87,10 @@ These compose services are **not running**:
 
 ## 7. Summary
 
-Saru is a well-established Linux Docker host running diverse infrastructure including CI/CD runners (GitHub Actions, Forgejo), monitoring (Grafana/Prometheus), web analytics (Matomo), a Dokku PaaS, and local LLM inference (Ollama).
+Deployment host is a well-established Linux Docker host running diverse infrastructure including CI/CD runners (GitHub Actions, Forgejo), monitoring (Grafana/Prometheus), web analytics (Matomo), a Dokku PaaS, and local LLM inference (Ollama).
 
 The groktocrawl project was deployed via a GitHub Actions CI pipeline. The compose project still exists in Docker but was started from a runner workspace that has since been cleaned up. Only the test fixtures and LLM service remain running — the core services (agent-svc, scraper-svc, search-svc, valkey) are not deployed.
 
-To re-deploy groktocrawl on saru, you would need to:
-1. Clone or rsync the project to a persistent location on saru (e.g., `/opt/groktocrawl` or `/home/magnus/groktocrawl`)
+To re-deploy groktocrawl on deployment.example.internal, you would need to:
+1. Clone or rsync the project to a persistent location on deployment.example.internal (e.g., `/opt/groktocrawl` or `/home/operator/groktocrawl`)
 2. Run `docker compose up -d` from that location to bring up all services

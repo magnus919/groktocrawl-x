@@ -3,7 +3,7 @@
 Status: **qualification failure; no scored result**
 
 The first authorized launch reached no model inference. All Arm A connection
-attempts failed because the configured `gpuslut01` hostname did not expose the
+attempts failed because the configured `inference.example.internal` hostname did not expose the
 LiteLLM port; the gateway is published on its LAN address. Arm B rejected its
 private source aliases before transport because they were not valid HTTP URLs.
 

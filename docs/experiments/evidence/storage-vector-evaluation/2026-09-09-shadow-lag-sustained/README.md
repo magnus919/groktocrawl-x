@@ -2,7 +2,7 @@
 
 This packet measures the lag that appeared during the first application shadow
 pilot. It ran through the real semantic-service boundary on the isolated
-`gpuslut01` home-lab deployment. Qdrant served every result, and the corpus used
+`inference.example.internal` home-lab deployment. Qdrant served every result, and the corpus used
 only deterministic `pilot.invalid` documents.
 
 ## Result

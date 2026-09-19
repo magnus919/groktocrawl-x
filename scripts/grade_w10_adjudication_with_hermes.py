@@ -261,7 +261,7 @@ def main() -> int:
     parser.add_argument("--checkpoint-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
-        "--hermes", type=Path, default=Path("/Users/magnus/.local/bin/hermes")
+        "--hermes", type=Path, default=Path("hermes")
     )
     parser.add_argument("--model")
     parser.add_argument("--max-attempts", type=int, default=3)

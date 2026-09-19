@@ -23,7 +23,7 @@ migration path. `semantic-svc` depends directly on the Qdrant client across its
 startup, indexing, search, retention, and model-migration modules. The agent's
 research-memory implementation is a second direct Qdrant HTTP consumer.
 
-The home-lab deployment on `hal2000` confirmed the same Qdrant and semantic
+The home-lab deployment on `incumbent.example.internal` confirmed the same Qdrant and semantic
 service definitions on 2026-09-09. At the observation point, Qdrant was healthy,
 used 21.68 MiB of its four-GiB limit, and its volume held 478,883,056 bytes.
 Those are point-in-time inventory facts, not capacity or cost measurements.
