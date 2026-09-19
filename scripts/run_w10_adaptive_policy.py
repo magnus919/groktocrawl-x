@@ -162,30 +162,39 @@ def model_json(
     prompt: dict[str, Any],
     max_tokens: int,
     deadline: float,
+    reasoning_effort: str | None = None,
+    use_completion_token_limit: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     started = time.monotonic()
     try:
+        request: dict[str, Any] = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a conservative research evaluator. Use only the "
+                        "provided material. Return JSON matching the schema."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
+            ],
+            "temperature": 0,
+            (
+                "max_completion_tokens"
+                if use_completion_token_limit
+                else "max_tokens"
+            ): max_tokens,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": name, "strict": True, "schema": schema},
+            },
+        }
+        if reasoning_effort is not None:
+            request["reasoning_effort"] = reasoning_effort
         response = client.post(
             "/chat/completions",
-            json={
-                "model": model,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a conservative research evaluator. Use only the "
-                            "provided material. Return JSON matching the schema."
-                        ),
-                    },
-                    {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
-                ],
-                "temperature": 0,
-                "max_tokens": max_tokens,
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": {"name": name, "strict": True, "schema": schema},
-                },
-            },
+            json=request,
             timeout=remaining_seconds(deadline),
         )
         response.raise_for_status()

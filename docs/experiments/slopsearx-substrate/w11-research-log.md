@@ -485,3 +485,12 @@ Each job filled its exact eight-result budget and became terminal with
 completion update was acknowledged but did not change `caller_completed` from
 false. This is an ownership-contract failure. Subsequent model grading is
 diagnostic evidence only and cannot turn this result into an adoption pass.
+
+The first diagnostic grader was stopped after 16 checkpoints. Three completed,
+nine exhausted the `general` route's completion allowance in hidden reasoning
+and returned null content, and five returned incomplete candidate or claim
+maps. Those records are excluded rather than selectively retried. A
+content-free provider probe showed `finish_reason: length` under the original
+parameter and a complete strict-JSON response with low reasoning effort and
+`max_completion_tokens`. The diagnostic grader now uses low reasoning effort
+and an 8,000-token combined ceiling, with a separate post-hard-gate freeze.

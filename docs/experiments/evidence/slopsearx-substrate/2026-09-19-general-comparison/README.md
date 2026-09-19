@@ -53,3 +53,11 @@ The update was acknowledged, but the terminal record retained
 `caller_completed: false`. This violates the frozen ownership rule that
 GroktoCrawl alone declares research complete. Quality grading continues only as
 a diagnostic and cannot override this hard-gate failure.
+
+The first diagnostic-grading attempt is excluded. The `general` route used its
+completion allowance for reasoning on nine trials and returned no JSON; five
+more responses omitted required candidates or claims. A minimal probe confirmed
+that low reasoning effort plus the provider's completion-token parameter
+returns strict JSON. The replacement diagnostic uses that setting and an
+8,000-token combined reasoning/output ceiling. It receives its own post-gate
+freeze and does not change the retrieval result.

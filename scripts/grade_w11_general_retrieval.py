@@ -151,8 +151,10 @@ def grade_trial(
                 "a resolved contradiction, or an independent publisher."
             ),
         },
-        max_tokens=4000,
+        max_tokens=8000,
         deadline=deadline,
+        reasoning_effort="low",
+        use_completion_token_limit=True,
     )
     candidate_grades = assessment_wire.get("candidates")
     gap_grades = assessment_wire.get("gaps")
