@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v8.json"
+OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v9.json"
 
 PINNED_FILES = (
     "docs/experiments/enterprise-evaluation/corpus.json",
@@ -47,10 +47,17 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     payload = {
-        "schema_version": "research-mission-experiment-freeze/8",
+        "schema_version": "research-mission-experiment-freeze/9",
         "status": "frozen_before_measurement",
-        "supersedes": "w12.1-freeze-v7.json",
-        "predecessor_disposition": "excluded_after_grader_failure_guardrail",
+        "supersedes": "w12.1-freeze-v8.json",
+        "predecessor_disposition": "primary_lanes_retained_regrade_launcher_failed_before_call",
+        "inherited_primary_evidence": {
+            "source": "w12.1-run-v8-a2a743b",
+            "file_count": 436,
+            "byte_count": 13790342,
+            "canonical_manifest_sha256": "46dadbc8d837bcb863257accbe63dc09d7b2f16c400fd00aa58908311e1f518b",
+            "copy_policy": "exact read-only copy before any v9 model call",
+        },
         "source_revision": revision,
         "domain": "agentic engineering software factory in the enterprise",
         "model_route": "general",
@@ -75,7 +82,7 @@ def main() -> int:
         "intake_grade_count": 36,
         "maximum_adjudication_count": 72,
         "measured_call_ceiling": 288,
-        "required_preflight": "the two blind-grade candidates that exhausted v7",
+        "required_preflight": "no model preflight; reproduce the inherited v8 primary-tree digest before any v9 evaluator call",
         "bounded_corrections": [
             "exact common output field names included in both arm prompts",
             "exact provider envelope retained before content validation",
@@ -88,6 +95,7 @@ def main() -> int:
             "minimal reasoning effort for intake normalization only",
             "20000-token completion ceiling for intake normalization only",
             "minimal reasoning and 20000-token ceiling for evaluator calls",
+            "local tested canonical digest for regrade work order",
         ],
         "files": {name: sha256(ROOT / name) for name in PINNED_FILES},
     }
