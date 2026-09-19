@@ -47,6 +47,7 @@ def grade_one(
     timeout: float,
     max_attempts: int,
     max_tokens: int,
+    completion_attempts: int,
 ) -> dict[str, str]:
     identity = candidate_id(trial["trial_id"])
     output = public_dir / "grades" / f"{identity}.json"
@@ -97,37 +98,54 @@ def grade_one(
         "candidate": trial["answer"],
     }
     started = datetime.now(UTC).isoformat()
+    invalid_completions: list[dict[str, Any]] = []
     try:
-        content, receipt, envelope = transport.model_json(
-            base_url=base_url,
-            api_key=api_key,
-            model=model,
-            schema_name="w12_thread_grade",
-            schema=grade_schema(),
-            prompt=prompt,
-            timeout=timeout,
-            max_attempts=max_attempts,
-            reasoning_effort="minimal",
-            max_tokens=max_tokens,
-        )
-        transport.write_json(
-            private_dir / "grades" / f"{identity}.json",
-            {
-                "prompt": prompt,
-                "completion": content,
-                "receipt": receipt,
-                "envelope": envelope,
-            },
-            private=True,
-        )
-        if (
-            content is None
-            or receipt["finish_reason"] != "stop"
-            or receipt["refusal"]
-            or receipt["tool_calls"]
-        ):
-            raise ValueError("model completion is not a final grade")
-        grade = ThreadGrade.model_validate(json.loads(content))
+        for completion_attempt in range(1, completion_attempts + 1):
+            content, receipt, envelope = transport.model_json(
+                base_url=base_url,
+                api_key=api_key,
+                model=model,
+                schema_name="w12_thread_grade",
+                schema=grade_schema(),
+                prompt=prompt,
+                timeout=timeout,
+                max_attempts=max_attempts,
+                reasoning_effort="minimal",
+                max_tokens=max_tokens,
+            )
+            transport.write_json(
+                private_dir
+                / "grades"
+                / f"{identity}-attempt-{completion_attempt}.json",
+                {
+                    "prompt": prompt,
+                    "completion": content,
+                    "receipt": receipt,
+                    "envelope": envelope,
+                },
+                private=True,
+            )
+            try:
+                if (
+                    content is None
+                    or receipt["finish_reason"] != "stop"
+                    or receipt["refusal"]
+                    or receipt["tool_calls"]
+                ):
+                    raise ValueError("model completion is not a final grade")
+                grade = ThreadGrade.model_validate(json.loads(content))
+                break
+            except ValueError as error:
+                invalid_completions.append(
+                    {
+                        "attempt": completion_attempt,
+                        "error_type": type(error).__name__,
+                        "error": str(error),
+                        "receipt": receipt,
+                    }
+                )
+                if completion_attempt == completion_attempts:
+                    raise
         transport.write_json(
             output,
             {
@@ -139,6 +157,8 @@ def grade_one(
                 "started_at": started,
                 "completed_at": datetime.now(UTC).isoformat(),
                 "receipt": receipt,
+                "completion_attempt": completion_attempt,
+                "prior_invalid_completions": invalid_completions,
                 "grade": grade.model_dump(mode="json"),
             },
         )
@@ -158,6 +178,7 @@ def grade_one(
                 "error_type": type(error).__name__,
                 "error": str(error),
                 "receipt": failure_receipt,
+                "invalid_completions": invalid_completions,
             },
         )
         return {"candidate_id": identity, "status": "failed"}
@@ -175,6 +196,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=600)
     parser.add_argument("--max-attempts", type=int, default=3)
     parser.add_argument("--max-tokens", type=int, default=20000)
+    parser.add_argument("--completion-attempts", type=int, default=1)
     parser.add_argument("--seed", type=int, default=20260919)
     args = parser.parse_args()
     if not 1 <= args.concurrency <= 10:
@@ -183,6 +205,8 @@ def main() -> int:
         raise SystemExit("max-attempts must be between 1 and 3")
     if not 1000 <= args.max_tokens <= 20000:
         raise SystemExit("max-tokens must be between 1000 and 20000")
+    if not 1 <= args.completion_attempts <= 2:
+        raise SystemExit("completion-attempts must be between 1 and 2")
     base_url = args.base_url or os.getenv("LLM_BASE_URL")
     api_key = args.api_key or os.getenv("LLM_API_KEY")
     if args.env_file:
@@ -214,6 +238,7 @@ def main() -> int:
                 timeout=args.timeout,
                 max_attempts=args.max_attempts,
                 max_tokens=args.max_tokens,
+                completion_attempts=args.completion_attempts,
             )
             for trial in trials
         ]
