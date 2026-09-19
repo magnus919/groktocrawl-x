@@ -413,6 +413,31 @@ def build_grade_prompt(
     }
 
 
+def build_adjudication_prompt(
+    case: MissionExperimentCase,
+    *,
+    sources: tuple[dict[str, str], ...],
+    candidate: dict[str, Any],
+) -> dict[str, Any]:
+    prompt = build_grade_prompt(case, sources=sources, candidate=candidate)
+    prompt["output_contract"] = {
+        "additional_fields_allowed": False,
+        "wrapper_object_allowed": False,
+        "required_top_level_fields": [
+            "obligation_grades",
+            "scope_violations",
+            "supported_material_claims",
+            "total_material_claims",
+            "decision_usefulness",
+            "decision_usefulness_rationale",
+            "appropriate_abstention",
+            "hard_boundary_failure",
+            "hard_boundary_rationale",
+        ],
+    }
+    return prompt
+
+
 def validate_candidate_grade(
     payload: object, *, case: MissionExperimentCase
 ) -> CandidateGrade:

@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "agent-svc"))
 
 from agent.experimental.mission_experiment import (
-    build_grade_prompt,
+    build_adjudication_prompt,
     validate_candidate_grade,
 )
 from agent.experimental.research_mission import load_mission_experiment_corpus
@@ -121,7 +121,7 @@ def execute_adjudication(
     if public_path.exists() and json.loads(public_path.read_bytes()).get("status") == "completed":
         return {"candidate_id": candidate_id, "status": "resumed_completed"}
     started_at = datetime.now(UTC).isoformat()
-    prompt = build_grade_prompt(case, sources=sources, candidate=candidate)
+    prompt = build_adjudication_prompt(case, sources=sources, candidate=candidate)
     private_path = private_dir / "adjudications" / f"{candidate_id}.json"
     try:
         content, receipt, envelope = downstream.model_json(

@@ -19,6 +19,7 @@ from agent.experimental.mission_experiment import (
     IntakeGradeWorkItem,
     IntakeWorkItem,
     WorkItem,
+    build_adjudication_prompt,
     build_downstream_prompt,
     build_grade_prompt,
     build_intake_grade_prompt,
@@ -212,7 +213,7 @@ def _validate_adjudications(
             private_path,
             public,
             identity=f"{candidate_id} adjudication",
-            expected_prompt=build_grade_prompt(
+            expected_prompt=build_adjudication_prompt(
                 case, sources=source_pack, candidate=candidates[candidate_id]
             ),
             issues=issues,
