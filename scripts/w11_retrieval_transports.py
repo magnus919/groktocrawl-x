@@ -9,7 +9,7 @@ from typing import Any, Protocol
 import httpx
 
 TERMINAL = {"succeeded", "partial", "failed", "cancelled", "expired"}
-HTTP_ATTEMPTS = 3
+HTTP_ATTEMPTS = 5
 
 
 class ToolCaller(Protocol):
@@ -24,6 +24,16 @@ def _require(value: Any, operation: str) -> dict[str, Any]:
         code = error.get("code", "unknown") if isinstance(error, dict) else "unknown"
         raise RuntimeError(f"{operation} failed: {code}")
     return value
+
+
+def _require_mutation_ack(value: Any, operation: str) -> None:
+    """Accept SlopSearX's structured or plain-text mutation acknowledgement."""
+    if isinstance(value, dict):
+        _require(value, operation)
+        return
+    if isinstance(value, str) and value.strip():
+        return
+    raise RuntimeError(f"{operation} returned no acknowledgement")
 
 
 def flat_http_searches(
@@ -141,10 +151,9 @@ def recorded_continuation_searches(
         "slopsearx_update_research",
         {"job_id": job_id, "complete": True, "rationale": "Frozen caller plan executed."},
     )
-    # SlopSearX 0.5 models this mutation as a notification and may return no
-    # content on success. A structured error must still fail closed.
-    if update is not None:
-        _require(update, "update_research")
+    # SlopSearX 0.5 returns a plain-text acknowledgement for this mutation.
+    # Structured responses remain supported and structured errors fail closed.
+    _require_mutation_ack(update, "update_research")
     job = _require(client.call_tool("slopsearx_get_job", {"job_id": job_id}), "get_job")
     observed_queries = [item.get("query") for item in job.get("queries", [])]
     if observed_queries != queries:

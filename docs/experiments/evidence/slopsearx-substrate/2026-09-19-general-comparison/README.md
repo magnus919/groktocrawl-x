@@ -28,11 +28,11 @@ can begin.
 
 An initial execution attempt was rejected before scoring. All 36 recorded
 continuation trials reached SlopSearX but the client treated the workflow's
-successful empty completion response as an error. Six of 36 flat HTTP trials
+successful plain-text completion acknowledgement as an error. Six of 36 flat HTTP trials
 also encountered HTTP 429 responses. The 30 partial HTTP checkpoints are not a
 valid comparison and will be discarded with the failures. The corrected runner
-accepts an empty completion notification, still rejects structured errors, and
-allows at most three HTTP attempts with bounded `Retry-After` handling. The
+accepts the text acknowledgement, still rejects structured errors, and allows
+at most five HTTP attempts with bounded `Retry-After` handling. The
 freeze's request ceiling includes those attempts. Measurement restarts from an
 empty checkpoint directory under a new frozen manifest.
 

@@ -51,7 +51,7 @@ class FakeMcp:
             self.queries.append(arguments["query"])
             return {"job_id": "job-1", "state": "queued"}
         if name == "slopsearx_update_research":
-            return None
+            return "Research updated"
         if name == "slopsearx_read_results":
             return {"results": [{"url": f'https://example.com/{arguments["cursor"]}'}]}
         if name == "slopsearx_get_job":

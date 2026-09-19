@@ -191,8 +191,8 @@ def test_build_freeze_binds_design_limits_and_redacted_inputs(tmp_path: Path) ->
     assert result["limits"] == {
         "model_calls": 72,
         "distinct_queries": 108,
-        "search_attempts": 648,
-        "engine_attempts": 1296,
+        "search_attempts": 1080,
+        "engine_attempts": 2160,
         "admitted_results": 576,
         "elapsed_seconds": 25920,
         "stored_bytes": 754974720,
