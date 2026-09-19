@@ -2,7 +2,7 @@
 
 This packet contains the secret-free public evidence for the frozen W12.1
 comparison. The full private provider envelopes and prompts remain on
-`gpuslut01`; their response and envelope digests are retained in the public
+`inference.example.internal`; their response and envelope digests are retained in the public
 receipts and were replay-validated before analysis.
 
 ## Result

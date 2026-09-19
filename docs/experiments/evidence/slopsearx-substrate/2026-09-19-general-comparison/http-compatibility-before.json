@@ -163,6 +163,6 @@
     "source_revision": "edeba9ef9311adf19ce3f1b6060257ef1b54c2f9",
     "version": "0.5.0"
   },
-  "target_label": "gpuslut01-w11-research",
+  "target_label": "inference.example.internal-w11-research",
   "valid": true
 }

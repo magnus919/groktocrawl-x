@@ -2,7 +2,7 @@
 
 Status: **exploratory only; no comparison or adoption decision**.
 
-This is a follow-up to the [2026-09-07 run](../exploratory-local-2026-09-07/evaluation-summary.md) after fixing evaluator accounting. It ran the 30 exposed candidate cases inside the existing GroktoCrawl agent container, through the internal LiteLLM gateway at `http://gpuslut01:4000/v1`, using the `local` alias for both answering and grading. The gateway key stayed inside the existing deployment.
+This is a follow-up to the [2026-09-07 run](../exploratory-local-2026-09-07/evaluation-summary.md) after fixing evaluator accounting. It ran the 30 exposed candidate cases inside the existing GroktoCrawl agent container, through the internal LiteLLM gateway at `http://inference.example.internal:4000/v1`, using the `local` alias for both answering and grading. The gateway key stayed inside the existing deployment.
 
 ## What happened
 

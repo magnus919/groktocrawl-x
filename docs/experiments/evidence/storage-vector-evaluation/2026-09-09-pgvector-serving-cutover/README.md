@@ -1,7 +1,7 @@
 # Application pgvector serving cutover and rollback
 
 This packet records the first application-level serving rehearsal on the isolated
-`gpuslut01` home-lab pilot. It used only deterministic `pilot.invalid` documents.
+`inference.example.internal` home-lab pilot. It used only deterministic `pilot.invalid` documents.
 Production and the inherited mainline stack were not changed.
 
 ## Result

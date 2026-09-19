@@ -334,7 +334,7 @@
     },
     "hardware_and_limits": {
       "runner_host": "current local macOS arm64 host",
-      "inference_route": "home-lab LiteLLM local alias on gpuslut01",
+      "inference_route": "home-lab LiteLLM local alias on inference.example.internal",
       "comparison_rule": "same runner host, service state, model route, and cache policy for paired arms; record exact versions at execution",
       "cold_warm_policy": "quality study uses fresh independent calls; no response reuse; provider cache-token counts retained when reported"
     },

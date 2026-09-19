@@ -2,7 +2,7 @@
   "schema_version": "pgvector-shadow-sustained-manifest/1",
   "repository": "magnus919/groktocrawl-x",
   "commit": "c06605a",
-  "host": "gpuslut01",
+  "host": "inference.example.internal",
   "time_window_utc": "2026-09-09T08:26:38Z/2026-09-09T08:29:00Z",
   "corpus": "deterministic synthetic pilot.invalid documents only",
   "seed": "groktocrawl-x-shadow-lag-v1",

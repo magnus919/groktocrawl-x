@@ -4,7 +4,7 @@
   "source_revision": "186c16f803e502905d5640ca0477fcffab366c8c",
   "supersedes": "w12.2-freeze-v2.json",
   "model_route": "general",
-  "endpoint_origin": "http://192.168.1.132:4000/",
+  "endpoint_origin": "http://inference.example.internal:4000/",
   "concurrency": 5,
   "maximum_authorized_concurrency": 10,
   "logical_candidate_count": 54,

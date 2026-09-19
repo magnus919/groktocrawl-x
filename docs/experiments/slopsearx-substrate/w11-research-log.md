@@ -99,7 +99,7 @@ idempotency identity.
 
 ## 2026-09-11 — installed 0.5 baseline and reference contracts
 
-The HAL2000 GroktoCrawl deployment was rechecked after the operator reported
+The incumbent host GroktoCrawl deployment was rechecked after the operator reported
 the new SlopSearX feature release. Both its HTTP and MCP containers identify as
 SlopSearX 0.5.0 and resolve to the image digest already pinned by W11. The
 ordinary deployment does not grant the new specialist workflows. This preserves
@@ -140,7 +140,7 @@ Sources inspected:
 
 Observed deployment facts:
 
-- The HAL2000 service reports package 0.5.0 and the source revision above.
+- The incumbent host service reports package 0.5.0 and the source revision above.
 - An authenticated MCP discovery call exposed 35 tools, including adaptive
   research, staged search, entity reads, receipts/manifests, saved searches,
   artifact lineage, and dependency dossiers. Tool discovery is not proof of
@@ -182,14 +182,14 @@ Exclusions and limitations:
 
 - Feature documentation and contract tests establish intended behavior, not
   GroktoCrawl integration value.
-- The shared HAL2000 deployment will not be used for scored runs because its
+- The shared incumbent host deployment will not be used for scored runs because its
   grants and workload are not isolated.
 - W11 effect margins and the final control policy remain unset until W10
   finishes. No scored W11 run is authorized by this draft.
 
 ## 2026-09-11 — deployment contract refresh
 
-A second authenticated preflight after the HAL2000 upgrade reproduced the
+A second authenticated preflight after the incumbent host upgrade reproduced the
 same 0.5.0 contract: all 35 expected tools were present, research was enabled,
 the other five W11 specialist grants were denied before dispatch, and all five
 workflow implementations reported healthy. Apart from the evidence label and
@@ -202,7 +202,7 @@ passes every 0.5 specialist grant as an independent empty-by-default setting.
 This is required for isolated W11 arms: enabling staged search must not silently
 enable receipts, saved searches, event publication, or dependency dossiers.
 Deterministic Compose, MCP-client, preflight, and case-contract tests passed.
-The local workstation has no Docker executable. A clean checkout on HAL2000
+The local workstation has no Docker executable. A clean checkout on incumbent host
 rendered the Compose model successfully and confirmed the pinned 0.5 registry
 digest plus nine empty-by-default specialist grant variables. Live isolated
 startup remains a separate pre-measurement gate.

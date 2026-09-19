@@ -72,7 +72,7 @@ _browser_handler = BrowserHandler(_client, _session_store)
 #   the host-derived default below)
 #
 # Values are comma-separated Host patterns, e.g.
-# "hal2000:*,localhost:*,127.0.0.1:*,[::1]:*". Wildcards apply to the port
+# "incumbent.example.internal:*,localhost:*,127.0.0.1:*,[::1]:*". Wildcards apply to the port
 # only ("host:*"); a bare "*" matches nothing in this SDK version.
 
 
@@ -106,7 +106,7 @@ def _build_allowed_origins(hosts: list[str]) -> list[str]:
     so legitimate browser-served client pages are not rejected with 403.
     Operators can scope origins independently of the server's Host allowlist
     via MCP_ALLOWED_ORIGINS (comma-separated, e.g.
-    "http://hal2000:*,https://hal2000:*").
+    "http://incumbent.example.internal:*,https://incumbent.example.internal:*").
     """
     raw = os.environ.get("MCP_ALLOWED_ORIGINS", "").strip()
     if raw:

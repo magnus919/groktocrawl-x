@@ -19,7 +19,7 @@ simple source statements.
 - Terminal result: complete local development artifact; no retained publication.
 
 The failed launch before this run made no provider call because the runner lacked
-an explicit `LLM_BASE_URL`. This successful run used the confirmed gpuslut01 LAN
+an explicit `LLM_BASE_URL`. This successful run used the confirmed inference.example.internal LAN
 gateway address. No credential is stored here.
 
 ## Evidence identities

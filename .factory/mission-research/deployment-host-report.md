@@ -1,7 +1,7 @@
-# Saru Deployment Report
+# Deployment host Deployment Report
 
 **Date:** 2026-07-03
-**Target:** saru (Linux Docker host, 14GB RAM, 8 CPUs)
+**Target:** deployment.example.internal (Linux Docker host, 14GB RAM, 8 CPUs)
 **Project:** GroktoCrawl
 
 ---
@@ -19,12 +19,12 @@ All stopped and removed successfully.
 
 ## Step 2: Create project directory
 
-**Attempted:** `/opt/groktocrawl` — permission denied (user `magnus` has no sudo access).
-**Fallback:** `/home/magnus/groktocrawl` — used instead.
+**Attempted:** `/opt/groktocrawl` — permission denied (the operator has no sudo access).
+**Fallback:** `/home/operator/groktocrawl` — used instead.
 
 ---
 
-## Step 3: Rsync project to saru
+## Step 3: Rsync project to deployment.example.internal
 
 Command:
 ```
@@ -32,7 +32,7 @@ rsync -avz --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
   --exclude '.factory' --exclude 'node_modules' --exclude 'htmlcov' \
   --exclude '.pytest_cache' --exclude '*.egg-info' \
   --exclude 'graphify-out' --exclude 'droid-wiki' \
-  /Volumes/tank01/magnus/git/groktocrawl/ saru:/home/magnus/groktocrawl/
+  /path/to/groktocrawl/ deployment.example.internal:/home/operator/groktocrawl/
 ```
 
 - Transferred: 623MB (72,310 files)
@@ -45,9 +45,9 @@ rsync -avz --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' \
 ## Step 4: Verify project copy
 
 Key files confirmed present:
-- `/home/magnus/groktocrawl/docker-compose.yml`
-- `/home/magnus/groktocrawl/agent-svc/` (with `agent/` subdirectory, `Dockerfile`, `pyproject.toml`)
-- `/home/magnus/groktocrawl/.env` (configured with DeepSeek API key and base URL)
+- `/home/operator/groktocrawl/docker-compose.yml`
+- `/home/operator/groktocrawl/agent-svc/` (with `agent/` subdirectory, `Dockerfile`, `pyproject.toml`)
+- `/home/operator/groktocrawl/.env` (configured with DeepSeek API key and base URL)
 
 ---
 
@@ -55,7 +55,7 @@ Key files confirmed present:
 
 Command:
 ```
-ssh saru "cd /home/magnus/groktocrawl && docker compose up --build -d"
+ssh deployment.example.internal "cd /home/operator/groktocrawl && docker compose up --build -d"
 ```
 
 All images built and started successfully. 10 services deployed.
@@ -110,15 +110,15 @@ All checks passed. The deployment is healthy.
 
 ## Summary
 
-✅ **Deployment successful.** GroktoCrawl is fully deployed and operational on saru at `/home/magnus/groktocrawl/`. All 10 services are running and passing health checks.
+✅ **Deployment successful.** GroktoCrawl is fully deployed and operational on deployment.example.internal at `/home/operator/groktocrawl/`. All 10 services are running and passing health checks.
 
 ### Deviations from original plan
-- `/opt` was inaccessible due to lack of sudo. Used `/home/magnus/groktocrawl/` instead.
+- `/opt` was inaccessible due to lack of sudo. Used `/home/operator/groktocrawl/` instead.
 - `test-site/.venv/` (macOS Python venv) was unnecessarily synced. Harmless but could be excluded in future.
 
 ### Access points
-- **Agent API:** `http://saru:8080`
-- **Scraper API:** `http://saru:8001`
-- **Portal/Web UI:** `http://saru:8082`
-- **Semantic API:** `http://saru:8003`
-- **Search (slopsearx):** `http://saru:8081`
+- **Agent API:** `http://deployment.example.internal:8080`
+- **Scraper API:** `http://deployment.example.internal:8001`
+- **Portal/Web UI:** `http://deployment.example.internal:8082`
+- **Semantic API:** `http://deployment.example.internal:8003`
+- **Search (slopsearx):** `http://deployment.example.internal:8081`

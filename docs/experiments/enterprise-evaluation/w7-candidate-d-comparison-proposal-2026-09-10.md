@@ -29,7 +29,7 @@ Every failed attempt remains in the denominator.
 
 The study uses the isolation-approved packet recorded in
 [the packet review](w7-candidate-d-packet-2026-09-10.md). The requested model is
-the `local` alias through the home-lab LiteLLM service on `gpuslut01`.
+the `local` alias through the home-lab LiteLLM service on `inference.example.internal`.
 
 ## Hard limits
 

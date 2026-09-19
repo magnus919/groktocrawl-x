@@ -13,7 +13,7 @@ authorize a production cutover, or establish production-scale recovery.
 
 ## Scope and authority
 
-The rehearsal runs only against `groktocrawl-x-candidate` on `gpuslut01`.
+The rehearsal runs only against `groktocrawl-x-candidate` on `inference.example.internal`.
 PostgreSQL is authoritative for retained research artifacts. Its pgvector table
 is a rebuildable serving projection. Qdrant remains the rollback vector copy.
 The incumbent deployment and its data are untouched.

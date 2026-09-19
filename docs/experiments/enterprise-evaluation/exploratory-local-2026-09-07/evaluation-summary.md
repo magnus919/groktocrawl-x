@@ -2,7 +2,7 @@
 
 Status: **exploratory only; no comparison or adoption decision**.
 
-The evaluator ran the 30 exposed candidate cases from `corpus.json` inside the existing GroktoCrawl agent container. The container used the internal LiteLLM gateway at `http://gpuslut01:4000/v1` with the `local` alias for both answering and grading. The gateway key stayed inside the existing deployment.
+The evaluator ran the 30 exposed candidate cases from `corpus.json` inside the existing GroktoCrawl agent container. The container used the internal LiteLLM gateway at `http://inference.example.internal:4000/v1` with the `local` alias for both answering and grading. The gateway key stayed inside the existing deployment.
 
 ## What happened
 

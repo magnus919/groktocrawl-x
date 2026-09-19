@@ -282,9 +282,9 @@ W10 uses the separately deployed, pinned flat-search baseline recorded in
 digest into immutable run metadata and the final manifest. SlopSearX 0.5's
 opt-in MCP workflows are outside this comparison and belong to W11.
 
-One trial launched immediately after notification of the HAL2000 upgrade was
+One trial launched immediately after notification of the incumbent host upgrade was
 stopped conservatively. Subsequent route inspection proved W10 was using its own
-unchanged SlopSearX 0.4.0 container rather than HAL2000. The one completed trial
+unchanged SlopSearX 0.4.0 container rather than incumbent host. The one completed trial
 and interruption evidence remain excluded as
 `challenge-excluded-search-environment-change` with SHA-256
 `86b301d24734f5f6dfe79e2e3b807907c7824af2921b9eb0855fae0dee6b4301`.

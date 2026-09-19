@@ -1,7 +1,7 @@
 {
   "schema_version": "pgvector-application-serving-cutover/1",
   "date": "2026-09-09",
-  "host": "gpuslut01",
+  "host": "inference.example.internal",
   "scope": "isolated home-lab experimental deployment",
   "corpus": "deterministic pilot.invalid documents only",
   "application_merge": "5739674",
