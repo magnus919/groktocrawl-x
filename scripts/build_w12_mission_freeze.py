@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v4.json"
+OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v5.json"
 
 PINNED_FILES = (
     "docs/experiments/enterprise-evaluation/corpus.json",
@@ -47,10 +47,10 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     payload = {
-        "schema_version": "research-mission-experiment-freeze/4",
+        "schema_version": "research-mission-experiment-freeze/5",
         "status": "frozen_before_measurement",
-        "supersedes": "w12.1-freeze-v3.json",
-        "predecessor_disposition": "excluded_after_failed_trial_contract_mismatch",
+        "supersedes": "w12.1-freeze-v4.json",
+        "predecessor_disposition": "excluded_after_intake_failure_guardrail",
         "source_revision": revision,
         "domain": "agentic engineering software factory in the enterprise",
         "model_route": "general",
@@ -69,7 +69,7 @@ def main() -> int:
         "intake_grade_count": 36,
         "maximum_adjudication_count": 72,
         "measured_call_ceiling": 288,
-        "required_preflight": "reuse the passing v2 matched preflight only if downstream executable hashes remain identical",
+        "required_preflight": "one excluded intake trial with strict structured output; reuse the passing v2 downstream preflight only if downstream hashes remain identical",
         "bounded_corrections": [
             "exact common output field names included in both arm prompts",
             "exact provider envelope retained before content validation",
@@ -78,6 +78,7 @@ def main() -> int:
             "independent automated regrade lane with replay validation",
             "terminal failures admitted below the 10 percent lane guardrail",
             "frozen conservative assignment for missing candidates",
+            "provider-enforced strict JSON Schema for intake results",
         ],
         "files": {name: sha256(ROOT / name) for name in PINNED_FILES},
     }
