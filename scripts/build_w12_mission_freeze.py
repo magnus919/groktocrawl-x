@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v3.json"
+OUTPUT = ROOT / "docs/experiments/research-mission/w12.1-freeze-v4.json"
 
 PINNED_FILES = (
     "docs/experiments/enterprise-evaluation/corpus.json",
@@ -47,10 +47,10 @@ def main() -> int:
         text=True,
     ).stdout.strip()
     payload = {
-        "schema_version": "research-mission-experiment-freeze/3",
+        "schema_version": "research-mission-experiment-freeze/4",
         "status": "frozen_before_measurement",
-        "supersedes": "w12.1-freeze-v2.json",
-        "predecessor_disposition": "excluded_after_incomplete_analysis_audit",
+        "supersedes": "w12.1-freeze-v3.json",
+        "predecessor_disposition": "excluded_after_failed_trial_contract_mismatch",
         "source_revision": revision,
         "domain": "agentic engineering software factory in the enterprise",
         "model_route": "general",
@@ -76,6 +76,8 @@ def main() -> int:
             "low reasoning effort and 10000 completion-token ceiling",
             "complete six declared sensitivity outputs",
             "independent automated regrade lane with replay validation",
+            "terminal failures admitted below the 10 percent lane guardrail",
+            "frozen conservative assignment for missing candidates",
         ],
         "files": {name: sha256(ROOT / name) for name in PINNED_FILES},
     }
