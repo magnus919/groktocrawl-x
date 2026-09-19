@@ -18,6 +18,7 @@ PROFILE = "retrieval-provenance-v1"
 HANDOFF_CONTRACT = "slopsearx.retrieval_handoff"
 HANDOFF_VERSION = 1
 REFERENCE_SCHEMA = "groktocrawl.slopsearx_provenance_reference/1"
+MAX_REFERENCE_BYTES = 8192
 REQUIRED_GRANT = "retrieval_receipts"
 FORBIDDEN_GRANTS = frozenset(
     {"jobs", "research", "staged_search", "saved_searches", "dependency_dossier"}
@@ -207,6 +208,18 @@ class ProvenanceReference:
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def reference_document(reference: ProvenanceReference) -> tuple[bytes, str]:
+    value = reference.as_dict()
+    if value.get("schema_version") != REFERENCE_SCHEMA:
+        raise ValueError("unsupported provenance reference schema")
+    if value.get("observations_verified") is not False or value.get("publishable") is not False:
+        raise ValueError("provenance reference cannot grant verification or publication")
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    if len(raw) > MAX_REFERENCE_BYTES:
+        raise ValueError("provenance reference byte limit exceeded")
+    return raw, hashlib.sha256(raw).hexdigest()
 
 
 def receipt_idempotency_key(

@@ -1,6 +1,6 @@
 # Narrow SlopSearX provenance adapter
 
-Status: **implementation in progress; contract and opt-in transport complete**
+Status: **implementation in progress; contract, transport, and storage complete**
 
 This adapter implements the narrow W11 adoption selected by
 [ADR-0082](../adr/0082-delegate-bounded-retrieval-to-slopsearx.md). Ordinary
@@ -44,11 +44,21 @@ in aggregate health. With the settings absent, no MCP client is created.
 
 ## Remaining production slice
 
-The next implementation milestone supplies bounded durable reference storage,
-retention cleanup, an isolated deployment profile, and the rollback exercise.
-Those pieces must pass an isolated live recovery check before issue #327 can
-close. Disabling the profile leaves ordinary HTTP search and existing
-deployments unchanged.
+Migration 15 adds an internal PostgreSQL reference table. Each retained
+research artifact set may own at most 100 references, each no larger than 8
+KiB. A reference is replay-idempotent only when its canonical digest is
+unchanged. It inherits retention ownership from the artifact set through a
+foreign key with cascading deletion; it cannot outlive a deleted research
+artifact set. The remote snapshot expiry is retained separately so operators
+and readers can distinguish a durable audit identity from still-readable remote
+state.
+
+The next implementation milestone supplies an isolated deployment profile and
+the live timeout/restart/expiry/rollback exercise. Disabling the profile is the
+rollback switch: no MCP client is created, ordinary HTTP search remains active,
+and retained references remain inert audit metadata until their owning artifact
+set expires or is deleted. The additive table need not be dropped during
+rollback. Issue #327 closes only after that live evidence passes.
 
 The contract and recovery behavior are based on the [W11 provenance and
 recovery evidence](evidence/slopsearx-substrate/2026-09-11-isolated-provenance/)
