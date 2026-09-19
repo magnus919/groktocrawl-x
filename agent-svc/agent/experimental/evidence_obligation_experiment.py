@@ -153,6 +153,9 @@ def execute_policy(
         return len(closed - before)
 
     run_query(initial)
+    stop: Literal[
+        "fixed_complete", "all_obligations_closed", "no_material_gain", "budget"
+    ]
     if policy == "fixed":
         stop = "fixed_complete"
     elif policy == "w10_diagnostic":
@@ -181,12 +184,12 @@ def execute_policy(
             if not open_items:
                 stop = "all_obligations_closed"
                 break
-            query = obligation_queries.get(open_items[0].obligation_id)
-            if query is None or query.query_id in executed:
+            obligation_query = obligation_queries.get(open_items[0].obligation_id)
+            if obligation_query is None or obligation_query.query_id in executed:
                 stop = "no_material_gain"
                 break
-            executed.append(query.query_id)
-            gain = run_query(query)
+            executed.append(obligation_query.query_id)
+            gain = run_query(obligation_query)
             if gain == 0:
                 after_last_gain += 1
                 stop = "no_material_gain"
