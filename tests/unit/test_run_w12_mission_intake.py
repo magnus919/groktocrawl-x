@@ -53,3 +53,14 @@ def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
     assert private["raw_envelope"] == '{"raw":"envelope"}'
     public = json.loads((tmp_path / "public/intake/intake-1.json").read_text())
     assert public["error_type"] == "JSONDecodeError"
+
+
+def test_intake_response_schema_closes_the_top_level_envelope():
+    schema = runner.intake_response_schema()
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == {
+        "action",
+        "mission",
+        "clarifying_question",
+        "rationale",
+    }

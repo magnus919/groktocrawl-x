@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "agent-svc"))
 
 from agent.experimental.mission_experiment import (
+    IntakeResult,
     IntakeWorkItem,
     build_intake_prompt,
     validate_intake_result,
@@ -30,6 +31,12 @@ SPEC = importlib.util.spec_from_file_location("w12_downstream_runner", RUNNER_PA
 assert SPEC and SPEC.loader
 downstream = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(downstream)
+
+
+def intake_response_schema() -> dict[str, Any]:
+    """Return the strict public intake envelope for provider-side validation."""
+
+    return IntakeResult.model_json_schema()
 
 
 def execute_intake(
@@ -58,7 +65,7 @@ def execute_intake(
             api_key=api_key,
             model=model,
             schema_name="w12_mission_intake",
-            schema=None,
+            schema=intake_response_schema(),
             prompt=prompt,
             timeout=timeout,
             max_attempts=max_attempts,
