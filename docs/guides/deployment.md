@@ -43,11 +43,17 @@ bypasses HTTP MCP authentication.
 All grants default to disabled (secure-by-default, inherited from the
 SlopSearX image): `MCP_GRANT_JOBS` enables jobs tools,
 `MCP_GRANT_SCIENCE` science tools, `MCP_GRANT_RESEARCH` research tools,
+`MCP_GRANT_STAGED_SEARCH` staged dispatch,
+`MCP_GRANT_RETRIEVAL_RECEIPTS` retrieval receipts and manifests,
+`MCP_GRANT_SAVED_SEARCHES` saved searches and change reports,
+`MCP_GRANT_SAVED_SEARCH_EVENTS` their event outbox,
+`MCP_GRANT_DEPENDENCY_DOSSIER` dependency investigations,
 `MCP_GRANT_SECURITY` security tools, and
 `MCP_TARGETED_SENSITIVE_ALLOWED` targeted sensitive-engine selection
 (`hibp`, `dehashed`). Opt in per capability group in `.env`, for example
-`MCP_GRANT_SECURITY=1`; leave `MCP_TARGETED_SENSITIVE_ALLOWED` unset unless
-sensitive-engine queries are explicitly wanted.
+`MCP_GRANT_STAGED_SEARCH=1`; leave every unused capability unset and leave
+`MCP_TARGETED_SENSITIVE_ALLOWED` unset unless sensitive-engine queries are
+explicitly wanted.
 
 The service healthcheck sends a bounded, authenticated MCP `initialize`
 request to its local Streamable HTTP endpoint. It verifies MCP protocol
