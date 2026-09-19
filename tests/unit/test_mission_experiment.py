@@ -4,10 +4,14 @@ from pathlib import Path
 import pytest
 from agent.experimental.mission_experiment import (
     build_downstream_prompt,
+    build_intake_prompt,
+    build_intake_work_order,
     build_work_order,
-    sealed_grade_candidate,
+    intake_work_order_record,
     sealed_candidate_id,
+    sealed_grade_candidate,
     validate_downstream_result,
+    validate_intake_result,
     work_order_record,
 )
 from agent.experimental.research_mission import load_mission_experiment_corpus
@@ -79,6 +83,17 @@ def test_work_order_is_reproducible_complete_and_counterbalanced():
     )
 
 
+def test_intake_work_order_is_reproducible_and_complete():
+    cases = corpus().cases
+    first = build_intake_work_order(cases, seed=20260919)
+    assert first == build_intake_work_order(cases, seed=20260919)
+    assert len(first) == 36
+    assert len({item.trial_id for item in first}) == 36
+    for case in cases:
+        assert sum(item.case_id == case.case_id for item in first) == 3
+    assert intake_work_order_record(first, seed=20260919)["seed"] == 20260919
+
+
 def test_prompts_hold_sources_constant_but_isolate_contract_shape():
     case = corpus().cases[0]
     sources = source_pack(case)
@@ -138,3 +153,35 @@ def test_results_cannot_cite_out_of_packet_sources():
     payload["claims"][0]["source_ids"] = ["outside-source"]
     with pytest.raises(ValueError, match="outside the frozen case"):
         validate_downstream_result(payload, case=case, arm="control")
+
+
+def test_intake_prompt_contains_no_reference_answer_or_source_pack():
+    case = corpus().cases[2]
+    prompt = build_intake_prompt(case)
+    encoded = json.dumps(prompt)
+    assert prompt["raw_request"] == case.raw_request
+    assert "reference_mission" not in encoded
+    assert "source_ids" not in encoded
+    assert case.reference_mission.decision not in encoded
+
+
+def test_intake_result_enforces_action_shape():
+    case = corpus().cases[0]
+    clarified = validate_intake_result(
+        {
+            "action": "clarify",
+            "mission": None,
+            "clarifying_question": "Which target environment do you mean?",
+            "rationale": "The target changes the authorization boundary.",
+        }
+    )
+    assert clarified.action == "clarify"
+    with pytest.raises(ValueError, match="requires one question"):
+        validate_intake_result(
+            {
+                "action": "clarify",
+                "mission": case.reference_mission.model_dump(mode="json"),
+                "clarifying_question": None,
+                "rationale": "Invalid mixed response.",
+            }
+        )

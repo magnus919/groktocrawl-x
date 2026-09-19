@@ -121,7 +121,7 @@ def model_json(
     api_key: str,
     model: str,
     schema_name: str,
-    schema: dict[str, Any],
+    schema: dict[str, Any] | None,
     prompt: dict[str, Any],
     timeout: float,
     max_attempts: int,
@@ -141,10 +141,18 @@ def model_json(
         ],
         "temperature": 0,
         "max_tokens": 6000,
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {"name": schema_name, "strict": True, "schema": schema},
-        },
+        "response_format": (
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "strict": True,
+                    "schema": schema,
+                },
+            }
+            if schema is not None
+            else {"type": "json_object"}
+        ),
     }
     failures: list[dict[str, Any]] = []
     started = time.monotonic()

@@ -10,7 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "agent-svc"))
 
-from agent.experimental.mission_experiment import build_work_order, work_order_record
+from agent.experimental.mission_experiment import (
+    build_intake_work_order,
+    build_work_order,
+    intake_work_order_record,
+    work_order_record,
+)
 from agent.experimental.research_mission import load_mission_experiment_corpus
 
 
@@ -27,6 +32,17 @@ def main() -> int:
         json.dumps(work_order_record(order, seed=seed), indent=2, sort_keys=True) + "\n"
     )
     print(output.relative_to(ROOT))
+    intake_order = build_intake_work_order(corpus.cases, repetitions=3, seed=seed)
+    intake_output = experiment_dir / "w12.1-intake-work-order.json"
+    intake_output.write_text(
+        json.dumps(
+            intake_work_order_record(intake_order, seed=seed),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    print(intake_output.relative_to(ROOT))
     return 0
 
 

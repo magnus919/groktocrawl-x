@@ -10,7 +10,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .research_mission import MissionExperimentCase, render_control_brief
+from .research_mission import (
+    MissionExperimentCase,
+    ResearchMission,
+    render_control_brief,
+)
 
 Arm = Literal["control", "treatment"]
 
@@ -25,9 +29,12 @@ def canonical_digest(value: object) -> str:
 def sealed_candidate_id(trial_id: str) -> str:
     """Return an opaque stable identity without an arm or case label."""
 
-    return "candidate-" + hashlib.sha256(
-        ("research-mission-candidate/1\0" + trial_id).encode()
-    ).hexdigest()[:20]
+    return (
+        "candidate-"
+        + hashlib.sha256(
+            ("research-mission-candidate/1\0" + trial_id).encode()
+        ).hexdigest()[:20]
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +42,14 @@ class WorkItem:
     trial_id: str
     case_id: str
     arm: Arm
+    repetition: int
+    position: int
+
+
+@dataclass(frozen=True)
+class IntakeWorkItem:
+    trial_id: str
+    case_id: str
     repetition: int
     position: int
 
@@ -75,6 +90,27 @@ def build_work_order(
                         position=position + 1,
                     )
                 )
+    return tuple(result)
+
+
+def build_intake_work_order(
+    cases: tuple[MissionExperimentCase, ...], *, repetitions: int = 3, seed: int
+) -> tuple[IntakeWorkItem, ...]:
+    if type(repetitions) is not int or repetitions != 3:
+        raise ValueError("W12.1 requires exactly three intake repetitions")
+    result: list[IntakeWorkItem] = []
+    for repetition in range(repetitions):
+        case_order = list(cases)
+        random.Random(seed + 1000 + repetition).shuffle(case_order)
+        result.extend(
+            IntakeWorkItem(
+                trial_id=f"{case.case_id}-intake-r{repetition + 1}",
+                case_id=case.case_id,
+                repetition=repetition + 1,
+                position=position,
+            )
+            for position, case in enumerate(case_order, 1)
+        )
     return tuple(result)
 
 
@@ -174,6 +210,64 @@ def validate_downstream_result(
     return result
 
 
+class IntakeResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    action: Literal["ready", "clarify", "abstain"]
+    mission: ResearchMission | None
+    clarifying_question: str | None
+    rationale: str = Field(strict=True, min_length=1, max_length=2_000)
+
+    @model_validator(mode="after")
+    def action_shape(self) -> IntakeResult:
+        if self.action == "ready":
+            if self.mission is None or self.clarifying_question is not None:
+                raise ValueError("ready intake requires a mission and no question")
+        elif self.action == "clarify":
+            if self.mission is not None or not self.clarifying_question:
+                raise ValueError("clarify intake requires one question and no mission")
+        elif self.mission is not None or self.clarifying_question is not None:
+            raise ValueError("abstaining intake cannot return a mission or question")
+        return self
+
+
+def build_intake_prompt(case: MissionExperimentCase) -> dict[str, Any]:
+    """Expose only the raw request and public contract semantics to normalization."""
+
+    return {
+        "task": (
+            "Normalize the request into a Research Mission. Ask one blocking "
+            "clarification when a decision-changing ambiguity cannot be resolved "
+            "without guessing. Abstain only when research itself is inappropriate. "
+            "Do not invent authority, scope, facts, permissions, or source findings."
+        ),
+        "raw_request": case.raw_request,
+        "domain": "agentic engineering software factory in the enterprise",
+        "contract_rules": {
+            "mission_is_not_permission": True,
+            "mission_is_not_truth": True,
+            "contradictions": "preserve_and_report",
+            "hard_limits": {
+                "max_searches": 4,
+                "max_sources": 10,
+                "max_model_calls": 6,
+                "max_elapsed_seconds": 300,
+            },
+        },
+        "output_shape": {
+            "action": "ready, clarify, or abstain",
+            "mission": "a research-mission/1 object when ready; otherwise null",
+            "clarifying_question": "one question when clarify; otherwise null",
+            "rationale": "why this action respects the request boundary",
+        },
+        "mission_schema": ResearchMission.model_json_schema(),
+    }
+
+
+def validate_intake_result(payload: object) -> IntakeResult:
+    return IntakeResult.model_validate(payload)
+
+
 def sealed_grade_candidate(
     result: DownstreamResult, *, candidate_id: str
 ) -> dict[str, Any]:
@@ -191,6 +285,18 @@ def work_order_record(items: tuple[WorkItem, ...], *, seed: int) -> dict[str, An
     rows = [item.__dict__ for item in items]
     return {
         "schema_version": "research-mission-work-order/1",
+        "seed": seed,
+        "trials": rows,
+        "trials_sha256": canonical_digest(rows),
+    }
+
+
+def intake_work_order_record(
+    items: tuple[IntakeWorkItem, ...], *, seed: int
+) -> dict[str, Any]:
+    rows = [item.__dict__ for item in items]
+    return {
+        "schema_version": "research-mission-intake-work-order/1",
         "seed": seed,
         "trials": rows,
         "trials_sha256": canonical_digest(rows),
