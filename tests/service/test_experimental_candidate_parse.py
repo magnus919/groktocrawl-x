@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
-import pytest
 import yaml
+
+from tests.outcome_governance import governed_skip
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -11,7 +12,13 @@ ROOT = Path(__file__).resolve().parents[2]
 def _candidate_services() -> dict:
     compose_path = ROOT / "compose.experimental-candidate.yml"
     if not compose_path.exists():
-        pytest.skip("candidate Compose definition is outside this service image")
+        governed_skip(
+            "candidate Compose definition is outside this service image",
+            owner="repository-maintainer",
+            issue="#342",
+            classification="retained",
+            environment="agent service integration-test image",
+        )
     compose = yaml.safe_load(compose_path.read_text())
     return compose["services"]
 
