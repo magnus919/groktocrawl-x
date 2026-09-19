@@ -119,7 +119,12 @@ def check_manifest(
     return work
 
 
-def validate_run(run_dir: Path, *, expected_revision: str) -> list[str]:
+def validate_run(
+    run_dir: Path,
+    *,
+    expected_revision: str,
+    inherited_primary_revision: str | None = None,
+) -> list[str]:
     issues: list[str] = []
     experiment_dir = ROOT / "docs/experiments/research-mission"
     source_path = ROOT / "docs/experiments/enterprise-evaluation/corpus.json"
@@ -128,15 +133,16 @@ def validate_run(run_dir: Path, *, expected_revision: str) -> list[str]:
     )
     cases = {item.case_id: item for item in corpus.cases}
     sources = source_index(source_path)
+    primary_revision = inherited_primary_revision or expected_revision
     candidates = _validate_downstream(
-        run_dir, expected_revision, cases, sources, issues
+        run_dir, primary_revision, cases, sources, issues
     )
-    intake_candidates = _validate_intake(run_dir, expected_revision, cases, issues)
+    intake_candidates = _validate_intake(run_dir, primary_revision, cases, issues)
     _validate_downstream_grades(
-        run_dir, expected_revision, cases, sources, candidates, issues
+        run_dir, primary_revision, cases, sources, candidates, issues
     )
     _validate_intake_grades(
-        run_dir, expected_revision, cases, intake_candidates, issues
+        run_dir, primary_revision, cases, intake_candidates, issues
     )
     _validate_adjudications(
         run_dir, expected_revision, cases, sources, candidates, issues
@@ -471,8 +477,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--expected-revision", required=True)
+    parser.add_argument("--inherited-primary-revision")
     args = parser.parse_args()
-    issues = validate_run(args.run_dir, expected_revision=args.expected_revision)
+    issues = validate_run(
+        args.run_dir,
+        expected_revision=args.expected_revision,
+        inherited_primary_revision=args.inherited_primary_revision,
+    )
     print(json.dumps({"valid": not issues, "issues": issues}, indent=2))
     return 1 if issues else 0
 
