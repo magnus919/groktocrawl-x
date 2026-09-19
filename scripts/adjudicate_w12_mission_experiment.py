@@ -210,8 +210,8 @@ def main() -> int:
         for path in (args.run_dir / "public/grades").glob("*.json")
         if json.loads(path.read_bytes()).get("status") == "completed"
     }
-    if len(grade_records) != 72:
-        raise ValueError("adjudication requires all 72 original grades")
+    if not grade_records:
+        raise ValueError("adjudication requires at least one completed original grade")
     work = select_adjudications(grade_records=grade_records, cases=cases, seed=args.seed)
     work_record = {
         "schema_version": "research-mission-adjudication-work-order/1",

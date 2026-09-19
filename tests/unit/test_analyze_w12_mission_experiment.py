@@ -33,6 +33,22 @@ def test_partial_credit_and_conservative_sensitivity_are_distinct():
     assert analysis.coverage_for(grade, weights, partial_as_open=True) == (5.0, 9.0)
 
 
+def test_repetition_gate_fails_closed_when_an_arm_is_missing():
+    rows = [
+        {
+            "repetition": repetition,
+            "stratum": "ambiguous",
+            "arm": "control",
+            "weighted_coverage": 1.0,
+            "scope_violations": 0,
+        }
+        for repetition in (1, 2, 3)
+    ]
+    gates = analysis.difficult_repetition_gates(rows)
+    assert all(item["coverage_gain"] is None for item in gates)
+    assert not any(item["passes"] for item in gates)
+
+
 def test_markdown_renders_the_mechanical_decision():
     rendered = analysis.render_markdown(
         {

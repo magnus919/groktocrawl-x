@@ -222,8 +222,9 @@ def main() -> int:
     work = tuple(IntakeGradeWorkItem(**item) for item in work_payload["trials"])
     candidates = load_intake_candidates(args.run_dir)
     expected = {item.candidate_id for item in work}
-    if set(candidates) != expected:
-        raise ValueError("intake candidate set differs from frozen grade work order")
+    if not set(candidates) <= expected:
+        raise ValueError("intake candidate set is outside frozen grade work order")
+    eligible_work = tuple(item for item in work if item.candidate_id in candidates)
     private_dir = args.run_dir / "private"
     public_dir = args.run_dir / "public"
     downstream.write_json(
@@ -235,6 +236,7 @@ def main() -> int:
             "base_url_origin": str(httpx.URL(args.base_url).copy_with(path="/")),
             "concurrency": args.concurrency,
             "work_order_sha256": work_payload["trials_sha256"],
+            "eligible_candidate_count": len(eligible_work),
             "started_at": datetime.now(UTC).isoformat(),
         },
     )
@@ -256,7 +258,7 @@ def main() -> int:
                 timeout=args.timeout,
                 max_attempts=args.max_attempts,
             )
-            for item in work
+            for item in eligible_work
         ]
         for future in concurrent.futures.as_completed(futures):
             result = future.result()

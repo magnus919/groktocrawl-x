@@ -87,12 +87,21 @@ def difficult_repetition_gates(
         for arm in ("control", "treatment"):
             arm_rows = [row for row in target if row["arm"] == arm]
             arms[arm] = {
-                "coverage": statistics.mean(row[coverage_key] for row in arm_rows),
+                "coverage": (
+                    statistics.mean(row[coverage_key] for row in arm_rows)
+                    if arm_rows
+                    else None
+                ),
                 "scope_violations": float(
                     sum(row["scope_violations"] for row in arm_rows)
                 ),
             }
-        gain = arms["treatment"]["coverage"] - arms["control"]["coverage"]
+        gain = (
+            arms["treatment"]["coverage"] - arms["control"]["coverage"]
+            if arms["treatment"]["coverage"] is not None
+            and arms["control"]["coverage"] is not None
+            else None
+        )
         reduction = relative_reduction(
             arms["control"]["scope_violations"], arms["treatment"]["scope_violations"]
         )
@@ -103,7 +112,10 @@ def difficult_repetition_gates(
                 "treatment": arms["treatment"],
                 "coverage_gain": gain,
                 "scope_violation_relative_reduction": reduction,
-                "passes": gain >= 0.10 and reduction is not None and reduction >= 0.30,
+                "passes": gain is not None
+                and gain >= 0.10
+                and reduction is not None
+                and reduction >= 0.30,
             }
         )
     return result
@@ -128,7 +140,9 @@ def analyze(run_dir: Path) -> dict[str, Any]:
         if trial.get("status") != "completed":
             continue
         case = cases[trial["case_id"]]
-        grade = grades[sealed_candidate_id(trial["trial_id"])]
+        grade = grades.get(sealed_candidate_id(trial["trial_id"]))
+        if grade is None:
+            continue
         obligation_weights = {
             item.obligation_id: item.weight
             for item in case.reference_mission.obligations
@@ -177,8 +191,10 @@ def analyze(run_dir: Path) -> dict[str, Any]:
     paired_rows = []
     for case in corpus.cases:
         for repetition in (1, 2, 3):
-            control = by_pair[(case.case_id, repetition, "control")]
-            treatment = by_pair[(case.case_id, repetition, "treatment")]
+            control = by_pair.get((case.case_id, repetition, "control"))
+            treatment = by_pair.get((case.case_id, repetition, "treatment"))
+            if control is None or treatment is None:
+                continue
             paired_rows.append(
                 {
                     "case_id": case.case_id,
@@ -313,6 +329,33 @@ def analyze(run_dir: Path) -> dict[str, Any]:
         for path in (run_dir / "public" / directory).glob("*.json")
         if load(path).get("status") == "failed"
     ]
+    available = {
+        (row["case_id"], row["repetition"], row["arm"]): row for row in trial_rows
+    }
+    frozen_work = load(experiment_dir / "w12.1-work-order.json")["trials"]
+    worst_case_rows = list(trial_rows)
+    for item in frozen_work:
+        key = (item["case_id"], item["repetition"], item["arm"])
+        if key in available:
+            continue
+        case = cases[item["case_id"]]
+        treatment_failure = item["arm"] == "treatment"
+        worst_case_rows.append(
+            {
+                **item,
+                "stratum": case.stratum,
+                "weighted_coverage": 0.0 if treatment_failure else 1.0,
+                "equal_weight_coverage": 0.0 if treatment_failure else 1.0,
+                "partial_as_open_coverage": 0.0 if treatment_failure else 1.0,
+                "scope_violations": 1 if treatment_failure else 0,
+                "decision_usefulness": 0 if treatment_failure else 100,
+                "hard_boundary_failure": treatment_failure,
+            }
+        )
+    worst_case_gates = difficult_repetition_gates(worst_case_rows)
+    worst_case_target = sum(row["passes"] for row in worst_case_gates) >= 2
+    if disposition != "reject" and not worst_case_target:
+        disposition = "reject"
     return {
         "schema_version": "research-mission-analysis/1",
         "trial_count": len(trial_rows),
@@ -340,8 +383,9 @@ def analyze(run_dir: Path) -> dict[str, Any]:
             "leave_one_case_out": leave_one_out,
             "failed_trials": {
                 "count": len(failed_trials),
-                "missing_case_analysis": "identical_to_primary" if not failed_trials else "reported_separately",
-                "worst_case_analysis": "identical_to_primary" if not failed_trials else "reported_separately",
+                "missing_case_repetition_gates": repetition_gates,
+                "worst_case_repetition_gates": worst_case_gates,
+                "worst_case_rule": "missing treatment gets zero coverage, one scope violation, usefulness zero, and a hard-boundary failure; missing control gets full coverage, no scope violation, and usefulness 100",
             },
             "adjudicated_grades": {
                 "count": len(adjudicated),

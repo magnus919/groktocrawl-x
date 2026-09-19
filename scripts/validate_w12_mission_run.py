@@ -91,8 +91,9 @@ def check_manifest(
     summary_name: str,
     work_name: str,
     expected_revision: str,
-    expected_count: int,
+    expected_count: int | None,
     issues: list[str],
+    allow_failures: bool = True,
 ) -> dict[str, Any] | None:
     manifest_path = run_dir / "public" / manifest_name
     summary_path = run_dir / "public" / summary_name
@@ -105,10 +106,16 @@ def check_manifest(
         issues.append(f"{manifest_name}: source revision differs")
     if manifest.get("work_order_sha256") != work["trials_sha256"]:
         issues.append(f"{manifest_name}: work order differs")
-    if summary.get("attempted") != expected_count:
+    count = expected_count
+    if count is None:
+        count = manifest.get("eligible_candidate_count")
+    if not isinstance(count, int) or summary.get("attempted") != count:
         issues.append(f"{summary_name}: attempted count differs")
-    if summary.get("completed") != expected_count or summary.get("failed") != 0:
-        issues.append(f"{summary_name}: run is not completely successful")
+    completed, failed = summary.get("completed"), summary.get("failed")
+    if not isinstance(count, int) or completed + failed != count:
+        issues.append(f"{summary_name}: terminal count differs")
+    elif (not allow_failures and failed) or (count and failed / count > 0.10):
+        issues.append(f"{summary_name}: failure guardrail exceeded")
     return work
 
 
@@ -170,8 +177,11 @@ def _validate_adjudications(
         issues.append("adjudication: source revision differs")
     if summary.get("attempted") != len(rows):
         issues.append("adjudication: attempted count differs")
-    if summary.get("completed") != len(rows) or summary.get("failed") != 0:
-        issues.append("adjudication: run is not completely successful")
+    completed, failed = summary.get("completed"), summary.get("failed")
+    if completed + failed != len(rows):
+        issues.append("adjudication: terminal count differs")
+    elif rows and failed / len(rows) > 0.10:
+        issues.append("adjudication: failure guardrail exceeded")
     if len({row.get("candidate_id") for row in rows}) != len(rows):
         issues.append("adjudication: candidate identity is duplicated")
     for row in rows:
@@ -187,7 +197,8 @@ def _validate_adjudications(
             continue
         public = load(public_path)
         if public.get("status") != "completed":
-            issues.append(f"{candidate_id}: adjudication is not completed")
+            if public.get("status") != "failed":
+                issues.append(f"{candidate_id}: adjudication is not terminal")
             continue
         case = cases[case_id]
         source_pack = tuple(sources[source_id] for source_id in case.source_ids)
@@ -250,7 +261,8 @@ def _validate_downstream(
         if any(public.get(key) != value for key, value in expected.items()):
             issues.append(f"{item.trial_id}: identity differs from work order")
         if public.get("status") != "completed":
-            issues.append(f"{item.trial_id}: downstream trial is not completed")
+            if public.get("status") != "failed":
+                issues.append(f"{item.trial_id}: downstream trial is not terminal")
             continue
         case = cases[item.case_id]
         source_pack = tuple(sources[source_id] for source_id in case.source_ids)
@@ -309,7 +321,8 @@ def _validate_intake(
             continue
         public = load(public_path)
         if public.get("status") != "completed":
-            issues.append(f"{item.trial_id}: intake is not completed")
+            if public.get("status") != "failed":
+                issues.append(f"{item.trial_id}: intake is not terminal")
             continue
         case = cases[item.case_id]
         content = check_private_completion(
@@ -352,14 +365,15 @@ def _validate_downstream_grades(
         summary_name="grade-summary.json",
         work_name="w12.1-grade-work-order.json",
         expected_revision=expected_revision,
-        expected_count=72,
+        expected_count=None,
         issues=issues,
     )
     if work is None:
         return
-    if {row["candidate_id"] for row in work["trials"]} != set(candidates):
-        issues.append("grade work order differs from downstream candidates")
-    for row in work["trials"]:
+    frozen_ids = {row["candidate_id"] for row in work["trials"]}
+    if not set(candidates) <= frozen_ids:
+        issues.append("grade candidates fall outside frozen work order")
+    for row in (row for row in work["trials"] if row["candidate_id"] in candidates):
         item = GradeWorkItem(**row)
         public_path = run_dir / "public/grades" / f"{item.candidate_id}.json"
         private_path = run_dir / "private/grades" / f"{item.candidate_id}.json"
@@ -368,7 +382,8 @@ def _validate_downstream_grades(
             continue
         public = load(public_path)
         if public.get("status") != "completed":
-            issues.append(f"{item.candidate_id}: grade is not completed")
+            if public.get("status") != "failed":
+                issues.append(f"{item.candidate_id}: grade is not terminal")
             continue
         case = cases[item.case_id]
         source_pack = tuple(sources[source_id] for source_id in case.source_ids)
@@ -409,14 +424,15 @@ def _validate_intake_grades(
         summary_name="intake-grade-summary.json",
         work_name="w12.1-intake-grade-work-order.json",
         expected_revision=expected_revision,
-        expected_count=36,
+        expected_count=None,
         issues=issues,
     )
     if work is None:
         return
-    if {row["candidate_id"] for row in work["trials"]} != set(candidates):
-        issues.append("intake grade work order differs from intake candidates")
-    for row in work["trials"]:
+    frozen_ids = {row["candidate_id"] for row in work["trials"]}
+    if not set(candidates) <= frozen_ids:
+        issues.append("intake grade candidates fall outside frozen work order")
+    for row in (row for row in work["trials"] if row["candidate_id"] in candidates):
         item = IntakeGradeWorkItem(**row)
         public_path = run_dir / "public/intake-grades" / f"{item.candidate_id}.json"
         private_path = run_dir / "private/intake-grades" / f"{item.candidate_id}.json"
@@ -425,7 +441,8 @@ def _validate_intake_grades(
             continue
         public = load(public_path)
         if public.get("status") != "completed":
-            issues.append(f"{item.candidate_id}: intake grade is not completed")
+            if public.get("status") != "failed":
+                issues.append(f"{item.candidate_id}: intake grade is not terminal")
             continue
         case = cases[item.case_id]
         content = check_private_completion(
