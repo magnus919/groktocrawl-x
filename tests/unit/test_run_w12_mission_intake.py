@@ -60,6 +60,7 @@ def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
     public = json.loads((tmp_path / "public/intake/intake-1.json").read_text())
     assert public["error_type"] == "JSONDecodeError"
     assert requested["reasoning_effort"] == "minimal"
+    assert requested["max_tokens"] == 20000
 
 
 def test_intake_response_schema_closes_the_top_level_envelope():
