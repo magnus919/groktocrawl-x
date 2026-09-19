@@ -224,6 +224,18 @@ only after CI is green and review findings are addressed.
 4. Rebuild the agent-svc image
 5. Add a test case in `tests/test_stack.py`
 
+## Public Repository Hygiene
+
+This repository is public. Never commit internal hostnames, tailnet names or addresses,
+real private-network endpoints, operator usernames, personal absolute paths, or private
+deployment topology. Use RFC 2606 example names such as `service.example.internal`,
+generic identities such as `operator`, and portable paths such as `/path/to/project`.
+Keep live `.env` files, credentials, host inventories, and unsanitized operational logs
+outside the repository. Sanitize retained evidence before staging it, including command
+errors and metadata fields that can embed local paths or hosts. Security tests may use
+documented reserved private-address fixtures when the address itself is the behavior
+under test.
+
 ## Environment Variables
 
 See `.env.sample` for all configurable variables. The `.env` file is loaded by `docker compose` automatically via the `env_file:` directive in `docker-compose.yml`.

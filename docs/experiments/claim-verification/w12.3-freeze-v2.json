@@ -4,7 +4,7 @@
   "source_revision": "17dee83085c0047558f8dd564aa1d2771ea48a09",
   "supersedes": "w12.3-freeze.json",
   "model_route": "general",
-  "endpoint_origin": "http://192.168.1.132:4000/",
+  "endpoint_origin": "http://inference.example.internal:4000/",
   "case_count": 12,
   "repetitions": 3,
   "allocated_trials": 36,

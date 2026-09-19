@@ -155,5 +155,5 @@
       }
     }
   },
-  "target_label": "gpuslut01-w11-research"
+  "target_label": "inference.example.internal-w11-research"
 }

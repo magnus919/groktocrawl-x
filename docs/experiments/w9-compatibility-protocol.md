@@ -15,13 +15,13 @@ not authorize production cutover or establish research-quality improvement.
 
 | Arm | Deployment | Mutable state |
 |---|---|---|
-| Incumbent | Existing GroktoCrawl deployment on `hal2000` | Incumbent Valkey and Qdrant volumes |
-| Candidate | Frozen `groktocrawl-x-candidate` deployment on `gpuslut01` | Candidate-only PostgreSQL, Valkey, pgvector, and rollback Qdrant volumes |
+| Incumbent | Existing GroktoCrawl deployment on `incumbent.example.internal` | Incumbent Valkey and Qdrant volumes |
+| Candidate | Frozen `groktocrawl-x-candidate` deployment on `inference.example.internal` | Candidate-only PostgreSQL, Valkey, pgvector, and rollback Qdrant volumes |
 
-Both arms use LiteLLM's `local` model on `gpuslut01`. The incumbent reaches it
+Both arms use LiteLLM's `local` model on `inference.example.internal`. The incumbent reaches it
 through its existing TLS route while the candidate uses the home-lab route.
 Both arms use the same pinned SlopSearX image digest. The comparison client runs
-on `gpuslut01`, so the candidate remains loopback-only while the incumbent is
+on `inference.example.internal`, so the candidate remains loopback-only while the incumbent is
 accessed through its already-published home-lab ports.
 
 No cache is cleared, no service is restarted, and no incumbent configuration or

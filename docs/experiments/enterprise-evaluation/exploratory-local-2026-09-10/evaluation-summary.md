@@ -2,7 +2,7 @@
 
 Status: **exploratory only; output reliability improved; no comparison or adoption decision**.
 
-This reruns the same 30 exposed candidate cases used by the [corrected 2026-09-08 self-check](../exploratory-local-2026-09-08/evaluation-summary.md). It ran inside the existing production GroktoCrawl agent container on `hal2000`, through the internal LiteLLM gateway on `gpuslut01`, using the `local` alias for both answering and grading. The gateway key remained inside the existing deployment.
+This reruns the same 30 exposed candidate cases used by the [corrected 2026-09-08 self-check](../exploratory-local-2026-09-08/evaluation-summary.md). It ran inside the existing production GroktoCrawl agent container on `incumbent.example.internal`, through the internal LiteLLM gateway on `inference.example.internal`, using the `local` alias for both answering and grading. The gateway key remained inside the existing deployment.
 
 ## What happened
 

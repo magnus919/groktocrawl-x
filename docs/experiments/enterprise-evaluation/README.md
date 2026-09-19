@@ -56,7 +56,7 @@ against the fixed call budget. The runner does not silently retry a scored case.
 
 The first local execution is recorded in
 [`exploratory-local-2026-09-07/evaluation-summary.md`](exploratory-local-2026-09-07/evaluation-summary.md).
-It reached the internal `gpuslut01` LiteLLM gateway through the existing GroktoCrawl
+It reached the internal `inference.example.internal` LiteLLM gateway through the existing GroktoCrawl
 agent container and used the `local` alias for both answer and judge calls. It is
 still only a harness and prompt check: 24 of 30 cases were graded, six failed at
 the output-contract layer, and the exposed corpus cannot support a quality or
@@ -142,7 +142,7 @@ ADRs remain proposed; pgvector/Qdrant consolidation remains a separate evaluatio
 
 ## CLI reviewer invocation
 
-Local installation: `/Users/magnus/.local/bin/hermes`. A fresh one-shot design review
+Local installation: `hermes`. A fresh one-shot design review
 can use `hermes --ignore-rules -t todo -z "..." --usage-file /tmp/review-usage.json`.
 The prompt must request no tools and must contain only the review packet. `-z`
 prints the final response to stdout, but automatically bypasses tool approvals;

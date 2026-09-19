@@ -83,10 +83,10 @@ reviewer provenance. Model review is not independent human review or calibrated 
 
 ## Gateway evidence and current limits
 
-Read-only inspection of `hal2000:docker-compose/groktocrawl` confirmed the existing
+Read-only inspection of `incumbent.example.internal:docker-compose/groktocrawl` confirmed the existing
 endpoint `https://gpuslut.brandyapple.com/v1` and configured authentication. A bounded
 `local` completion succeeded with finish reason `stop`, reporting model `local`.
-The mounted LiteLLM configuration on `gpuslut01` maps `local` to
+The mounted LiteLLM configuration on `inference.example.internal` maps `local` to
 `openai/Carnice-Qwen3.6-MoE-35B-A3B-APEX-MTP-I-Nano.gguf`. Record configuration and
 returned identity separately: the response alias alone does not prove the backend.
 Neither production deployment nor gateway configuration was modified.
@@ -107,7 +107,7 @@ and the ordered semantic batch completed in 44.87 seconds. The former model rend
 audit then timed out at 90 seconds. That redundant model audit has been replaced by
 the exact deterministic audit described above. A later run varied: construction took
 24.62 seconds and the batch timed out at 90 seconds. The gateway then returned HTTP
-502 even for a one-field schema probe, and direct SSH to `gpuslut01` timed out.
+502 even for a one-field schema probe, and direct SSH to `inference.example.internal` timed out.
 
 These retained failures show that invalid-label generation is addressed, but the
 candidate is not frozen or live-ready. No complete manifest has yet been produced,

@@ -14,7 +14,7 @@ experimental candidate, not a production cutover or a replacement for mainline.
 | Source revision | `6b46bc9a3f44a1571ad68d5453fef90edc99466b` |
 | Compose SHA-256 | `c866f7ccfb7ae47f859ce26ba396e67af3d5fb2b31a3676273d603dc3a15ac3f` |
 | Python lock SHA-256 | `4c383538479287eedaf4ffde5f2044f29972897a256e07f9b57fa3d1bc42648a` |
-| Candidate host | `gpuslut01` |
+| Candidate host | `inference.example.internal` |
 | Compose project | `groktocrawl-x-candidate` |
 | Verification time | `2026-09-11T16:59:54+00:00` |
 | PostgreSQL research schema | `14` |
@@ -39,7 +39,7 @@ candidate-prefixed project, containers, networks, images, and named volumes.
 The HTTP and MCP ports bind to target-host loopback. PostgreSQL, Valkey, Qdrant,
 SlopSearX, scraper, browser, semantic, and portal ports are not published.
 
-The incumbent remains in its existing deployment on `hal2000`. The candidate
+The incumbent remains in its existing deployment on `incumbent.example.internal`. The candidate
 used a different host and no command in this rehearsal addressed the incumbent
 checkout, Compose project, containers, networks, or volumes.
 
