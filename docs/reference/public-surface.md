@@ -48,6 +48,7 @@ PATCH /v2/monitor/{monitor_id}
 DELETE /v2/monitor/{monitor_id}
 POST /v2/monitor/{monitor_id}/run
 POST /v2/parse
+POST /v2/parse/upload-url
 PUT /v2/parse/upload/{upload_id}
 POST /v2/research-memory/query
 POST /v2/research-memory/store

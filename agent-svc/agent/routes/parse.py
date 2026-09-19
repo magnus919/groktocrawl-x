@@ -1,13 +1,14 @@
 """Parse route handlers — file upload and content extraction."""
 
 import logging
+import uuid
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Request
 
 from ..exceptions import InvalidRequestError, NotFoundError, UpstreamError
-from ..models import ParseResponse
+from ..models import ParseResponse, ParseUploadUrlResponse
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,20 @@ def _parse_upstream_response(resp: httpx.Response) -> Any:
             details={"status_code": resp.status_code},
         )
     return payload
+
+
+@router.post("/v2/parse/upload-url", response_model=ParseUploadUrlResponse)
+async def request_parse_upload_url(request: Request) -> ParseUploadUrlResponse:
+    """Reserve a bounded, single-use upload slot for staged parsing."""
+    from redis import Redis
+
+    upload_id = str(uuid.uuid4())
+    r = Redis.from_url("redis://valkey:6379/0", decode_responses=False)
+    r.set(f"parse:upload:{upload_id}", b"pending", ex=PARSE_UPLOAD_TTL)
+    return ParseUploadUrlResponse(
+        upload_id=upload_id,
+        upload_url=f"{request.url.scheme}://{request.url.netloc}/v2/parse/upload/{upload_id}",
+    )
 
 
 @router.put("/v2/parse/upload/{upload_id}")

@@ -3,7 +3,7 @@
 import importlib.util
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import agent
 import httpx
@@ -42,6 +42,7 @@ def _load_parse_route():
 _parse_route = _load_parse_route()
 _consume_upload = _parse_route._consume_upload
 _parse_upstream_response = _parse_route._parse_upstream_response
+request_parse_upload_url = _parse_route.request_parse_upload_url
 
 
 class _FakeRedis:
@@ -55,6 +56,34 @@ class _FakeRedis:
             return next(self.results)
 
         return execute
+
+
+@pytest.mark.asyncio
+async def test_upload_reservation_creates_bounded_pending_marker(monkeypatch):
+    stored = {}
+
+    class _ReservationRedis:
+        def set(self, key, value, *, ex):
+            stored.update(key=key, value=value, ex=ex)
+
+    monkeypatch.setattr(
+        "redis.Redis.from_url", lambda *_args, **_kwargs: _ReservationRedis()
+    )
+    request = SimpleNamespace(
+        url=SimpleNamespace(scheme="https", netloc="api.example")
+    )
+
+    result = await request_parse_upload_url(request)
+
+    assert result.success is True
+    assert stored == {
+        "key": f"parse:upload:{result.upload_id}",
+        "value": b"pending",
+        "ex": _parse_route.PARSE_UPLOAD_TTL,
+    }
+    assert result.upload_url == (
+        f"https://api.example/v2/parse/upload/{result.upload_id}"
+    )
 
 
 def test_consume_upload_preserves_metadata_and_remains_single_use():
