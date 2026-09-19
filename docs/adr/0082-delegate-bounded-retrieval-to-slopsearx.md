@@ -1,6 +1,6 @@
 # Delegate Bounded Retrieval Execution to SlopSearX
 
-- Status: proposed
+- Status: accepted
 - Deciders: Magnus Hedemark
 - Date: 2026-09-11
 - Scope: W11 experiment in `magnus919/groktocrawl-x`
@@ -90,6 +90,25 @@ This proposal does not select the full integration for adoption. W11 may
 recommend a narrow subset, reject the integration, or require further study.
 It does not authorize a mainline change or production cutover.
 
+### Final W11 decision
+
+W11 selects **narrow adoption**. Ordinary HTTP search remains the default.
+The complete recorded-continuation workflow is rejected at the evaluated
+SlopSearX 0.5 boundary because result-budget exhaustion made the job terminal
+before GroktoCrawl could declare research complete. All 36 recorded trials
+retained `caller_completed: false`, despite a later acknowledged update.
+
+Snapshots, retrieval identities, receipts, manifests, recovery, saved-search
+events, and dependency dossiers remain eligible as opt-in internal contracts.
+Entity projection may organize evidence but may not suppress acquisition based
+on the current cases. Staged or broad research orchestration is not adopted.
+
+The matched transports returned identical result sets in every pair, and the
+post-run HTTP compatibility gate passed. The incomplete model-grading
+diagnostic is not used as quality evidence. Reconsidering the full workflow
+requires a terminal-state contract that keeps execution exhaustion distinct
+from caller-declared completion and a new frozen comparison.
+
 ## Consequences
 
 The design has one place where evidence sufficiency and publication decisions
@@ -112,8 +131,8 @@ not support the complete workflow.
 
 ## Confirmation
 
-The [W11 protocol](../experiments/slopsearx-substrate/w11-protocol.md) is the
-fitness-function plan. Before this record can be accepted for implementation:
+The [W11 protocol](../experiments/slopsearx-substrate/w11-protocol.md) was the
+fitness-function plan. W11 produced the following disposition:
 
 - freeze exact GroktoCrawl and SlopSearX revisions, images, policies, prompts,
   cases, budgets, and analysis;
@@ -124,11 +143,10 @@ fitness-function plan. Before this record can be accepted for implementation:
   idempotent receipts, expiration handling, and interruption recovery;
 - report source precision, weighted claim closure, cost, latency, storage, and
   operator burden separately;
-- preserve the complete evidence package and adjudicate the frozen sample and
-  every material disagreement;
-- record an adopt, narrow-adopt, reject, or further-study outcome in this ADR's
-  successor decision record or, while this proposal remains mutable, in its
-  reviewed pre-acceptance revision.
+- preserve the complete retrieval evidence package; the post-gate grading
+  diagnostic was abandoned and accounted for rather than presented as a
+  complete adjudication;
+- record the narrow-adoption outcome in this reviewed pre-acceptance revision.
 
 Any compatibility, authorization, provenance, or recovery failure blocks full
 adoption regardless of average research quality.
@@ -138,6 +156,9 @@ adoption regardless of average research quality.
 - [W11 research brief](../experiments/slopsearx-substrate/w11-research-brief.md)
 - [W11 protocol](../experiments/slopsearx-substrate/w11-protocol.md)
 - [W11 research log](../experiments/slopsearx-substrate/w11-research-log.md)
+- [W11 findings](../experiments/slopsearx-substrate/w11-findings.md)
+- [Narrow provenance adapter issue #327](https://github.com/magnus919/groktocrawl-x/issues/327)
+- [SlopSearX caller-completion issue #387](https://github.com/magnus919/SlopSearX/issues/387)
 - [ADR-0043](0043-migration-to-slopsearx.md)
 - [ADR-0068](0068-separate-research-execution-knowledge-and-rendering.md)
 - [ADR-0069](0069-define-versioned-knowledge-and-verification.md)

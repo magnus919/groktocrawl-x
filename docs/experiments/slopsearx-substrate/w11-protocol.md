@@ -1,6 +1,6 @@
 # W11 frozen-protocol candidate
 
-Status: **draft; measurement prohibited until the freeze gate passes**
+Status: **executed; retrieval complete, caller-authority hard gate failed**
 
 This protocol evaluates SlopSearX 0.5 as an optional research retrieval
 substrate for GroktoCrawl. It follows the Academic/Comprehensive research track

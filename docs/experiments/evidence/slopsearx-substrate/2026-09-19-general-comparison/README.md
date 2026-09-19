@@ -15,6 +15,8 @@ and binds them to the final W10 selection and complete public accounting.
   grants, and fail-closed probes for every disabled specialist workflow.
 - `http-compatibility-before.json` records a passing SearXNG-compatible HTTP
   surface before measurement.
+- `http-compatibility-after.json` records the same passing surface after all
+  retrieval and diagnostic work.
 - `scope-equivalence.json` proves that both arms start with the same frozen
   seven-engine search scope without dispatching a query.
 - `w11-freeze.json` binds the 72-trial design, exact source and container
@@ -28,8 +30,8 @@ can begin.
 
 An initial execution attempt was rejected before scoring. All 36 recorded
 continuation trials reached SlopSearX but the client treated the workflow's
-successful plain-text completion acknowledgement as an error. Six of 36 flat HTTP trials
-also encountered HTTP 429 responses. The 30 partial HTTP checkpoints are not a
+successful plain-text completion acknowledgement as an error. Six of 36 flat
+HTTP trials also encountered HTTP 429 responses. The 30 partial HTTP checkpoints are not a
 valid comparison and will be discarded with the failures. The corrected runner
 accepts the text acknowledgement, still rejects structured errors, and allows
 at most five HTTP attempts with bounded `Retry-After` handling. The
@@ -61,3 +63,7 @@ that low reasoning effort plus the provider's completion-token parameter
 returns strict JSON. The replacement diagnostic uses that setting and an
 8,000-token combined reasoning/output ceiling. It receives its own post-gate
 freeze and does not change the retrieval result.
+
+`diagnostic-grading-accounting.json` closes that diagnostic with 11 attempted,
+five completed, six failed, and 61 deliberately unattempted trials. No grade
+from this incomplete packet contributes to the W11 decision.

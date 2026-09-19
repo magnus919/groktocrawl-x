@@ -1,6 +1,6 @@
 # W11 research brief: SlopSearX as a research retrieval substrate
 
-Status: **draft before protocol freeze**
+Status: **complete — narrow adoption; see W11 findings and ADR-0082**
 Decision owner: Magnus
 Execution owner: GroktoCrawl experimental research workstream
 Tracking issue: [#318](https://github.com/magnus919/groktocrawl-x/issues/318)

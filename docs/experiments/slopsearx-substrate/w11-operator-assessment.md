@@ -1,7 +1,6 @@
-# W11 premeasurement operator assessment
+# W11 operator assessment
 
-Status: **observed deployment and recovery evidence complete; adoption judgment
-deferred until the scored Family A comparison**
+Status: **complete — broad workflow rejected; narrow contracts remain viable**
 
 This assessment asks what SlopSearX's optional research substrate adds to the
 GroktoCrawl X operating model. It is limited to the experimental fork. It does
@@ -82,17 +81,25 @@ GroktoCrawl artifact schema or PostgreSQL data must be migrated back. Retained
 SlopSearX workflow records may be kept for audit or expired under their declared
 policy; rollback must not require deleting them.
 
-## Preliminary judgment
+## Final judgment
 
 The substrate has a plausible operating shape because it reuses the existing image
 and Valkey rather than adding another stateful system. The strongest current value
 is durable accounting, provenance, and bounded recovery. The weakest point is the
 number of grants and endpoint details an operator can combine incorrectly.
 
-A broad adoption recommendation still requires Family A to preserve research
-quality and precision. If it does not, narrow adoption of receipts, saved-search
-events, dependency dossiers, or another individually justified capability remains
-possible because every specialist surface is opt-in.
+Broad adoption is not justified. The general comparison preserved identical
+retrieval results but failed the caller-authority gate in every recorded run:
+the SlopSearX job became terminal on result-budget exhaustion before GroktoCrawl
+declared completion. The reviewer diagnostic was too incomplete to estimate
+quality and is excluded from the decision.
+
+The operating shape remains acceptable for narrow, opt-in contracts. Receipts,
+manifests, recovery, saved-search events, and dependency dossiers passed their
+bounded evidence gates and add no datastore beyond the existing Valkey. Each
+retained capability still needs a named least-privilege profile, an internal
+service path, a documented retention owner, and a tested rollback. The complete
+MCP research workflow must remain disabled by default.
 
 ## Sources
 
