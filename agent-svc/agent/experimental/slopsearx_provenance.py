@@ -258,7 +258,7 @@ class SlopSearXProvenanceAdapter:
 
     async def check_profile(self) -> dict[str, Any]:
         capabilities = _object(
-            await self._caller.call_tool("slopsearx_list_capabilities", {}),
+            await self._caller.call_tool("slopsearx_get_service_status", {}),
             "capability check",
         )
         grants = capabilities.get("grants") or {}

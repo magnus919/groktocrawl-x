@@ -23,7 +23,7 @@ class Caller:
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         self.arguments.append((name, arguments))
-        if name == "slopsearx_list_capabilities":
+        if name == "slopsearx_get_service_status":
             enabled = ["retrieval_receipts"]
             if self.broad_grant:
                 enabled.append("research")
@@ -70,9 +70,9 @@ def observation() -> CaptureObservation:
 
 @pytest.mark.asyncio
 async def test_accepts_only_least_privilege_profile() -> None:
-    assert (await SlopSearXProvenanceAdapter(Caller()).check_profile())["status"] == (
-        "available"
-    )
+    caller = Caller()
+    assert (await SlopSearXProvenanceAdapter(caller).check_profile())["status"] == "available"
+    assert caller.arguments[0][0] == "slopsearx_get_service_status"
     with pytest.raises(ProvenanceUnavailableError, match="least-privilege"):
         await SlopSearXProvenanceAdapter(Caller(broad_grant=True)).check_profile()
 
