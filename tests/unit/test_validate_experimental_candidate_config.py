@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts import validate_experimental_candidate_config as candidate_config
 from scripts.validate_experimental_candidate_config import validate
 
 REVISION = "a" * 40
@@ -30,7 +31,14 @@ def _write_candidate_files(root: Path) -> Path:
     return env_file
 
 
-def test_accepts_private_persistent_files(tmp_path: Path) -> None:
+def _treat_tmp_path_as_persistent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(candidate_config, "VOLATILE_ROOTS", (Path("/never-used"),))
+
+
+def test_accepts_private_persistent_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _treat_tmp_path_as_persistent(monkeypatch)
     validate(_write_candidate_files(tmp_path / "candidate"))
 
 
@@ -51,14 +59,20 @@ def test_rejects_volatile_password_file(tmp_path: Path) -> None:
         validate(env_file)
 
 
-def test_rejects_permissive_environment_file(tmp_path: Path) -> None:
+def test_rejects_permissive_environment_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _treat_tmp_path_as_persistent(monkeypatch)
     env_file = _write_candidate_files(tmp_path / "candidate")
     env_file.chmod(0o644)
     with pytest.raises(ValueError, match="group or others"):
         validate(env_file)
 
 
-def test_requires_full_revision(tmp_path: Path) -> None:
+def test_requires_full_revision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _treat_tmp_path_as_persistent(monkeypatch)
     env_file = _write_candidate_files(tmp_path / "candidate")
     env_file.write_text(env_file.read_text().replace(REVISION, "main"))
     with pytest.raises(ValueError, match="full Git revision"):
