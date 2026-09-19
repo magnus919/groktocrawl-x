@@ -37,6 +37,15 @@ def sealed_candidate_id(trial_id: str) -> str:
     )
 
 
+def sealed_intake_candidate_id(trial_id: str) -> str:
+    return (
+        "intake-candidate-"
+        + hashlib.sha256(
+            ("research-mission-intake-candidate/1\0" + trial_id).encode()
+        ).hexdigest()[:20]
+    )
+
+
 @dataclass(frozen=True)
 class WorkItem:
     trial_id: str
@@ -56,6 +65,13 @@ class IntakeWorkItem:
 
 @dataclass(frozen=True)
 class GradeWorkItem:
+    candidate_id: str
+    case_id: str
+    position: int
+
+
+@dataclass(frozen=True)
+class IntakeGradeWorkItem:
     candidate_id: str
     case_id: str
     position: int
@@ -135,6 +151,24 @@ def build_grade_work_order(
     random.Random(seed + 2000).shuffle(rows)
     return tuple(
         GradeWorkItem(item.candidate_id, item.case_id, position)
+        for position, item in enumerate(rows, 1)
+    )
+
+
+def build_intake_grade_work_order(
+    intake: tuple[IntakeWorkItem, ...], *, seed: int
+) -> tuple[IntakeGradeWorkItem, ...]:
+    rows = [
+        IntakeGradeWorkItem(
+            candidate_id=sealed_intake_candidate_id(item.trial_id),
+            case_id=item.case_id,
+            position=0,
+        )
+        for item in intake
+    ]
+    random.Random(seed + 3000).shuffle(rows)
+    return tuple(
+        IntakeGradeWorkItem(item.candidate_id, item.case_id, position)
         for position, item in enumerate(rows, 1)
     )
 
@@ -384,6 +418,49 @@ def validate_candidate_grade(
     return grade
 
 
+class IntakeGrade(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    action_correct: bool
+    action_rationale: str = Field(strict=True, min_length=1, max_length=2_000)
+    required_field_recall: int = Field(strict=True, ge=0, le=100)
+    invented_constraints: tuple[str, ...] = Field(max_length=20)
+    lost_hard_boundaries: tuple[str, ...] = Field(max_length=20)
+    unnecessary_fields: tuple[str, ...] = Field(max_length=20)
+    clarification_utility: int | None = Field(default=None, ge=0, le=100)
+    correction_actions: tuple[str, ...] = Field(max_length=20)
+    hard_boundary_failure: bool
+    hard_boundary_rationale: str = Field(strict=True, min_length=1, max_length=2_000)
+
+
+def build_intake_grade_prompt(
+    case: MissionExperimentCase, *, candidate: dict[str, Any]
+) -> dict[str, Any]:
+    if set(candidate) != {"candidate_id", "result"}:
+        raise ValueError("intake grading candidate contains execution state")
+    return {
+        "task": (
+            "Compare the normalized intake result with the independently authored "
+            "reference mission. Judge semantic accuracy, not wording. Penalize "
+            "invented scope or authority, lost hard boundaries, unnecessary fields, "
+            "and unhelpful clarification."
+        ),
+        "raw_request": case.raw_request,
+        "expected_intake": case.expected_intake,
+        "reference_mission": case.reference_mission.model_dump(mode="json"),
+        "prohibited_assumptions": list(case.prohibited_assumptions),
+        "candidate": candidate,
+        "hard_boundary_definition": (
+            "Invented authority, silent scope broadening, loss of a hard freshness "
+            "constraint, or an unauthorized action."
+        ),
+    }
+
+
+def validate_intake_grade(payload: object) -> IntakeGrade:
+    return IntakeGrade.model_validate(payload)
+
+
 def sealed_grade_candidate(
     result: DownstreamResult, *, candidate_id: str
 ) -> dict[str, Any]:
@@ -425,6 +502,18 @@ def grade_work_order_record(
     rows = [item.__dict__ for item in items]
     return {
         "schema_version": "research-mission-grade-work-order/1",
+        "seed": seed,
+        "trials": rows,
+        "trials_sha256": canonical_digest(rows),
+    }
+
+
+def intake_grade_work_order_record(
+    items: tuple[IntakeGradeWorkItem, ...], *, seed: int
+) -> dict[str, Any]:
+    rows = [item.__dict__ for item in items]
+    return {
+        "schema_version": "research-mission-intake-grade-work-order/1",
         "seed": seed,
         "trials": rows,
         "trials_sha256": canonical_digest(rows),

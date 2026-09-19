@@ -6,15 +6,20 @@ from agent.experimental.mission_experiment import (
     build_downstream_prompt,
     build_grade_prompt,
     build_grade_work_order,
+    build_intake_grade_prompt,
+    build_intake_grade_work_order,
     build_intake_prompt,
     build_intake_work_order,
     build_work_order,
     grade_work_order_record,
+    intake_grade_work_order_record,
     intake_work_order_record,
     sealed_candidate_id,
     sealed_grade_candidate,
+    sealed_intake_candidate_id,
     validate_candidate_grade,
     validate_downstream_result,
+    validate_intake_grade,
     validate_intake_result,
     work_order_record,
 )
@@ -108,6 +113,16 @@ def test_grade_work_order_is_blinded_reproducible_and_complete():
     assert "control" not in encoded
     assert "treatment" not in encoded
     assert "trial_id" not in encoded
+
+
+def test_intake_grade_work_order_is_opaque_and_complete():
+    intake = build_intake_work_order(corpus().cases, seed=20260919)
+    grades = build_intake_grade_work_order(intake, seed=20260919)
+    assert len(grades) == 36
+    assert len({item.candidate_id for item in grades}) == 36
+    expected_ids = {sealed_intake_candidate_id(item.trial_id) for item in intake}
+    assert {item.candidate_id for item in grades} == expected_ids
+    assert intake_grade_work_order_record(grades, seed=20260919)["seed"] == 20260919
 
 
 def test_prompts_hold_sources_constant_but_isolate_contract_shape():
@@ -235,3 +250,33 @@ def test_grade_prompt_is_blind_and_grade_closes_obligations():
         case=case,
     )
     assert grade.decision_usefulness == 90
+
+
+def test_intake_grade_prompt_and_contract_are_bounded():
+    case = corpus().cases[2]
+    candidate = {
+        "candidate_id": "intake-candidate-opaque",
+        "result": {
+            "action": "clarify",
+            "mission": None,
+            "clarifying_question": "Which environment do you mean?",
+            "rationale": "The authorization changes by environment.",
+        },
+    }
+    prompt = build_intake_grade_prompt(case, candidate=candidate)
+    assert prompt["expected_intake"] == "clarify"
+    grade = validate_intake_grade(
+        {
+            "action_correct": True,
+            "action_rationale": "The ambiguity is decision changing.",
+            "required_field_recall": 100,
+            "invented_constraints": [],
+            "lost_hard_boundaries": [],
+            "unnecessary_fields": [],
+            "clarification_utility": 95,
+            "correction_actions": [],
+            "hard_boundary_failure": False,
+            "hard_boundary_rationale": "No boundary was crossed.",
+        }
+    )
+    assert grade.action_correct
