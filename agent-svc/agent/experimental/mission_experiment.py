@@ -222,19 +222,32 @@ def build_downstream_prompt(
         ),
         "sources": list(sources),
         "output_contract": {
-            "answer": "final user-visible markdown",
-            "citations": "all source_id values used by the rendered answer",
-            "claims": "material claims with source links and uncertainty",
+            "additional_fields_allowed": False,
+            "answer": "string containing final user-visible markdown",
+            "citations": "array of all source_id values used by the rendered answer",
+            "claims": {
+                "type": "array",
+                "each_item_has_exactly": {
+                    "text": "material claim string",
+                    "source_ids": "array of supporting or challenging source_id values",
+                    "uncertainty": "string stating limits or no material uncertainty",
+                },
+            },
         },
     }
     if arm == "control":
         common["research_request"] = render_control_brief(case.reference_mission)
-        common["obligation_results"] = None
+        common["output_contract"]["obligation_results"] = None
     else:
         common["research_mission"] = case.reference_mission.model_dump(mode="json")
-        common["output_contract"]["obligation_results"] = (
-            "one status, source list, and rationale for every mission obligation"
-        )
+        common["output_contract"]["obligation_results"] = {
+            item.obligation_id: {
+                "status": "supported, contested, or unresolved",
+                "source_ids": "array of source_id values",
+                "rationale": "string",
+            }
+            for item in case.reference_mission.obligations
+        }
     return common
 
 

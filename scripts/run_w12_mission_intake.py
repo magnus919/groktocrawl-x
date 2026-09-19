@@ -53,7 +53,7 @@ def execute_intake(
     prompt = build_intake_prompt(case)
     private_path = private_dir / "intake" / f"{item.trial_id}.json"
     try:
-        content, receipt = downstream.model_json(
+        content, receipt, envelope = downstream.model_json(
             base_url=base_url,
             api_key=api_key,
             model=model,
@@ -70,6 +70,7 @@ def execute_intake(
                 "trial_id": item.trial_id,
                 "prompt": prompt,
                 "raw_completion": content,
+                "raw_envelope": envelope,
                 "receipt": receipt,
                 "recorded_at": datetime.now(UTC).isoformat(),
             },
@@ -81,6 +82,8 @@ def execute_intake(
             or receipt["tool_calls"]
         ):
             raise ValueError("model completion is not a final intake result")
+        if content is None:
+            raise ValueError("model response has no string content")
         result = validate_intake_result(json.loads(content))
         downstream.write_json(
             public_path,

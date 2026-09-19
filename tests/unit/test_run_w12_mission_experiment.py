@@ -60,6 +60,14 @@ def test_model_transport_returns_invalid_json_once_for_durable_capture(monkeypat
 
     class Response:
         status_code = 200
+        text = json.dumps(
+            {
+                "model": "general",
+                "choices": [
+                    {"finish_reason": "stop", "message": {"content": "not-json"}}
+                ],
+            }
+        )
 
         def raise_for_status(self):
             return None
@@ -88,7 +96,7 @@ def test_model_transport_returns_invalid_json_once_for_durable_capture(monkeypat
             return Response()
 
     monkeypatch.setattr(runner.httpx, "Client", Client)
-    content, receipt = runner.model_json(
+    content, receipt, envelope = runner.model_json(
         base_url="http://example.test/v1",
         api_key="secret",
         model="general",
@@ -99,6 +107,7 @@ def test_model_transport_returns_invalid_json_once_for_durable_capture(monkeypat
         max_attempts=3,
     )
     assert content == "not-json"
+    assert json.loads(envelope)["model"] == "general"
     assert receipt["attempt"] == 1
     with pytest.raises(json.JSONDecodeError):
         json.loads(content)
@@ -129,6 +138,7 @@ def test_trial_preserves_raw_completion_before_schema_failure(tmp_path, monkeypa
                 "refusal": False,
                 "tool_calls": False,
             },
+            '{"raw":"envelope"}',
         ),
     )
     item = runner.WorkItem("trial-1", case.case_id, "control", 1, 1)
@@ -147,6 +157,7 @@ def test_trial_preserves_raw_completion_before_schema_failure(tmp_path, monkeypa
     assert outcome["status"] == "failed"
     private = json.loads((tmp_path / "private/trials/trial-1.json").read_text())
     assert private["raw_completion"] == "not-json"
+    assert private["raw_envelope"] == '{"raw":"envelope"}'
     public = json.loads((tmp_path / "public/trials/trial-1.json").read_text())
     assert public["status"] == "failed"
     assert public["error_type"] == "JSONDecodeError"

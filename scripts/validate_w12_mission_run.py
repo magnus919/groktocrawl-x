@@ -64,10 +64,17 @@ def check_private_completion(
         issues.append(f"{identity}: private record mode is not 0600")
     private = load(private_path)
     content = private.get("raw_completion")
+    envelope = private.get("raw_envelope")
     receipt = private.get("receipt") or {}
     if not isinstance(content, str):
         issues.append(f"{identity}: raw completion is missing")
         return None
+    if not isinstance(envelope, str):
+        issues.append(f"{identity}: raw envelope is missing")
+    elif (
+        receipt.get("envelope_sha256") != hashlib.sha256(envelope.encode()).hexdigest()
+    ):
+        issues.append(f"{identity}: envelope digest does not close")
     if receipt.get("response_sha256") != hashlib.sha256(content.encode()).hexdigest():
         issues.append(f"{identity}: response digest does not close")
     if public.get("receipt") != receipt:

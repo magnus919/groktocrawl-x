@@ -125,7 +125,7 @@ def model_json(
     prompt: dict[str, Any],
     timeout: float,
     max_attempts: int,
-) -> tuple[str, dict[str, Any]]:
+) -> tuple[str | None, dict[str, Any], str]:
     request = {
         "model": model,
         "messages": [
@@ -140,7 +140,8 @@ def model_json(
             {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
         ],
         "temperature": 0,
-        "max_tokens": 6000,
+        "max_tokens": 10000,
+        "reasoning_effort": "low",
         "response_format": (
             {
                 "type": "json_schema",
@@ -178,11 +179,10 @@ def model_json(
                 time.sleep(min(8, 2 ** (attempt - 1)))
                 continue
             response.raise_for_status()
-            envelope = response.json()
+            envelope_text = response.text
+            envelope = json.loads(envelope_text)
             choice = envelope["choices"][0]
             content = choice["message"].get("content")
-            if not isinstance(content, str):
-                raise ValueError("model response has no string content")
             receipt = {
                 "requested_model": model,
                 "returned_model": envelope.get("model"),
@@ -193,11 +193,16 @@ def model_json(
                 "attempt": attempt,
                 "transport_failures": failures,
                 "latency_ms": round((time.monotonic() - started) * 1000, 3),
-                "response_sha256": hashlib.sha256(content.encode()).hexdigest(),
+                "response_sha256": (
+                    hashlib.sha256(content.encode()).hexdigest()
+                    if isinstance(content, str)
+                    else None
+                ),
+                "envelope_sha256": hashlib.sha256(envelope_text.encode()).hexdigest(),
             }
             # Parsing and semantic validation happen after the exact completion and
             # receipt are durably written by the caller. Do not retry malformed output.
-            return content, receipt
+            return content if isinstance(content, str) else None, receipt, envelope_text
         except (httpx.TimeoutException, httpx.NetworkError) as error:
             failures.append(
                 {
@@ -260,7 +265,7 @@ def execute_trial(
     prompt = build_downstream_prompt(case, sources=sources, arm=item.arm)
     private_path = private_dir / "trials" / f"{item.trial_id}.json"
     try:
-        content, receipt = model_json(
+        content, receipt, envelope = model_json(
             base_url=base_url,
             api_key=api_key,
             model=model,
@@ -277,6 +282,7 @@ def execute_trial(
                 "trial_id": item.trial_id,
                 "prompt": prompt,
                 "raw_completion": content,
+                "raw_envelope": envelope,
                 "receipt": receipt,
                 "recorded_at": datetime.now(UTC).isoformat(),
             },
@@ -288,6 +294,8 @@ def execute_trial(
             or receipt["tool_calls"]
         ):
             raise ValueError("model completion is not a final research result")
+        if content is None:
+            raise ValueError("model response has no string content")
         parsed = json.loads(content)
         validated = validate_downstream_result(parsed, case=case, arm=item.arm)
         sealed = sealed_grade_candidate(

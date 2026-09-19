@@ -171,7 +171,7 @@ def execute_grade(
     prompt = build_grade_prompt(case, sources=sources, candidate=candidate)
     private_path = private_dir / "grades" / f"{item.candidate_id}.json"
     try:
-        content, receipt = downstream.model_json(
+        content, receipt, envelope = downstream.model_json(
             base_url=base_url,
             api_key=api_key,
             model=model,
@@ -188,6 +188,7 @@ def execute_grade(
                 "candidate_id": item.candidate_id,
                 "prompt": prompt,
                 "raw_completion": content,
+                "raw_envelope": envelope,
                 "receipt": receipt,
                 "recorded_at": datetime.now(UTC).isoformat(),
             },
@@ -199,6 +200,8 @@ def execute_grade(
             or receipt["tool_calls"]
         ):
             raise ValueError("model completion is not a final grade")
+        if content is None:
+            raise ValueError("model response has no string content")
         grade = validate_candidate_grade(json.loads(content), case=case)
         downstream.write_json(
             public_path,

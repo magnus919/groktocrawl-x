@@ -32,6 +32,7 @@ def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
                 "refusal": False,
                 "tool_calls": False,
             },
+            '{"raw":"envelope"}',
         ),
     )
     item = runner.IntakeWorkItem("intake-1", case.case_id, 1, 1)
@@ -49,5 +50,6 @@ def test_intake_failure_preserves_raw_completion(tmp_path, monkeypatch):
     assert outcome["status"] == "failed"
     private = json.loads((tmp_path / "private/intake/intake-1.json").read_text())
     assert private["raw_completion"] == "not-json"
+    assert private["raw_envelope"] == '{"raw":"envelope"}'
     public = json.loads((tmp_path / "public/intake/intake-1.json").read_text())
     assert public["error_type"] == "JSONDecodeError"
