@@ -30,7 +30,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, 0081, and 0082.
 
-**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073 and 0076–0078.
+**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073, 0076–0078, and 0083.
 
 **Bounded implementation accepted:** ADR-0075 defines consolidated research interchange contracts; implementation and format-freeze checks remain.
 
@@ -119,5 +119,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0080 | [Construct Source-Bound Answer Units](0080-construct-source-bound-answer-units.md) | rejected |
 | 0081 | [Select a Bounded Adaptive Research Policy](0081-select-a-bounded-adaptive-research-policy.md) | accepted; fixed retrieval retained after W10 |
 | 0082 | [Delegate Bounded Retrieval Execution to SlopSearX](0082-delegate-bounded-retrieval-to-slopsearx.md) | accepted; narrow opt-in contracts only |
+| 0083 | [Retain Prose Intake Over Universal Research Missions](0083-retain-prose-intake-over-universal-research-missions.md) | proposed; W12.1 evidence rejects universal typed intake |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
