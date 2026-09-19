@@ -977,6 +977,7 @@ class Client:
         categories: list[str] | None = None,
         sources: list[str] | None = None,
         search_type: str = "fast",
+        retrieval_mode: str = "keyword",
         output_schema: dict | None = None,
         system_prompt: str | None = None,
         contents: dict | None = None,
@@ -985,6 +986,7 @@ class Client:
             "query": query,
             "limit": limit,
             "search_type": search_type,
+            "retrieval_mode": retrieval_mode,
         }
         if scrape:
             data["scrapeOptions"] = {"formats": ["markdown"]}
@@ -1015,8 +1017,6 @@ class Client:
 
         Returns a dict with ``_stream`` key containing the raw streaming response.
         """
-        import requests
-
         data: dict[str, Any] = {
             "query": query,
             "limit": limit,
@@ -1033,10 +1033,7 @@ class Client:
         if system_prompt:
             data["system_prompt"] = system_prompt
 
-        url = self._url("/search")
-        resp = requests.post(url, json=data, timeout=120, stream=True)
-        if resp.status_code >= 400:
-            raise ApiError(f"API error ({resp.status_code}): {resp.text[:500]}")
+        resp = self._post_stream_with_retry("/search", data, "search", timeout=120)
         return {"_stream": resp}
 
     def map_urls(
@@ -1296,8 +1293,17 @@ class Client:
                 "file": filepath,
                 "ocr": ocr,
             }
+        headers = (
+            {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        )
         with open(filepath, "rb") as f:
-            resp = requests.post(url, files={"file": f}, data={"ocr": ocr}, timeout=120)
+            resp = requests.post(
+                url,
+                files={"file": f},
+                data={"ocr": ocr},
+                headers=headers,
+                timeout=120,
+            )
         if resp.status_code >= 400:
             try:
                 body = resp.json()
@@ -1331,6 +1337,11 @@ class Client:
             headers={
                 "Content-Type": content_type,
                 "X-Filename": filename,
+                **(
+                    {"Authorization": f"Bearer {self.api_key}"}
+                    if self.api_key
+                    else {}
+                ),
             },
             timeout=120,
         )
@@ -1356,7 +1367,12 @@ class Client:
                 "url": url,
                 "upload_id": upload_id,
             }
-        resp = requests.post(url, data={"upload_id": upload_id}, timeout=120)
+        headers = (
+            {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        )
+        resp = requests.post(
+            url, data={"upload_id": upload_id}, headers=headers, timeout=120
+        )
         if resp.status_code >= 400:
             try:
                 body = resp.json()
@@ -1534,6 +1550,7 @@ def cmd_search(client: Client, args: argparse.Namespace) -> None:
             categories=args.categories,
             sources=sources,
             search_type=search_type,
+            retrieval_mode=args.retrieval_mode,
             output_schema=output_schema,
             system_prompt=args.system_prompt,
             contents=contents,
@@ -3007,6 +3024,12 @@ def make_parser() -> argparse.ArgumentParser:
         "--stream",
         action="store_true",
         help="SSE streaming output (results appear as they arrive)",
+    )
+    p_search.add_argument(
+        "--retrieval-mode",
+        default="keyword",
+        choices=["keyword", "semantic", "hybrid", "vector", "hybrid_vector"],
+        help="Retrieval strategy (default: keyword)",
     )
 
     p_map = subparsers.add_parser("map", help="Discover URLs on a site")
