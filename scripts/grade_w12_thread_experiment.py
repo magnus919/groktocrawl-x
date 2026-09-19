@@ -55,7 +55,10 @@ def grade_one(
             "Grade the candidate against the reference ledger and exact sources. "
             "Score factual state, not wording. A derivative is not independent. "
             "A near-match capability transfer is a false merge. Old evidence stated "
-            "as current is stale-current leakage. Return only the required JSON."
+            "as current is stale-current leakage. Every score is an INTEGER ON A "
+            "0 TO 100 SCALE: 100 means fully correct, 50 means half correct, and 0 "
+            "means wholly wrong or omitted. Never use a 0-to-1 scale. Return only "
+            "the required JSON fields exactly as named."
         ),
         "question": case.question,
         "reference": case.expected.model_dump(mode="json"),

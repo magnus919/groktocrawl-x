@@ -45,11 +45,34 @@ def main() -> int:
         trial = trials[record["trial_id"]]
         paired[(trial["case_id"], trial["repetition"])][trial["arm"]] = record["grade"]
     effects = []
+    missing_grade_assignments = []
     repetition_effects: dict[int, list[float]] = defaultdict(list)
     hard_failures = []
-    for (case_id, repetition), arms in sorted(paired.items()):
-        if set(arms) != {"control", "treatment"}:
-            continue
+    expected_pairs = sorted(
+        {(trial["case_id"], trial["repetition"]) for trial in trials.values()}
+    )
+    for case_id, repetition in expected_pairs:
+        arms = paired[(case_id, repetition)]
+        for arm in ("control", "treatment"):
+            if arm in arms:
+                continue
+            assigned = 100 if arm == "control" else 0
+            arms[arm] = {
+                **dict.fromkeys(SCORES, assigned),
+                "false_merge": False,
+                "stale_current_leak": False,
+                "lost_history": False,
+                "unsupported_claims": 0,
+                "rationale": "Frozen conservative missing-grade assignment.",
+            }
+            missing_grade_assignments.append(
+                {
+                    "case_id": case_id,
+                    "repetition": repetition,
+                    "arm": arm,
+                    "assigned_score": assigned,
+                }
+            )
         control = mean(arms["control"][score] for score in SCORES)
         treatment = mean(arms["treatment"][score] for score in SCORES)
         effect = treatment - control
@@ -110,6 +133,8 @@ def main() -> int:
         "schema_version": "research-thread-analysis/1",
         "decision": decision,
         "paired_count": len(effects),
+        "complete_observed_grade_count": len(grades),
+        "missing_grade_assignments": missing_grade_assignments,
         "mean_effect_points": round(mean(item["effect_points"] for item in effects), 3) if effects else None,
         "effect_points_by_repetition": by_repetition,
         "repetitions_at_or_above_10_points": repetitions_over_ten,
