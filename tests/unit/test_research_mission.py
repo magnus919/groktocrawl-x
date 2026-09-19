@@ -1,8 +1,10 @@
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from agent.experimental.research_mission import (
     ResearchMission,
+    load_mission_experiment_corpus,
     render_control_brief,
     validate_research_mission,
 )
@@ -126,3 +128,45 @@ def test_mission_is_immutable_after_validation():
     mission = validate_research_mission(mission_payload())
     with pytest.raises(ValueError):
         mission.decision = "Change the decision after admission"
+
+
+def test_frozen_corpus_has_two_cases_per_stratum_and_closed_sources():
+    source_path = Path("docs/experiments/enterprise-evaluation/corpus.json")
+    corpus = load_mission_experiment_corpus(
+        Path("docs/experiments/research-mission/w12.1-cases.json"),
+        source_corpus_path=source_path,
+    )
+    counts: dict[str, int] = {}
+    for item in corpus.cases:
+        counts[item.stratum] = counts.get(item.stratum, 0) + 1
+    assert set(counts.values()) == {2}
+    assert len(counts) == 6
+    assert {item.expected_intake for item in corpus.cases} == {"accept", "clarify"}
+
+
+def test_corpus_loader_rejects_missing_source_reference(tmp_path):
+    import json
+
+    original = Path("docs/experiments/research-mission/w12.1-cases.json")
+    payload = json.loads(original.read_bytes())
+    payload["cases"][0]["source_ids"] = ["missing-source"]
+    changed = tmp_path / "changed.json"
+    changed.write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match="unavailable sources"):
+        load_mission_experiment_corpus(
+            changed,
+            source_corpus_path=Path(
+                "docs/experiments/enterprise-evaluation/corpus.json"
+            ),
+        )
+
+
+def test_corpus_loader_rejects_changed_source_corpus(tmp_path):
+    source = Path("docs/experiments/enterprise-evaluation/corpus.json")
+    changed_source = tmp_path / "source.json"
+    changed_source.write_bytes(source.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="digest differs"):
+        load_mission_experiment_corpus(
+            Path("docs/experiments/research-mission/w12.1-cases.json"),
+            source_corpus_path=changed_source,
+        )

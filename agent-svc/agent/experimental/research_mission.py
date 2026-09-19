@@ -7,7 +7,10 @@ publication. Those boundaries remain owned by their existing components.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -203,3 +206,70 @@ def render_control_brief(mission: ResearchMission) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+class MissionExperimentCase(MissionRecord):
+    case_id: Identity
+    stratum: Literal[
+        "straightforward",
+        "ambiguous",
+        "compound",
+        "temporal",
+        "contradictory_source",
+        "unanswerable",
+    ]
+    raw_request: Text
+    source_ids: tuple[Identity, ...] = Field(min_length=1, max_length=20)
+    reference_mission: ResearchMission
+    expected_intake: Literal["accept", "clarify", "abstain"]
+    prohibited_assumptions: tuple[ShortText, ...] = Field(default=(), max_length=20)
+
+    @model_validator(mode="after")
+    def identity_and_sources(self) -> Self:
+        if self.case_id != self.reference_mission.mission_id:
+            raise ValueError("case and reference mission identities must match")
+        if len(self.source_ids) != len(set(self.source_ids)):
+            raise ValueError("case source identities must be unique")
+        return self
+
+
+class MissionExperimentCorpus(MissionRecord):
+    schema_version: Literal["research-mission-experiment-corpus/1"]
+    domain: Literal["agentic engineering software factory in the enterprise"]
+    source_corpus_path: Literal["docs/experiments/enterprise-evaluation/corpus.json"]
+    source_corpus_sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+    cases: tuple[MissionExperimentCase, ...] = Field(min_length=12, max_length=12)
+
+    @model_validator(mode="after")
+    def matched_strata(self) -> Self:
+        case_ids = tuple(item.case_id for item in self.cases)
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("experiment case identities must be unique")
+        counts: dict[str, int] = {}
+        for item in self.cases:
+            counts[item.stratum] = counts.get(item.stratum, 0) + 1
+        if set(counts.values()) != {2} or len(counts) != 6:
+            raise ValueError("experiment requires exactly two cases in each stratum")
+        return self
+
+
+def load_mission_experiment_corpus(
+    path: Path, *, source_corpus_path: Path
+) -> MissionExperimentCorpus:
+    """Load the frozen case file and close every source reference."""
+
+    payload = json.loads(path.read_bytes())
+    corpus = MissionExperimentCorpus.model_validate(payload)
+    source_bytes = source_corpus_path.read_bytes()
+    source_digest = hashlib.sha256(source_bytes).hexdigest()
+    if source_digest != corpus.source_corpus_sha256:
+        raise ValueError("source corpus digest differs from the frozen mission corpus")
+    source_payload = json.loads(source_bytes)
+    source_ids = frozenset(item["source_id"] for item in source_payload["sources"])
+    referenced = {source_id for item in corpus.cases for source_id in item.source_ids}
+    missing = referenced - source_ids
+    if missing:
+        raise ValueError(
+            f"case corpus references unavailable sources: {sorted(missing)}"
+        )
+    return corpus
