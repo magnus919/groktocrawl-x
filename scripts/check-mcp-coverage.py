@@ -30,6 +30,9 @@ MCP_SERVER = REPO_ROOT / "mcp-svc" / "mcp_server.py"
 # Backlog entries mirror the CLI coverage exemptions in check-cli-coverage.py.
 EXEMPT: dict[str, str] = {
     "POST /v1/search": "Legacy v1 endpoint — superseded by /v2/search.",
+    "POST /v2/parse/upload-url": (
+        "Two-phase upload flow — reserves an upload; the parse tool handles transfer."
+    ),
     "PUT /v2/parse/upload/{upload_id}": (
         "Two-phase upload flow — internal plumbing; POST /v2/parse covers parsing."
     ),
