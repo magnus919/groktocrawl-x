@@ -125,6 +125,8 @@ def execute_adjudication(
             prompt=prompt,
             timeout=timeout,
             max_attempts=max_attempts,
+            reasoning_effort="minimal",
+            max_tokens=20000,
         )
         downstream.write_json(
             private_path,
