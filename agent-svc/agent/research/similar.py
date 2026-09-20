@@ -1,5 +1,6 @@
 """Find-similar functions: semantic similarity search via Qdrant or web."""
 
+import asyncio
 import logging
 import math
 import re
@@ -81,8 +82,11 @@ async def _run_find_similar_qdrant(
         # 2. Search Qdrant using the scraped content as the query
         # search_vector() embeds the text server-side and searches the index
         query_text = f"{title} {markdown[:3000]}"
+        candidate_limit = max(limit, 10)
         try:
-            vector_results = await semantic.search_vector(query_text, limit=limit)
+            vector_results = await semantic.search_vector(
+                query_text, limit=candidate_limit
+            )
         except httpx.HTTPError as e:
             # Vector index unavailable or slow (503, 500, timeout, connection
             # error). Surface a structured 502 instead of masking the backend
@@ -99,7 +103,7 @@ async def _run_find_similar_qdrant(
             raise SemanticError(f"Semantic vector search failed{detail}") from e
 
         results: list[dict] = []
-        for r in vector_results:
+        for raw_rank, r in enumerate(vector_results, start=1):
             result_url = str(r.get("url", ""))
             if result_url.rstrip("/") == url.rstrip("/"):
                 continue
@@ -137,6 +141,7 @@ async def _run_find_similar_qdrant(
                     "description": result_description,
                     "score": r.get("score"),
                     "confidence": _confidence(r.get("score")),
+                    "raw_rank": raw_rank,
                     "metadata_complete": bool(
                         result_title.strip() and result_description.strip()
                     ),
@@ -146,12 +151,65 @@ async def _run_find_similar_qdrant(
                         "index_freshness": (
                             "known" if r.get("indexed_at") else "unavailable"
                         ),
+                        "ranking_method": "vector_cosine",
                     },
                 }
             )
-            if len(results) >= limit:
+            if len(results) >= candidate_limit:
                 break
-        return results
+
+        rerank_pool = results[:10]
+        if len(rerank_pool) > 1:
+            compact_query = f"{title} {' '.join(markdown.split())[:800]}".strip()
+            documents = [
+                f"{candidate['title']} {candidate['description']}".strip()[:500]
+                for candidate in rerank_pool
+            ]
+            try:
+                reranked = await asyncio.wait_for(
+                    semantic.rerank(
+                        compact_query,
+                        documents,
+                        top_k=len(rerank_pool),
+                    ),
+                    timeout=20,
+                )
+            except (TimeoutError, httpx.HTTPError, KeyError, TypeError, ValueError):
+                logger.warning(
+                    "find_similar: bounded cross-encoder rerank unavailable; "
+                    "using vector order",
+                    exc_info=True,
+                )
+            else:
+                reranked_results: list[dict] = []
+                used_indices: set[int] = set()
+                for item in reranked:
+                    index = item.get("index")
+                    if (
+                        not isinstance(index, int)
+                        or not 0 <= index < len(rerank_pool)
+                        or index in used_indices
+                    ):
+                        continue
+                    used_indices.add(index)
+                    candidate = rerank_pool[index]
+                    candidate["rerank_score"] = item.get("score")
+                    candidate["provenance"] = {
+                        **candidate["provenance"],
+                        "ranking_method": "cross_encoder_bounded",
+                        "candidate_pool_size": len(rerank_pool),
+                    }
+                    reranked_results.append(candidate)
+                reranked_results.extend(
+                    candidate
+                    for index, candidate in enumerate(rerank_pool)
+                    if index not in used_indices
+                )
+                results = reranked_results + results[len(rerank_pool) :]
+
+        for rank, candidate in enumerate(results[:limit], start=1):
+            candidate["rank"] = rank
+        return results[:limit]
     finally:
         await scraper.close()
         await semantic.close()

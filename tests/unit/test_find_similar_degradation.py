@@ -40,14 +40,23 @@ class _FakeScraper:
 
 
 class _FakeSemantic:
-    def __init__(self, search_vector):
+    def __init__(self, search_vector, rerank=None):
         self._search_vector = search_vector
+        self._rerank = rerank
         self.search_vector_calls: list[tuple[str, int]] = []
         self.closed = False
 
     async def search_vector(self, query, limit=5):
         self.search_vector_calls.append((query, limit))
         return await self._search_vector(query, limit)
+
+    async def rerank(self, query, documents, top_k=5):
+        if self._rerank is None:
+            return [
+                {"index": index, "score": 1.0 - index / 10}
+                for index in range(min(top_k, len(documents)))
+            ]
+        return await self._rerank(query, documents, top_k)
 
     async def close(self):
         self.closed = True
@@ -183,11 +192,55 @@ async def test_qdrant_success_returns_results():
             "description": "content A",
             "score": None,
             "confidence": "unknown",
+            "raw_rank": 1,
             "metadata_complete": True,
             "provenance": {
                 "source": "local_vector_index",
                 "indexed_at": None,
                 "index_freshness": "unavailable",
+                "ranking_method": "vector_cosine",
             },
+            "rank": 1,
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_qdrant_rerank_pool_is_bounded_to_ten():
+    async def _search(query, limit):
+        assert limit == 10
+        return [
+            {
+                "url": f"https://example.com/{index}",
+                "title": f"Candidate {index}",
+                "description": f"Document {index}",
+                "score": 0.9 - index / 100,
+            }
+            for index in range(10)
+        ]
+
+    async def _rerank(query, documents, top_k):
+        assert len(query) <= 900
+        assert len(documents) == 10
+        assert top_k == 10
+        return [
+            {"index": index, "score": index / 10}
+            for index in reversed(range(10))
+        ]
+
+    semantic = _FakeSemantic(_search, _rerank)
+    with (
+        patch("agent.research.similar.ScraperClient", return_value=_FakeScraper()),
+        patch("agent.semantic_client.SemanticClient", return_value=semantic),
+    ):
+        results = await _run_find_similar_qdrant(
+            url="https://query.example.com/herbs",
+            limit=5,
+            scraper_url="http://scraper-svc:8001",
+            semantic_url="http://semantic-svc:8003",
+        )
+
+    assert [item["raw_rank"] for item in results] == [10, 9, 8, 7, 6]
+    assert [item["rank"] for item in results] == [1, 2, 3, 4, 5]
+    assert results[0]["provenance"]["ranking_method"] == "cross_encoder_bounded"
+    assert results[0]["provenance"]["candidate_pool_size"] == 10
