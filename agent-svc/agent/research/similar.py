@@ -143,7 +143,6 @@ async def _run_find_similar_qdrant(
                     "provenance": {
                         "source": "local_vector_index",
                         "indexed_at": r.get("indexed_at"),
-                        "representation_version": r.get("representation_version"),
                         "index_freshness": (
                             "known" if r.get("indexed_at") else "unavailable"
                         ),

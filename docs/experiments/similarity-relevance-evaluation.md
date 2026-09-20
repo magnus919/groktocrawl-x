@@ -2,10 +2,9 @@
 
 ## Decision
 
-Issue #350 blocks an unconditional replacement recommendation because local
-vector similarity can return complete but weakly related results. This bounded
-evaluation tests changes at the retrieval boundary while keeping the public
-endpoint and vector-store provider stable.
+Issue #350 questioned whether local vector similarity returns complete but
+weakly related results. This bounded evaluation tested changes at the retrieval
+boundary while keeping the public endpoint and vector-store provider stable.
 
 ## Frozen cases
 
@@ -71,7 +70,7 @@ pages. It removed one clearly unrelated result but did not produce enough
 relevance improvement to justify the latency. This variant was rejected and was
 not merged.
 
-## Current representation experiment
+## Representation experiment
 
 The two rejected rerankers show that query-time model work is the wrong first
 intervention. The current cosine index embeds the first 2,000 content characters
@@ -80,7 +79,7 @@ those ranges can be dominated by navigation. Some acquired pages can also begin
 with prompt-like boilerplate. Both weaken the stored representation before
 retrieval begins.
 
-The next candidate therefore keeps plain cosine retrieval and changes indexing
+The next candidate kept plain cosine retrieval and changed indexing
 only:
 
 1. prepend the acquired title;
@@ -89,20 +88,37 @@ only:
 3. store the same cleaned text as the result excerpt; and
 4. expose a `clean-v1` representation version in similarity provenance.
 
-Before this candidate was installed, the five frozen cases were recorded
-against revision `99481a1a`. Four returned results in 9.6–16.1 seconds; the Codex
-case returned no local matches in 0.7 seconds. The Python tutorial case returned
-four pages titled “Navigation,” the Python free-threading case returned two, and
-the other cases mixed strong matches with unrelated pages. This is the baseline
-for the representation comparison.
+The first run exposed three invalid query pages rather than a retrieval defect:
+the selected Descript article no longer yielded its intended article body, the
+Martin Fowler path returned a 404 document, and the OpenAI product page was
+refused by the existing acquisition guard. They were replaced with live,
+topic-equivalent pages before comparison:
 
-Promote `clean-v1` only if freshly reindexed evaluation pages improve the human
-relevance grades without adding material request latency or causing a per-case
-regression. A page that cannot produce useful cleaned text falls back to its
-title, then its URL, so indexing never submits an empty embedding input.
+- Descript's editor-interface documentation;
+- Martin Fowler's Agentic Programming article; and
+- the official OpenAI Codex repository.
 
-## Representation rollback
+The raw and `clean-v1` arms then indexed the same 58-page slice, used the same
+BGE-M3 model and pgvector store, and ran serially with the semantic container
+allocated 14 of the host's 28 CPU cores. Mean request time was 1.04 seconds for
+raw and 1.05 seconds for `clean-v1`.
 
-Restore the prior revision and reindex the affected evaluation pages to recreate
-their original raw-leading-content representations. No database schema change
-or vector-store migration is required.
+Human grading found no irrelevant result in the baseline top four for any of the
+five valid cases. Descript returned four Descript editing pages; Agentic
+Programming returned four coding-agent sources; and Codex returned four Codex
+sources. The cleaner reordered some equally useful results but produced no
+material gain. It also replaced the fourth, weakly related Python-documentation
+result in the free-threading case with an unrelated Factory Droid CLI page.
+
+`clean-v1` is rejected because it does not improve relevance and causes one
+small per-case regression. The implementation was not merged. The experiment
+also rejects the original inference that navigation-shaped titles alone prove
+poor semantic relevance: those results pointed to relevant Python documentation
+despite weak display metadata.
+
+The remaining work is presentation quality and evaluation hygiene. A future
+change may derive missing or generic titles from the first meaningful heading,
+but it should not change stored vectors without new evidence. Live evaluation
+must verify that every query page returns the intended content before scoring
+retrieval. The current cosine implementation passes this corrected bounded
+screen, so issue #350 no longer blocks replacement observation.

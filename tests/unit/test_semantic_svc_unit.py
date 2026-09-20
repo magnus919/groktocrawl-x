@@ -675,36 +675,6 @@ class TestBuildIndexPayload:
 
         assert payload["content_excerpt"].startswith("useful content")
         assert len(payload["content_excerpt"]) <= 500
-        assert payload["representation_version"] == "clean-v1"
-
-    def test_index_representation_skips_navigation_and_prompt_like_blocks(self):
-        from router_index import _semantic_document_text
-
-        content = """### Navigation
-
-* [index](genindex.html)
-* [modules](py-modindex.html)
-* [Python](https://python.org)
-
-<prompt><role_setting>You are a senior software architect.</role_setting></prompt>
-
-Python free-threading lets extension authors run work without holding the GIL.
-This guide explains thread state, critical sections, and compatibility."""
-
-        represented = _semantic_document_text("Free-threading extensions", content)
-
-        assert represented.startswith("Free-threading extensions")
-        assert "thread state" in represented
-        assert "Navigation" not in represented
-        assert "senior software architect" not in represented
-
-    def test_index_representation_includes_title_and_is_bounded(self):
-        from router_index import _semantic_document_text
-
-        represented = _semantic_document_text("Distinctive title", "body " * 1000)
-
-        assert represented.startswith("Distinctive title")
-        assert len(represented) <= 2000
 
 
 # ── Tests: Model schemas ───────────────────────────────────────────
@@ -1125,15 +1095,7 @@ class TestSearchVectorQdrantBoundary:
 
         async def _serve(operation, function):
             assert operation == "search"
-            return [
-                ShadowSearchResult(
-                    1,
-                    "https://pg.example",
-                    "PG",
-                    0.93,
-                    representation_version="clean-v1",
-                )
-            ]
+            return [ShadowSearchResult(1, "https://pg.example", "PG", 0.93)]
 
         monkeypatch.setattr(
             router_search,
@@ -1148,7 +1110,6 @@ class TestSearchVectorQdrantBoundary:
 
         assert [result.url for result in response.results] == ["https://pg.example"]
         assert response.results[0].score == 0.93
-        assert response.results[0].representation_version == "clean-v1"
 
 
 class TestPgvectorShadowIndexWiring:

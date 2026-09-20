@@ -187,7 +187,6 @@ async def test_qdrant_success_returns_results():
             "provenance": {
                 "source": "local_vector_index",
                 "indexed_at": None,
-                "representation_version": None,
                 "index_freshness": "unavailable",
             },
         }
