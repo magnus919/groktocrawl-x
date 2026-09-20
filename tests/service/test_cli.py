@@ -573,6 +573,11 @@ class TestCmdCrawl:
                 {"url": "http://example.com/page1", "markdown": "# Page 1"},
                 {"url": "http://example.com/page2", "markdown": "# Page 2"},
             ],
+            "outcomeSummary": {
+                "discovered": 2,
+                "retained": 2,
+                "reason": "completed",
+            },
         }
 
         original_json = _cli_ns["JSON_OUTPUT"]
@@ -588,6 +593,41 @@ class TestCmdCrawl:
         assert parsed["job_id"] == "job-json-test"
         assert parsed["status"] == "completed"
         assert len(parsed["pages"]) == 2
+        assert parsed["outcomeSummary"]["retained"] == 2
+
+    def test_cmd_crawl_prints_zero_page_reason(self):
+        """Human output explains a successful crawl that retained no pages."""
+        cmd_crawl = _cli_ns["cmd_crawl"]
+        mock_args = MagicMock(
+            url="http://example.com",
+            limit=1,
+            max_depth=1,
+            include_paths=None,
+            exclude_paths=None,
+            max_pages=None,
+            ignore_query_parameters=False,
+            dry_run=False,
+            no_poll=False,
+            format=None,
+            download_images=False,
+        )
+        mock_client = MagicMock()
+        mock_client.dry_run = False
+        mock_client.crawl.return_value = {"success": True, "id": "job-empty"}
+        mock_client.crawl_status.return_value = {
+            "status": "completed",
+            "data": [],
+            "outcomeSummary": {
+                "discovered": 3,
+                "retained": 0,
+                "reason": "all_urls_filtered",
+            },
+        }
+
+        stdout = _capture_stdout(cmd_crawl, mock_client, mock_args)
+
+        assert "0 pages" in stdout
+        assert "Outcome: all_urls_filtered" in stdout
 
     def test_cmd_crawl_polling_error_retry_limit(self):
         """cmd_crawl exits after max polling errors."""

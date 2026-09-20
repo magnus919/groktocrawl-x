@@ -68,7 +68,9 @@ def _write_qdrant_rollback_copy(operation: str, function):
 # ── Payload building ──────────────────────────────────────────────
 
 
-def _build_index_payload(url: str, title: str, existing_payload: dict | None) -> dict:
+def _build_index_payload(
+    url: str, title: str, existing_payload: dict | None, content: str = ""
+) -> dict:
     """Build enriched payload for a new or updated index entry."""
     now = _now_iso()
     domain_category = _compute_domain_category(url)
@@ -102,6 +104,7 @@ def _build_index_payload(url: str, title: str, existing_payload: dict | None) ->
     payload = {
         "url": url,
         "title": title,
+        "content_excerpt": " ".join(content.split())[:500],
         "domain_category": domain_category,
         "first_indexed_at": first_indexed,
         "last_indexed_at": now,
@@ -179,7 +182,7 @@ async def index_page(body: IndexRequest):
     )
 
     # Build enriched payload
-    payload = _build_index_payload(body.url, body.title, existing_payload)
+    payload = _build_index_payload(body.url, body.title, existing_payload, body.content)
 
     # Build vector dict: at minimum the active named vector
     active_nv = _get_active_model()
@@ -316,7 +319,9 @@ async def index_batch(body: IndexBatchRequest):
                 exc_info=True,
             )
 
-        payload = _build_index_payload(page.url, page.title, existing_payload)
+        payload = _build_index_payload(
+            page.url, page.title, existing_payload, page.content
+        )
         vectors: dict[str, list[float]] = {active_nv: embedding}
 
         # Dual-write support: use pre-loaded (globally cached) target model

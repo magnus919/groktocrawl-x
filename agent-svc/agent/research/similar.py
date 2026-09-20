@@ -2,6 +2,7 @@
 
 import logging
 import math
+import re
 
 import httpx
 
@@ -96,27 +97,57 @@ async def _run_find_similar_qdrant(
             )
             raise SemanticError(f"Semantic vector search failed{detail}") from e
 
-        return [
-            {
-                "url": r.get("url", ""),
-                "title": r.get("title", ""),
-                "description": r.get("content", "")[:200] if r.get("content") else "",
-                "score": r.get("score"),
-                "confidence": _confidence(r.get("score")),
-                "metadata_complete": bool(
-                    str(r.get("title", "")).strip()
-                    and str(r.get("content", "")).strip()
-                ),
-                "provenance": {
-                    "source": "local_vector_index",
-                    "indexed_at": r.get("indexed_at"),
-                    "index_freshness": (
-                        "known" if r.get("indexed_at") else "unavailable"
+        results: list[dict] = []
+        for r in vector_results:
+            result_url = str(r.get("url", ""))
+            if result_url.rstrip("/") == url.rstrip("/"):
+                continue
+            result_title = str(r.get("title", ""))
+            result_description = str(r.get("description") or r.get("content") or "")[
+                :200
+            ]
+            if result_url and (
+                not result_title.strip() or not result_description.strip()
+            ):
+                try:
+                    metadata = await scraper.scrape(result_url)
+                    if metadata.get("success") and not is_barrier_flagged(metadata):
+                        data = metadata.get("data", {})
+                        result_title = result_title or str(
+                            data.get("metadata", {}).get("title", "")
+                        )
+                        result_description = (
+                            result_description
+                            or " ".join(str(data.get("markdown", "")).split())[:200]
+                        )
+                except Exception:
+                    logger.info(
+                        "find_similar: metadata hydration failed for %s",
+                        result_url,
+                        exc_info=True,
+                    )
+            results.append(
+                {
+                    "url": r.get("url", ""),
+                    "title": result_title,
+                    "description": result_description,
+                    "score": r.get("score"),
+                    "confidence": _confidence(r.get("score")),
+                    "metadata_complete": bool(
+                        result_title.strip() and result_description.strip()
                     ),
-                },
-            }
-            for r in vector_results
-        ]
+                    "provenance": {
+                        "source": "local_vector_index",
+                        "indexed_at": r.get("indexed_at"),
+                        "index_freshness": (
+                            "known" if r.get("indexed_at") else "unavailable"
+                        ),
+                    },
+                }
+            )
+            if len(results) >= limit:
+                break
+        return results
     finally:
         await scraper.close()
         await semantic.close()
@@ -148,9 +179,10 @@ async def _run_find_similar_web(
         if not markdown.strip():
             return []
 
-        # 2. Extract key terms from content (title + first paragraph)
-        first_para = markdown.split("\n\n")[0] if "\n\n" in markdown else markdown[:500]
-        keywords = f"{title} {first_para}"
+        # 2. Build a concise search query from meaningful page content. Pages
+        # often lead with browser warnings, cookie notices, or navigation; using
+        # that boilerplate sends retrieval toward unrelated JavaScript pages.
+        keywords = _web_query(title, markdown)
 
         # 3. Search the web with key terms (fetch extra for reranking headroom)
         results_list, _health = await searxng.search(keywords, limit=limit * 2)
@@ -173,7 +205,7 @@ async def _run_find_similar_web(
                     "source": "web_search",
                     "engines": r.get("engines") or [],
                     "index_freshness": "not_applicable",
-                    "query_representation": "title_and_leading_content",
+                    "query_representation": "title_and_meaningful_content",
                 },
             }
             for index, r in enumerate(results_list[: limit * 2])
@@ -225,3 +257,24 @@ def _confidence(score: object) -> str:
     if not isinstance(score, int | float):
         return "unknown"
     return "high" if score >= 0.75 else "medium" if score >= 0.5 else "low"
+
+
+_BOILERPLATE = re.compile(
+    r"\b(javascript|enable cookies?|cookie policy|skip to|navigation|menu)\b",
+    re.IGNORECASE,
+)
+
+
+def _web_query(title: str, markdown: str) -> str:
+    """Return a bounded, human-readable search query without page chrome."""
+    useful: list[str] = []
+    for block in re.split(r"\n\s*\n", markdown):
+        text = re.sub(r"[#*_`>\[\]()]", " ", block)
+        text = " ".join(text.split())
+        if len(text) < 20 or _BOILERPLATE.search(text):
+            continue
+        useful.append(text)
+        if len(" ".join(useful)) >= 300:
+            break
+    query = " ".join(part for part in [title.strip(), *useful] if part)
+    return query[:500] or title.strip() or markdown[:500]

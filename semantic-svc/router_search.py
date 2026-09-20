@@ -99,7 +99,11 @@ async def search_vector(body: VectorSearchRequest):
         return VectorSearchResponse(
             results=[
                 VectorSearchResult(
-                    url=result.url, title=result.title, score=result.score
+                    url=result.url,
+                    title=result.title,
+                    score=result.score,
+                    description=result.description,
+                    indexed_at=result.indexed_at,
                 )
                 for result in pgvector_results
             ]
@@ -139,6 +143,8 @@ async def search_vector(body: VectorSearchRequest):
             url=h.payload.get("url", ""),  # type: ignore[union-attr]
             title=h.payload.get("title", ""),  # type: ignore[union-attr]
             score=float(h.score),
+            description=h.payload.get("content_excerpt", ""),  # type: ignore[union-attr]
+            indexed_at=h.payload.get("last_indexed_at"),  # type: ignore[union-attr]
         )
         for h in hits
     ]

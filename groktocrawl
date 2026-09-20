@@ -1718,13 +1718,24 @@ def cmd_crawl(client: Client, args: argparse.Namespace) -> None:
         s = status.get("status", "unknown")
         if s in ("completed", "finished"):
             pages = status.get("data", status.get("pages", []))
+            outcome_summary = status.get("outcomeSummary", {})
             if JSON_OUTPUT:
-                emit("", {"job_id": job_id, "status": "completed", "pages": pages})
+                emit(
+                    "",
+                    {
+                        "job_id": job_id,
+                        "status": "completed",
+                        "pages": pages,
+                        "outcomeSummary": outcome_summary,
+                    },
+                )
             else:
                 print(f"\nCrawl completed — {len(pages)} pages:\n")
                 for page in pages:
                     u = page.get("url", page.get("metadata", {}).get("sourceURL", "?"))
                     print(f"  {u}")
+                if not pages and outcome_summary.get("reason"):
+                    print(f"\nOutcome: {outcome_summary['reason']}")
 
             # Download images from all pages if --download-images flag is set
             if args.download_images:

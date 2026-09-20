@@ -588,6 +588,7 @@ class TestBuildIndexPayload:
             "embedding_dim",
             "embedding_models",
             "retention_score",
+            "content_excerpt",
         }
         assert required_keys.issubset(payload.keys()), (
             f"Missing keys: {required_keys - payload.keys()}"
@@ -666,6 +667,14 @@ class TestBuildIndexPayload:
             "https://example.com/page", "My Custom Title", None
         )
         assert payload["title"] == "My Custom Title"
+
+    def test_payload_retains_bounded_content_excerpt(self):
+        payload = _build_index_payload(
+            "https://example.com/page", "Title", None, "  useful\n  content  " * 80
+        )
+
+        assert payload["content_excerpt"].startswith("useful content")
+        assert len(payload["content_excerpt"]) <= 500
 
 
 # ── Tests: Model schemas ───────────────────────────────────────────
@@ -1267,7 +1276,9 @@ class TestPgvectorShadowIndexWiring:
 
         class _Pgvector:
             def upsert(self, **kwargs):
-                pytest.fail("pgvector must not receive a write without its rollback copy")
+                pytest.fail(
+                    "pgvector must not receive a write without its rollback copy"
+                )
 
         monkeypatch.setattr(app_module, "_models_ready", True)
         monkeypatch.setattr(
@@ -1280,9 +1291,7 @@ class TestPgvectorShadowIndexWiring:
 
         with pytest.raises(HTTPException) as exc_info:
             await router_index.index_page(
-                IndexRequest(
-                    url="https://example.com", title="Example", content="body"
-                )
+                IndexRequest(url="https://example.com", title="Example", content="body")
             )
 
         assert exc_info.value.status_code == 503

@@ -281,6 +281,11 @@ def create_app() -> FastAPI:
                 "docs": "https://github.com/groktopus/groktocrawl#security",
             }
 
+        result["runtime"] = {
+            "model": app.state.llm_model,
+            "revision": os.getenv("GROKTOCRAWL_REVISION", "unknown"),
+        }
+
         return result
 
     # ── Metrics endpoint (always unauthenticated) ────────────────
