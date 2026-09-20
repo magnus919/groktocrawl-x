@@ -19,7 +19,13 @@ from common.middleware import add_request_id_middleware
 from common.stage_metrics import inc_counter, observe_elapsed
 
 from .cookie_store import close_client, get_client
-from .exceptions import BrowserError, CaptchaError, GroktoCrawlError, UpstreamError
+from .exceptions import (
+    BarrierDetectedError,
+    BrowserError,
+    CaptchaError,
+    GroktoCrawlError,
+    UpstreamError,
+)
 from .fetch import smart_scrape
 from .meta import fetch_meta_tags
 
@@ -329,9 +335,29 @@ async def scrape(request: ScrapeRequest):
                 raise BrowserError(detail=result["error"])
             if result.get("error_code") == "CAPTCHA_UNRESOLVED":
                 raise CaptchaError(
-                    detail=result["error"], details=result.get("barrier")
+                    detail=result["error"],
+                    details={
+                        **(result.get("barrier") or {}),
+                        "recovery": result.get("recovery"),
+                    },
                 )
-            raise UpstreamError(detail=result["error"])
+            if result.get("error_code") == "BARRIER_DETECTED":
+                raise BarrierDetectedError(
+                    detail=result["error"],
+                    details={
+                        "barrier": result.get("barrier"),
+                        "recovery": result.get("recovery"),
+                    },
+                )
+            raise UpstreamError(
+                detail=result["error"],
+                details={
+                    "barrier": result.get("barrier"),
+                    "recovery": result.get("recovery"),
+                }
+                if result.get("barrier") or result.get("recovery")
+                else None,
+            )
         markdown = result.get("markdown", "")
         raw_html = result.get("raw_html_start", "")
 

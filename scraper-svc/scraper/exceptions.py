@@ -45,6 +45,12 @@ class CaptchaError(GroktoCrawlError):
     detail = "CAPTCHA challenge could not be resolved"
 
 
+class BarrierDetectedError(GroktoCrawlError):
+    status_code = 502
+    error_code = "BARRIER_DETECTED"
+    detail = "Barrier or challenge content could not be resolved"
+
+
 class BrowserError(GroktoCrawlError):
     status_code = 502
     error_code = "BROWSER_ERROR"

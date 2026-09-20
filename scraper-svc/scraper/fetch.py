@@ -17,6 +17,13 @@ import httpx
 from curl_cffi import requests as curl_requests
 
 from .adapters.base import AdapterContext, get_registry
+from .barrier_recovery import (
+    attach_recovery,
+    browser_service_applicable,
+    flaresolverr_applicable,
+    new_recovery_receipt,
+    record_attempt,
+)
 from .cache import _check_cache, _is_binary_content_type, _set_cache
 from .fetch_quality import (
     QA_MIN_QUALITY_THRESHOLD,
@@ -193,6 +200,114 @@ async def _politeness_check_for_tier(url: str, tier_label: str) -> dict | None:
     return None
 
 
+async def _recover_from_barrier(
+    url: str,
+    initial_result: dict | None,
+    best_effort: list[dict],
+    *,
+    prior_cache_entry: dict | None = None,
+    cache_success: bool = False,
+    initial_strategy: str = "playwright",
+    allow_flaresolverr: bool = True,
+) -> dict:
+    """Exhaust applicable configured challenge countermeasures once.
+
+    Playwright (including its in-page CAPTCHA resolver) has already run when
+    this helper is called.  The remaining deterministic ladder is
+    FlareSolverr for Cloudflare/Turnstile, followed by a fresh browser-svc
+    session for interactive barriers.  Challenge content never enters the LLM
+    recovery tier.
+    """
+    receipt = new_recovery_receipt(initial_result, initial_strategy=initial_strategy)
+    terminal_result = initial_result
+
+    if allow_flaresolverr and flaresolverr_applicable(receipt):
+        blocked = await _politeness_check_for_tier(url, "barrier-flaresolverr")
+        if blocked:
+            return attach_recovery(blocked, receipt, recovered=False)
+        flare_result = await fetch_via_flaresolverr(url)
+        if flare_result is None:
+            record_attempt(receipt, "flaresolverr", "unavailable")
+        elif flare_result.get("barrier"):
+            if terminal_result is None or not terminal_result.get("error_code"):
+                terminal_result = flare_result
+            record_attempt(receipt, "flaresolverr", "barrier")
+        else:
+            accepted = await _maybe_degrade(
+                flare_result, "barrier-flaresolverr", best_effort
+            )
+            if accepted:
+                record_attempt(receipt, "flaresolverr", "success")
+                accepted = attach_recovery(accepted, receipt, recovered=True)
+                accepted = await _enrich_with_politeness(accepted, url)
+                if cache_success:
+                    await _set_cache(url, accepted, prior_entry=prior_cache_entry)
+                return accepted
+            record_attempt(receipt, "flaresolverr", "low_quality")
+    elif allow_flaresolverr:
+        record_attempt(
+            receipt,
+            "flaresolverr",
+            "skipped",
+            "not_applicable_to_classified_barrier",
+        )
+
+    if browser_service_applicable(receipt):
+        blocked = await _politeness_check_for_tier(url, "barrier-browser-svc")
+        if blocked:
+            return attach_recovery(blocked, receipt, recovered=False)
+        browser_result = await _fetch_via_browser_svc(url)
+        if browser_result is None:
+            record_attempt(receipt, "browser-svc", "unavailable")
+        elif browser_result.get("barrier"):
+            if terminal_result is None or not terminal_result.get("error_code"):
+                terminal_result = browser_result
+            record_attempt(receipt, "browser-svc", "barrier")
+        else:
+            accepted = await _maybe_degrade(
+                browser_result, "barrier-browser-svc", best_effort
+            )
+            if accepted:
+                record_attempt(receipt, "browser-svc", "success")
+                accepted = attach_recovery(accepted, receipt, recovered=True)
+                accepted = await _enrich_with_politeness(accepted, url)
+                if cache_success:
+                    await _set_cache(url, accepted, prior_entry=prior_cache_entry)
+                return accepted
+            record_attempt(receipt, "browser-svc", "low_quality")
+    else:
+        record_attempt(
+            receipt,
+            "browser-svc",
+            "skipped",
+            "not_applicable_to_classified_barrier",
+        )
+
+    # Build a fresh terminal envelope. Never return the original challenge
+    # markdown or HTML merely to preserve its classification.
+    terminal_source = (
+        (terminal_result or {}).get("source", "none")
+        if not (terminal_result or {}).get("raw_html_start")
+        else "none"
+    )
+    terminal_result = {
+        "error": (terminal_result or {}).get("error")
+        or f"Could not extract content from {url}",
+        "error_code": (terminal_result or {}).get("error_code") or "BARRIER_DETECTED",
+        "markdown": "",
+        "source": terminal_source,
+        "url": url,
+        **(
+            {"barrier": terminal_result["barrier"]}
+            if terminal_result and terminal_result.get("barrier")
+            else {}
+        ),
+    }
+
+    terminal_result = attach_recovery(terminal_result, receipt, recovered=False)
+    return await _enrich_with_politeness(terminal_result, url)
+
+
 async def _head_probe(url: str, client: httpx.AsyncClient) -> dict:
     """Send a lightweight HEAD request to detect routing signals.
 
@@ -347,11 +462,6 @@ async def smart_scrape(
             return blocked
 
         result = await fetch_via_playwright(url)
-        unresolved_captcha = (
-            result
-            if result and result.get("error_code") == "CAPTCHA_UNRESOLVED"
-            else None
-        )
         if result:
             # Barrier detection
             if "barrier" in result:
@@ -376,33 +486,8 @@ async def smart_scrape(
                     barrier.confidence,
                 )
 
-        # FlareSolverr is only applicable to Cloudflare/Turnstile, not generic CAPTCHA.
-        if result and result.get("error_code") == "CAPTCHA_UNRESOLVED":
-            if result.get("barrier", {}).get("provider") != "turnstile":
-                return await _enrich_with_politeness(result, url)
-        # Fall through to FlareSolverr
-        _proceed, blocked = await _politeness_check_and_delay(
-            url,
-            ignore_robots_txt=ignore_robots_txt,
-            robots_user_agent=robots_user_agent,
-            rate_limit=False,
-        )
-        if blocked:
-            return blocked
-        fs_result = await fetch_via_flaresolverr(url)
-        if fs_result:
-            if "barrier" in fs_result:
-                logger.warning("Barrier detected at force_browser Tier 3.5 for %s", url)
-                return fs_result
-            accepted = await _maybe_degrade(
-                fs_result, "tier35-flaresolverr", best_effort
-            )
-            if accepted:
-                accepted = await _enrich_with_politeness(accepted, url)
-                return accepted
-
-        if unresolved_captcha:
-            return await _enrich_with_politeness(unresolved_captcha, url)
+        if result is None or result.get("barrier"):
+            return await _recover_from_barrier(url, result, best_effort)
 
         # Return best effort or error
         if best_effort:
@@ -567,13 +652,6 @@ async def smart_scrape(
     if blocked:
         return blocked
     result = await fetch_via_playwright(url)
-    unresolved_captcha = (
-        result if result and result.get("error_code") == "CAPTCHA_UNRESOLVED" else None
-    )
-    if result and result.get("error_code") == "CAPTCHA_UNRESOLVED":
-        provider = result.get("barrier", {}).get("provider")
-        if provider != "turnstile":
-            return await _enrich_with_politeness(result, url)
     if result:
         # Barrier detection — if page IS a challenge/error, skip remaining tiers
         if "barrier" in result:
@@ -608,9 +686,17 @@ async def smart_scrape(
                 content_embedded,
             )
 
-    # Tier 3.5: FlareSolverr only for Cloudflare/Turnstile challenges.
-    # Always attempt FlareSolverr after Playwright — handles Cloudflare
-    # JS challenges that Playwright couldn't render.
+    if result is None or result.get("barrier"):
+        return await _recover_from_barrier(
+            url,
+            result,
+            best_effort,
+            prior_cache_entry=cached,
+            cache_success=True,
+        )
+
+    # Preserve the historical quality-recovery path for non-barrier browser
+    # output. Barrier recovery is centralized above and cannot reach the LLM.
     _proceed, blocked = await _politeness_check_and_delay(
         url,
         ignore_robots_txt=ignore_robots_txt,
@@ -619,25 +705,23 @@ async def smart_scrape(
     )
     if blocked:
         return blocked
-    can_use_flaresolverr = not result or result.get("barrier", {}).get("provider") in {
-        None,
-        "turnstile",
-    }
-    fs_result = await fetch_via_flaresolverr(url) if can_use_flaresolverr else None
+    fs_result = await fetch_via_flaresolverr(url)
     if fs_result:
         if "barrier" in fs_result:
-            logger.warning(
-                "Barrier detected at Tier 3.5 for %s, skipping remaining tiers", url
+            return await _recover_from_barrier(
+                url,
+                fs_result,
+                best_effort,
+                prior_cache_entry=cached,
+                cache_success=True,
+                initial_strategy="flaresolverr",
+                allow_flaresolverr=False,
             )
-            return fs_result
         accepted = await _maybe_degrade(fs_result, "tier35-flaresolverr", best_effort)
         if accepted:
             accepted = await _enrich_with_politeness(accepted, url)
             await _set_cache(url, accepted, prior_entry=cached)
             return accepted
-
-    if unresolved_captcha:
-        return await _enrich_with_politeness(unresolved_captcha, url)
 
     # Tier 4: LLM-assisted recovery when content looks suspicious
     if (
