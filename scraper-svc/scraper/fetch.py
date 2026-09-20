@@ -283,17 +283,21 @@ async def _recover_from_barrier(
             "not_applicable_to_classified_barrier",
         )
 
-    if terminal_result is None:
-        terminal_result = {
-            "error": f"Could not extract content from {url}",
-            "error_code": "BARRIER_DETECTED",
-            "markdown": "",
-            "source": "none",
-            "url": url,
-        }
-    elif terminal_result.get("barrier") and not terminal_result.get("error_code"):
-        terminal_result = dict(terminal_result)
-        terminal_result["error_code"] = "BARRIER_DETECTED"
+    # Build a fresh terminal envelope. Never return the original challenge
+    # markdown or HTML merely to preserve its classification.
+    terminal_result = {
+        "error": (terminal_result or {}).get("error")
+        or f"Could not extract content from {url}",
+        "error_code": (terminal_result or {}).get("error_code") or "BARRIER_DETECTED",
+        "markdown": "",
+        "source": "none",
+        "url": url,
+        **(
+            {"barrier": terminal_result["barrier"]}
+            if terminal_result and terminal_result.get("barrier")
+            else {}
+        ),
+    }
 
     terminal_result = attach_recovery(terminal_result, receipt, recovered=False)
     return await _enrich_with_politeness(terminal_result, url)
