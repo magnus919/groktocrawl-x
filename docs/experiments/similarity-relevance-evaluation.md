@@ -49,3 +49,16 @@ changes, hybrid retrieval, or another embedding model.
 
 Revert the agent-service change to restore cosine ordering. No schema, vector,
 or retained-artifact migration is involved.
+
+## First execution result
+
+The first live candidate retrieved up to 50 documents and submitted them to the
+shared cross-encoder. The rerank exceeded the 60-second semantic-client timeout,
+fell back to vector order after roughly 95 seconds end to end, and left following
+vector searches waiting behind the serialized inference lane. The deployment was
+rolled back immediately.
+
+This variant is rejected. A future reranking experiment must first prove a much
+smaller candidate pool and bounded document representation directly against the
+semantic service without affecting the serving endpoint. Until then, the
+production-shaped candidate retains cosine ordering and issue #350 remains open.

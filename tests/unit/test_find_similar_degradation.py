@@ -40,23 +40,14 @@ class _FakeScraper:
 
 
 class _FakeSemantic:
-    def __init__(self, search_vector, rerank=None):
+    def __init__(self, search_vector):
         self._search_vector = search_vector
-        self._rerank = rerank
         self.search_vector_calls: list[tuple[str, int]] = []
         self.closed = False
 
     async def search_vector(self, query, limit=5):
         self.search_vector_calls.append((query, limit))
         return await self._search_vector(query, limit)
-
-    async def rerank(self, query, documents, top_k=5):
-        if self._rerank is None:
-            return [
-                {"index": index, "score": 1.0 - index / 10}
-                for index in range(min(top_k, len(documents)))
-            ]
-        return await self._rerank(query, documents, top_k)
 
     async def close(self):
         self.closed = True
@@ -192,75 +183,11 @@ async def test_qdrant_success_returns_results():
             "description": "content A",
             "score": None,
             "confidence": "unknown",
-            "raw_rank": 1,
             "metadata_complete": True,
             "provenance": {
                 "source": "local_vector_index",
                 "indexed_at": None,
                 "index_freshness": "unavailable",
-                "ranking_method": "vector_cosine",
             },
-            "rank": 1,
         }
     ]
-
-
-@pytest.mark.asyncio
-async def test_qdrant_overretrieves_and_cross_encoder_reranks():
-    """Local similarity reranks a wider vector candidate pool."""
-
-    async def _search(query, limit):
-        assert limit == 15
-        return [
-            {
-                "url": "https://example.com/noisy",
-                "title": "Architecture",
-                "description": "A generic software architecture paper",
-                "score": 0.70,
-            },
-            {
-                "url": "https://example.com/python",
-                "title": "Python success",
-                "description": "How organizations succeed with Python",
-                "score": 0.66,
-            },
-            {
-                "url": "https://example.com/navigation",
-                "title": "Navigation",
-                "description": "Documentation links",
-                "score": 0.64,
-            },
-        ]
-
-    async def _rerank(query, documents, top_k):
-        assert "Herb Garden" in query
-        assert len(documents) == 3
-        assert top_k == 3
-        return [
-            {"index": 1, "score": 0.93},
-            {"index": 2, "score": 0.31},
-            {"index": 0, "score": 0.08},
-        ]
-
-    semantic = _FakeSemantic(_search, _rerank)
-    with (
-        patch("agent.research.similar.ScraperClient", return_value=_FakeScraper()),
-        patch("agent.semantic_client.SemanticClient", return_value=semantic),
-    ):
-        results = await _run_find_similar_qdrant(
-            url="https://query.example.com/herbs",
-            limit=3,
-            scraper_url="http://scraper-svc:8001",
-            semantic_url="http://semantic-svc:8003",
-        )
-
-    assert [item["title"] for item in results] == [
-        "Python success",
-        "Navigation",
-        "Architecture",
-    ]
-    assert results[0]["raw_rank"] == 2
-    assert results[0]["rank"] == 1
-    assert results[0]["rerank_score"] == 0.93
-    assert results[0]["provenance"]["ranking_method"] == "cross_encoder"
-    assert results[0]["provenance"]["candidate_pool_size"] == 3
