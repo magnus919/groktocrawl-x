@@ -86,6 +86,7 @@ class ShadowSearchResult:
     score: float
     description: str = ""
     indexed_at: str | None = None
+    representation_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -292,7 +293,8 @@ class PgvectorShadowStore:
                     f"""SELECT point_id, url, title,
                     1 - (embedding <=> %s::vector) AS score,
                     COALESCE(payload->>'content_excerpt', ''),
-                    payload->>'last_indexed_at'
+                    payload->>'last_indexed_at',
+                    payload->>'representation_version'
                 FROM {self.config.schema}.{self.config.table}
                 WHERE model=%s AND deleted=false
                 ORDER BY embedding <=> %s::vector, point_id
@@ -309,6 +311,7 @@ class PgvectorShadowStore:
                 float(row[3]),
                 str(row[4]),
                 str(row[5]) if row[5] is not None else None,
+                str(row[6]) if row[6] is not None else None,
             )
             for row in rows
         ]

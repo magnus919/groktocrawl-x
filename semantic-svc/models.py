@@ -61,6 +61,7 @@ class VectorSearchResult(BaseModel):
     score: float
     description: str = ""
     indexed_at: str | None = None
+    representation_version: str | None = None
 
 
 class VectorSearchResponse(BaseModel):

@@ -5,6 +5,7 @@ Extracted from app.py per ADR-0037.
 
 import json
 import logging
+import re
 import time
 
 import app as app_module
@@ -48,6 +49,59 @@ from shadow_pgvector import ShadowRecord
 logger = logging.getLogger(__name__)
 
 router_index = APIRouter()
+
+_PROMPT_LIKE = re.compile(
+    r"<\s*(?:prompt|role[_ -]?setting|identity)\b|"
+    r"\byou are (?:a|an) (?:senior|expert|helpful)\b",
+    re.IGNORECASE,
+)
+_NAVIGATION = re.compile(
+    r"^(?:#{1,6}\s*)?(?:navigation|menu|skip to content)\b",
+    re.IGNORECASE,
+)
+
+
+def _clean_index_content(content: str, limit: int = 2000) -> str:
+    """Select meaningful page text for embeddings and result excerpts."""
+    useful: list[str] = []
+    prompt_like_seen = False
+    for block in re.split(r"\n\s*\n", content):
+        raw = block.strip()
+        if not raw:
+            continue
+        if _PROMPT_LIKE.search(raw):
+            prompt_like_seen = True
+            continue
+        if _NAVIGATION.search(raw):
+            continue
+        link_count = len(re.findall(r"\[[^]]+\]\([^)]+\)", raw))
+        plain = re.sub(r"!\[([^]]*)\]\([^)]+\)", r"\1", raw)
+        plain = re.sub(r"\[([^]]+)\]\([^)]+\)", r"\1", plain)
+        plain = re.sub(r"<[^>]+>", " ", plain)
+        plain = re.sub(r"[#*_`>|]", " ", plain)
+        plain = " ".join(plain.split())
+        if not plain or (link_count >= 3 and len(plain) < 500):
+            continue
+        useful.append(plain)
+        if len(" ".join(useful)) >= limit:
+            break
+
+    if useful:
+        return " ".join(useful)[:limit]
+    if prompt_like_seen:
+        return ""
+    return " ".join(content.split())[:limit]
+
+
+def _semantic_document_text(
+    title: str,
+    content: str,
+    url: str = "",
+    limit: int = 2000,
+) -> str:
+    cleaned = _clean_index_content(content, limit=limit)
+    represented = " ".join(part for part in (title.strip(), cleaned) if part)
+    return (represented or url.strip() or "untitled document")[:limit]
 
 
 def _write_qdrant_rollback_copy(operation: str, function):
@@ -104,7 +158,8 @@ def _build_index_payload(
     payload = {
         "url": url,
         "title": title,
-        "content_excerpt": " ".join(content.split())[:500],
+        "content_excerpt": _clean_index_content(content, limit=500),
+        "representation_version": "clean-v1",
         "domain_category": domain_category,
         "first_indexed_at": first_indexed,
         "last_indexed_at": now,
@@ -176,9 +231,10 @@ async def index_page(body: IndexRequest):
         pass
 
     # Embed the content
+    embedding_text = _semantic_document_text(body.title, body.content, body.url)
     embedding = await run_inference(
         "index",
-        lambda: model.encode(body.content[:2000], normalize_embeddings=True).tolist(),
+        lambda: model.encode(embedding_text, normalize_embeddings=True).tolist(),
     )
 
     # Build enriched payload
@@ -199,7 +255,7 @@ async def index_page(body: IndexRequest):
                 target_embedding = await run_inference(
                     "index",
                     lambda: target_model.encode(
-                        body.content[:2000], normalize_embeddings=True
+                        embedding_text, normalize_embeddings=True
                     ).tolist(),
                 )
                 target_nv = _named_vector_name(target_name)
@@ -268,7 +324,9 @@ async def index_batch(body: IndexBatchRequest):
         return IndexBatchResponse(status="indexed", count=0)
 
     # Batch embed all content texts in one call
-    contents = [p.content[:2000] for p in body.pages]
+    contents = [
+        _semantic_document_text(p.title, p.content, p.url) for p in body.pages
+    ]
     embed_start = time.time()
     embeddings = await run_inference(
         "index_batch",
@@ -330,7 +388,8 @@ async def index_batch(body: IndexBatchRequest):
                 target_embedding = await run_inference(
                     "index_batch",
                     lambda p=page: target_model.encode(  # type: ignore[misc]
-                        p.content[:2000], normalize_embeddings=True
+                        _semantic_document_text(p.title, p.content, p.url),
+                        normalize_embeddings=True,
                     ).tolist(),
                 )
                 vectors[target_nv] = target_embedding

@@ -104,6 +104,7 @@ async def search_vector(body: VectorSearchRequest):
                     score=result.score,
                     description=result.description,
                     indexed_at=result.indexed_at,
+                    representation_version=result.representation_version,
                 )
                 for result in pgvector_results
             ]
@@ -145,6 +146,9 @@ async def search_vector(body: VectorSearchRequest):
             score=float(h.score),
             description=h.payload.get("content_excerpt", ""),  # type: ignore[union-attr]
             indexed_at=h.payload.get("last_indexed_at"),  # type: ignore[union-attr]
+            representation_version=h.payload.get(  # type: ignore[union-attr]
+                "representation_version"
+            ),
         )
         for h in hits
     ]
