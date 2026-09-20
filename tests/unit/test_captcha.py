@@ -479,8 +479,30 @@ async def test_force_browser_only_routes_turnstile_to_flaresolverr(monkeypatch):
         }
 
     monkeypatch.setattr(fetch, "fetch_via_playwright", recaptcha)
+    browser_calls = []
+
+    async def browser_svc(_url):
+        browser_calls.append(_url)
+        return {
+            "markdown": "recovered in independent browser " * 30,
+            "source": "browser-svc",
+            "url": _url,
+        }
+
+    monkeypatch.setattr(fetch, "_fetch_via_browser_svc", browser_svc)
     result = await fetch.smart_scrape("https://example.test", force_browser=True)
-    assert result["error_code"] == "CAPTCHA_UNRESOLVED"
+    assert result["source"] == "browser-svc"
+    assert browser_calls == ["https://example.test"]
+    assert result["recovery"]["outcome"] == "recovered"
+    assert result["recovery"]["attempts"] == [
+        {"strategy": "playwright", "outcome": "barrier"},
+        {
+            "strategy": "flaresolverr",
+            "outcome": "skipped",
+            "reason": "not_applicable_to_classified_barrier",
+        },
+        {"strategy": "browser-svc", "outcome": "success"},
+    ]
 
 
 @pytest.mark.asyncio
@@ -513,6 +535,9 @@ async def test_unresolved_turnstile_survives_failed_flaresolverr_without_cache(
     async def no_flaresolverr(_url):
         return None
 
+    async def no_browser_svc(_url):
+        return None
+
     async def no_cache(_url):
         return None
 
@@ -536,9 +561,16 @@ async def test_unresolved_turnstile_survives_failed_flaresolverr_without_cache(
     monkeypatch.setattr(fetch, "_head_probe", shielded)
     monkeypatch.setattr(fetch, "fetch_via_playwright", playwright)
     monkeypatch.setattr(fetch, "fetch_via_flaresolverr", no_flaresolverr)
+    monkeypatch.setattr(fetch, "_fetch_via_browser_svc", no_browser_svc)
     monkeypatch.setattr(fetch, "_set_cache", cache)
     result = await fetch.smart_scrape("https://example.test")
     assert result["error_code"] == "CAPTCHA_UNRESOLVED"
+    assert result["recovery"]["exhausted"] is True
+    assert [attempt["strategy"] for attempt in result["recovery"]["attempts"]] == [
+        "playwright",
+        "flaresolverr",
+        "browser-svc",
+    ]
     assert not writes
 
 
@@ -618,6 +650,11 @@ async def test_public_scrape_maps_unresolved_captcha_to_typed_error(monkeypatch)
             "error": "CAPTCHA challenge could not be resolved",
             "error_code": "CAPTCHA_UNRESOLVED",
             "barrier": {"provider": "recaptcha", "attempted_strategies": ["checkbox"]},
+            "recovery": {
+                "outcome": "unresolved",
+                "exhausted": True,
+                "attempts": [{"strategy": "playwright", "outcome": "barrier"}],
+            },
         }
 
     monkeypatch.setattr(app, "smart_scrape", unresolved)
@@ -625,6 +662,34 @@ async def test_public_scrape_maps_unresolved_captcha_to_typed_error(monkeypatch)
         await app.scrape(app.ScrapeRequest(url="https://example.test"))
     assert error.value.error_code == "CAPTCHA_UNRESOLVED"
     assert error.value.details["provider"] == "recaptcha"
+    assert error.value.details["recovery"]["exhausted"] is True
+
+
+@pytest.mark.asyncio
+async def test_public_scrape_preserves_exhausted_barrier_receipt(monkeypatch):
+    import scraper.app as app
+    from scraper.exceptions import BarrierDetectedError
+
+    async def unresolved(*_args, **_kwargs):
+        return {
+            "error": "Barrier detected",
+            "error_code": "BARRIER_DETECTED",
+            "barrier": {"type": "fastly", "provider": "fastly"},
+            "recovery": {
+                "outcome": "unresolved",
+                "exhausted": True,
+                "attempts": [
+                    {"strategy": "playwright", "outcome": "barrier"},
+                    {"strategy": "browser-svc", "outcome": "barrier"},
+                ],
+            },
+        }
+
+    monkeypatch.setattr(app, "smart_scrape", unresolved)
+    with pytest.raises(BarrierDetectedError) as error:
+        await app.scrape(app.ScrapeRequest(url="https://example.test"))
+    assert error.value.error_code == "BARRIER_DETECTED"
+    assert error.value.details["recovery"]["exhausted"] is True
 
 
 @pytest.mark.asyncio
@@ -764,6 +829,37 @@ async def test_agent_scrape_route_raises_typed_captcha_error():
 
     assert error.value.error_code == "CAPTCHA_UNRESOLVED"
     assert error.value.details["provider"] == "hcaptcha"
+
+
+@pytest.mark.asyncio
+async def test_agent_scrape_route_preserves_exhausted_barrier_receipt():
+    from agent.exceptions import BarrierDetectedError
+    from agent.models import ScrapeRequest
+    from agent.routes.scrape import scrape
+
+    recovery = {
+        "outcome": "unresolved",
+        "exhausted": True,
+        "attempts": [{"strategy": "browser-svc", "outcome": "barrier"}],
+    }
+
+    class Client:
+        async def scrape(self, *_args, **_kwargs):
+            return {
+                "success": False,
+                "error": "Barrier detected",
+                "error_code": "BARRIER_DETECTED",
+                "details": {"barrier": {"type": "fastly"}, "recovery": recovery},
+            }
+
+    request = types.SimpleNamespace(
+        app=types.SimpleNamespace(state=types.SimpleNamespace(scraper_client=Client()))
+    )
+    with pytest.raises(BarrierDetectedError) as error:
+        await scrape(request, ScrapeRequest(url="https://example.test"))
+
+    assert error.value.error_code == "BARRIER_DETECTED"
+    assert error.value.details["recovery"] == recovery
 
 
 @pytest.mark.asyncio

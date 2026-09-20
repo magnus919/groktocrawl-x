@@ -442,6 +442,7 @@ class ScrapeData(BaseModel):
     download: DownloadData | None = None
     quality: dict[str, Any] | None = None
     images: list[ImageData] | None = None
+    recovery: dict[str, Any] | None = None
 
 
 class ScrapeResponse(BaseModel):

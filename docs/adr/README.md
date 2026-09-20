@@ -28,7 +28,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Status legend:** accepted ADRs describe decisions used by the current implementation. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
 
-**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, 0081, and 0082.
+**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, 0081, 0082, and 0088.
 
 **Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073, 0076–0078, and 0083.
 
@@ -124,5 +124,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0085 | [Add Independent Semantic Verification Before Claim Publication](0085-add-independent-semantic-verification-before-claim-publication.md) | proposed; W12.3 evidence supports a bounded experimental stage |
 | 0086 | [Add Bounded Evidence-Obligation Continuation](0086-add-bounded-evidence-obligation-continuation.md) | proposed; W12.4 supports an opt-in control contract pending live calibration |
 | 0087 | [Retain the Generalist Over Generic Specialist Fan-Out](0087-retain-generalist-over-generic-specialist-fanout.md) | proposed; W12.5 rejects generic fan-out while preserving typed handoffs |
+| 0088 | [Centralize Bounded Barrier Recovery at the Scrape Boundary](0088-centralize-bounded-barrier-recovery.md) | accepted; one classified recovery ladder for all scrape consumers |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
