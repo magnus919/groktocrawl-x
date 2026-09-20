@@ -285,12 +285,17 @@ async def _recover_from_barrier(
 
     # Build a fresh terminal envelope. Never return the original challenge
     # markdown or HTML merely to preserve its classification.
+    terminal_source = (
+        (terminal_result or {}).get("source", "none")
+        if not (terminal_result or {}).get("raw_html_start")
+        else "none"
+    )
     terminal_result = {
         "error": (terminal_result or {}).get("error")
         or f"Could not extract content from {url}",
         "error_code": (terminal_result or {}).get("error_code") or "BARRIER_DETECTED",
         "markdown": "",
-        "source": "none",
+        "source": terminal_source,
         "url": url,
         **(
             {"barrier": terminal_result["barrier"]}
