@@ -62,6 +62,12 @@ def _patched_research(search_vector):
         async def embed(self, texts):
             return [[0.0] * 3 for _ in texts]
 
+        async def rerank(self, query, documents, top_k=5):
+            return [
+                {"index": index, "score": 1.0 - index / 10}
+                for index in range(min(top_k, len(documents)))
+            ]
+
         async def close(self):
             pass
 
@@ -141,7 +147,7 @@ class TestFindSimilarHealthyContracts:
         """A healthy vector search keeps returning mapped results."""
 
         async def _ok(query, limit):
-            assert limit == 10  # FindSimilarRequest default
+            assert limit == 50  # 5x over-retrieval for reranking headroom
             return [
                 {"url": "https://a.com", "title": "A", "content": "c" * 250},
                 {"url": "https://b.com", "title": "B"},
