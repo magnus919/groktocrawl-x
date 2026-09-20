@@ -81,8 +81,11 @@ async def _run_find_similar_qdrant(
         # 2. Search Qdrant using the scraped content as the query
         # search_vector() embeds the text server-side and searches the index
         query_text = f"{title} {markdown[:3000]}"
+        candidate_limit = max(limit, min(limit * 5, 50))
         try:
-            vector_results = await semantic.search_vector(query_text, limit=limit)
+            vector_results = await semantic.search_vector(
+                query_text, limit=candidate_limit
+            )
         except httpx.HTTPError as e:
             # Vector index unavailable or slow (503, 500, timeout, connection
             # error). Surface a structured 502 instead of masking the backend
@@ -98,8 +101,8 @@ async def _run_find_similar_qdrant(
             )
             raise SemanticError(f"Semantic vector search failed{detail}") from e
 
-        results: list[dict] = []
-        for r in vector_results:
+        candidates: list[dict] = []
+        for raw_rank, r in enumerate(vector_results, start=1):
             result_url = str(r.get("url", ""))
             if result_url.rstrip("/") == url.rstrip("/"):
                 continue
@@ -107,20 +110,19 @@ async def _run_find_similar_qdrant(
             result_description = str(r.get("description") or r.get("content") or "")[
                 :200
             ]
-            if result_url and (
-                not result_title.strip() or not result_description.strip()
-            ):
+            if result_url and not result_title.strip():
+                result_title = _fallback_title(result_url, "")
+            if result_url and not result_description.strip():
                 try:
                     metadata = await scraper.scrape(result_url)
                     if metadata.get("success") and not is_barrier_flagged(metadata):
                         data = metadata.get("data", {})
                         page_markdown = str(data.get("markdown", ""))
-                        result_title = result_title or str(
-                            data.get("metadata", {}).get("title", "")
-                        )
-                        result_title = result_title or _fallback_title(
-                            result_url, page_markdown
-                        )
+                        live_title = str(data.get("metadata", {}).get("title", ""))
+                        if live_title:
+                            result_title = live_title
+                        elif not result_title:
+                            result_title = _fallback_title(result_url, page_markdown)
                         result_description = (
                             result_description or " ".join(page_markdown.split())[:200]
                         )
@@ -130,13 +132,14 @@ async def _run_find_similar_qdrant(
                         result_url,
                         exc_info=True,
                     )
-            results.append(
+            candidates.append(
                 {
                     "url": r.get("url", ""),
                     "title": result_title,
                     "description": result_description,
                     "score": r.get("score"),
                     "confidence": _confidence(r.get("score")),
+                    "raw_rank": raw_rank,
                     "metadata_complete": bool(
                         result_title.strip() and result_description.strip()
                     ),
@@ -146,12 +149,49 @@ async def _run_find_similar_qdrant(
                         "index_freshness": (
                             "known" if r.get("indexed_at") else "unavailable"
                         ),
+                        "ranking_method": "vector_cosine",
                     },
                 }
             )
-            if len(results) >= limit:
-                break
-        return results
+
+        if len(candidates) > 1:
+            documents = [
+                f"{candidate['title']} {candidate['description']}".strip()
+                for candidate in candidates
+            ]
+            try:
+                reranked = await semantic.rerank(
+                    query_text,
+                    documents,
+                    top_k=min(limit, len(documents)),
+                )
+            except (httpx.HTTPError, KeyError, TypeError, ValueError):
+                logger.warning(
+                    "find_similar: cross-encoder rerank unavailable; "
+                    "using vector order",
+                    exc_info=True,
+                )
+            else:
+                ranked: list[dict] = []
+                for rank, item in enumerate(reranked, start=1):
+                    index = item.get("index")
+                    if not isinstance(index, int) or not 0 <= index < len(candidates):
+                        continue
+                    candidate = candidates[index]
+                    candidate["rank"] = rank
+                    candidate["rerank_score"] = item.get("score")
+                    candidate["provenance"] = {
+                        **candidate["provenance"],
+                        "ranking_method": "cross_encoder",
+                        "candidate_pool_size": len(candidates),
+                    }
+                    ranked.append(candidate)
+                if ranked:
+                    return ranked
+
+        for rank, candidate in enumerate(candidates[:limit], start=1):
+            candidate["rank"] = rank
+        return candidates[:limit]
     finally:
         await scraper.close()
         await semantic.close()
