@@ -3,6 +3,7 @@
 import logging
 import math
 import re
+from urllib.parse import urlparse
 
 import httpx
 
@@ -113,12 +114,15 @@ async def _run_find_similar_qdrant(
                     metadata = await scraper.scrape(result_url)
                     if metadata.get("success") and not is_barrier_flagged(metadata):
                         data = metadata.get("data", {})
+                        page_markdown = str(data.get("markdown", ""))
                         result_title = result_title or str(
                             data.get("metadata", {}).get("title", "")
                         )
+                        result_title = result_title or _fallback_title(
+                            result_url, page_markdown
+                        )
                         result_description = (
-                            result_description
-                            or " ".join(str(data.get("markdown", "")).split())[:200]
+                            result_description or " ".join(page_markdown.split())[:200]
                         )
                 except Exception:
                     logger.info(
@@ -209,7 +213,7 @@ async def _run_find_similar_web(
                 },
             }
             for index, r in enumerate(results_list[: limit * 2])
-            if r.get("url")
+            if r.get("url") and str(r.get("url")).rstrip("/") != url.rstrip("/")
         ]
         texts_to_embed = [f"{c['title']} {c['description']}" for c in candidates]
         if not texts_to_embed:
@@ -278,3 +282,13 @@ def _web_query(title: str, markdown: str) -> str:
             break
     query = " ".join(part for part in [title.strip(), *useful] if part)
     return query[:500] or title.strip() or markdown[:500]
+
+
+def _fallback_title(url: str, markdown: str) -> str:
+    """Derive a stable title when an older index entry has no title metadata."""
+    heading = re.search(r"^#{1,6}\s+(.+?)\s*$", markdown, re.MULTILINE)
+    if heading:
+        return heading.group(1).strip()[:200]
+    parsed = urlparse(url)
+    path = parsed.path.strip("/").replace("/", " / ")
+    return " — ".join(part for part in (parsed.netloc, path) if part)[:200]
