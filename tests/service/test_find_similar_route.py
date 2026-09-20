@@ -352,3 +352,15 @@ class TestFindSimilarWebModeRerank:
         assert query.startswith("Python Success Stories")
         assert "scientific computing" in query
         assert "JavaScript" not in query
+
+    def test_sparse_vector_title_falls_back_to_heading_then_url(self):
+        from agent.research.similar import _fallback_title
+
+        assert (
+            _fallback_title("https://docs.example/guide", "# Useful Guide\n\nBody")
+            == "Useful Guide"
+        )
+        assert (
+            _fallback_title("https://docs.example/guides/setup", "plain body")
+            == "docs.example — guides / setup"
+        )
