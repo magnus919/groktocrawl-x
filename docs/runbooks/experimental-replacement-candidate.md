@@ -119,7 +119,7 @@ outside the repository first:
 export CANDIDATE_API_KEY=$(docker compose \
   --env-file "$CANDIDATE_ENV" -f "$CANDIDATE_COMPOSE" \
   exec -T candidate-agent printenv API_KEY)
-UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run \
+UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run --with httpx \
   scripts/verify_experimental_candidate.py \
   --env-file "$CANDIDATE_ENV" \
   --compose-file "$CANDIDATE_COMPOSE" \
@@ -164,7 +164,7 @@ UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run \
   --checkpoint 0 \
   --env-file "$CANDIDATE_ENV" \
   --compose-file "$CANDIDATE_COMPOSE" \
-  --output-dir /tmp/w9-checkpoint-1
+  --output-dir /tmp/w9-checkpoint-0
 ```
 
 After a passed restart checkpoint, use `--checkpoint 1` and then

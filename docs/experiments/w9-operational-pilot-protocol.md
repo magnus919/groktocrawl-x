@@ -14,8 +14,8 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Restarted: `2026-09-19T21:46:56.859244Z`
-- Earliest completion: `2026-09-26T21:46:56.859244Z`
+- Restarted: `2026-09-20T05:16:52.26916171Z`
+- Earliest completion: `2026-09-27T05:16:52.26916171Z`
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -81,6 +81,14 @@ serial smoke tests. Because inference identity is a frozen boundary, the failed
 window remains evidence but cannot count toward the final gate. The corrected
 window began at `2026-09-19T21:46:56.859244Z` and passed checkpoint 0 at
 `2026-09-19T21:50:36.553057Z` with all 12 declared operations successful.
+An independent retest then confirmed 27 passed cases, two partial projections of
+the same local-vector relevance concern, and no failures. The bounded follow-up
+rejected both query-time cross-encoder reranking and a cleaned representation;
+raw cosine retrieval passed its labeled screen. Finally, making the proven
+14-CPU semantic allocation durable in the public Compose configuration changed
+the deployment boundary and restarted the window. The current window began at
+`2026-09-20T05:16:52.26916171Z`. Its [checkpoint 0](evidence/replacement-rehearsal/2026-09-20-current-runtime-checkpoint-0/README.md)
+passed all 12 declared operations at `2026-09-20T05:23:26.651758Z`.
 
 ## Observations
 
@@ -92,7 +100,7 @@ At every checkpoint retain:
 - artifact-set, vector-provider, and client-path reconciliation results;
 - point-in-time service health and bounded resource observations.
 
-The 10-minute roadmap heartbeat checks CI and candidate health. It stays quiet
+The roadmap heartbeat checks due gates and candidate health. It stays quiet
 while healthy and records or reports only a material state change, failure,
 completed gate, or required user action.
 
