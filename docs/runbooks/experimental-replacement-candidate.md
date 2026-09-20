@@ -67,8 +67,10 @@ Edit `$CANDIDATE_CONFIG/candidate.env`:
   trusted interface and matching `MCP_ALLOWED_HOSTS` values;
 - set the working LiteLLM TLS URL and private key for `inference.example.internal`;
 - set the SlopSearX search-provider key.
+- set `SEMANTIC_CPU_LIMIT` to the CPU capacity available for local embedding
+  inference; the portable default is 2 cores.
 
-The checked-in sample selects LiteLLM's `local` model alias. Keep secrets in
+The checked-in sample selects LiteLLM's `general` model alias. Keep secrets in
 the private environment and credential files; never add them to a receipt or
 commit them. Validate the private files before invoking Compose:
 

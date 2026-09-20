@@ -192,7 +192,7 @@ services:
       start_period: 60s
       retries: 60
     mem_limit: 4g
-    cpus: 2.0
+    cpus: ${SEMANTIC_CPU_LIMIT:-2.0}
     pids_limit: 512
 
   candidate-parse:
