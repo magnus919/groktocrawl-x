@@ -220,7 +220,8 @@ async def test_qdrant_rerank_pool_is_bounded_to_ten():
         ]
 
     async def _rerank(query, documents, top_k):
-        assert len(query) <= 900
+        assert len(query) <= 240
+        assert all(len(document) <= 240 for document in documents)
         assert len(documents) == 10
         assert top_k == 10
         return [

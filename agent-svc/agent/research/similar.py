@@ -160,9 +160,9 @@ async def _run_find_similar_qdrant(
 
         rerank_pool = results[:10]
         if len(rerank_pool) > 1:
-            compact_query = f"{title} {' '.join(markdown.split())[:800]}".strip()
+            compact_query = _web_query(title, markdown)[:240]
             documents = [
-                f"{candidate['title']} {candidate['description']}".strip()[:500]
+                f"{candidate['title']} {candidate['description']}".strip()[:240]
                 for candidate in rerank_pool
             ]
             try:
