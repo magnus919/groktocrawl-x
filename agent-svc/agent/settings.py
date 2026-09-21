@@ -44,6 +44,10 @@ class AgentSettings(BaseModel):
     llm_max_output_tokens: int | None = Field(
         default=None, alias="LLM_MAX_OUTPUT_TOKENS", gt=0
     )
+    typesafe_api_key: str = Field(default="", alias="TYPESAFE_API_KEY")
+    typesafe_jev_min_score: float = Field(
+        default=0.10, alias="TYPESAFE_JEV_MIN_SCORE", gt=0, lt=1
+    )
     api_key: str = Field(default="", alias="API_KEY")
     webhook_secret: str = Field(default="", alias="WEBHOOK_SECRET")
     max_searches_per_request: int = Field(
