@@ -178,6 +178,7 @@ The configuration inventory follows `.env.sample`; unlisted implementation-only 
 - LLM_CALL_TIMEOUT
 - LLM_ENABLE_THINKING
 - LLM_LLAMA_CPP_DISABLE_THINKING
+- LLM_MAX_OUTPUT_TOKENS
 - LLM_MODEL
 - LOG_LEVEL
 - MCP_ALLOWED_HOSTS
