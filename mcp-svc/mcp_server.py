@@ -542,7 +542,6 @@ async def agent(
     include_images: bool = False,
     force_fresh: bool = False,
     search_type: str | None = None,
-    max_results_per_query: int | None = None,
 ) -> str:
     """Run autonomous research: search → scrape → LLM synthesis with sources.
 
@@ -565,7 +564,6 @@ async def agent(
             a fresh research pipeline.
         search_type: Research depth — ``deep`` (multi-query, default) or
             ``focused`` (single-query, single-pass).
-        max_results_per_query: Maximum search results considered per query.
     """
     result = await _client.create_agent(
         prompt=prompt,
@@ -577,7 +575,6 @@ async def agent(
         include_images=include_images,
         force_fresh=force_fresh,
         search_type=search_type,
-        max_results_per_query=max_results_per_query,
     )
     _ensure_success(result)
     return _resp(result)

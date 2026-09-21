@@ -370,7 +370,6 @@ async def _run_multi_query_discover_and_scrape(
     searxng: SearXNGClient,
     scraper: ScraperClient,
     max_searches_per_request: int = 5,
-    max_results_per_query: int = 10,
     scrape_options: dict | None = None,
     max_credits: int | None = None,
     source_registry: SourceRegistry | None = None,
@@ -415,7 +414,7 @@ async def _run_multi_query_discover_and_scrape(
 
         search_tasks = {
             asyncio.create_task(
-                searxng.search(q, limit=max_results_per_query, raise_on_rate_limit=True)
+                searxng.search(q, limit=None, raise_on_rate_limit=True)
             ): i
             for i, q in enumerate(queries_to_run)
         }
@@ -604,7 +603,6 @@ async def _run_research_discover_and_scrape(
     searxng: SearXNGClient,
     scraper: ScraperClient,
     max_searches_per_request: int = 5,
-    max_results_per_query: int = 10,
     scrape_options: dict | None = None,
     max_credits: int | None = None,
     source_registry: SourceRegistry | None = None,
@@ -628,7 +626,7 @@ async def _run_research_discover_and_scrape(
     if not target_urls:
         logger.info("No URLs provided. Searching for: %s", prompt)
         search_results, _health = await searxng.search(
-            prompt, limit=max_results_per_query, raise_on_rate_limit=True
+            prompt, limit=None, raise_on_rate_limit=True
         )
         await _notify_search(on_search_results, search_results)
         target_urls = _dedupe_urls([r["url"] for r in search_results if r.get("url")])

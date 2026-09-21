@@ -163,7 +163,7 @@ class SearXNGClient:
     async def search(
         self,
         query: str,
-        limit: int = 10,
+        limit: int | None = 10,
         categories: list[str] | None = None,
         sources: list[str] | None = None,
         *,
@@ -284,7 +284,8 @@ class SearXNGClient:
                     }
                 )
 
-            results = results[:limit]
+            if limit is not None:
+                results = results[:limit]
 
             # ── Parse engine health ────────────────────────────────────
             health = self._parse_engine_health(data, results)

@@ -47,8 +47,11 @@ limits still apply, and API admission is not an exact reservation of downstream
 browser capacity for such escalations. Per-request concurrency and origin pacing
 remain in effect. Increasing replicas may improve aggregate throughput more
 than the latency of one session. This capacity change does not remove the
-research planner's separate source-attempt limits; those are being evaluated
-under [issue #371](https://github.com/magnus919/groktocrawl-x/issues/371).
+research planner's operational controls. The experimental agent acquisition
+policy admits every distinct URL returned by SlopSearX; it has no separate
+default source-attempt cap. An explicit caller-selected `max_credits` remains
+a narrower attempt budget when provided. See
+[ADR-0092](../adr/0092-retire-per-query-search-maximum-and-acquire-all-distinct-results.md).
 
 The one-core benchmark pinned each replica to a separate physical P-core.
 Compose's one-CPU quota does **not** pin a replica to an exclusive core. A busy,

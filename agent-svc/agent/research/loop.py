@@ -139,7 +139,6 @@ async def _run_research_events(
     llm_model: str | None = None,
     requested_model: str | None = None,
     max_searches_per_request: int = 5,
-    max_results_per_query: int = 10,
     max_credits: int | None = None,
     include_images: bool = False,
     citation_style: Any = None,
@@ -222,7 +221,6 @@ async def _run_research_events(
                             searxng=searxng,
                             scraper=scraper,
                             max_searches_per_request=max_searches_per_request,
-                            max_results_per_query=max_results_per_query,
                             scrape_options=scrape_opts,
                             max_credits=max_credits,
                             source_registry=source_registry,
@@ -245,7 +243,6 @@ async def _run_research_events(
                             urls=_urls,
                             searxng=searxng,
                             scraper=scraper,
-                            max_results_per_query=max_results_per_query,
                             scrape_options=scrape_opts,
                             max_credits=max_credits,
                             source_registry=source_registry,
@@ -270,7 +267,6 @@ async def _run_research_events(
                         max_searches_per_request=min(
                             len(_gap_topics), max_searches_per_request
                         ),
-                        max_results_per_query=max_results_per_query,
                         scrape_options=scrape_opts,
                         max_credits=(
                             max_credits - _credits_used
@@ -487,7 +483,6 @@ async def run_research(
     llm_model: str | None = None,
     requested_model: str | None = None,
     max_searches_per_request: int = 5,
-    max_results_per_query: int = 10,
     max_credits: int | None = None,
     include_images: bool = False,
     citation_style: Any = None,
@@ -506,7 +501,6 @@ async def run_research(
             llm_model,
             requested_model,
             max_searches_per_request,
-            max_results_per_query,
             max_credits,
             include_images,
             citation_style,
@@ -542,7 +536,6 @@ async def run_research_stream(
     llm_model: str | None = None,
     requested_model: str | None = None,
     max_searches_per_request: int = 5,
-    max_results_per_query: int = 10,
     max_credits: int | None = None,
     include_images: bool = False,
     citation_style: Any = None,
@@ -561,7 +554,6 @@ async def run_research_stream(
             llm_model,
             requested_model,
             max_searches_per_request,
-            max_results_per_query,
             max_credits,
             include_images,
             citation_style,

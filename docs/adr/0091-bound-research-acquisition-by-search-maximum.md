@@ -1,10 +1,11 @@
 # Bound Research Acquisition by the Per-Query Search Maximum
 
-- Status: accepted and implemented in the experimental fork
+- Status: superseded by ADR-0092
 - Decider: Magnus Hedemark
 - Date: 2026-09-21
 - Scope: experimental agent research acquisition in `magnus919/groktocrawl-x`; not a mainline deployment-default change
 - Related: [ADR-0065](0065-stream-discovery-acquisitions.md), [ADR-0082](0082-delegate-bounded-retrieval-to-slopsearx.md), [ADR-0089](0089-bound-browser-concurrency-per-effective-cpu.md), [ADR-0090](0090-optional-post-scrape-jev-noise-filter.md)
+- Successor: [ADR-0092](0092-retire-per-query-search-maximum-and-acquire-all-distinct-results.md)
 
 ## Context and Problem Statement
 

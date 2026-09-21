@@ -705,6 +705,7 @@ class TestToolCallRouting:
         assert captured.get("include_images") is True
         assert captured.get("force_fresh") is True
         assert captured.get("search_type") == "focused"
+        assert "max_results_per_query" not in captured
 
     async def test_map_passes_limit(self, monkeypatch):
         """Map passes limit through."""

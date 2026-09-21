@@ -1703,21 +1703,6 @@ class TestImageSupport:
             retry=True,
         )
 
-    def test_agent_max_results_per_query_defaults_to_ten(self):
-        """agent parser exposes the bounded-by-server default explicitly."""
-        parser = _cli_ns["make_parser"]()
-        agent_parser = next(
-            action.choices["agent"]
-            for action in parser._actions
-            if getattr(action, "dest", "") == "command"
-        )
-        option = next(
-            action
-            for action in agent_parser._actions
-            if "--max-results-per-query" in action.option_strings
-        )
-        assert option.default == 10
-
     def test_search_type_images_in_choices(self):
         """search --search-type includes 'images' in choices."""
         make_parser = _cli_ns["make_parser"]

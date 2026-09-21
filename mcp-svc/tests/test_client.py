@@ -986,6 +986,7 @@ class TestExpandedSurface:
         assert body["include_images"] is True
         assert body["force_fresh"] is True
         assert body["search_type"] == "focused"
+        assert "max_results_per_query" not in body
 
     def test_cancel_agent_verb(self):
         client = _make_matched_client(
