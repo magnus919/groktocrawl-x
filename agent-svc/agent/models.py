@@ -514,6 +514,11 @@ class AgentRequest(BaseModel):
         default="deep",
         description="Research depth: 'deep' (multi-query, multi-pass, default) or 'focused' (single-query, single-pass)",
     )
+    max_results_per_query: int = Field(
+        default=10,
+        ge=1,
+        description="Maximum search results considered for each research query",
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

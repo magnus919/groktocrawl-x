@@ -28,7 +28,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Status legend:** accepted ADRs describe decisions used by the current implementation. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
 
-**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, 0081, 0082, 0088, and 0089 (bounded experimental scope).
+**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0064, 0066–0070, 0072, 0074, 0079, 0081, 0082, 0088, 0089–0091 (bounded experimental scope).
 
 **Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073, 0076–0078, and 0083.
 
@@ -101,7 +101,7 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0062 | [Opt-In Browser Process Pool with Isolated Contexts](0062-opt-in-browser-process-pool.md) | accepted |
 | 0063 | [Offload and Batch Session Persistence](0063-offload-and-batch-session-persistence.md) | accepted |
 | 0064 | [One Final Research Synthesis](0064-one-final-research-synthesis.md) | accepted; experimental scope partially superseded (see record) |
-| 0065 | [Stream Discovery Acquisitions as Queries Complete](0065-stream-discovery-acquisitions.md) | accepted |
+| 0065 | [Stream Discovery Acquisitions as Queries Complete](0065-stream-discovery-acquisitions.md) | superseded by ADR-0091 |
 | 0066 | [Opt In to Independent Session Steps](0066-opt-in-to-independent-session-steps.md) | accepted |
 | 0067 | [Establish an Independent Research Architecture Experiment](0067-establish-an-independent-research-architecture-experiment.md) | accepted |
 | 0068 | [Separate Research Execution, Knowledge, and Rendering](0068-separate-research-execution-knowledge-and-rendering.md) | accepted |
@@ -127,5 +127,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0088 | [Centralize Bounded Barrier Recovery at the Scrape Boundary](0088-centralize-bounded-barrier-recovery.md) | accepted; one classified recovery ladder for all scrape consumers |
 | 0089 | [Bound Browser Concurrency per Effective CPU](0089-bound-browser-concurrency-per-effective-cpu.md) | accepted for bounded experimentation; implementation pending |
 | 0090 | [Optional Post-Scrape Jev Noise Filter](0090-optional-post-scrape-jev-noise-filter.md) | accepted for opt-in implementation in experimental fork |
+| 0091 | [Bound Research Acquisition by the Per-Query Search Maximum](0091-bound-research-acquisition-by-search-maximum.md) | accepted and implemented in experimental fork |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
