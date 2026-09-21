@@ -1870,7 +1870,15 @@ def cmd_agent(client: Client, args: argparse.Namespace) -> None:
     try:
         include_images = getattr(args, "include_images", False)
         search_type = getattr(args, "search_type", "deep")
-        max_results_per_query = getattr(args, "max_results_per_query", 10)
+        # Only argparse-populated fields participate. This keeps partial
+        # legacy callers compatible while passing explicit values through for
+        # API validation, including invalid ones.
+        raw_max_results = vars(args).get("max_results_per_query")
+        max_results_kwargs = (
+            {}
+            if raw_max_results is None
+            else {"max_results_per_query": raw_max_results}
+        )
         if args.sync:
             # Non-streaming path: create job and poll
             result = client.create_agent(
@@ -1879,7 +1887,7 @@ def cmd_agent(client: Client, args: argparse.Namespace) -> None:
                 schema=None,
                 include_images=include_images,
                 search_type=search_type,
-                max_results_per_query=max_results_per_query,
+                **max_results_kwargs,
                 retry=True,
             )
         else:
@@ -1889,7 +1897,7 @@ def cmd_agent(client: Client, args: argparse.Namespace) -> None:
                 urls=args.urls,
                 include_images=include_images,
                 search_type=search_type,
-                max_results_per_query=max_results_per_query,
+                **max_results_kwargs,
                 retry=True,
             )
     except ApiError as e:
