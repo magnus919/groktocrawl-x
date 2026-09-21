@@ -19,7 +19,7 @@
   documentation; recorded them as vendor claims rather than measured evidence.
 - The isolated checkout has no `TYPESAFE_API_KEY`; no live provider call was made.
 
-## Open gates
+## Initial open gates (resolved or bounded below)
 
 - Confirm the account-specific legal/data-retention/publication terms before
   sending any non-synthetic GroktoCrawl content.
@@ -63,4 +63,30 @@
 - No quality effect, calibrated threshold, supported-answer improvement, or
   citation benefit can be claimed. Provider-specific receipts and measurements
   remain private pending publication review. The public [outcome](outcome.md)
-  records reject/defer and no ADR. No user-visible behavior changed.
+  originally recorded reject/defer and no ADR. That final disposition was
+  premature because the operational hiccup had not been diagnosed and the
+  product-value test had not run. No user-visible behavior changed.
+
+## 2026-09-21 — issue reopened; bounded evaluation completed
+
+- The owner challenged the premature closure. Issue #360 was reopened and the
+  public record corrected. The first failed batch remains part of the audit
+  trail, not the final basis for deciding product value.
+- Direct transport and adapter probes succeeded. A second, separately frozen
+  synthetic execution used the existing cases, labels, split, and threshold
+  algorithm; its validation completed and selected a conservative rule.
+- The account owner confirmed that the published TypeSafe terms apply. A new
+  corpus of exact public first-party GroktoCrawl X document excerpts, labels,
+  repetitions, and stop gates was frozen before live calls. The synthetic rule
+  was applied without retuning. No private, authenticated, personal, or
+  sensitive text was submitted.
+- Both public-source repetitions completed with stable actions. Required and
+  premise-challenging passages were retained, but useful-evidence precision
+  improvement missed its predeclared practical-effect minimum. Best-effort
+  self-review of model/reference disagreements did not reverse that result;
+  labels were not independent or blinded.
+- The [corrected outcome](outcome.md) rejects/defer passage triage on that
+  completed value screen, not on the first failure. Final-answer and citation
+  quality were not tested. Provider-specific measurements and ledgers stay
+  private. No ADR, production activation, Brave call, SlopSearX change, or
+  user-visible GroktoCrawl change followed.

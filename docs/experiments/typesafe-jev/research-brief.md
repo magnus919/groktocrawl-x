@@ -56,11 +56,14 @@ provider-independent operation.
 
 The code supplies a strict client contract, frozen questions, content-free
 receipts, deterministic provider fixtures, absent-key behavior, and an exposed
-synthetic calibration corpus. An owner-authorized, bounded live technical smoke
-exercised that corpus. A subsequent private frozen comparison stopped at its
-predeclared operational-failure gate before validation; no product-value result
-or calibrated threshold exists. Detailed provider results remain private.
-The [outcome](outcome.md) records the no-ship decision and its limits.
+synthetic calibration corpus. An owner-authorized live technical smoke exercised
+that corpus. The first private frozen comparison stopped during calibration,
+which made the initial closure premature. Subsequent diagnostics and a separately
+frozen synthetic validation succeeded. A fixed conservative rule was then tested
+twice on public first-party GroktoCrawl X document excerpts. It preserved all
+required passages but missed the predeclared practical-effect minimum. Detailed
+provider results remain private. The [outcome](outcome.md) records the resulting
+no-ship decision and its limits.
 
 ## Provider-fact snapshot
 
@@ -83,8 +86,9 @@ Checked against TypeSafe's public documentation on 2026-09-20:
   for this spike.
 
 These are vendor-published facts, not observed GroktoCrawl measurements or legal
-approval. The first live run remains limited to public, low-risk text and still
-requires the account-specific agreement, retention, publication, and spend review.
+approval. The account owner confirmed no separate enterprise terms apply; the
+real-document comparison was limited to public, low-risk first-party text under
+the published terms. Provider-specific measurements remain private.
 
 Sources: [API reference](https://docs.typesafe.ai/api),
 [models](https://docs.typesafe.ai/models),
@@ -94,6 +98,7 @@ Sources: [API reference](https://docs.typesafe.ai/api),
 ## Disposition
 
 Reject/defer Jev passage triage for GroktoCrawl X under #360. This is a
-readiness decision, not a claim that Jev is intrinsically inaccurate. No ADR
+measured practical-benefit decision on a bounded public-doc comparison, not a
+claim that Jev is intrinsically inaccurate. No ADR
 selecting Jev, production feature, default activation, or expansion to other
 candidate uses follows from this spike.
