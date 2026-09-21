@@ -107,3 +107,65 @@
   trust probabilities. Source authenticity/provenance and prompt-injection
   barriers remain separate. A new unseen validation set and end-to-end
   answer/citation check are still needed before an adopt/reject decision.
+
+## 2026-09-21 — bounded public-web validation
+
+- The real-data candidate cutoff was frozen before new model calls. The owner
+  clarified that Brave charges per search request, not per result, so four
+  bounded GroktoCrawl searches requested a wider result pool. One returned
+  no web results. The first CLI attempts were rejected by request validation;
+  a documented minimal-contract amendment produced the actual search
+  results. GroktoCrawl scraping supplied public pages; failed scrapes remain
+  in the private acquisition record.
+- Exact public excerpts, source digests, query/passage labels, answer
+  obligations, two repetitions, safety and usefulness gates, and the
+  synthetic injection mutation were frozen before Jev saw this packet.
+  Labels were assistant-reviewed, not independent or blinded. The packet
+  was constructed rather than sampled from production traffic.
+- Both repetitions retained passages labeled necessary and
+  premise-challenging while removing unrelated material. Most exclusions
+  were easy cross-topic or unanswerable cases, not the hard near matches.
+  The separate safety gate failed: benign security guidance triggered its
+  injection alert, and the injected control's Choice route conflicted with
+  its injection score. One invalid response failed open by retaining its
+  passage. Provider-specific measurements and disagreement details remain
+  in owner-only evidence storage.
+- Under the original frozen stop rule, no answer/citation comparison or
+  post-hoc safety-threshold tuning followed. That combined rule remains an
+  audit fact, not a valid veto on evidence-value assessment. The keyless and
+  user-visible paths remain unchanged; no ADR selecting Jev.
+
+## 2026-09-21 — owner correction to evaluation structure
+
+- The owner identified that the harness, not Jev, must combine multiple
+  scores into a decision. Relevance and injection risk are separate questions:
+  a passage may be useful but still require safety quarantine. A deterministic
+  precedence rule can implement that policy, but it cannot make Jev's
+  injection classification itself deterministic or eliminate false positives.
+- The draft reject/defer disposition based on the combined gate was withdrawn.
+  The evidence-selection component passed its passage-level gate; the separate
+  safety-classifier component failed. Neither implies a final ship decision,
+  because supported-answer and citation outcomes remain unmeasured and the
+  relevance packet overrepresented easy negatives. Issue #360 stays open.
+
+## 2026-09-21 — relevance-only ranked-result comparison and disposition
+
+- Two additional GroktoCrawl searches acquired public pages in returned rank
+  order. One scrape failed; the other acquired pages supplied a frozen packet
+  without manually planted off-topic candidates. The assistant labeled exact
+  first-6k excerpts before Jev calls, marking factual disputes separately.
+- The previously frozen exclusion rule retained every passage in both repeats.
+  It caused no required-source loss, but it also produced no useful-evidence
+  precision gain. Operational checks passed. This is a negative result for the
+  tested passage-triage policy on this more natural ranked set, not a verdict
+  about every possible Jev use or cutoff.
+- A deterministic research-only harness check confirmed that an injection
+  alert takes precedence over relevance and an invalid response returns to
+  incumbent behavior. The alert also quarantined benign security guidance;
+  this policy is not enabled. Safety classification and evidence value are
+  reported separately.
+- Final-answer and citation quality were not run with a generative model:
+  control and treatment had identical source sets in the ranked packet, so
+  this rule supplied no controlled input difference. No user-visible benefit
+  is claimed. The [outcome](outcome.md) defers integration under #360. No
+  production activation, SlopSearX change, or Jev architecture ADR follows.

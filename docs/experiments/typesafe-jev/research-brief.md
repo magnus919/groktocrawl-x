@@ -1,7 +1,7 @@
 # TypeSafe Jev evidence-router research brief
 
 - Tracking issue: [#360](https://github.com/magnus919/groktocrawl-x/issues/360)
-- Status: **research open — real-data threshold calibration; no feature enabled**
+- Status: **research closed — tested passage triage deferred; no feature enabled**
 - Scope: GroktoCrawl X experimental research path only
 - Decision owner: Magnus Hedemark
 
@@ -63,9 +63,16 @@ frozen synthetic validation succeeded. A fixed conservative rule was then tested
 twice on public first-party GroktoCrawl X document excerpts. It preserved all
 required passages but missed the predeclared practical-effect minimum. Further
 real-document calls showed the cutoff itself needs calibration; the accumulated
-real-document cases are now calibration data, not held-out validation. Detailed
-provider results remain private. The [interim outcome](outcome.md) records the
-current evidence and remaining decision gate.
+real-document cases became calibration data, not held-out validation. The
+calibrated candidate was frozen and tested on public pages acquired by
+GroktoCrawl search and scraping. Usefulness and required-source retention
+passed the frozen check. The separate injection-classifier check failed, but
+the owner identified that it should not veto evidence-value evaluation.
+An additional frozen relevance-only packet used natural ranked GroktoCrawl
+results without inserted off-topic passages. The same cutoff made no source
+selection change in either repetition, so its practical-effect gate failed.
+Detailed provider results remain private. The [outcome](outcome.md) records
+the no-ship decision for this use and its limits.
 
 ## Provider-fact snapshot
 
@@ -89,8 +96,9 @@ Checked against TypeSafe's public documentation on 2026-09-20:
 
 These are vendor-published facts, not observed GroktoCrawl measurements or legal
 approval. The account owner confirmed no separate enterprise terms apply; the
-real-document comparison was limited to public, low-risk first-party text under
-the published terms. Provider-specific measurements remain private.
+real-document and web-source comparisons were limited to public, low-risk
+text and an explicit synthetic negative control under the published terms.
+Provider-specific measurements remain private.
 
 Sources: [API reference](https://docs.typesafe.ai/api),
 [models](https://docs.typesafe.ai/models),
@@ -99,7 +107,10 @@ Sources: [API reference](https://docs.typesafe.ai/api),
 
 ## Disposition
 
-Do not ship or enable Jev passage triage yet. Tune a candidate score cutoff
-from real calibration cases, then test it on separately frozen cases before
-any adopt/reject decision. No ADR selecting Jev, production feature, default
-activation, or expansion to other candidate uses follows at this stage.
+Defer the tested Jev passage-triage rule under #360. The constructed packet
+showed passage-level value, but a new ranked-result packet did not clear the
+practical-effect gate at the frozen cutoff. A separate injection-classifier
+failure is reported as a harness-policy concern, not counted as evidence
+irrelevance. No final-answer improvement was measured; the final packet's
+source sets were identical between arms. No ADR selecting Jev, production
+feature, default activation, or expansion to other candidate uses follows.
