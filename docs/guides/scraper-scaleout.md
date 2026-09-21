@@ -18,6 +18,13 @@ launcher when changing replica count so the API budget changes with the physical
 browser capacity. `--dry-run` prints the plan without starting Docker, and
 `--no-build` uses existing images.
 
+Changing the count on a running stack can recreate `agent-svc` because its
+admission environment changes; active inline jobs are not restart-safe.
+Drain or finish those jobs first and pass `--allow-api-restart`. For downscale,
+also drain the removed gateway backends using the procedure below, then pass
+`--confirm-drained-downscale`. The launcher will refuse these changes without
+those explicit acknowledgments; it does not perform the drains for you.
+
 The scraper host port now belongs to `scraper-gateway`. Scraper replicas have
 no published ports; the API uses `http://scraper-gateway:8001`. The gateway
 discovers up to four replicas, checks `/health`, routes by least connections,

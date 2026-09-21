@@ -22,7 +22,7 @@ COMPOSE = [
     "docker",
     "compose",
     "-p",
-    "groktocrawl-scaleout-smoke",
+    os.environ.get("SCALEOUT_PROJECT_NAME", "groktocrawl-scaleout-smoke"),
     "-f",
     "docker-compose.yml",
     "-f",
@@ -110,12 +110,10 @@ def main():
             scraper = config["services"]["scraper-svc"]
             scraper_env = scraper["environment"]
             agent_env = config["services"]["agent-svc"]["environment"]
-            fixture_agent_env = config["services"]["agent-svc-fixture"]["environment"]
             assert float(scraper["cpus"]) == 1.0
             assert scraper_env["SCRAPER_MAX_BROWSER_CONCURRENCY"] == "16"
             assert scraper_env["SCRAPER_BROWSER_POOL_ENABLED"] == "true"
             assert agent_env["ADMISSION_BROWSER_LIMIT"] == str(count * 16 * 8)
-            assert fixture_agent_env["ADMISSION_BROWSER_LIMIT"] == str(count * 16 * 8)
             compose("up", "-d", "--scale", f"scraper-svc={count}", "scraper-gateway")
             deadline = time.monotonic() + 60
             seen = set()

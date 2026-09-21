@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from deploy import scaleout
 from deploy.scaleout import browser_admission_units, compose_command
 
 
@@ -53,3 +54,23 @@ def test_conflicting_explicit_api_budget_is_rejected():
     )
     assert result.returncode != 0
     assert "expected 512" in result.stderr
+
+
+def test_live_scale_change_requires_api_job_drain(monkeypatch):
+    monkeypatch.delenv("ADMISSION_BROWSER_LIMIT", raising=False)
+    monkeypatch.setattr(scaleout, "running_replicas", lambda _env: 1)
+    monkeypatch.setattr(sys, "argv", ["scaleout.py", "--replicas", "2"])
+    with pytest.raises(SystemExit):
+        scaleout.main()
+
+
+def test_downscale_requires_backend_drain(monkeypatch):
+    monkeypatch.delenv("ADMISSION_BROWSER_LIMIT", raising=False)
+    monkeypatch.setattr(scaleout, "running_replicas", lambda _env: 4)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["scaleout.py", "--replicas", "2", "--allow-api-restart"],
+    )
+    with pytest.raises(SystemExit):
+        scaleout.main()

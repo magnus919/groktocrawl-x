@@ -18,6 +18,14 @@ ROOT = Path(__file__).resolve().parents[1]
 BROWSER_SLOTS_PER_REPLICA = 16
 BROWSER_ADMISSION_WEIGHT = 8
 MAX_REPLICAS = 4  # HAProxy server-template scraper 1-4
+COMPOSE_PREFIX = [
+    "docker",
+    "compose",
+    "-f",
+    "docker-compose.yml",
+    "-f",
+    "docker-compose.scaleout.yml",
+]
 
 
 def browser_admission_units(replicas: int) -> int:
@@ -28,20 +36,23 @@ def browser_admission_units(replicas: int) -> int:
 
 def compose_command(replicas: int, *, build: bool = True) -> list[str]:
     browser_admission_units(replicas)
-    command = [
-        "docker",
-        "compose",
-        "-f",
-        "docker-compose.yml",
-        "-f",
-        "docker-compose.scaleout.yml",
-        "up",
-        "-d",
-    ]
+    command = [*COMPOSE_PREFIX, "up", "-d"]
     if build:
         command.append("--build")
     command.extend(["--scale", f"scraper-svc={replicas}"])
     return command
+
+
+def running_replicas(env: dict[str, str]) -> int:
+    result = subprocess.run(
+        [*COMPOSE_PREFIX, "ps", "--status", "running", "-q", "scraper-svc"],
+        cwd=ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return len(result.stdout.splitlines())
 
 
 def main() -> None:
@@ -52,6 +63,16 @@ def main() -> None:
     parser.add_argument("--no-build", action="store_true", help="Use existing images")
     parser.add_argument(
         "--dry-run", action="store_true", help="Print the plan without starting Docker"
+    )
+    parser.add_argument(
+        "--allow-api-restart",
+        action="store_true",
+        help="Confirm active agent jobs were drained before a replica-count change",
+    )
+    parser.add_argument(
+        "--confirm-drained-downscale",
+        action="store_true",
+        help="Confirm removed scraper backends were drained before scaling down",
     )
     args = parser.parse_args()
 
@@ -82,6 +103,17 @@ def main() -> None:
         )
         return
 
+    current = running_replicas(env)
+    if current and current != args.replicas and not args.allow_api_restart:
+        parser.error(
+            "changing replica count changes API admission and may recreate agent-svc; "
+            "drain active jobs and pass --allow-api-restart"
+        )
+    if current > args.replicas and not args.confirm_drained_downscale:
+        parser.error(
+            "downscale may interrupt active scrapes; drain removed backends and "
+            "pass --confirm-drained-downscale"
+        )
     subprocess.run(command, cwd=ROOT, env=env, check=True)
 
 
