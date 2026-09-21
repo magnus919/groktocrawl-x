@@ -438,6 +438,7 @@ class GroktocrawlClient:
         include_images: bool = False,
         force_fresh: bool = False,
         search_type: str | None = None,
+        max_results_per_query: int | None = None,
     ) -> dict:
         """Create an agent research job without polling for completion.
 
@@ -462,6 +463,8 @@ class GroktocrawlClient:
             body["force_fresh"] = True
         if search_type:
             body["search_type"] = search_type
+        if max_results_per_query is not None:
+            body["max_results_per_query"] = max_results_per_query
         return await self._post("/v2/agent", body)
 
     async def answer(
@@ -1024,7 +1027,9 @@ class GroktocrawlClient:
     ) -> dict:
         client = await self._client_ctx()
         try:
-            response = await client.request(method, path, json=json_data, headers=headers)
+            response = await client.request(
+                method, path, json=json_data, headers=headers
+            )
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as exc:
@@ -1074,9 +1079,7 @@ class GroktocrawlClient:
         )
 
     async def experimental_research_delete(self, research_id: str) -> dict:
-        return await self._delete(
-            f"/experimental/research/v1/research/{research_id}"
-        )
+        return await self._delete(f"/experimental/research/v1/research/{research_id}")
 
     async def experimental_research_attach(
         self, session_id: str, run_id: str, expected_revision: int

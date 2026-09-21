@@ -1111,9 +1111,14 @@ class Client:
         schema: dict | None = None,
         include_images: bool = False,
         search_type: str = "deep",
+        max_results_per_query: int = 10,
         retry: bool = False,
     ) -> dict[str, Any]:
-        data: dict[str, Any] = {"prompt": prompt, "search_type": search_type}
+        data: dict[str, Any] = {
+            "prompt": prompt,
+            "search_type": search_type,
+            "max_results_per_query": max_results_per_query,
+        }
         if urls:
             data["urls"] = urls
         if schema:
@@ -1130,6 +1135,7 @@ class Client:
         urls: list[str] | None = None,
         include_images: bool = False,
         search_type: str = "deep",
+        max_results_per_query: int = 10,
         retry: bool = False,
     ) -> dict[str, Any]:
         """Create an agent research job with SSE streaming.
@@ -1142,6 +1148,7 @@ class Client:
             "prompt": prompt,
             "stream": True,
             "search_type": search_type,
+            "max_results_per_query": max_results_per_query,
         }
         if urls:
             data["urls"] = urls
@@ -1863,6 +1870,7 @@ def cmd_agent(client: Client, args: argparse.Namespace) -> None:
     try:
         include_images = getattr(args, "include_images", False)
         search_type = getattr(args, "search_type", "deep")
+        max_results_per_query = getattr(args, "max_results_per_query", 10)
         if args.sync:
             # Non-streaming path: create job and poll
             result = client.create_agent(
@@ -1871,6 +1879,7 @@ def cmd_agent(client: Client, args: argparse.Namespace) -> None:
                 schema=None,
                 include_images=include_images,
                 search_type=search_type,
+                max_results_per_query=max_results_per_query,
                 retry=True,
             )
         else:
@@ -1880,6 +1889,7 @@ def cmd_agent(client: Client, args: argparse.Namespace) -> None:
                 urls=args.urls,
                 include_images=include_images,
                 search_type=search_type,
+                max_results_per_query=max_results_per_query,
                 retry=True,
             )
     except ApiError as e:
@@ -3132,6 +3142,12 @@ def make_parser() -> argparse.ArgumentParser:
         choices=["deep", "focused"],
         default="deep",
         help="Research depth: deep (multi-query, multi-pass, default) or focused (single-query, single-pass)",
+    )
+    p_agent.add_argument(
+        "--max-results-per-query",
+        type=int,
+        default=10,
+        help="Maximum search results considered for each research query (default: 10)",
     )
 
     p_research = subparsers.add_parser(

@@ -115,6 +115,8 @@ def compute_fingerprint(
     schema: dict | None = None,
     model: str | None = None,
     search_type: str = "deep",
+    max_results_per_query: int = 10,
+    max_credits: int | None = None,
     include_images: bool = False,
     citation_style: str = "inline",
     strict_constrain_to_urls: bool = False,
@@ -124,7 +126,7 @@ def compute_fingerprint(
 
     Only request fields that change source selection, synthesis shape, or
     response semantics participate.  Dispatch/accounting fields (``mode``,
-    ``stream``, ``webhook``, ``max_credits``) are intentionally excluded.
+    ``stream``, and ``webhook``) are intentionally excluded.
     """
     normalized_prompt = " ".join((prompt or "").split())
     sorted_urls = sorted(urls) if urls else []
@@ -136,6 +138,8 @@ def compute_fingerprint(
         "schema": canonical_schema,
         "model": canonical_model,
         "search_type": search_type or "deep",
+        "max_results_per_query": max(1, int(max_results_per_query)),
+        "max_credits": max_credits,
         "include_images": bool(include_images),
         "citation_style": citation_style or "inline",
         "strict_constrain_to_urls": bool(strict_constrain_to_urls),
