@@ -48,3 +48,19 @@
 - The next study needs a revised route rubric, representative frozen cases,
   explicit incumbent arm, and predeclared quality/recall/cost gates. Any quality
   conclusion without a separate reviewer must be marked provisional.
+
+## 2026-09-21 — matched comparison stopped; no ship
+
+- A private synthetic scenario comparison froze its corpus, self-reviewed labels,
+  calibration/validation split, threshold algorithm, repetitions, cost ceiling,
+  and quality/operational gates before live execution. Its material remains in
+  an owner-only directory outside Git. No non-synthetic content was submitted.
+- The first local attempt encountered sandbox DNS failure and was retained as a
+  separate failed ledger. A network-enabled execution then reached the frozen
+  operational-failure stop during calibration, so validation was not dispatched.
+  Limited diagnostics showed that individual requests can complete, but did
+  not establish the batch failure's cause or reverse the stop decision.
+- No quality effect, calibrated threshold, supported-answer improvement, or
+  citation benefit can be claimed. Provider-specific receipts and measurements
+  remain private pending publication review. The public [outcome](outcome.md)
+  records reject/defer and no ADR. No user-visible behavior changed.

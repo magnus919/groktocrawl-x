@@ -1,7 +1,7 @@
 # TypeSafe Jev evidence-router research brief
 
 - Tracking issue: [#360](https://github.com/magnus919/groktocrawl-x/issues/360)
-- Status: **live technical smoke complete; matched product-value measurement not started**
+- Status: **research closed — do not ship Jev passage triage from this spike**
 - Scope: GroktoCrawl X experimental research path only
 - Decision owner: Magnus Hedemark
 
@@ -57,10 +57,10 @@ provider-independent operation.
 The code supplies a strict client contract, frozen questions, content-free
 receipts, deterministic provider fixtures, absent-key behavior, and an exposed
 synthetic calibration corpus. An owner-authorized, bounded live technical smoke
-has since exercised that exposed corpus. Its detailed provider results are kept
-private pending publication review. The smoke establishes transport readiness
-only; no matched product-value result, calibrated threshold, or adoption decision
-exists yet.
+exercised that corpus. A subsequent private frozen comparison stopped at its
+predeclared operational-failure gate before validation; no product-value result
+or calibrated threshold exists. Detailed provider results remain private.
+The [outcome](outcome.md) records the no-ship decision and its limits.
 
 ## Provider-fact snapshot
 
@@ -91,13 +91,9 @@ Sources: [API reference](https://docs.typesafe.ai/api),
 [privacy policy](https://typesafe.ai/legal/privacy-policy), and
 [master customer agreement](https://typesafe.ai/legal/mca).
 
-## Candidate decision
+## Disposition
 
-After the private matched evaluation, record exactly one of:
-
-- propose a follow-on ADR for one named bounded use;
-- revise and repeat because a predeclared uncertainty remains;
-- reject or defer Jev for GroktoCrawl X.
-
-A positive passage-routing result does not authorize citation verification,
-extraction adjudication, default activation, or a generic decision-provider layer.
+Reject/defer Jev passage triage for GroktoCrawl X under #360. This is a
+readiness decision, not a claim that Jev is intrinsically inaccurate. No ADR
+selecting Jev, production feature, default activation, or expansion to other
+candidate uses follows from this spike.
