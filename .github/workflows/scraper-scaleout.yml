@@ -4,12 +4,14 @@ on:
     paths:
       - docker-compose.yml
       - docker-compose.scaleout.yml
+      - deploy/scaleout.py
       - deploy/scraper-gateway.cfg
       - benchmarks/scraper_scaleout.py
       - scraper-svc/scraper/politeness.py
       - scraper-svc/scraper/settings.py
       - tests/fixtures/scaleout_server.py
       - tests/fixtures/compose.scaleout.yml
+      - tests/unit/test_scaleout_capacity.py
       - .github/workflows/scraper-scaleout.yml
   workflow_dispatch:
 permissions:
