@@ -438,7 +438,6 @@ class GroktocrawlClient:
         include_images: bool = False,
         force_fresh: bool = False,
         search_type: str | None = None,
-        max_results_per_query: int | None = None,
     ) -> dict:
         """Create an agent research job without polling for completion.
 
@@ -463,8 +462,6 @@ class GroktocrawlClient:
             body["force_fresh"] = True
         if search_type:
             body["search_type"] = search_type
-        if max_results_per_query is not None:
-            body["max_results_per_query"] = max_results_per_query
         return await self._post("/v2/agent", body)
 
     async def answer(

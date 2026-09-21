@@ -79,7 +79,6 @@ def fingerprint_from_agent_request(body: AgentRequest) -> str:
         citation_style=citation_style,
         strict_constrain_to_urls=body.strict_constrain_to_urls,
         force_fresh=body.force_fresh,
-        max_results_per_query=body.max_results_per_query,
         max_credits=body.max_credits,
     )
 
@@ -183,7 +182,6 @@ async def _handle_agent_streaming(
                     llm_model=request.app.state.llm_model,
                     requested_model=body.model if body.model != "default" else None,
                     max_searches_per_request=max_searches,
-                    max_results_per_query=body.max_results_per_query,
                     max_credits=body.max_credits,
                     include_images=body.include_images,
                     citation_style=body.citation_style,
@@ -251,7 +249,6 @@ async def _handle_agent_streaming(
                 llm_model=request.app.state.llm_model,
                 requested_model=body.model if body.model != "default" else None,
                 max_searches_per_request=max_searches,
-                max_results_per_query=body.max_results_per_query,
                 max_credits=body.max_credits,
                 include_images=body.include_images,
                 citation_style=body.citation_style,
@@ -362,7 +359,6 @@ async def create_agent(request: Request, body: AgentRequest, response: Response)
             research_memory=request.app.state.research_memory,
             search_type=body.search_type,
             max_searches_per_request=max_searches,
-            max_results_per_query=body.max_results_per_query,
             max_credits=body.max_credits,
             fingerprint=fingerprint,
             task_tracker=request.app.state.task_tracker,

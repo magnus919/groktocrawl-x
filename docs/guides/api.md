@@ -42,6 +42,12 @@ Webhook destinations are validated before delivery: only `http`/`https` URLs res
 
 Use `/v2/answer` for one grounded response with citations. Use `/v2/agent` for multi-query research, seed URLs, structured output, citation styling, image collection, plan events, and optional streaming. `search_type` selects the research depth where supported.
 
+The experimental agent no longer accepts `max_results_per_query`; the old
+JSON field is rejected with HTTP 422 rather than ignored. The matching CLI
+flag and MCP argument are also removed. Omit them and use `max_credits` only
+when an explicit attempt budget is required. This does not change the
+caller-provided `limit` on `POST /v2/search`.
+
 ### Search and retrieval
 
 `/v2/search` supports source/category filters, content extraction, optional streaming, structured extraction, and keyword/semantic/hybrid retrieval modes. Semantic modes depend on `semantic-svc` and Qdrant; keyword search depends on SlopSearX and its configured search provider.

@@ -514,13 +514,18 @@ class AgentRequest(BaseModel):
         default="deep",
         description="Research depth: 'deep' (multi-query, multi-pass, default) or 'focused' (single-query, single-pass)",
     )
-    max_results_per_query: int = Field(
-        default=10,
-        ge=1,
-        description="Maximum search results considered for each research query",
-    )
-
     model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_retired_max_results_per_query(cls, value: Any) -> Any:
+        """Fail clearly instead of silently ignoring the retired field."""
+        if isinstance(value, dict) and "max_results_per_query" in value:
+            raise ValueError(
+                "max_results_per_query was retired; agent now considers all distinct "
+                "results returned by SlopSearX; omit max_results_per_query"
+            )
+        return value
 
     @field_validator("output_schema")
     @classmethod

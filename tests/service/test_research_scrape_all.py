@@ -17,7 +17,7 @@ class FakeSearch:
         self.results_by_query = results_by_query
         self.calls: list[str] = []
 
-    async def search(self, query: str, *, limit: int, raise_on_rate_limit: bool):
+    async def search(self, query: str, *, limit: int | None, raise_on_rate_limit: bool):
         self.calls.append(query)
         return self.results_by_query[query], None
 
@@ -47,18 +47,19 @@ def _results(urls: list[str]) -> list[dict]:
     return [{"url": url, "title": url} for url in urls]
 
 
-def test_single_query_scrapes_every_search_result_including_video() -> None:
+def test_single_query_scrapes_every_result_over_ten_despite_a_failure() -> None:
     async def run() -> None:
-        urls = [f"https://example.test/{i}" for i in range(9)]
+        urls = [f"https://example.test/{i}" for i in range(24)]
         urls[-1] = "https://www.youtube.com/watch?v=research"
         search = FakeSearch({"topic": _results(urls)})
-        scraper = FakeScraper()
+        failed_url = urls[3]
+        scraper = FakeScraper({failed_url})
 
         result = await _run_research_discover_and_scrape("topic", None, search, scraper)
 
         assert search.calls == ["topic"]
         assert set(scraper.calls) == set(urls)
-        assert set(result["novel_sources"]) == set(urls)
+        assert set(result["novel_sources"]) == set(urls) - {failed_url}
         assert scraper.max_in_flight <= 5
 
     asyncio.run(run())
