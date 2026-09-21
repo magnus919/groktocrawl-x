@@ -11,7 +11,12 @@ from pydantic import ValidationError
 
 
 def _load_cli():
-    path = Path(__file__).resolve().parents[2] / "groktocrawl"
+    project_root = Path(__file__).resolve().parents[2]
+    candidates = (project_root / "groktocrawl", project_root / "w6-fixtures" / "groktocrawl")
+    path = next((candidate for candidate in candidates if candidate.is_file()), None)
+    if path is None:
+        rendered = ", ".join(str(candidate) for candidate in candidates)
+        raise FileNotFoundError(f"Could not locate GroktoCrawl CLI; tried: {rendered}")
     namespace: dict = {}
     exec(compile(path.read_text(), str(path), "exec"), namespace)
     return namespace
