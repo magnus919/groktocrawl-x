@@ -1,7 +1,7 @@
 # TypeSafe Jev evidence-router research brief
 
 - Tracking issue: [#360](https://github.com/magnus919/groktocrawl-x/issues/360)
-- Status: **research closed — do not ship Jev passage triage from this spike**
+- Status: **research open — real-data threshold calibration; no feature enabled**
 - Scope: GroktoCrawl X experimental research path only
 - Decision owner: Magnus Hedemark
 
@@ -61,9 +61,11 @@ that corpus. The first private frozen comparison stopped during calibration,
 which made the initial closure premature. Subsequent diagnostics and a separately
 frozen synthetic validation succeeded. A fixed conservative rule was then tested
 twice on public first-party GroktoCrawl X document excerpts. It preserved all
-required passages but missed the predeclared practical-effect minimum. Detailed
-provider results remain private. The [outcome](outcome.md) records the resulting
-no-ship decision and its limits.
+required passages but missed the predeclared practical-effect minimum. Further
+real-document calls showed the cutoff itself needs calibration; the accumulated
+real-document cases are now calibration data, not held-out validation. Detailed
+provider results remain private. The [interim outcome](outcome.md) records the
+current evidence and remaining decision gate.
 
 ## Provider-fact snapshot
 
@@ -97,8 +99,7 @@ Sources: [API reference](https://docs.typesafe.ai/api),
 
 ## Disposition
 
-Reject/defer Jev passage triage for GroktoCrawl X under #360. This is a
-measured practical-benefit decision on a bounded public-doc comparison, not a
-claim that Jev is intrinsically inaccurate. No ADR
-selecting Jev, production feature, default activation, or expansion to other
-candidate uses follows from this spike.
+Do not ship or enable Jev passage triage yet. Tune a candidate score cutoff
+from real calibration cases, then test it on separately frozen cases before
+any adopt/reject decision. No ADR selecting Jev, production feature, default
+activation, or expansion to other candidate uses follows at this stage.

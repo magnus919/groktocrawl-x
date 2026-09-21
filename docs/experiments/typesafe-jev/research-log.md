@@ -85,8 +85,25 @@
   improvement missed its predeclared practical-effect minimum. Best-effort
   self-review of model/reference disagreements did not reverse that result;
   labels were not independent or blinded.
-- The [corrected outcome](outcome.md) rejects/defer passage triage on that
-  completed value screen, not on the first failure. Final-answer and citation
-  quality were not tested. Provider-specific measurements and ledgers stay
-  private. No ADR, production activation, Brave call, SlopSearX change, or
-  user-visible GroktoCrawl change followed.
+- The comparison missed its practical-effect gate at the synthetic-selected
+  cutoff. This showed a limitation of that policy, not a final Jev verdict.
+  Final-answer and citation quality were not tested. Provider-specific
+  measurements and ledgers stay private. No ADR, production activation, Brave
+  call, SlopSearX change, or user-visible GroktoCrawl change followed.
+
+## 2026-09-21 — owner-directed real-score calibration
+
+- The owner identified that the conservative cutoff had been selected on
+  synthetic examples without learning how Jev's scores separate real
+  GroktoCrawl passages. The no-ship disposition was withdrawn; #360 stays
+  open while the cutoff is calibrated and separately validated.
+- A further set of public first-party document excerpts and self-reviewed
+  labels was frozen before live calls. Two bounded repetitions completed.
+  The original and new real-document sets are now exploratory calibration
+  material. A less restrictive score cutoff is a candidate, not a validated
+  production rule; its apparent benefit on these inspected cases cannot be
+  reported as held-out evidence.
+- Choice and Noul outputs are continuous model scores, not calibrated source
+  trust probabilities. Source authenticity/provenance and prompt-injection
+  barriers remain separate. A new unseen validation set and end-to-end
+  answer/citation check are still needed before an adopt/reject decision.

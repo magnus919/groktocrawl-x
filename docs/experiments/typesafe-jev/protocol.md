@@ -1,8 +1,7 @@
 # TypeSafe Jev shadow evidence-router protocol
 
-Status: **first matched synthetic batch stopped during calibration; a separately
-frozen synthetic validation and public-source comparison subsequently completed.
-See [outcome](outcome.md).**
+Status: **real-document score calibration in progress; no adopt/reject decision.
+See [interim outcome](outcome.md).**
 
 ## Arms
 
@@ -47,6 +46,10 @@ Its first run stopped during calibration. A separately frozen execution using
 the same cases completed validation. A fixed rule selected there was then
 applied to a separately frozen corpus of public first-party GroktoCrawl X
 document excerpts, after the account owner confirmed published terms apply.
+The owner then identified the synthetic-only cutoff as an important limitation.
+A second real-document set, labeled before model calls, was run to examine
+score separation and nominate a new candidate cutoff. Both real sets are now
+calibration data; neither can validate a cutoff chosen after seeing them.
 
 ## Required private freeze
 
@@ -113,5 +116,6 @@ reranking or citation checking. A negative result is retained.
 ## Architecture disposition
 
 No new ADR is proposed. The code is a bounded experimental adapter, not an
-architecture selection. The completed public-source comparison did not clear
-the predeclared practical-effect gate; see the [no-ship outcome](outcome.md).
+architecture selection. The first public-source comparison did not clear the
+practical-effect gate at the synthetic-selected cutoff. Real-data calibration
+is now under way; see the [interim outcome](outcome.md).
