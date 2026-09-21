@@ -20,6 +20,7 @@ from ..llm import LLMClient
 from ..models import CitationStyle
 from ..scraper_client import ScraperClient
 from ..searxng_client import SearXNGClient
+from ..settings import load_settings
 from .citations import _apply_citation_style, _build_answer_user_prompt
 from .discovery import (
     _build_answer_context,
@@ -31,6 +32,7 @@ from .discovery import (
 )
 from .events import ResearchEvent
 from .gaps import _detect_gaps
+from .jev_filter import JevContributionFilter
 from .plan import _generate_research_plan
 from .prompts import ANSWER_SYSTEM_PROMPT, EXTRACT_SYSTEM_PROMPT, SYSTEM_PROMPT
 from .sources import (
@@ -41,6 +43,13 @@ from .sources import (
 from .utils import _validate_json_if_schema
 
 logger = logging.getLogger(__name__)
+
+_JEV_SCORE_INSTRUCTIONS = (
+    "\nWhen a source has material_contribution_score, treat it only as Jev's "
+    "estimate that the page may contribute a useful facet to this query. "
+    "It is not confidence in factual correctness, authority, safety, or "
+    "support for a particular claim. Make those judgments from the passage."
+)
 
 
 async def _discover_with_progress(factory, initial_pending=None):
@@ -148,6 +157,15 @@ async def _run_research_events(
         else llm_model
     )
     llm = LLMClient(llm_base_url, llm_api_key, effective_model)
+    settings = load_settings()
+    jev_filter = (
+        JevContributionFilter(
+            settings.typesafe_api_key,
+            min_score=settings.typesafe_jev_min_score,
+        )
+        if settings.typesafe_api_key
+        else None
+    )
     scrape_opts: dict | None = (
         {"formats": ["markdown", "images"]} if include_images else None
     )
@@ -290,12 +308,34 @@ async def _run_research_events(
             context = discovered["context"]
             source_details = discovered["source_details"]
             novel_artifacts = discovered.get("new_artifacts", [])
+            no_source_result = "I was unable to find or scrape any relevant web pages."
+            if jev_filter is not None:
+                await jev_filter.assess_all(prompt, novel_artifacts)
+                retained = [
+                    artifact
+                    for artifact in discovered["artifacts"]
+                    if jev_filter.retain(artifact)
+                ]
+                logger.info(
+                    "Jev contribution filter retained %d/%d acquired research sources",
+                    len(retained),
+                    len(discovered["artifacts"]),
+                )
+                context = "\n\n---\n\n".join(
+                    artifact.to_document(max_chars=None) for artifact in retained
+                )
+                source_details = [artifact.to_source_detail() for artifact in retained]
+                if discovered["artifacts"] and not retained:
+                    no_source_result = (
+                        "I found pages, but none appeared to materially contribute "
+                        "to this research question."
+                    )
             previous_context = combined_context
             if not context and not combined_context:
                 yield {"type": "sources", "sources": []}
                 yield {
                     "type": "done",
-                    "result": "I was unable to find or scrape any relevant web pages.",
+                    "result": no_source_result,
                     "sources": [],
                     "source_details": [],
                     "latency_ms": int((time.monotonic() - start) * 1000),
@@ -314,7 +354,7 @@ async def _run_research_events(
                 yield {"type": "sources", "sources": []}
                 yield {
                     "type": "done",
-                    "result": "I was unable to find or scrape any relevant web pages.",
+                    "result": no_source_result,
                     "sources": [],
                     "source_details": [],
                     "latency_ms": int((time.monotonic() - start) * 1000),
@@ -338,10 +378,15 @@ async def _run_research_events(
                 max_passes = 2  # Enable second pass
 
         yield {"type": "status", "state": "synthesizing"}
+        synthesis_prompt = (
+            SYSTEM_PROMPT + _JEV_SCORE_INSTRUCTIONS
+            if jev_filter is not None
+            else SYSTEM_PROMPT
+        )
         if schema or not stream_tokens:
             try:
                 answer = await llm.generate(
-                    system_prompt=SYSTEM_PROMPT,
+                    system_prompt=synthesis_prompt,
                     user_prompt=prompt,
                     context=combined_context,
                     schema=schema,
@@ -389,7 +434,7 @@ async def _run_research_events(
             }
             answer = ""
             async for event in llm.generate_stream(
-                system_prompt=SYSTEM_PROMPT,
+                system_prompt=synthesis_prompt,
                 user_prompt=prompt,
                 context=combined_context,
                 stage="synthesis",
@@ -414,6 +459,8 @@ async def _run_research_events(
             "latency_ms": int((time.monotonic() - start) * 1000),
         }
     finally:
+        if jev_filter is not None:
+            await jev_filter.close()
         observe_elapsed(
             "groktocrawl_research_total_seconds",
             "Total research pipeline latency by search type",

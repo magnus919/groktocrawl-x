@@ -126,5 +126,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0087 | [Retain the Generalist Over Generic Specialist Fan-Out](0087-retain-generalist-over-generic-specialist-fanout.md) | proposed; W12.5 rejects generic fan-out while preserving typed handoffs |
 | 0088 | [Centralize Bounded Barrier Recovery at the Scrape Boundary](0088-centralize-bounded-barrier-recovery.md) | accepted; one classified recovery ladder for all scrape consumers |
 | 0089 | [Bound Browser Concurrency per Effective CPU](0089-bound-browser-concurrency-per-effective-cpu.md) | accepted for bounded experimentation; implementation pending |
+| 0090 | [Optional Post-Scrape Jev Noise Filter](0090-optional-post-scrape-jev-noise-filter.md) | accepted for opt-in implementation in experimental fork |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
