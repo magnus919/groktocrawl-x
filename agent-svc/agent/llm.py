@@ -174,13 +174,14 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "temperature": 0.3,
-            "max_tokens": 8192,
             "stream": True,
         }
 
         # Only enable thinking/reasoning for providers that support it
         # (Anthropic/DeepSeek). Default is off; omit the param otherwise.
         _llm_settings = load_settings()
+        if _llm_settings.llm_max_output_tokens is not None:
+            body["max_tokens"] = _llm_settings.llm_max_output_tokens
         if _llm_settings.llm_enable_thinking:
             body["enable_thinking"] = True
 
@@ -197,6 +198,7 @@ class LLMClient:
 
         full_content = ""
         saw_done = False
+        saw_length_stop = False
         outcome = "success"
         started = time.monotonic()
         try:
@@ -248,6 +250,8 @@ class LLMClient:
                             choices = chunk.get("choices", [{}])
                             if not choices:
                                 continue
+                            if choices[0].get("finish_reason") == "length":
+                                saw_length_stop = True
                             delta = choices[0].get("delta", {})
                             token = delta.get("content", "")
                             if token:
@@ -274,6 +278,14 @@ class LLMClient:
                     "type": "error",
                     "classification": "truncated",
                     "content": "LLM provider stream ended before [DONE]",
+                }
+                return
+            if saw_length_stop:
+                outcome = "truncated"
+                yield {
+                    "type": "error",
+                    "classification": "truncated",
+                    "content": "LLM provider stopped at its output limit",
                 }
                 return
             yield {"type": "done", "full_content": full_content}
@@ -355,12 +367,13 @@ class LLMClient:
             "model": self.model,
             "messages": messages,
             "temperature": 0.3,
-            "max_tokens": 8192,
         }
 
         # Only enable thinking/reasoning for providers that support it
         # (Anthropic/DeepSeek). Default is off; omit the param otherwise.
         _llm_settings = load_settings()
+        if _llm_settings.llm_max_output_tokens is not None:
+            body["max_tokens"] = _llm_settings.llm_max_output_tokens
         if _llm_settings.llm_enable_thinking:
             body["enable_thinking"] = True
 

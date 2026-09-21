@@ -39,6 +39,11 @@ class AgentSettings(BaseModel):
     # when pointing LLM_MODEL at reasoning models whose long thinking
     # pauses exceed the default.
     llm_call_timeout: float = Field(default=120.0, alias="LLM_CALL_TIMEOUT", gt=0)
+    # Leave output sizing to the provider unless an operator knows the model's
+    # usable completion budget. This includes reasoning tokens on some models.
+    llm_max_output_tokens: int | None = Field(
+        default=None, alias="LLM_MAX_OUTPUT_TOKENS", gt=0
+    )
     api_key: str = Field(default="", alias="API_KEY")
     webhook_secret: str = Field(default="", alias="WEBHOOK_SECRET")
     max_searches_per_request: int = Field(
