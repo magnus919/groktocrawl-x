@@ -28,7 +28,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 **Status legend:** accepted ADRs describe decisions used by the current implementation. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
 
-**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, 0081, 0082, and 0088.
+**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0070, 0072, 0074, 0079, 0081, 0082, 0088, and 0089 (bounded experimental scope).
 
 **Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073, 0076–0078, and 0083.
 
@@ -97,7 +97,7 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0057 | [Defer Recurring Mutation-Testing CI (Pilot Outcome)](0057-defer-recurring-mutation-testing-ci.md) | accepted |
 | 0059 | [Extend Source Artifact Reuse Across Research Passes](0059-extend-source-artifact-reuse-across-research-passes.md) | accepted |
 | 0060 | [Bounded Semantic Inference Execution](0060-bounded-semantic-inference-execution.md) | accepted |
-| 0061 | [Scraper Scale-Out with Bounded Capacity and Atomic Origin Pacing](0061-scraper-scaleout-capacity.md) | accepted |
+| 0061 | [Scraper Scale-Out with Bounded Capacity and Atomic Origin Pacing](0061-scraper-scaleout-capacity.md) | accepted; experimental per-replica browser capacity replaced by ADR-0089 |
 | 0062 | [Opt-In Browser Process Pool with Isolated Contexts](0062-opt-in-browser-process-pool.md) | accepted |
 | 0063 | [Offload and Batch Session Persistence](0063-offload-and-batch-session-persistence.md) | accepted |
 | 0064 | [One Final Research Synthesis](0064-one-final-research-synthesis.md) | accepted; experimental scope partially superseded (see record) |
@@ -125,5 +125,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0086 | [Add Bounded Evidence-Obligation Continuation](0086-add-bounded-evidence-obligation-continuation.md) | proposed; W12.4 supports an opt-in control contract pending live calibration |
 | 0087 | [Retain the Generalist Over Generic Specialist Fan-Out](0087-retain-generalist-over-generic-specialist-fanout.md) | proposed; W12.5 rejects generic fan-out while preserving typed handoffs |
 | 0088 | [Centralize Bounded Barrier Recovery at the Scrape Boundary](0088-centralize-bounded-barrier-recovery.md) | accepted; one classified recovery ladder for all scrape consumers |
+| 0089 | [Bound Browser Concurrency per Effective CPU](0089-bound-browser-concurrency-per-effective-cpu.md) | accepted for bounded experimentation; implementation pending |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
