@@ -1,7 +1,7 @@
 # TypeSafe Jev shadow evidence-router protocol
 
-Status: **matched synthetic comparison frozen and stopped at the operational
-gate before validation; see [outcome](outcome.md)**
+Status: **real-document score calibration in progress; no adopt/reject decision.
+See [interim outcome](outcome.md).**
 
 ## Arms
 
@@ -40,11 +40,16 @@ ambiguity, derivative evidence, and relevant-but-empty text.
 These cases are exposed calibration and transport fixtures. They cannot be called
 held out and cannot establish product value. A private technical-smoke freeze
 was recorded before using them with a credential; the provider-specific readout
-remains outside the public repository. Before matched product-value measurement,
-prepare a separate private manifest with immutable case hashes and reviewed
-labels. A later synthetic scenario corpus was frozen for a matched comparison,
-but that run stopped before validation. Real GroktoCrawl passages were not sent
-because account-specific data handling was not established.
+remains outside the public repository. A separate scenario corpus, labels, and
+calibration/validation split were frozen for a matched synthetic comparison.
+Its first run stopped during calibration. A separately frozen execution using
+the same cases completed validation. A fixed rule selected there was then
+applied to a separately frozen corpus of public first-party GroktoCrawl X
+document excerpts, after the account owner confirmed published terms apply.
+The owner then identified the synthetic-only cutoff as an important limitation.
+A second real-document set, labeled before model calls, was run to examine
+score separation and nominate a new candidate cutoff. Both real sets are now
+calibration data; neither can validate a cutoff chosen after seeing them.
 
 ## Required private freeze
 
@@ -111,5 +116,6 @@ reranking or citation checking. A negative result is retained.
 ## Architecture disposition
 
 No new ADR is proposed. The code is a bounded experimental adapter, not an
-architecture selection. The frozen run did not support adoption; see the
-[no-ship outcome](outcome.md).
+architecture selection. The first public-source comparison did not clear the
+practical-effect gate at the synthetic-selected cutoff. Real-data calibration
+is now under way; see the [interim outcome](outcome.md).

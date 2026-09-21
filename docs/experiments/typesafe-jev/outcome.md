@@ -1,25 +1,42 @@
-# TypeSafe Jev #360 research outcome
+# TypeSafe Jev #360 interim research outcome
 
-Decision: **do not ship or enable Jev passage triage in GroktoCrawl X from
-this spike. Reject/defer the integration.** The decision owner is the
-GroktoCrawl X maintainer; a later experiment would require a new decision.
+Status: **research continues; do not ship or enable Jev passage triage yet.**
+There is no final adopt/reject decision from #360. The experimental adapter
+remains shadow-only and inert in user-visible paths.
 
-The initial exposed synthetic smoke established that the pinned Jev endpoint
-and shadow adapter can return typed decisions. It did not establish product
-value. A separate matched synthetic comparison was frozen with preauthored
-labels, a deterministic incumbent, a calibration/validation split, fixed
-threshold-selection rules, and explicit quality, safety, latency, cost, and
-failure gates. The run reached its predeclared operational-failure stop during
-calibration. Validation did not run, and no triage threshold was selected.
+The original closure of #360 was premature. Its first frozen synthetic batch
+stopped during calibration because provider calls failed; validation never
+ran. That was an operational hiccup, not evidence that Jev lacked product
+value. The issue was reopened to diagnose and finish a bounded evaluation.
 
-This result supports a narrow conclusion: the candidate was **not ready to
-ship under the declared experiment conditions**. It does not show whether
-Jev would improve useful-evidence precision, preserve all needed or
-contradictory passages, detect hostile text, improve supported answers or
-citations, or perform well on real GroktoCrawl sources. Nor does it establish
-that Jev is intrinsically unsuitable; limited diagnostic calls succeeded,
-while the frozen batch failure remains unresolved. The scenario labels were
-self-reviewed, not independent, as requested by the owner.
+Direct and adapter diagnostics subsequently succeeded. A second, separately
+frozen synthetic batch completed validation and selected a conservative
+shadow-triage threshold. Applying that threshold to public first-party
+GroktoCrawl X documentation preserved all passages labeled necessary but
+missed the predeclared minimum useful-evidence precision improvement. That
+was a valid result for **that threshold**, not a final judgment about Jev.
+The threshold came from synthetic cases and a conservative tie-break; it was
+not calibrated on real GroktoCrawl passages.
+
+The owner pointed out that Jev returns continuous confidence signals and
+that the cutoff should be learned from real-model behavior. A further set
+of public first-party passages was labeled before live calls and run twice.
+Together, the two real-document sets now form exploratory calibration data.
+A less restrictive candidate cutoff retained all passages labeled necessary
+while filtering more of those labeled unnecessary in both sets. Because that
+cutoff was nominated after inspecting these data, **neither set is an unbiased
+validation of it**. The numbers are model scores, not demonstrated
+probabilities that a source is trustworthy. Source authenticity and
+provenance remain separate deterministic responsibilities.
+
+The document pools were hand-selected from one technical repository, and
+labels were reviewed by the assistant rather than an independent or blinded
+reviewer. They measure passage retention, not final-answer quality or
+citation accuracy. The first batch failure's cause remains unresolved;
+later successful runs show only that it was not a permanent outage. These
+results do not establish broad-web generalization or speak to Jev's separate
+search-engine-routing role in SlopSearX. Keep the spike focused on calibrated
+passage triage before considering another Jev role.
 
 The keyless API, CLI, and MCP paths remain unchanged. The adapter is inert
 experimental code and is not wired into user-visible execution; key presence
@@ -27,16 +44,12 @@ does not activate it. No SlopSearX code or behavior changed, and no Brave
 Search call was part of the comparison. Existing deterministic safety and
 provenance controls remain authoritative.
 
-The raw ledger, model-specific performance details, frozen corpus, and
+The frozen corpora, labels, provider-specific measurements, raw ledgers, and
 disagreement review are retained privately outside this public repository
-pending publication review. Account-specific processing and publication
-terms for real source text remain unverified; no private, authenticated,
-personal, or sensitive source was submitted. No ADR selecting Jev is
-proposed because no Jev architecture was adopted.
-
-If the maintainer later opens a new spike, it should first diagnose the
-batch transport failure and verify account-specific data terms. A fresh,
-pre-registered real-source and end-to-end comparison—preferably with an
-independent quality reviewer—would then be needed before reconsidering one
-bounded use. This issue does not authorize that implementation or any
-production activation.
+pending publication review. Only public, low-risk first-party documentation
+was submitted under the account's published terms; no private,
+authenticated, personal, or sensitive source was sent. No ADR selecting Jev
+is proposed because no Jev architecture has been adopted. The next decision
+requires a separately frozen validation set and, if its passage-level gates
+hold, an end-to-end answer/citation comparison. Do not reuse the calibration
+sets as if they were held out.
