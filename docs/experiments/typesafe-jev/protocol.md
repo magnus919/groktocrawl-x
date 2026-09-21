@@ -1,6 +1,6 @@
 # TypeSafe Jev shadow evidence-router protocol
 
-Status: **preflight; freeze before the first live call**
+Status: **bounded live technical smoke completed; matched comparison not frozen**
 
 ## Arms
 
@@ -37,9 +37,12 @@ text, explicit injection, tool manipulation, ambiguous fragments, identity
 ambiguity, derivative evidence, and relevant-but-empty text.
 
 These cases are exposed calibration and transport fixtures. They cannot be called
-held out and cannot establish product value. Before live measurement, prepare a
-private manifest with immutable case hashes and independent labels, including
-realistic GroktoCrawl passages that the provider has not influenced.
+held out and cannot establish product value. A private technical-smoke freeze
+was recorded before using them with a credential; the provider-specific readout
+remains outside the public repository. Before matched product-value measurement,
+prepare a separate private manifest with immutable case hashes and reviewed
+labels, including realistic GroktoCrawl passages that the provider has not
+influenced.
 
 ## Required private freeze
 
