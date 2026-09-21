@@ -1,7 +1,7 @@
 # TypeSafe Jev shadow evidence-router protocol
 
-Status: **real-document score calibration in progress; no adopt/reject decision.
-See [interim outcome](outcome.md).**
+Status: **bounded comparison complete; passage-triage integration deferred.
+See [outcome](outcome.md).**
 
 ## Arms
 
@@ -50,6 +50,20 @@ The owner then identified the synthetic-only cutoff as an important limitation.
 A second real-document set, labeled before model calls, was run to examine
 score separation and nominate a new candidate cutoff. Both real sets are now
 calibration data; neither can validate a cutoff chosen after seeing them.
+A real-data candidate was then frozen before a new packet was acquired through
+GroktoCrawl's public web search and scraper. That packet mixed topical source
+excerpts, cross-topic distractors, a false premise, unanswerable material,
+and one explicitly synthetic injection control. The predeclared combined gate
+failed on the separately frozen validation packet, so no end-to-end answer
+comparison followed under that protocol. The owner identified combining
+injection classification with evidence value as a harness-design error. The
+relevance observations and safety-policy observations must be interpreted
+separately. The search with no web results and scrape failures remain in the
+private acquisition ledger. A follow-up relevance-only packet used two new
+GroktoCrawl search result lists in returned order, with first-6k scraped
+passages and labels frozen before Jev calls. It added no cross-topic
+distractors. The fixed exclusion rule made no source-set change in either
+repeat, missing its practical-effect gate; see the [outcome](outcome.md).
 
 ## Required private freeze
 
@@ -67,13 +81,24 @@ Before the first live call, freeze:
 
 ## Measurements
 
-Primary:
+Evidence-value measurements:
 
 - macro and per-stratum route accuracy;
 - false exclusion risk for required evidence and contradictions;
-- unsafe-instruction detection and false positives;
 - uncertainty on incomplete or ambiguous passages;
 - supported material claims and citation closure in the unchanged control answer.
+
+Separate safety-policy measurements:
+
+- unsafe-instruction detection and false positives against labeled controls;
+- deterministic harness precedence when relevance and injection signals conflict;
+- fallback or quarantine behavior for missing and contradictory model receipts.
+
+A deterministic research-only harness check decided what to do with frozen
+scores; that does not make
+the model's injection classification deterministic or prove a flagged passage
+malicious. A safety alert must not become evidence of irrelevance, and relevance
+must not override a safety quarantine.
 
 Operational:
 
@@ -109,13 +134,18 @@ enter logs/artifacts, the adapter influences user-visible output, the cost ceili
 is reached, more than 10% of a launch ends in terminal provider failure, or keyless
 equivalence fails.
 
-Complete the planned repetitions and then stop. Passage triage must clear the
-pre-registered quality, recall, latency, cost, and failure gates before evaluating
+Complete the planned repetitions and then stop. The original combined gate is
+retained as historical protocol, not silently re-scored as a pass. Its
+relevance and safety components are interpreted separately. Passage triage
+must clear quality, recall, latency, cost, and failure gates before evaluating
 reranking or citation checking. A negative result is retained.
 
 ## Architecture disposition
 
 No new ADR is proposed. The code is a bounded experimental adapter, not an
-architecture selection. The first public-source comparison did not clear the
-practical-effect gate at the synthetic-selected cutoff. Real-data calibration
-is now under way; see the [interim outcome](outcome.md).
+architecture selection. Real-data calibration corrected the synthetic-only
+cutoff. The subsequently frozen combined gate failed, but its relevance
+component passed. A separate ranked-result relevance-only packet missed its
+practical-effect gate. The safety-classifier failure alone did not reject
+evidence value; the final no-ship decision rests on the latter packet's lack
+of measured gain. See the [outcome](outcome.md).
