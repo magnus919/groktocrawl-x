@@ -172,9 +172,9 @@ class SearXNGClient:
     ) -> tuple[list[dict], SearchHealth]:
         """Search the web and return structured results with health info.
 
-        Uses SearXNG's JSON API. When categories is None, defaults to "general".
-        ``sources`` and ``categories`` are merged via ``_translate()`` before
-        being passed to SearXNG.
+        Uses SearXNG's JSON API. An unscoped search leaves categories unset so
+        the upstream can choose engines for the query. Explicit ``sources`` and
+        ``categories`` are merged via ``_translate()`` and passed upstream.
 
         Enforces a per-request search budget. Raises ``RateLimitedError``
         when the budget is exhausted.
@@ -212,14 +212,15 @@ class SearXNGClient:
                 )
             self._search_count += 1
 
-            effective_categories = self._translate(sources, categories)
             params = {
                 "q": query,
                 "format": "json",
                 "language": "en",
                 "pageno": 1,
             }
-            params["categories"] = ",".join(effective_categories)
+            if sources or categories:
+                effective_categories = self._translate(sources, categories)
+                params["categories"] = ",".join(effective_categories)
             run_id = os.getenv("TWIN_RUN_ID")
             if run_id:
                 params["run_id"] = run_id
