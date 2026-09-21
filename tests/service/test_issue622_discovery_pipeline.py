@@ -317,6 +317,126 @@ async def test_multi_query_keeps_all_successes_from_completed_scrape_batch():
 
 
 @pytest.mark.asyncio
+async def test_scrape_all_single_query_attempts_every_returned_result():
+    from agent.research.discovery import _run_research_discover_and_scrape
+
+    urls = [f"https://batch.example/article/{i}" for i in range(40)]
+    searxng = MagicMock(
+        search=AsyncMock(return_value=([_result(url) for url in urls], "healthy"))
+    )
+    attempted: list[str] = []
+    scraper = _scraper(asyncio.Event(), attempted)
+    result = await _run_research_discover_and_scrape(
+        prompt="fixture question",
+        urls=None,
+        searxng=searxng,
+        scraper=scraper,
+        scrape_all=True,
+    )
+
+    assert searxng.search.await_args.kwargs["limit"] is None
+    assert set(attempted) == set(urls)
+    assert result["target_urls"] == urls
+    assert [artifact.url for artifact in result["artifacts"]] == urls
+    assert result["attempts_used"] == 40
+    assert {outcome["status"] for outcome in result["source_outcomes"]} == {"scraped"}
+
+
+@pytest.mark.asyncio
+async def test_scrape_all_multi_query_attempts_every_result_with_bounded_width():
+    from agent.research.discovery import _run_multi_query_discover_and_scrape
+
+    urls = [f"https://batch.example/article/{i}" for i in range(40)]
+
+    async def search(query: str, **_kwargs):
+        half = urls[:20] if query == "first" else urls[20:]
+        return ([_result(url) for url in half], "healthy")
+
+    active = 0
+    peak = 0
+    attempted: list[str] = []
+
+    async def scrape(url: str, **_kwargs):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        attempted.append(url)
+        await asyncio.sleep(0.002)
+        active -= 1
+        return {"success": True, "data": {"markdown": url, "source": "fixture"}}
+
+    searxng = MagicMock(search=AsyncMock(side_effect=search))
+    scraper = MagicMock(scrape_with_fallback=AsyncMock(side_effect=scrape))
+    result = await _run_multi_query_discover_and_scrape(
+        queries=["first", "second"],
+        urls=None,
+        searxng=searxng,
+        scraper=scraper,
+        scrape_all=True,
+    )
+
+    assert set(attempted) == set(urls)
+    assert [artifact.url for artifact in result["artifacts"]] == urls
+    assert 1 < peak <= 16
+    assert all(call.kwargs["limit"] is None for call in searxng.search.await_args_list)
+
+
+@pytest.mark.asyncio
+async def test_scrape_all_respects_explicit_attempt_budget():
+    from agent.research.discovery import _run_multi_query_discover_and_scrape
+
+    urls = [f"https://batch.example/article/{i}" for i in range(40)]
+    searxng = MagicMock(
+        search=AsyncMock(return_value=([_result(url) for url in urls], "healthy"))
+    )
+    attempted: list[str] = []
+    scraper = _scraper(asyncio.Event(), attempted)
+    result = await _run_multi_query_discover_and_scrape(
+        queries=["fixture"],
+        urls=None,
+        searxng=searxng,
+        scraper=scraper,
+        scrape_all=True,
+        max_credits=3,
+    )
+
+    assert attempted == urls[:3]
+    assert result["credits_used"] == 3
+    assert result["attempts_used"] == 3
+    assert [outcome["status"] for outcome in result["source_outcomes"]] == [
+        *["scraped"] * 3,
+        *["not_attempted_explicit_budget"] * 37,
+    ]
+
+
+@pytest.mark.asyncio
+async def test_scrape_all_records_failure_without_relabeling_it_irrelevant():
+    from agent.research.discovery import _run_research_discover_and_scrape
+
+    urls = [f"https://batch.example/article/{i}" for i in range(4)]
+    searxng = MagicMock(
+        search=AsyncMock(return_value=([_result(url) for url in urls], "healthy"))
+    )
+
+    async def scrape(url: str, **_kwargs):
+        if url == urls[1]:
+            return {"success": False, "error": "blocked"}
+        return {"success": True, "data": {"markdown": url, "source": "fixture"}}
+
+    scraper = MagicMock(scrape_with_fallback=AsyncMock(side_effect=scrape))
+    result = await _run_research_discover_and_scrape(
+        prompt="fixture", urls=None, searxng=searxng, scraper=scraper, scrape_all=True
+    )
+    assert result["attempts_used"] == 4
+    assert [outcome["status"] for outcome in result["source_outcomes"]] == [
+        "scraped",
+        "failed_or_refused",
+        "scraped",
+        "scraped",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_closing_public_stream_drains_discovery_and_clients():
     from unittest.mock import patch
 

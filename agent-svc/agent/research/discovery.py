@@ -100,7 +100,7 @@ async def _scrape_single(
 async def _scrape_urls(
     urls: list[str],
     scraper: ScraperClient,
-    min_sources: int = 3,
+    min_sources: int | None = 3,
     max_attempts: int | None = None,
     max_concurrent: int = 5,
     scrape_options: dict | None = None,
@@ -110,7 +110,8 @@ async def _scrape_urls(
     """Scrape URLs with bounded concurrency and return ``SourceArtifact``s.
 
     Tries URLs in batches until ``min_sources`` are successfully scraped
-    or the list is exhausted (whichever comes first).
+    or the list is exhausted (whichever comes first). ``None`` exhausts the
+    candidate list, without a successful-source quota.
     Uses a semaphore (default ``max_concurrent`` = 5) with per-URL timeout (70s).
     ``max_attempts`` sets an upper bound on how many URLs are tried.
     Cancelled speculative tasks are awaited before returning so no pending
@@ -140,7 +141,8 @@ async def _scrape_urls(
     # of the fresh acquisition quota. A duplicate-only pass launches no work.
     if not urls_to_scrape:
         return artifacts
-    min_sources += len(artifacts)
+    if min_sources is not None:
+        min_sources += len(artifacts)
 
     urls = urls_to_scrape
     fresh_by_key: dict[str, SourceArtifact] = {}
@@ -195,7 +197,7 @@ async def _scrape_urls(
                     fresh_by_key[normalize_source_url(artifact.url)] = artifact
                     await _notify_artifact(on_artifact, artifact)
 
-            if len(artifacts) >= min_sources:
+            if min_sources is not None and len(artifacts) >= min_sources:
                 # Process every task in this completed batch before stopping.
                 # ``asyncio.wait`` may return several successful tasks together;
                 # returning from inside the loop would lose already-fetched
@@ -298,10 +300,38 @@ def _discovery_result(
     }
 
 
+def _record_scrape_all_outcomes(
+    result: dict,
+    eligible_urls: list[str],
+    attempted_urls: list[str],
+) -> dict:
+    """Account for every eligible result without calling failures irrelevant."""
+    successful = {
+        normalize_source_url(artifact.url) for artifact in result["artifacts"]
+    }
+    attempted = {normalize_source_url(url) for url in attempted_urls}
+    result["source_outcomes"] = [
+        {
+            "url": url,
+            "status": (
+                "scraped"
+                if normalize_source_url(url) in successful
+                else "failed_or_refused"
+                if normalize_source_url(url) in attempted
+                else "not_attempted_explicit_budget"
+            ),
+        }
+        for url in eligible_urls
+    ]
+    result["attempts_used"] = len(attempted)
+    return result
+
+
 async def _scrape_with_fallback(
     urls: list[str],
     scraper: ScraperClient,
-    min_sources: int = 3,
+    min_sources: int | None = 3,
+    max_concurrent: int = 5,
     scrape_options: dict | None = None,
     source_registry: SourceRegistry | None = None,
     on_artifact: ArtifactCallback | None = None,
@@ -309,8 +339,8 @@ async def _scrape_with_fallback(
     """Scrape URLs with video-platform fallback strategy.
 
     Splits URLs into preferred (text-based) and deprioritized (video-platform).
-    Scrapes preferred URLs first. If fewer than ``min_sources`` artifacts are
-    obtained, falls back to deprioritized URLs.
+    Scrapes preferred URLs first. With ``min_sources=None``, all preferred
+    and deprioritized URLs are attempted; video is still last, not omitted.
 
     Returns a list of ``SourceArtifact``s.
     """
@@ -321,7 +351,8 @@ async def _scrape_with_fallback(
         preferred,
         scraper,
         min_sources=min_sources,
-        max_attempts=len(preferred) or 10,
+        max_attempts=len(preferred),
+        max_concurrent=max_concurrent,
         scrape_options=scrape_options,
         source_registry=source_registry,
         on_artifact=on_artifact,
@@ -333,13 +364,14 @@ async def _scrape_with_fallback(
         min_sources,
     )
 
-    if len(artifacts) < min_sources and deprioritized:
-        remaining = min_sources - len(artifacts)
+    if (min_sources is None or len(artifacts) < min_sources) and deprioritized:
+        remaining = None if min_sources is None else min_sources - len(artifacts)
         extra = await _scrape_urls(
             deprioritized,
             scraper,
             min_sources=remaining,
-            max_attempts=remaining * 2,
+            max_attempts=len(deprioritized) if remaining is None else remaining * 2,
+            max_concurrent=max_concurrent,
             scrape_options=scrape_options,
             source_registry=source_registry,
             on_artifact=on_artifact,
@@ -361,6 +393,7 @@ async def _run_multi_query_discover_and_scrape(
     pass_number: int | None = None,
     on_artifact: ArtifactCallback | None = None,
     on_search_results: SearchCallback | None = None,
+    scrape_all: bool = False,
 ) -> dict:
     """Search multiple sub-queries, deduplicate URLs, scrape, and merge context.
 
@@ -384,6 +417,7 @@ async def _run_multi_query_discover_and_scrape(
     scrape_by_key: dict[str, SourceArtifact] = {}
     streamed_acquisition = False
     admitted_urls: list[str] = []
+    attempted_urls: list[str] = []
 
     # Truncate to search budget
     budget = min(len(queries), max_searches_per_request)
@@ -399,7 +433,9 @@ async def _run_multi_query_discover_and_scrape(
 
         search_tasks = {
             asyncio.create_task(
-                searxng.search(q, limit=10, raise_on_rate_limit=True)
+                searxng.search(
+                    q, limit=None if scrape_all else 10, raise_on_rate_limit=True
+                )
             ): i
             for i, q in enumerate(queries_to_run)
         }
@@ -409,21 +445,29 @@ async def _run_multi_query_discover_and_scrape(
         attempted_keys: set[str] = set()
         ordered_results: dict[int, list[dict]] = {}
         attempts = 0
-        max_attempts = 20 if max_credits is None else min(20, max(0, max_credits))
-        scrape_semaphore = asyncio.Semaphore(5)
+        max_attempts = (
+            max_credits
+            if scrape_all
+            else (20 if max_credits is None else min(20, max_credits))
+        )
+        max_concurrent = 16 if scrape_all else 5
+        scrape_semaphore = asyncio.Semaphore(max_concurrent)
         admitted_query = 0
 
         async def start_candidates() -> None:
             nonlocal attempts
             while (
                 candidate_urls
-                and len(scrape_tasks) < 5
-                and attempts < max_attempts
-                and sum(
-                    source_registry.get(a.url, scrape_options) is None
-                    for a in scrape_by_key.values()
+                and len(scrape_tasks) < max_concurrent
+                and (max_attempts is None or attempts < max_attempts)
+                and (
+                    scrape_all
+                    or sum(
+                        source_registry.get(a.url, scrape_options) is None
+                        for a in scrape_by_key.values()
+                    )
+                    < 3
                 )
-                < 3
             ):
                 url = candidate_urls.pop(0)
                 key = normalize_source_url(url)
@@ -437,6 +481,7 @@ async def _run_multi_query_discover_and_scrape(
                     continue
                 attempts += 1
                 admitted_urls.append(url)
+                attempted_urls.append(url)
                 scrape_tasks.add(
                     asyncio.create_task(
                         _scrape_single(
@@ -492,13 +537,15 @@ async def _run_multi_query_discover_and_scrape(
                             # Freeze each query's ranked batch in plan order.
                             # Re-ranking the whole prefix would make credit
                             # admission depend on which tasks finish together.
-                            batch = _filter_and_rank_urls(
-                                [
-                                    r.get("url", "")
-                                    for r in ordered_results[admitted_query]
-                                    if r.get("url")
-                                ],
-                                max_urls=20,
+                            result_urls = [
+                                r.get("url", "")
+                                for r in ordered_results[admitted_query]
+                                if r.get("url")
+                            ]
+                            batch = (
+                                _dedupe_urls(result_urls)
+                                if scrape_all
+                                else _filter_and_rank_urls(result_urls, max_urls=20)
                             )
                             for url in batch:
                                 key = normalize_source_url(url)
@@ -523,14 +570,14 @@ async def _run_multi_query_discover_and_scrape(
                     not search_tasks
                     and not scrape_tasks
                     and not candidate_urls
-                    and len(scrape_by_key) < 3
+                    and (scrape_all or len(scrape_by_key) < 3)
                 ):
                     candidate_urls.extend(video_urls)
                     video_urls.clear()
                 await start_candidates()
                 # Once discovery is complete, retain only enough successful
                 # acquisitions for the final ranked evidence set.
-                if (
+                if not scrape_all and (
                     sum(
                         source_registry.get(a.url, scrape_options) is None
                         for a in scrape_by_key.values()
@@ -573,7 +620,11 @@ async def _run_multi_query_discover_and_scrape(
         )
 
     # Score and rank URLs before scraping (F1: source pre-filtering)
-    ranked_urls = _dedupe_urls(_filter_and_rank_urls(target_urls, max_urls=20))
+    ranked_urls = (
+        _dedupe_urls(target_urls)
+        if scrape_all
+        else _dedupe_urls(_filter_and_rank_urls(target_urls, max_urls=20))
+    )
     # Keep successful prefix admissions even when later results change the
     # ranking. They were bounded and intentionally admitted from a ranked
     # resolved prefix, so final filtering must not discard their evidence.
@@ -581,6 +632,7 @@ async def _run_multi_query_discover_and_scrape(
         url for url in admitted_urls if normalize_source_url(url) in scrape_by_key
     ]
     target_urls = _dedupe_urls([*ranked_urls, *successful_admitted])
+    eligible_urls = list(target_urls)
     reusable_keys = {
         normalize_source_url(url)
         for url in target_urls
@@ -603,12 +655,13 @@ async def _run_multi_query_discover_and_scrape(
         artifacts = await _scrape_with_fallback(
             target_urls,
             scraper,
-            min_sources=3,
+            min_sources=None if scrape_all else 3,
+            max_concurrent=16 if scrape_all else 5,
             scrape_options=scrape_options,
             source_registry=source_registry,
             on_artifact=on_artifact,
         )
-    return _discovery_result(
+    result = _discovery_result(
         search_results=all_search_results,
         target_urls=target_urls,
         artifacts=artifacts,
@@ -616,6 +669,19 @@ async def _run_multi_query_discover_and_scrape(
         reusable_keys=reusable_keys,
         pass_number=pass_number,
     )
+    if scrape_all:
+        return _record_scrape_all_outcomes(
+            result,
+            eligible_urls,
+            attempted_urls
+            if streamed_acquisition
+            else [
+                url
+                for url in target_urls
+                if normalize_source_url(url) not in reusable_keys
+            ],
+        )
+    return result
 
 
 async def _run_research_discover_and_scrape(
@@ -630,6 +696,7 @@ async def _run_research_discover_and_scrape(
     pass_number: int | None = None,
     on_artifact: ArtifactCallback | None = None,
     on_search_results: SearchCallback | None = None,
+    scrape_all: bool = False,
 ) -> dict:
     """Search → filter → scrape → context-building phase for research.
 
@@ -647,13 +714,18 @@ async def _run_research_discover_and_scrape(
     if not target_urls:
         logger.info("No URLs provided. Searching for: %s", prompt)
         search_results, _health = await searxng.search(
-            prompt, limit=10, raise_on_rate_limit=True
+            prompt, limit=None if scrape_all else 10, raise_on_rate_limit=True
         )
         await _notify_search(on_search_results, search_results)
         target_urls = _dedupe_urls([r["url"] for r in search_results if r.get("url")])
 
     # Score and rank URLs before scraping (F1: source pre-filtering)
-    target_urls = _dedupe_urls(_filter_and_rank_urls(target_urls, max_urls=20))
+    target_urls = (
+        _dedupe_urls(target_urls)
+        if scrape_all
+        else _dedupe_urls(_filter_and_rank_urls(target_urls, max_urls=20))
+    )
+    eligible_urls = list(target_urls)
     reusable_keys = {
         normalize_source_url(url)
         for url in target_urls
@@ -665,12 +737,13 @@ async def _run_research_discover_and_scrape(
     artifacts = await _scrape_with_fallback(
         target_urls,
         scraper,
-        min_sources=3,
+        min_sources=None if scrape_all else 3,
+        max_concurrent=16 if scrape_all else 5,
         scrape_options=scrape_options,
         source_registry=source_registry,
         on_artifact=on_artifact,
     )
-    return _discovery_result(
+    result = _discovery_result(
         search_results=search_results,
         target_urls=target_urls,
         artifacts=artifacts,
@@ -678,6 +751,17 @@ async def _run_research_discover_and_scrape(
         reusable_keys=reusable_keys,
         pass_number=pass_number,
     )
+    if scrape_all:
+        return _record_scrape_all_outcomes(
+            result,
+            eligible_urls,
+            [
+                url
+                for url in target_urls
+                if normalize_source_url(url) not in reusable_keys
+            ],
+        )
+    return result
 
 
 async def _scrape_answer_sources(
