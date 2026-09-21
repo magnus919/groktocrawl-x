@@ -358,7 +358,7 @@ async def _scrape_with_fallback(
         on_artifact=on_artifact,
     )
     logger.info(
-        "Scrape with fallback: %d docs from %d preferred URLs (min_sources=%d)",
+        "Scrape with fallback: %d docs from %d preferred URLs (min_sources=%s)",
         len(artifacts),
         len(preferred),
         min_sources,
