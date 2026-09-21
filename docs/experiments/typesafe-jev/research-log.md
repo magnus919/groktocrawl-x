@@ -21,9 +21,30 @@
 
 ## Open gates
 
-- Obtain explicit authorization for a TypeSafe credential and spend ceiling.
-- Complete the legal/data-retention/publication review described in issue #360.
-- Assign an independent labeler/adjudicator and prepare the private frozen corpus.
+- Confirm the account-specific legal/data-retention/publication terms before
+  sending any non-synthetic GroktoCrawl content.
+- Prepare a representative private frozen corpus and, if possible, obtain an
+  independent labeler/adjudicator; absent that, retain the quality caveat.
 - Freeze practical-effect, recall-loss, latency, cost, and provider-failure gates.
 - Execute and retain the private matched comparison.
 - Record adopt-one-use, revise, or reject/defer without inferring broader value.
+
+## 2026-09-21 — bounded live technical smoke
+
+- The owner supplied a TypeSafe key outside the public repository. Its local
+  permissions were restricted to owner-only before use; the key was not printed,
+  committed, or placed in a GroktoCrawl request body.
+- A private technical-smoke freeze captured the pinned code/model/corpus, exact
+  case order and digests, 12-call limit, two-second per-call timeout, two-way
+  concurrency, no-retry policy, synthetic-only input class, and $1 ceiling.
+- The exposed synthetic corpus was exercised once in shadow mode. Detailed
+  provider receipts and the best-effort disagreement review remain in an
+  owner-only local evidence directory outside Git. No Brave Search call or
+  user-visible GroktoCrawl behavior change was involved.
+- This was not the representative matched comparison required by #360. The
+  assistant performed the preliminary review at the owner's request; it is not
+  independent or blinded. No provider-specific performance figure is published
+  here, and no confidence threshold or adoption decision follows from the smoke.
+- The next study needs a revised route rubric, representative frozen cases,
+  explicit incumbent arm, and predeclared quality/recall/cost gates. Any quality
+  conclusion without a separate reviewer must be marked provisional.

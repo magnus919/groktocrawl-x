@@ -1,7 +1,7 @@
 # TypeSafe Jev evidence-router research brief
 
 - Tracking issue: [#360](https://github.com/magnus919/groktocrawl-x/issues/360)
-- Status: **preflight implementation complete; live measurement not started**
+- Status: **live technical smoke complete; matched product-value measurement not started**
 - Scope: GroktoCrawl X experimental research path only
 - Decision owner: Magnus Hedemark
 
@@ -56,9 +56,11 @@ provider-independent operation.
 
 The code supplies a strict client contract, frozen questions, content-free
 receipts, deterministic provider fixtures, absent-key behavior, and an exposed
-synthetic calibration corpus. This is readiness evidence only. With no
-`TYPESAFE_API_KEY` available in the isolated checkout, no live provider result or
-product-value claim exists yet.
+synthetic calibration corpus. An owner-authorized, bounded live technical smoke
+has since exercised that exposed corpus. Its detailed provider results are kept
+private pending publication review. The smoke establishes transport readiness
+only; no matched product-value result, calibrated threshold, or adoption decision
+exists yet.
 
 ## Provider-fact snapshot
 
