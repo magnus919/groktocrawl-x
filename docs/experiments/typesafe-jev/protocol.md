@@ -1,6 +1,7 @@
 # TypeSafe Jev shadow evidence-router protocol
 
-Status: **bounded live technical smoke completed; matched comparison not frozen**
+Status: **matched synthetic comparison frozen and stopped at the operational
+gate before validation; see [outcome](outcome.md)**
 
 ## Arms
 
@@ -41,8 +42,9 @@ held out and cannot establish product value. A private technical-smoke freeze
 was recorded before using them with a credential; the provider-specific readout
 remains outside the public repository. Before matched product-value measurement,
 prepare a separate private manifest with immutable case hashes and reviewed
-labels, including realistic GroktoCrawl passages that the provider has not
-influenced.
+labels. A later synthetic scenario corpus was frozen for a matched comparison,
+but that run stopped before validation. Real GroktoCrawl passages were not sent
+because account-specific data handling was not established.
 
 ## Required private freeze
 
@@ -108,6 +110,6 @@ reranking or citation checking. A negative result is retained.
 
 ## Architecture disposition
 
-No new ADR is proposed at preflight. The code is a bounded experimental adapter,
-not an architecture selection. A follow-on ADR is required only if measured
-evidence supports adopting a named Jev role.
+No new ADR is proposed. The code is a bounded experimental adapter, not an
+architecture selection. The frozen run did not support adoption; see the
+[no-ship outcome](outcome.md).
