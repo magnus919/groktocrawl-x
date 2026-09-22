@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **awaiting a new frozen baseline; former checkpoint 0 retained as evidence**
+Status: **current frozen window active; checkpoint 0 passed, checkpoints 1 and 2 pending**
 
 ## Question and decision
 
@@ -14,10 +14,12 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Former window: `2026-09-20T05:16:52.26916171Z` to
-  `2026-09-21T17:45:02.472507659Z` (candidate agent runtime changed).
-- New window and earliest completion: **not set** until a new exact runtime and
-  configuration baseline passes checkpoint 0.
+- Current window began at `2026-09-22T19:16:26.093854409Z`, after the
+  candidate agent was restored to the frozen runtime and model configuration.
+- Checkpoint 0 passed at `2026-09-22T19:20:21.394803Z` with 12/12 declared
+  operations. Checkpoint 1 is eligible at or after
+  `2026-09-25T19:16:26.093854409Z`; checkpoint 2 and the final decision are
+  eligible at or after `2026-09-29T19:16:26.093854409Z`.
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -98,8 +100,18 @@ Semantic Scholar key wiring on `2026-09-22T00:08:23.276489269Z`; a targeted
 keyed search returned five results with engine status `ok`. Both changes are
 outside the former frozen boundary. The earlier 12 operations remain evidence
 but count as zero toward the next window. Do not run the previously scheduled
-September 23 or September 27 gates. Establish a new exact baseline, run a new
-checkpoint 0, and calculate fresh 72-hour and seven-day gates from its start.
+September 23 or September 27 gates. The next September 22 window passed
+[checkpoint 0](evidence/replacement-rehearsal/2026-09-22-current-main-checkpoint-0/README.md)
+but ended before checkpoint 1 when a separate model comparison recreated the
+candidate agent with an older image and model alias `free`. Its 12 operations
+remain historical evidence only. The candidate was restored to the frozen
+current-main revision and `general` alias at
+`2026-09-22T19:16:26.093854409Z`. A first checkpoint attempt received HTTP
+502 as the shared model gateway restarted; its failure is retained. The
+unchanged candidate passed the protocol's single retry with all 12 declared
+operations at `2026-09-22T19:20:21.394803Z`. The
+[current checkpoint packet](evidence/replacement-rehearsal/2026-09-22-free-model-restart-checkpoint-0/README.md)
+contains both attempt outcomes.
 
 ## Observations
 

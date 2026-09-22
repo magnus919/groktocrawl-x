@@ -5,7 +5,7 @@
 - Architecture decider: Magnus Hedemark (`magnus919`)
 - Decision issue: [#312](https://github.com/magnus919/groktocrawl-x/issues/312)
 - Current candidate revision: `46a528228b1365189cdd38d0bcdb12109a8dc763`
-- Earliest decision date: **2026-09-29T16:47:25.742584Z**, conditional on unchanged configuration and all remaining gates
+- Earliest decision date: **2026-09-29T19:16:26.093854409Z**, conditional on unchanged configuration and all remaining gates
 
 **This experimental fork does not replace mainline GroktoCrawl by itself.** A
 successful W9 decision can adopt the candidate for continued use in this fork.
@@ -26,10 +26,14 @@ similarity diagnostics, crawl accounting, and cross-client barrier errors. A
 bounded relevance study then retained raw cosine retrieval and rejected two
 more complex variants. The former September 20 window passed checkpoint 0 but ended after an agent
 replacement; later search configuration also changed. Its dates and counts do
-not count for the adoption decision. A clean current-main candidate with the
-durable 14-CPU semantic allocation passed [new checkpoint 0](evidence/replacement-rehearsal/2026-09-22-current-main-checkpoint-0/README.md)
-on September 22. The current window has 12/30 operations and 1/3 checkpoints.
-The 72-hour and seven-day gates remain ahead.
+not count for the adoption decision. The September 22 current-main window also
+ended before checkpoint 1 when a separate model test recreated the candidate
+agent with an older image and the `free` alias. The restored current-main
+candidate with the durable 14-CPU semantic allocation passed a
+[fresh checkpoint 0](evidence/replacement-rehearsal/2026-09-22-free-model-restart-checkpoint-0/README.md)
+after one retained transient gateway failure and the protocol's single retry.
+The current window has 12/30 operations and 1/3 checkpoints. The 72-hour and
+seven-day gates remain ahead.
 
 ## Requirement-by-requirement matrix
 
@@ -42,9 +46,9 @@ The 72-hour and seven-day gates remain ahead.
 | HTTP, SSE, CLI, and MCP expose one coherent retained artifact | Passed | [Client protocol](research-client-protocol.md), [conformance matrix](client-protocol-conformance.md), [recovered-journey PR #251](https://github.com/magnus919/groktocrawl-x/pull/251) | Confirm cross-client equality again at each remaining pilot checkpoint. |
 | PostgreSQL can be the durable authority and pgvector can serve semantic search | Passed for the experimental deployment | [Storage evaluation](storage/pgvector-qdrant-evaluation.md), [application cutover packet](evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Keep Qdrant available until the operational rollback window passes; removal is separate work. |
 | Migration to the candidate and rollback to the incumbent are rehearsed | Passed | [Migration and rollback packet](evidence/replacement-rehearsal/2026-09-11-migration-rollback/README.md) | Preserve the tested rollback path through the final decision. |
-| Candidate operates over the required real-time window | In progress: new current-main checkpoint 0 passed 12/12 operations; current-window credit is 12 of at least 30 operations and 1 of 3 checkpoints | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [current checkpoint](evidence/replacement-rehearsal/2026-09-22-current-main-checkpoint-0/README.md) | Run checkpoint 1 no earlier than September 25 and checkpoint 2 no earlier than September 29. Require unchanged configuration, at least 30 successful representative operations, and all pass rules. |
-| Resource use fits ordinary operation on the deployment host | Provisional pass at bounded scale, including the 14-CPU semantic configuration | [Current checkpoint](evidence/replacement-rehearsal/2026-09-22-current-main-checkpoint-0/README.md), [compatibility resource summary](evidence/replacement-rehearsal/2026-09-11-compatibility/resource-summary.json), [pilot protocol limits](w9-operational-pilot-protocol.md#limits) | Compare all three checkpoint snapshots and report any repeated material regression. Do not claim production capacity. |
-| Operator burden is acceptable | Revised after a real failure and two setup-only dependency failures | [Retained restart failure and correction](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md), [current checkpoint and setup record](evidence/replacement-rehearsal/2026-09-22-current-main-checkpoint-0/README.md), [operator runbook](../runbooks/experimental-replacement-candidate.md) | Confirm the corrected guarded runner works at both remaining checkpoints without manual reconstruction. Keep persistent private-file placement in the runbook. |
+| Candidate operates over the required real-time window | In progress: restored current-main checkpoint 0 passed 12/12 operations; current-window credit is 12 of at least 30 operations and 1 of 3 checkpoints | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [current checkpoint](evidence/replacement-rehearsal/2026-09-22-free-model-restart-checkpoint-0/README.md) | Run checkpoint 1 no earlier than September 25 at 19:16 UTC and checkpoint 2 no earlier than September 29 at 19:16 UTC. Require unchanged configuration, at least 30 successful representative operations, and all pass rules. |
+| Resource use fits ordinary operation on the deployment host | Provisional pass at bounded scale, including the 14-CPU semantic configuration | [Current checkpoint](evidence/replacement-rehearsal/2026-09-22-free-model-restart-checkpoint-0/README.md), [compatibility resource summary](evidence/replacement-rehearsal/2026-09-11-compatibility/resource-summary.json), [pilot protocol limits](w9-operational-pilot-protocol.md#limits) | Compare all three checkpoint snapshots and report any repeated material regression. Do not claim production capacity. |
+| Operator burden is acceptable | Revised after a real failure, two setup-only dependency failures, and one shared model-gateway restart during a checkpoint attempt | [Retained restart failure and correction](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md), [current checkpoint and transient failure](evidence/replacement-rehearsal/2026-09-22-free-model-restart-checkpoint-0/README.md), [operator runbook](../runbooks/experimental-replacement-candidate.md) | Confirm the corrected guarded runner works at both remaining checkpoints without manual reconstruction. Keep persistent private-file placement in the runbook. |
 | Limits and residual risks are explicit | Passed for the preflight | [Pilot limits](w9-operational-pilot-protocol.md#limits), this report | Carry the limits into the final recommendation and create follow-up issues for any newly observed gap. |
 
 ## Architecture decisions
