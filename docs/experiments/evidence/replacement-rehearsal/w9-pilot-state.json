@@ -1,8 +1,8 @@
 {
-  "candidate_revision": "070b9e9e1a6b94c079b69ddd758dbc62223ae39d",
-  "completed_checkpoints": 1,
-  "earliest_completion_at": "2026-09-27T05:16:52.26916171Z",
-  "next_checkpoint_not_before": "2026-09-23T05:16:52.26916171Z",
+  "candidate_revision": null,
+  "completed_checkpoints": 0,
+  "earliest_completion_at": null,
+  "next_checkpoint_not_before": null,
   "notes": [
     "The original pilot window failed after a host restart because volatile private-file bind sources prevented container recreation.",
     "The outage remains failed operational evidence; the clock and successful-request count restarted.",
@@ -26,7 +26,9 @@
     "The bounded relevance experiment rejected cross-encoder reranking and clean-v1 representation changes; raw cosine retrieval passed the labeled screen.",
     "The semantic CPU quota became deployment configuration rather than a one-off container setting, restarting the operational window.",
     "Current-runtime checkpoint 0 passed all 12 declared operations at 2026-09-20T05:23:26Z.",
-    "The first current-runtime runner invocation stopped before product traffic because host Python lacked httpx; the unchanged runner passed through an isolated dependency environment."
+    "The first current-runtime runner invocation stopped before product traffic because host Python lacked httpx; the unchanged runner passed through an isolated dependency environment.",
+    "The September 20 window ended when the candidate agent image changed on September 21; its 12 passed operations remain retained evidence, not current-window credit.",
+    "Candidate SlopSearX was recreated with Semantic Scholar key wiring on September 22; the keyed engine returned five results with status ok. A new frozen baseline and checkpoint 0 are required before timing gates resume."
   ],
   "previous_windows": [
     {
@@ -76,14 +78,20 @@
       "outcome": "deployment_changed_to_make_semantic_cpu_quota_durable",
       "started_at": "2026-09-20T03:50:12.128796138Z",
       "successful_requests": 3
+    },
+    {
+      "ended_at": "2026-09-21T17:45:02.472507659Z",
+      "outcome": "candidate_agent_runtime_replaced_before_due_checkpoint",
+      "started_at": "2026-09-20T05:16:52.26916171Z",
+      "successful_requests": 12
     }
   ],
   "required_checkpoints": 3,
   "required_elapsed_days": 7,
   "required_successful_requests": 30,
-  "runtime_revision": "070b9e9e1a6b94c079b69ddd758dbc62223ae39d",
+  "runtime_revision": null,
   "schema_version": "w9-operational-pilot-state/2",
-  "started_at": "2026-09-20T05:16:52.26916171Z",
-  "status": "in_progress",
-  "successful_requests": 12
+  "started_at": null,
+  "status": "awaiting_new_baseline",
+  "successful_requests": 0
 }

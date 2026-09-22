@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **final real-client pilot active; checkpoint 0 passed**
+Status: **awaiting a new frozen baseline; former checkpoint 0 retained as evidence**
 
 ## Question and decision
 
@@ -14,8 +14,10 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Restarted: `2026-09-20T05:16:52.26916171Z`
-- Earliest completion: `2026-09-27T05:16:52.26916171Z`
+- Former window: `2026-09-20T05:16:52.26916171Z` to
+  `2026-09-21T17:45:02.472507659Z` (candidate agent runtime changed).
+- New window and earliest completion: **not set** until a new exact runtime and
+  configuration baseline passes checkpoint 0.
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -89,6 +91,15 @@ raw cosine retrieval passed its labeled screen. Finally, making the proven
 the deployment boundary and restarted the window. The current window began at
 `2026-09-20T05:16:52.26916171Z`. Its [checkpoint 0](evidence/replacement-rehearsal/2026-09-20-current-runtime-checkpoint-0/README.md)
 passed all 12 declared operations at `2026-09-20T05:23:26.651758Z`.
+
+The candidate agent image changed on `2026-09-21T17:45:02.472507659Z`, ending
+that window before checkpoint 1. Candidate SlopSearX was then recreated with
+Semantic Scholar key wiring on `2026-09-22T00:08:23.276489269Z`; a targeted
+keyed search returned five results with engine status `ok`. Both changes are
+outside the former frozen boundary. The earlier 12 operations remain evidence
+but count as zero toward the next window. Do not run the previously scheduled
+September 23 or September 27 gates. Establish a new exact baseline, run a new
+checkpoint 0, and calculate fresh 72-hour and seven-day gates from its start.
 
 ## Observations
 
