@@ -50,6 +50,7 @@ services:
     restart: unless-stopped
     environment:
       ENGINE_BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      ENGINE_SEMANTICSCHOLAR_API_KEY: ${ENGINE_SEMANTICSCHOLAR_API_KEY:-}
       VALKEY_URL: redis://candidate-valkey:6379/0
     depends_on:
       candidate-valkey:
