@@ -159,13 +159,20 @@ runs the compatibility and cross-client research journeys, captures a bounded
 resource snapshot, and publishes the packet only after every step succeeds.
 
 ```sh
-UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run \
+UV_CACHE_DIR=/tmp/groktocrawl-x-uv-cache uv run --no-project \
+  --with httpx --with requests python \
   scripts/run_w9_pilot_checkpoint.py \
   --checkpoint 0 \
   --env-file "$CANDIDATE_ENV" \
   --compose-file "$CANDIDATE_COMPOSE" \
   --output-dir /tmp/w9-checkpoint-0
 ```
+
+When the deployed candidate uses an override, pass each Compose file in
+deployment order with another `--compose-file` flag. The runner and its
+research verifier then inspect the effective stack and hash all supplied
+Compose files. Set `CANDIDATE_IMAGE_TAG` in the runner environment to the
+deployed revision when the private env file still names an older tag.
 
 After a passed restart checkpoint, use `--checkpoint 1` and then
 `--checkpoint 2`, each with a new output directory. A

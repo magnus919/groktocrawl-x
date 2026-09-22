@@ -58,9 +58,7 @@ def test_restart_checkpoint_uses_started_at_gate(tmp_path: Path) -> None:
     current.checkpoint = 0
     current.state_file = state(tmp_path / "restart-state.json", completed=0)
     with pytest.raises(RuntimeError, match="cannot count before"):
-        checkpoint.execute(
-            current, now=datetime(2026, 9, 19, 13, 42, 49, tzinfo=UTC)
-        )
+        checkpoint.execute(current, now=datetime(2026, 9, 19, 13, 42, 49, tzinfo=UTC))
 
 
 def test_resolves_effective_key_and_publishes_atomically(
@@ -69,6 +67,9 @@ def test_resolves_effective_key_and_publishes_atomically(
     current = args(tmp_path)
     current.env_file.write_text('CANDIDATE_API_KEY="quoted-value"\n')
     current.compose_file.write_text("services: {}\n")
+    override = tmp_path / "pilot.override.yml"
+    override.write_text("services: {}\n")
+    current.compose_file = [current.compose_file, override]
     calls: list[tuple[list[str], dict[str, str] | None]] = []
 
     def fake_run(command: list[str], *, env=None) -> str:
@@ -97,6 +98,7 @@ def test_resolves_effective_key_and_publishes_atomically(
     )
     assert output == current.output_dir
     assert (output / "checkpoint.json").exists()
+    assert calls[0][0][-2:] == ["-c", "import httpx, requests"]
     child_calls = [
         item
         for item in calls
@@ -105,3 +107,13 @@ def test_resolves_effective_key_and_publishes_atomically(
     assert child_calls[0][1]["CANDIDATE_API_KEY"] == "effective-value"
     assert child_calls[0][1]["GROKTOCRAWL_API_KEY"] == "effective-value"
     assert "effective-value" not in " ".join(child_calls[0][0])
+    compose_calls = [
+        command for command, _ in calls if command[:2] == ["docker", "compose"]
+    ]
+    assert all(command.count("-f") == 2 for command in compose_calls)
+    verify_calls = [
+        command
+        for command, _ in calls
+        if "scripts/verify_experimental_candidate.py" in command
+    ]
+    assert verify_calls[0].count("--compose-file") == 2
