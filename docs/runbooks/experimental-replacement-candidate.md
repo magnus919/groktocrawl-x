@@ -187,6 +187,24 @@ record the new exact runtime and configuration baseline plus its start time;
 the runner intentionally rejects a state with no start time. Prior successful
 requests remain historical evidence, not credit toward the new window.
 
+After checkpoint 2 and the tracked-state update, verify the entire frozen
+window before writing or accepting the replacement decision:
+
+```sh
+python scripts/verify_w9_closeout.py \
+  --checkpoint-dir docs/experiments/evidence/replacement-rehearsal/<checkpoint-0> \
+  --checkpoint-dir docs/experiments/evidence/replacement-rehearsal/<checkpoint-1> \
+  --checkpoint-dir docs/experiments/evidence/replacement-rehearsal/<checkpoint-2> \
+  --output docs/experiments/evidence/replacement-rehearsal/w9-closeout-verification.json
+```
+
+The verifier fails closed unless all packets belong to the one tracked
+revision, their receipt digests match, the `general` model and completed
+research journey were observed each time, the 72-hour and seven-day gates
+elapsed, all three checkpoint numbers are present, and the packet total proves
+at least 30 successful operations. A failing report is retained evidence for a
+revise or reject decision; it must not be rewritten into a passing state.
+
 ## Stop without destroying evidence
 
 ```sh
