@@ -1,8 +1,8 @@
 {
   "candidate_revision": "46a528228b1365189cdd38d0bcdb12109a8dc763",
   "completed_checkpoints": 1,
-  "earliest_completion_at": "2026-09-29T16:47:25.742584Z",
-  "next_checkpoint_not_before": "2026-09-25T16:47:25.742584Z",
+  "earliest_completion_at": "2026-09-29T19:16:26.093854409Z",
+  "next_checkpoint_not_before": "2026-09-25T19:16:26.093854409Z",
   "notes": [
     "The original pilot window failed after a host restart because volatile private-file bind sources prevented container recreation.",
     "The outage remains failed operational evidence; the clock and successful-request count restarted.",
@@ -31,7 +31,10 @@
     "Candidate SlopSearX was recreated with Semantic Scholar key wiring on September 22; the keyed engine returned five results with status ok. A new frozen baseline and checkpoint 0 are required before timing gates resume.",
     "A clean current-main candidate replaced the temporary Jev agent override and recreated the stack with the pinned SlopSearX image; all eleven services and public health were healthy before this new window started.",
     "Two new-baseline checkpoint attempts stopped at the CLI fixture scrape because the isolated runner environment had httpx but lacked requests; host Python passed the diagnostic while the uv environment did not. Both failed packets are retained as setup evidence, and the corrected dependency preflight precedes product traffic.",
-    "The corrected current-main checkpoint 0 passed all 12 declared operations at 2026-09-22T16:49:57.651610Z; the current window has 12/30 successful operations and 1/3 checkpoints."
+    "The corrected current-main checkpoint 0 passed all 12 declared operations at 2026-09-22T16:49:57.651610Z; the current window has 12/30 successful operations and 1/3 checkpoints.",
+    "The September 22 window ended before checkpoint 1 when a separate free-model comparison recreated the candidate agent with an older image and model alias free. Its checkpoint-0 operations remain historical evidence only.",
+    "The candidate agent was restored to the frozen current-main image and general model at 2026-09-22T19:16:26.093854409Z.",
+    "The first new-window checkpoint attempt reached grounded answer and received HTTP 502 while the shared model gateway restarted; the failed receipt is retained without credit. The protocol's single retry passed all 12 declared operations at 2026-09-22T19:20:21.394803Z, giving the current window 12/30 successful operations and 1/3 checkpoints."
   ],
   "previous_windows": [
     {
@@ -87,6 +90,12 @@
       "outcome": "candidate_agent_runtime_replaced_before_due_checkpoint",
       "started_at": "2026-09-20T05:16:52.26916171Z",
       "successful_requests": 12
+    },
+    {
+      "started_at": "2026-09-22T16:47:25.742584Z",
+      "ended_at": "2026-09-22T18:53:27.962311981Z",
+      "outcome": "candidate_agent_recreated_for_separate_free_model_test",
+      "successful_requests": 12
     }
   ],
   "required_checkpoints": 3,
@@ -94,7 +103,7 @@
   "required_successful_requests": 30,
   "runtime_revision": "46a528228b1365189cdd38d0bcdb12109a8dc763",
   "schema_version": "w9-operational-pilot-state/2",
-  "started_at": "2026-09-22T16:47:25.742584Z",
+  "started_at": "2026-09-22T19:16:26.093854409Z",
   "status": "in_progress",
   "successful_requests": 12
 }
