@@ -174,6 +174,12 @@ suffix. Do not rename it into a successful packet or advance the tracked pilot
 state. After success, review the secret-free receipts, copy them into the W9
 evidence directory, update `w9-pilot-state.json`, and commit them together.
 
+If a candidate image or configuration changes, end the old window and clear
+its active timing gates in the tracked state. Before rerunning checkpoint 0,
+record the new exact runtime and configuration baseline plus its start time;
+the runner intentionally rejects a state with no start time. Prior successful
+requests remain historical evidence, not credit toward the new window.
+
 ## Stop without destroying evidence
 
 ```sh

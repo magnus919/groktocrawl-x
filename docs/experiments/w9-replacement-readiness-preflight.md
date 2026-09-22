@@ -4,8 +4,8 @@
 - Candidate repository: [`magnus919/groktocrawl-x`](https://github.com/magnus919/groktocrawl-x)
 - Architecture decider: Magnus Hedemark (`magnus919`)
 - Decision issue: [#312](https://github.com/magnus919/groktocrawl-x/issues/312)
-- Current candidate revision: `070b9e9e1a6b94c079b69ddd758dbc62223ae39d`
-- Earliest decision date: `2026-09-27T05:16:52.26916171Z`
+- Current candidate revision: **not yet frozen for a new pilot window**
+- Earliest decision date: **not set** until a new checkpoint 0 passes
 
 **This experimental fork does not replace mainline GroktoCrawl by itself.** A
 successful W9 decision can adopt the candidate for continued use in this fork.
@@ -25,10 +25,11 @@ the evidence record. Independent agent testing drove repairs to model readiness,
 similarity diagnostics, crawl accounting, and cross-client barrier errors. A
 bounded relevance study then retained raw cosine retrieval and rejected two
 more complex variants. The current deployment makes its validated 14-CPU
-semantic allocation durable and started a new observation window at
-`2026-09-20T05:16:52.26916171Z`. Checkpoint 0 passed all 12 declared operations.
-Checkpoint 1 cannot count before `2026-09-23T05:16:52.26916171Z`; the final
-checkpoint and decision cannot count before `2026-09-27T05:16:52.26916171Z`.
+semantic allocation durable and started an observation window at
+`2026-09-20T05:16:52.26916171Z`. Checkpoint 0 passed all 12 declared operations,
+but a candidate agent replacement ended that window on September 21. A later
+SlopSearX key configuration change also precedes the next baseline. The former
+checkpoint dates and counts cannot be used for the adoption decision.
 
 ## Requirement-by-requirement matrix
 
@@ -41,7 +42,7 @@ checkpoint and decision cannot count before `2026-09-27T05:16:52.26916171Z`.
 | HTTP, SSE, CLI, and MCP expose one coherent retained artifact | Passed | [Client protocol](research-client-protocol.md), [conformance matrix](client-protocol-conformance.md), [recovered-journey PR #251](https://github.com/magnus919/groktocrawl-x/pull/251) | Confirm cross-client equality again at each remaining pilot checkpoint. |
 | PostgreSQL can be the durable authority and pgvector can serve semantic search | Passed for the experimental deployment | [Storage evaluation](storage/pgvector-qdrant-evaluation.md), [application cutover packet](evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Keep Qdrant available until the operational rollback window passes; removal is separate work. |
 | Migration to the candidate and rollback to the incumbent are rehearsed | Passed | [Migration and rollback packet](evidence/replacement-rehearsal/2026-09-11-migration-rollback/README.md) | Preserve the tested rollback path through the final decision. |
-| Candidate operates over the required real-time window | In progress: current-runtime checkpoint 0 passed; 12 of at least 30 operations passed | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [current checkpoint](evidence/replacement-rehearsal/2026-09-20-current-runtime-checkpoint-0/README.md), [retained prior windows](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md) | Run checkpoint 1 at or after `2026-09-23T05:16:52.26916171Z` and checkpoint 2 at or after `2026-09-27T05:16:52.26916171Z`. Require at least 30 successful representative operations and all pass rules. |
+| Candidate operates over the required real-time window | Awaiting new baseline: the former checkpoint 0 passed, but its window ended before checkpoint 1; current-window credit is 0 of at least 30 operations | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [former checkpoint](evidence/replacement-rehearsal/2026-09-20-current-runtime-checkpoint-0/README.md) | Freeze the current runtime/configuration, pass a new checkpoint 0, and calculate new 72-hour and seven-day gates. Require at least 30 successful representative operations and all pass rules. |
 | Resource use fits ordinary operation on the deployment host | Provisional pass at bounded scale, including the 14-CPU semantic configuration | [Current checkpoint](evidence/replacement-rehearsal/2026-09-20-current-runtime-checkpoint-0/README.md), [compatibility resource summary](evidence/replacement-rehearsal/2026-09-11-compatibility/resource-summary.json), [pilot protocol limits](w9-operational-pilot-protocol.md#limits) | Compare all three checkpoint snapshots and report any repeated material regression. Do not claim production capacity. |
 | Operator burden is acceptable | Revised after a real failure | [Retained restart failure and correction](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md), [operator runbook](../runbooks/experimental-replacement-candidate.md) | Confirm the guarded checkpoint runner works twice without manual reconstruction. Keep persistent private-file placement in the runbook. |
 | Limits and residual risks are explicit | Passed for the preflight | [Pilot limits](w9-operational-pilot-protocol.md#limits), this report | Carry the limits into the final recommendation and create follow-up issues for any newly observed gap. |
