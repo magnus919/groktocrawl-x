@@ -34,15 +34,17 @@ def run(command: list[str], *, env: dict[str, str] | None = None) -> str:
     return result.stdout.strip()
 
 
-def compose_command(env_file: Path, compose_file: Path) -> list[str]:
-    return [
-        "docker",
-        "compose",
-        "--env-file",
-        str(env_file),
-        "-f",
-        str(compose_file),
-    ]
+def compose_files(value: Path | list[Path] | None) -> list[Path]:
+    if value is None:
+        return [Path("compose.experimental-candidate.yml")]
+    return [value] if isinstance(value, Path) else value
+
+
+def compose_command(env_file: Path, files: list[Path]) -> list[str]:
+    command = ["docker", "compose", "--env-file", str(env_file)]
+    for file in files:
+        command.extend(("-f", str(file)))
+    return command
 
 
 def input_digest(path: Path) -> str:
@@ -101,13 +103,17 @@ def execute(args: argparse.Namespace, *, now: datetime | None = None) -> Path:
     if args.output_dir.exists():
         raise FileExistsError(f"checkpoint output already exists: {args.output_dir}")
 
-    compose = compose_command(args.env_file, args.compose_file)
+    files = compose_files(args.compose_file)
+    compose = compose_command(args.env_file, files)
     partial = args.output_dir.with_name(
         f".{args.output_dir.name}.partial-{uuid.uuid4().hex}"
     )
     partial.mkdir(parents=True)
     started_at = datetime.now(UTC)
     try:
+        # The compatibility journey invokes the repository CLI, which imports
+        # requests. Check both isolated-runner dependencies before product calls.
+        run([sys.executable, "-c", "import httpx, requests"])
         run(
             [
                 sys.executable,
@@ -150,25 +156,23 @@ def execute(args: argparse.Namespace, *, now: datetime | None = None) -> Path:
             env=child_env,
         )
         research = partial / "research.json"
-        run(
-            [
-                sys.executable,
-                "scripts/verify_experimental_candidate.py",
-                "--base-url",
-                args.base_url,
-                "--mcp-url",
-                args.mcp_url,
-                "--env-file",
-                str(args.env_file),
-                "--compose-file",
-                str(args.compose_file),
-                "--timeout",
-                str(args.timeout),
-                "--output",
-                str(research),
-            ],
-            env=child_env,
-        )
+        verify_command = [
+            sys.executable,
+            "scripts/verify_experimental_candidate.py",
+            "--base-url",
+            args.base_url,
+            "--mcp-url",
+            args.mcp_url,
+            "--env-file",
+            str(args.env_file),
+            "--timeout",
+            str(args.timeout),
+            "--output",
+            str(research),
+        ]
+        for file in files:
+            verify_command.extend(("--compose-file", str(file)))
+        run(verify_command, env=child_env)
         write_json(partial / "resources.json", resource_snapshot(compose))
         files = {
             path.name: input_digest(path)
@@ -221,9 +225,7 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     value.add_argument("--env-file", type=Path, required=True)
-    value.add_argument(
-        "--compose-file", type=Path, default=Path("compose.experimental-candidate.yml")
-    )
+    value.add_argument("--compose-file", type=Path, action="append")
     value.add_argument("--base-url", default="http://127.0.0.1:18080")
     value.add_argument("--mcp-url", default="http://127.0.0.1:18002")
     value.add_argument("--mcp-host-header", default="localhost:18002")

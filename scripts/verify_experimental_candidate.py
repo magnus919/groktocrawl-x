@@ -147,18 +147,21 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         if not str(runtime.get("model", "")).strip():
             raise RuntimeError("candidate runtime does not report its model alias")
 
-        capability_response = await client.get(
-            "/experimental/research/v1/capabilities"
-        )
+        capability_response = await client.get("/experimental/research/v1/capabilities")
         capability_response.raise_for_status()
         capabilities = capability_response.json()
-        if capabilities.get("implementation_stage") != "postgres_artifact_authority_adapter":
+        if (
+            capabilities.get("implementation_stage")
+            != "postgres_artifact_authority_adapter"
+        ):
             raise RuntimeError("PostgreSQL artifact authority is not active")
 
         admitted_response = await client.post(
             "/experimental/research/v1/runs",
             headers={**api_headers, "Idempotency-Key": f"candidate-{time.time_ns()}"},
-            json={"objective": "Verify the isolated replacement candidate artifact journey."},
+            json={
+                "objective": "Verify the isolated replacement candidate artifact journey."
+            },
         )
         admitted_response.raise_for_status()
         admitted = admitted_response.json()
@@ -206,7 +209,9 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         for layer, path in artifacts.items():
             artifact_response = await client.get(path)
             artifact_response.raise_for_status()
-            artifact_digests[layer] = hashlib.sha256(artifact_response.content).hexdigest()
+            artifact_digests[layer] = hashlib.sha256(
+                artifact_response.content
+            ).hexdigest()
 
         search_response = await client.post(
             "/v2/search",
@@ -390,16 +395,14 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
             or hashlib.sha256(decoded_mcp_summary).hexdigest()
             != artifact_digests["summary"]
         ):
-            raise RuntimeError("MCP research artifact journey did not reproduce HTTP state")
+            raise RuntimeError(
+                "MCP research artifact journey did not reproduce HTTP state"
+            )
 
-    compose = [
-        "docker",
-        "compose",
-        "--env-file",
-        args.env_file,
-        "-f",
-        args.compose_file,
-    ]
+    compose_files = args.compose_file or ["compose.experimental-candidate.yml"]
+    compose = ["docker", "compose", "--env-file", args.env_file]
+    for compose_file in compose_files:
+        compose.extend(("-f", compose_file))
     schema_version = _run(
         [
             *compose,
@@ -469,7 +472,10 @@ async def verify(args: argparse.Namespace) -> dict[str, Any]:
         "git_revision": expected_revision,
         "source": {
             "compose_sha256": hashlib.sha256(
-                Path(args.compose_file).read_bytes()
+                b"".join(
+                    len(content).to_bytes(8, "big") + content
+                    for content in (Path(file).read_bytes() for file in compose_files)
+                )
             ).hexdigest(),
             "uv_lock_sha256": hashlib.sha256(
                 (Path(__file__).parents[1] / "uv.lock").read_bytes()
@@ -518,7 +524,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--mcp-url", default="http://127.0.0.1:18002")
     value.add_argument("--api-key", default=os.environ.get("CANDIDATE_API_KEY", ""))
     value.add_argument("--env-file", required=True)
-    value.add_argument("--compose-file", default="compose.experimental-candidate.yml")
+    value.add_argument("--compose-file", action="append")
     value.add_argument("--timeout", type=float, default=300)
     value.add_argument("--output", required=True)
     return value
