@@ -70,7 +70,7 @@ Edit `$CANDIDATE_CONFIG/candidate.env`:
 - set `SEMANTIC_CPU_LIMIT` to the CPU capacity available for local embedding
   inference; the portable default is 2 cores.
 
-The checked-in sample selects LiteLLM's `general` model alias. Keep secrets in
+The checked-in sample selects LiteLLM's `free` model alias. Keep secrets in
 the private environment and credential files; never add them to a receipt or
 commit them. Validate the private files before invoking Compose:
 
@@ -199,7 +199,7 @@ python scripts/verify_w9_closeout.py \
 ```
 
 The verifier fails closed unless all packets belong to the one tracked
-revision, their receipt digests match, the `general` model and completed
+revision, their receipt digests match, the `free` model and completed
 research journey were observed each time, the 72-hour and seven-day gates
 elapsed, all three checkpoint numbers are present, and the packet total proves
 at least 30 successful operations. A failing report is retained evidence for a

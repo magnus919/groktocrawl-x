@@ -184,7 +184,7 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     value.add_argument("--checkpoint-dir", type=Path, action="append", required=True)
-    value.add_argument("--expected-model", default="general")
+    value.add_argument("--expected-model", default="free")
     value.add_argument(
         "--now", help="UTC-aware ISO timestamp; defaults to current time"
     )
