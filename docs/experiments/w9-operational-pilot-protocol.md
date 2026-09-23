@@ -14,12 +14,12 @@ mainline replacement or prove production scale.
 
 ## Window and minimum exposure
 
-- Current window began at `2026-09-22T19:16:26.093854409Z`, after the
-  candidate agent was restored to the frozen runtime and model configuration.
-- Checkpoint 0 passed at `2026-09-22T19:20:21.394803Z` with 12/12 declared
+- Current window began at `2026-09-23T00:09:25.966168523Z`, after the
+  experimental candidate was pinned to LiteLLM's `free` model alias.
+- Checkpoint 0 passed at `2026-09-23T00:12:34.352827Z` with 12/12 declared
   operations. Checkpoint 1 is eligible at or after
-  `2026-09-25T19:16:26.093854409Z`; checkpoint 2 and the final decision are
-  eligible at or after `2026-09-29T19:16:26.093854409Z`.
+  `2026-09-26T00:09:25.966168Z`; checkpoint 2 and the final decision are
+  eligible at or after `2026-09-30T00:09:25.966168Z`.
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
@@ -112,6 +112,17 @@ unchanged candidate passed the protocol's single retry with all 12 declared
 operations at `2026-09-22T19:20:21.394803Z`. The
 [current checkpoint packet](evidence/replacement-rehearsal/2026-09-22-free-model-restart-checkpoint-0/README.md)
 contains both attempt outcomes.
+
+The owner then selected LiteLLM's `free` alias for the experimental candidate
+only. The previous `general` window ended before checkpoint 1; its 12 operations
+are retained history and have zero credit in the new window. The agent image
+and runtime revision stayed at `46a528228b1365189cdd38d0bcdb12109a8dc763`.
+A first checkpoint attempt used a newer source checkout than the deployed
+revision and failed its source-revision guard after compatibility operations;
+this was a test setup error and earned no credit. The clean matching checkout
+passed [checkpoint 0](evidence/replacement-rehearsal/2026-09-23-free-model-checkpoint-0/README.md)
+with all 12 declared operations, including text and structured-output model
+readiness. Mainline and Hermes were not changed.
 
 ## Observations
 
