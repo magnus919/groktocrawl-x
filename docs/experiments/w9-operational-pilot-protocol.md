@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **current frozen window active; checkpoint 0 passed, checkpoints 1 and 2 pending**
+Status: **current frozen window active; checkpoints 0 and 1 passed, checkpoint 2 pending**
 
 ## Question and decision
 
@@ -16,9 +16,10 @@ mainline replacement or prove production scale.
 
 - Current window began at `2026-09-23T00:09:25.966168523Z`, after the
   experimental candidate was pinned to LiteLLM's `free` model alias.
-- Checkpoint 0 passed at `2026-09-23T00:12:34.352827Z` with 12/12 declared
-  operations. Checkpoint 1 is eligible at or after
-  `2026-09-26T00:09:25.966168Z`; checkpoint 2 and the final decision are
+- Checkpoint 0 passed at `2026-09-23T00:12:34.352827Z` and checkpoint 1
+  passed at `2026-09-26T19:38:03.623260Z`; each completed all 12 declared
+  operations on the frozen candidate. The current window has 24/30 successful
+  operations and 2/3 checkpoints. Checkpoint 2 and the final decision are
   eligible at or after `2026-09-30T00:09:25.966168Z`.
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.

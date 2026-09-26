@@ -1,126 +1,62 @@
 {
   "containers": [
     {
-      "BlockIO": "0B / 5MB",
-      "CPUPerc": "0.13%",
-      "Container": "53a4e29f6d81f46072905b8756c66225a832a4b3a1a4409a317851fc5c8634fd",
-      "ID": "53a4e29f6d81",
-      "MemPerc": "0.29%",
-      "MemUsage": "91.73MiB / 31.18GiB",
-      "Name": "groktocrawl-x-candidate-candidate-agent-1",
-      "NetIO": "2.13MB / 1.05MB",
-      "PIDs": "6"
+      "cpu_percent": "0.13%",
+      "memory_percent": "0.29%",
+      "service": "agent"
     },
     {
-      "BlockIO": "741MB / 244MB",
-      "CPUPerc": "0.13%",
-      "Container": "5960c15b39cea1d7135396f422a6af79e11f311f60b246c59b99f624628fb1c6",
-      "ID": "5960c15b39ce",
-      "MemPerc": "21.46%",
-      "MemUsage": "321.9MiB / 1.465GiB",
-      "Name": "groktocrawl-x-candidate-candidate-browser-1",
-      "NetIO": "46.9MB / 6.78MB",
-      "PIDs": "34"
+      "cpu_percent": "0.13%",
+      "memory_percent": "21.46%",
+      "service": "browser"
     },
     {
-      "BlockIO": "34.6MB / 1.84MB",
-      "CPUPerc": "0.18%",
-      "Container": "61252b1481c9366e5eb01c4e5611b03b05223adf7fed399976b8726a4bf046fe",
-      "ID": "61252b1481c9",
-      "MemPerc": "0.20%",
-      "MemUsage": "63.6MiB / 31.18GiB",
-      "Name": "groktocrawl-x-candidate-candidate-mcp-1",
-      "NetIO": "5.53MB / 5.93MB",
-      "PIDs": "2"
+      "cpu_percent": "0.18%",
+      "memory_percent": "0.20%",
+      "service": "mcp"
     },
     {
-      "BlockIO": "43.9MB / 1.82MB",
-      "CPUPerc": "0.12%",
-      "Container": "02a466b1ab5ea8a25945076c0de05cfda04cda5b30b91fd1dcbc323a125637a2",
-      "ID": "02a466b1ab5e",
-      "MemPerc": "2.35%",
-      "MemUsage": "48.06MiB / 2GiB",
-      "Name": "groktocrawl-x-candidate-candidate-parse-1",
-      "NetIO": "7.69kB / 126B",
-      "PIDs": "5"
+      "cpu_percent": "0.12%",
+      "memory_percent": "2.35%",
+      "service": "parse"
     },
     {
-      "BlockIO": "40.9MB / 1.84MB",
-      "CPUPerc": "0.12%",
-      "Container": "6779b70ca6b7375af3d4ce6fe3ca4d94d605a26aa1d3f1c83b2b0b97d342b4fd",
-      "ID": "6779b70ca6b7",
-      "MemPerc": "0.15%",
-      "MemUsage": "48.61MiB / 31.18GiB",
-      "Name": "groktocrawl-x-candidate-candidate-portal-1",
-      "NetIO": "3.39MB / 2.74MB",
-      "PIDs": "5"
+      "cpu_percent": "0.12%",
+      "memory_percent": "0.15%",
+      "service": "portal"
     },
     {
-      "BlockIO": "66.4MB / 22.5MB",
-      "CPUPerc": "0.01%",
-      "Container": "a5aee2a93e84aa149ae31d7a13573f2099832847117415dc290cdfe46ee5aa45",
-      "ID": "a5aee2a93e84",
-      "MemPerc": "1.91%",
-      "MemUsage": "39.13MiB / 2GiB",
-      "Name": "groktocrawl-x-candidate-candidate-postgres-1",
-      "NetIO": "2.45MB / 889kB",
-      "PIDs": "7"
+      "cpu_percent": "0.01%",
+      "memory_percent": "1.91%",
+      "service": "postgres"
     },
     {
-      "BlockIO": "119MB / 2.9MB",
-      "CPUPerc": "0.03%",
-      "Container": "787c900460710fc9cfd11f5eb4058e43e0a06b309d4aa86974b31db68b18e3f5",
-      "ID": "787c90046071",
-      "MemPerc": "1.15%",
-      "MemUsage": "23.51MiB / 2GiB",
-      "Name": "groktocrawl-x-candidate-candidate-qdrant-rollback-1",
-      "NetIO": "3.87MB / 2.23MB",
-      "PIDs": "17"
+      "cpu_percent": "0.03%",
+      "memory_percent": "1.15%",
+      "service": "qdrant-rollback"
     },
     {
-      "BlockIO": "754MB / 188MB",
-      "CPUPerc": "0.12%",
-      "Container": "c4d9cff6a80f71cc3f552482abb7b7f185f91f52a34488136b8c7d579ed549d9",
-      "ID": "c4d9cff6a80f",
-      "MemPerc": "14.56%",
-      "MemUsage": "364MiB / 2.441GiB",
-      "Name": "groktocrawl-x-candidate-candidate-scraper-1",
-      "NetIO": "59.5MB / 11.6MB",
-      "PIDs": "7"
+      "cpu_percent": "0.12%",
+      "memory_percent": "14.56%",
+      "service": "scraper"
     },
     {
-      "BlockIO": "1.1GB / 4.37MB",
-      "CPUPerc": "0.14%",
-      "Container": "fda69256f3a79bd03dd674ae5cd7ba226ca8bcb0ee7b1992dc735bac8970ae6f",
-      "ID": "fda69256f3a7",
-      "MemPerc": "40.13%",
-      "MemUsage": "1.605GiB / 4GiB",
-      "Name": "groktocrawl-x-candidate-candidate-semantic-1",
-      "NetIO": "2.83MB / 6.2MB",
-      "PIDs": "135"
+      "cpu_percent": "0.14%",
+      "memory_percent": "40.13%",
+      "service": "semantic"
     },
     {
-      "BlockIO": "45.1MB / 0B",
-      "CPUPerc": "7.02%",
-      "Container": "4a058f0d368517230aa0ab359685d882460846a655b32373a68eb0105d80ec3a",
-      "ID": "4a058f0d3685",
-      "MemPerc": "8.87%",
-      "MemUsage": "90.8MiB / 1GiB",
-      "Name": "groktocrawl-x-candidate-candidate-slopsearx-1",
-      "NetIO": "16.7MB / 76MB",
-      "PIDs": "5"
+      "cpu_percent": "7.02%",
+      "memory_percent": "8.87%",
+      "service": "slopsearx"
     },
     {
-      "BlockIO": "56.3MB / 33.4MB",
-      "CPUPerc": "0.23%",
-      "Container": "1c2ae80702bc94f48995aeef639382841574b8070f24d19ad0558d098103a1a7",
-      "ID": "1c2ae80702bc",
-      "MemPerc": "1.47%",
-      "MemUsage": "7.535MiB / 512MiB",
-      "Name": "groktocrawl-x-candidate-candidate-valkey-1",
-      "NetIO": "10.6MB / 8.26MB",
-      "PIDs": "7"
+      "cpu_percent": "0.23%",
+      "memory_percent": "1.47%",
+      "service": "valkey"
     }
   ],
-  "observed_at": "2026-09-23T00:12:34.351674+00:00"
+  "observed_at": "2026-09-23T00:12:34.351674+00:00",
+  "schema_version": "w9-resource-snapshot/1",
+  "source_receipt_sha256": "6f9abe3548cbda27f0cbd6c73ee306d9f722f9f5d44e202202833d47937aca11"
 }
