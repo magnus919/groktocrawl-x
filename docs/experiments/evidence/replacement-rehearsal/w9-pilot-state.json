@@ -1,6 +1,6 @@
 {
   "candidate_revision": "46a528228b1365189cdd38d0bcdb12109a8dc763",
-  "completed_checkpoints": 1,
+  "completed_checkpoints": 2,
   "earliest_completion_at": "2026-09-30T00:09:25.966168Z",
   "next_checkpoint_not_before": "2026-09-26T00:09:25.966168Z",
   "notes": [
@@ -31,12 +31,13 @@
     "Candidate SlopSearX was recreated with Semantic Scholar key wiring on September 22; the keyed engine returned five results with status ok. A new frozen baseline and checkpoint 0 are required before timing gates resume.",
     "A clean current-main candidate replaced the temporary Jev agent override and recreated the stack with the pinned SlopSearX image; all eleven services and public health were healthy before this new window started.",
     "Two new-baseline checkpoint attempts stopped at the CLI fixture scrape because the isolated runner environment had httpx but lacked requests; host Python passed the diagnostic while the uv environment did not. Both failed packets are retained as setup evidence, and the corrected dependency preflight precedes product traffic.",
-    "The corrected current-main checkpoint 0 passed all 12 declared operations at 2026-09-22T16:49:57.651610Z; the current window has 12/30 successful operations and 1/3 checkpoints.",
+    "The corrected current-main checkpoint 0 passed all 12 declared operations at 2026-09-22T16:49:57.651610Z; that historical window had 12/30 successful operations and 1/3 checkpoints at the time.",
     "The September 22 window ended before checkpoint 1 when a separate free-model comparison recreated the candidate agent with an older image and model alias free. Its checkpoint-0 operations remain historical evidence only.",
     "The candidate agent was restored to the frozen current-main image and general model at 2026-09-22T19:16:26.093854409Z.",
-    "The first new-window checkpoint attempt reached grounded answer and received HTTP 502 while the shared model gateway restarted; the failed receipt is retained without credit. The protocol's single retry passed all 12 declared operations at 2026-09-22T19:20:21.394803Z, giving the current window 12/30 successful operations and 1/3 checkpoints.",
+    "The first new-window checkpoint attempt reached grounded answer and received HTTP 502 while the shared model gateway restarted; the failed receipt is retained without credit. The protocol's single retry passed all 12 declared operations at 2026-09-22T19:20:21.394803Z, giving that historical window 12/30 successful operations and 1/3 checkpoints.",
     "The owner pinned experimental candidate inference to LiteLLM free; the prior general window ended and has zero credit toward the new frozen window.",
-    "Free-model checkpoint 0 passed 12/12 declared operations; text and structured model readiness both passed. A setup-only first attempt ran the verifier from the wrong source revision and earned no credit."
+    "Free-model checkpoint 0 passed 12/12 declared operations; text and structured model readiness both passed. A setup-only first attempt ran the verifier from the wrong source revision and earned no credit.",
+    "Free-model checkpoint 1 passed all 12 declared operations at 2026-09-26T19:38:03.623260Z from a clean checkout matching the deployed revision; text and structured-output readiness passed and the cross-client research completed."
   ],
   "previous_windows": [
     {
@@ -113,5 +114,5 @@
   "schema_version": "w9-operational-pilot-state/2",
   "started_at": "2026-09-23T00:09:25.966168523Z",
   "status": "in_progress",
-  "successful_requests": 12
+  "successful_requests": 24
 }

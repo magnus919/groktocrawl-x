@@ -178,8 +178,20 @@ After a passed restart checkpoint, use `--checkpoint 1` and then
 `--checkpoint 2`, each with a new output directory. A
 failure packet is retained beside the requested output path with a `.failed-*`
 suffix. Do not rename it into a successful packet or advance the tracked pilot
-state. After success, review the secret-free receipts, copy them into the W9
-evidence directory, update `w9-pilot-state.json`, and commit them together.
+state. Before publication, run the resource sanitizer from a current-main
+checkout against the successful output directory:
+
+```sh
+python scripts/sanitize_w9_resource_receipt.py /path/to/w9-checkpoint-output
+```
+
+It verifies the runner's original receipt digests, strips container IDs,
+container and image names, port mappings, host limits, and I/O counters, and
+updates the checkpoint digests. The public packet retains normalized healthy
+service labels plus CPU and memory percentages. Then review all receipts for
+private data, copy the sanitized packet into the W9 evidence directory, update
+`w9-pilot-state.json`, and commit them together. Never publish raw Compose
+details or Docker stats.
 
 If a candidate image or configuration changes, end the old window and clear
 its active timing gates in the tracked state. Before rerunning checkpoint 0,

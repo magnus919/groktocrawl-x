@@ -5,8 +5,8 @@
   "not_before": "2026-09-23T00:09:25.966168+00:00",
   "receipts": {
     "compatibility.json": "9aa416c522c6ac092cedc07838861d5a4511bd16709beb10b794855b696e0bb2",
-    "research.json": "f1d575870bf4cf046074061f3a8a1ba8f74a1d5015a3513a92d5735fb65f3fa6",
-    "resources.json": "6f9abe3548cbda27f0cbd6c73ee306d9f722f9f5d44e202202833d47937aca11"
+    "research.json": "5b5f3041ef4363c28fe0fa91ba9f415deadb1cef18e5402bf065facc6c7cd4c7",
+    "resources.json": "8fb24752fbca74ffbbef1767a60540c9bca5aba8f83dfcded05b5180ede38964"
   },
   "runtime_revision": "46a528228b1365189cdd38d0bcdb12109a8dc763",
   "schema_version": "w9-operational-checkpoint/1",

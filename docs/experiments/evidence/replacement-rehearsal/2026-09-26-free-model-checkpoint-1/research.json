@@ -76,12 +76,12 @@
   "model_provider": {
     "structured": {
       "http_class": "2xx",
-      "latency_ms": 2661.9,
+      "latency_ms": 1713.9,
       "status": "ready"
     },
     "text": {
       "http_class": "2xx",
-      "latency_ms": 5550.9,
+      "latency_ms": 2896.5,
       "status": "ready"
     }
   },
@@ -96,9 +96,9 @@
       "dossier": "515f04f874de36bf2c939a6c3b1738d75e58dcff93cafa470a26079829d08245",
       "summary": "fab8d81ed9f509675bd915115bbe7ccd66b0f745e608f5962e76fb4e4311fa91"
     },
-    "manifest_sha256": "1a3220833aa9d9d3d34f4e46b879a68f10d77d96ea21ff8c3cd38939b5fdc4cd",
-    "research_id": "8c5bb142-bf67-450f-97f4-8f1a4aa65b04",
-    "run_id": "54d5988e-d9d8-45f3-807f-3ea06cb4866c",
+    "manifest_sha256": "512d4d6ec9b05f2a982560e9022c6ba2ca813c0ef8797102e331545db2720c19",
+    "research_id": "75a7dede-b7d8-4b5a-b904-81dbb0fcef04",
+    "run_id": "71976ee9-5b6d-422e-90c3-2489afb96dfa",
     "sse_events": [
       "accepted",
       "progress",
@@ -125,27 +125,27 @@
     "checks": {
       "browser": {
         "detail": "Browser responded HTTP 404",
-        "latency_ms": 11.0,
+        "latency_ms": 14.4,
         "status": "ok"
       },
       "portal": {
         "detail": "Portal responded HTTP 200",
-        "latency_ms": 6.3,
+        "latency_ms": 10.7,
         "status": "ok"
       },
       "scraper": {
         "detail": "Scraper responded HTTP 404",
-        "latency_ms": 29.7,
+        "latency_ms": 18.2,
         "status": "ok"
       },
       "searxng": {
         "detail": "SearXNG health ok",
-        "latency_ms": 36.2,
+        "latency_ms": 24.6,
         "status": "ok"
       },
       "valkey": {
         "detail": "Valkey PING ok",
-        "latency_ms": 1.6,
+        "latency_ms": 1.5,
         "status": "ok"
       }
     },
@@ -159,6 +159,6 @@
     "compose_sha256": "e8e620d0f6eec0e3e29811786224451128a7e77e2e53fd76e53d2b58dbaa8a9a",
     "uv_lock_sha256": "4c383538479287eedaf4ffde5f2044f29972897a256e07f9b57fa3d1bc42648a"
   },
-  "source_receipt_sha256": "f1d575870bf4cf046074061f3a8a1ba8f74a1d5015a3513a92d5735fb65f3fa6",
-  "verified_at_unix": 1790122352
+  "source_receipt_sha256": "bdd4b899ed86f7d02b2004c1308da2c6c6732e3c2c7a27a008ffe2708d7c2208",
+  "verified_at_unix": 1790451481
 }
