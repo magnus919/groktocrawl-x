@@ -10,6 +10,7 @@ import logging
 import math
 import time
 from collections.abc import AsyncGenerator
+from enum import StrEnum
 from typing import Any
 
 import httpx
@@ -63,6 +64,16 @@ def _parse_retry_after(value: str | None) -> float | None:
     if not math.isfinite(seconds) or seconds < 0:
         return None
     return max(1.0, min(seconds, _MAX_RETRY_AFTER_SECONDS))
+
+
+class LLMReadiness(StrEnum):
+    """A bounded probe outcome, not a guarantee about the next generation."""
+
+    READY = "ready"
+    TIMED_OUT = "timed_out"
+    UNAVAILABLE = "unavailable"
+    RATE_LIMITED = "rate_limited"
+    REJECTED = "rejected"
 
 
 class LLMClient:
@@ -458,12 +469,12 @@ class LLMClient:
             )
             self._admission.release("llm", weight=llm_weight)
 
-    async def check_health(self) -> bool:
-        """Check if the LLM backend is reachable and responding.
+    async def probe_readiness(self) -> LLMReadiness:
+        """Probe once for at most five seconds; timeout leaves readiness unknown.
 
-        Sends a minimal request (max_tokens=1, stream=False) with a
-        short 5s timeout. Returns True if the backend responds with
-        HTTP 200, False otherwise. Never raises exceptions.
+        Cancellation propagates. A probe never retries or logs provider bodies,
+        credentials, or endpoint details. Actual generation retains its own
+        admission, timeout, and publication checks.
         """
         body = {
             "model": self.model,
@@ -475,23 +486,31 @@ class LLMClient:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                resp = await client.post(
-                    self._completion_url(),
-                    headers=headers,
-                    json=body,
-                )
-                if resp.status_code == 200:
-                    return True
-                logger.error(
-                    "LLM health check failed: HTTP %d — %s",
-                    resp.status_code,
-                    resp.text[:500],
-                )
-                return False
-        except Exception as e:
-            logger.error("LLM health check failed: %s", e)
-            return False
+            async with asyncio.timeout(5):
+                async with httpx.AsyncClient(timeout=5) as client:
+                    resp = await client.post(
+                        self._completion_url(), headers=headers, json=body
+                    )
+            if resp.status_code == 200:
+                outcome = LLMReadiness.READY
+            elif resp.status_code == 429:
+                outcome = LLMReadiness.RATE_LIMITED
+            elif resp.status_code >= 500:
+                outcome = LLMReadiness.UNAVAILABLE
+            else:
+                outcome = LLMReadiness.REJECTED
+        except httpx.ConnectTimeout:
+            outcome = LLMReadiness.UNAVAILABLE
+        except (TimeoutError, httpx.TimeoutException):
+            outcome = LLMReadiness.TIMED_OUT
+        except Exception:
+            outcome = LLMReadiness.UNAVAILABLE
+        logger.info("LLM readiness probe outcome=%s", outcome.value)
+        return outcome
+
+    async def check_health(self) -> bool:
+        """Preserve the conservative boolean probe for existing consumers."""
+        return await self.probe_readiness() == LLMReadiness.READY
 
     async def close(self) -> None:
         await self._client.aclose()

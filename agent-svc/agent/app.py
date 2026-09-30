@@ -339,6 +339,7 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status_code,
             content=ErrorResponse(error=detail, error_code=error_code).model_dump(),
+            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)

@@ -100,3 +100,5 @@ Qdrant ran out of memory. Restart with higher memory limit or reduce index size.
 - Grafana dashboard: `docs/grafana/semantic-svc-dashboard.json`
 
 - [Browser/scraper resource study and limits](../experiments/memory-soak/results.md) — bounded post-repair evidence and retained operational limits.
+
+- [Model readiness probe outcomes](model-readiness.md) — streaming preflight uncertainty and failure classifications.
