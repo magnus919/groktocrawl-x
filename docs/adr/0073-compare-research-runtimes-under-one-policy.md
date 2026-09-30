@@ -1,11 +1,12 @@
 # Compare Research Runtimes Under One Policy
 
-- Status: proposed
+- Status: accepted for bounded experimental use
 - Deciders: Magnus Hedemark
+- Accepted: 2026-09-30; direct owner approval of the bounded W9 recommendations
 - Date: 2026-09-04
 - Scope: experimental research D4 / W4; `magnus919/groktocrawl-x` only
 - Plan: issue [#11](https://github.com/magnus919/groktocrawl-x/issues/11)
-- Supersedes: none; runtime adoption remains a later decision
+- Supersedes: none; accepts the imperative default with optional advanced LangGraph use
 
 ## Context and Problem Statement
 
@@ -41,7 +42,7 @@ not a performance or recovery verdict for this repository.
 ## Decision Outcome
 
 The complete comparison establishes **B, the typed imperative controller, as the
-reference for the bounded current workflow** and recommends retaining **C,
+reference for the bounded current workflow** and retains **C,
 LangGraph, as an optional advanced research runtime**. Do not make LangGraph the
 sole controller or add it to the default production dependency set. Dynamic
 specialist fan-out, durable human interrupts, historical-checkpoint forks, and
@@ -128,8 +129,9 @@ runtimes that intentionally used identical scripted operations.
 | 0040, 0063, 0066 | Retain inherited session concurrency; runtime state does not take over session ownership |
 | 0048 | Extend telemetry with runtime/policy version and operation identity |
 
-No predecessor is superseded by this comparison draft. Adoption must record exact
-implementation scope and any successor links in a later decision.
+No predecessor is superseded. Acceptance extends the bounded experimental runtime
+choice: the typed imperative controller remains default, and advanced LangGraph
+workflows remain optional under the shared policy, ownership and publication contracts.
 
 ## Consequences
 
@@ -142,8 +144,7 @@ negative or inconclusive result is useful and must be retained.
 
 ## Confirmation
 
-Magnus owns the decision and must review this recommendation before the ADR status
-changes from proposed. The
+Magnus ratified the bounded recommendation on 2026-09-30. The
 W4 implementer owns CI conformance cases, with zero budget, identity, publication
 or cancellation violations. Missing cases/results block adoption. Archive commit,
 fixture/dependency versions, raw distributions, failed controls and exclusions in
@@ -165,9 +166,17 @@ value, extensibility, and recovery complexity rather than scheduler latency alon
 - [First paired measurement](../experiments/evidence/runtime-comparison/2026-09-08/)
 - [Repeated paired measurement](../experiments/evidence/runtime-comparison/2026-09-09/)
 
-## W9 disposition — 2026-09-30
+## W9 pre-approval disposition — 2026-09-30
 
 The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
 supports this record at its bounded experimental scope after the completed
-three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
-ratification; successful implementation evidence does not supply owner approval.
+three-checkpoint pilot. At that pre-approval checkpoint, status remained proposed
+pending Magnus Hedemark’s ratification; successful implementation evidence does not supply owner approval.
+
+## Owner ratification — 2026-09-30
+
+Magnus Hedemark approved the [bounded W9 recommendations](../experiments/w9-replacement-readiness-decision.md)
+in this project conversation: “I approve the bounded ADR recommendations. Please proceed.”
+This accepts the documented experimental scope only; the earlier pending note
+is retained as decision history. It does not authorize production migration,
+upstream replacement, or expansion beyond this record’s confirmation gates.

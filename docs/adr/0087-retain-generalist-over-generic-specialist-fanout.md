@@ -1,7 +1,8 @@
 # Retain the Generalist Over Generic Specialist Fan-Out
 
-- Status: proposed
+- Status: accepted for bounded experimental use
 - Deciders: Magnus Hedemark
+- Accepted: 2026-09-30; direct owner approval of the bounded W9 recommendations
 - Date: 2026-09-19
 - Scope: W12.5 experiment in `magnus919/groktocrawl-x`
 - Plan: issue [#325](https://github.com/magnus919/groktocrawl-x/issues/325)
@@ -68,9 +69,17 @@ gate.
   evaluation rather than reusing this synthetic effect size.
 - This proposal becomes accepted only with maintainer approval.
 
-## W9 disposition — 2026-09-30
+## W9 pre-approval disposition — 2026-09-30
 
 The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
 supports this record at its bounded experimental scope after the completed
-three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
-ratification; successful implementation evidence does not supply owner approval.
+three-checkpoint pilot. At that pre-approval checkpoint, status remained proposed
+pending Magnus Hedemark’s ratification; successful implementation evidence does not supply owner approval.
+
+## Owner ratification — 2026-09-30
+
+Magnus Hedemark approved the [bounded W9 recommendations](../experiments/w9-replacement-readiness-decision.md)
+in this project conversation: “I approve the bounded ADR recommendations. Please proceed.”
+This accepts the documented experimental scope only; the earlier pending note
+is retained as decision history. It does not authorize production migration,
+upstream replacement, or expansion beyond this record’s confirmation gates.

@@ -1,6 +1,6 @@
 # W9 replacement-readiness preflight
 
-- Status: **operational pilot passed; final recommendation published, owner architecture ratification pending**
+- Status: **operational pilot passed; final recommendation published, bounded recommendations ratified by Magnus on September 30**
 - Candidate repository: [`magnus919/groktocrawl-x`](https://github.com/magnus919/groktocrawl-x)
 - Architecture decider: Magnus Hedemark (`magnus919`)
 - Decision issue: [#312](https://github.com/magnus919/groktocrawl-x/issues/312)
@@ -18,9 +18,9 @@ The candidate has passed its freeze and isolated deployment, incumbent-compatibl
 journeys, migration and rollback rehearsal, durable recovery checks, client-path
 parity, and the PostgreSQL/pgvector serving cutover. These results support a
 recommendation to **adopt the candidate for the experimental fork** after the
-completed operational pilot, subject to owner architecture ratification.
+completed operational pilot, ratified by the owner on September 30.
 
-The technical recommendation is complete; owner ratification is pending. Earlier failed and superseded windows remain in
+The technical recommendation is complete; owner ratification is recorded. Earlier failed and superseded windows remain in
 the evidence record. Independent agent testing drove repairs to model readiness,
 similarity diagnostics, crawl accounting, and cross-client barrier errors. A
 bounded relevance study then retained raw cosine retrieval and rejected two
@@ -38,7 +38,7 @@ The `free` window had 24/30 operations and 2/3 checkpoints after
 passed all 12 declared operations. [Checkpoint 2](evidence/replacement-rehearsal/2026-09-30-free-model-checkpoint-2/README.md)
 passed on the single permitted retry. Current final credit is 36 operations and
 3/3 checkpoints; [closeout and recommendation](w9-replacement-readiness-decision.md)
-record the failure, limits and owner ratification gate. The preceding counts are
+record the failure, limits and completed owner ratification. The preceding counts are
 historical checkpoint-1 context.
 
 ## Requirement-by-requirement matrix
@@ -60,21 +60,20 @@ historical checkpoint-1 context.
 ## Architecture decisions
 
 The final W9 PR must update status metadata and predecessor relationships without
-rewriting decision history. The operational gate passed. Until the named decider ratifies the bounded scopes,
-the following dispositions remain recommendations.
+rewriting decision history. The operational gate passed. The named decider ratified these bounded dispositions on 2026-09-30.
 
 | ADR | Current status | Evidence-based preflight disposition | Remaining gate |
 |---|---|---|---|
-| [ADR-0073: compare research runtimes](../adr/0073-compare-research-runtimes-under-one-policy.md) | Proposed | **Revise and accept** the imperative reference as the default plus optional LangGraph for advanced workflows. The comparison found value in dynamic fan-out, durable interrupts, forks, and capability evolution, without making the graph the authority for application data. | Decider review; retain an explicit real-user/checkpoint operating gate before broad LangGraph use. |
-| [ADR-0076: model-reviewed consolidated publications](../adr/0076-retain-model-reviewed-consolidated-publications.md) | Proposed | **Accept for the bounded experimental store.** The implementation retains explicit model provenance and fails closed on structural, support, conflict, freshness, and render-audit failures. | Decider review; no inference of human approval, public API, or production retention. |
-| [ADR-0077: trusted consolidated bundle import](../adr/0077-trusted-consolidated-bundle-import.md) | Proposed | **Accept for trusted-server experimental import.** Exact validation, origin authority, bounded grants, idempotent receipts, and deletion/expiry behavior were exercised through the retained-artifact work. | Decider review; keep public and cross-trust import out of scope. |
-| [ADR-0078: durable backup and artifact authority](../adr/0078-define-durable-research-backup-and-artifact-authority.md) | Proposed | **Revise and accept.** PostgreSQL is now the authoritative artifact store while Valkey owns bounded execution state, receipts, indexes, and deletion continuity. | Decider review; preserve the explicit absence of production disaster-recovery RPO/RTO proof. |
-| [ADR-0079: consolidate storage in PostgreSQL](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Accepted | **Retain.** PostgreSQL authority and pgvector serving passed cutover and rollback evidence. | W9 operational window must pass before proposing removal of Qdrant from the experimental steady-state stack. |
-| [ADR-0083: retain prose intake](../adr/0083-retain-prose-intake-over-universal-research-missions.md) | Proposed | **Accept.** Keep prose as the default and reject universal Research Mission normalization. Preserve smaller typed contracts for explicitly triggered workflows. | Decider review; any successor needs a narrower trigger and a new frozen comparison. |
-| [ADR-0084: retain independent research roots](../adr/0084-retain-independent-research-roots-over-default-threads.md) | Proposed | **Accept.** Keep independent durable roots and construct explicit comparisons for follow-up research. Reject default accumulated-thread injection. | Decider review; any continuity feature must prevent stale-current leakage and prove value in a narrower trial. |
-| [ADR-0085: independent semantic verification](../adr/0085-add-independent-semantic-verification-before-claim-publication.md) | Proposed | **Accept for experimental rollout.** The verifier removed the tested critical false accepts and missed contradictions without rejecting supported claims. | Decider review; live false-rejection, latency, case-mix, and rollback calibration remain required before stable-path promotion. |
-| [ADR-0086: evidence-obligation continuation](../adr/0086-add-bounded-evidence-obligation-continuation.md) | Proposed | **Accept as an opt-in experiment.** Continue only for a named open obligation and stop on closure, zero gain, or the shared budget. Fixed retrieval remains the stable default. | Decider review; automatic obligation authoring and live retrieval yield remain unproven. |
-| [ADR-0087: retain the generalist default](../adr/0087-retain-generalist-over-generic-specialist-fanout.md) | Proposed | **Accept.** Reject generic specialist fan-out and retain one research owner. Preserve the typed handoff for narrower task-specific experiments. | Decider review; future specialist work needs a calibrated router, a separable task class, and independent evaluation. |
+| [ADR-0073: compare research runtimes](../adr/0073-compare-research-runtimes-under-one-policy.md) | Accepted (bounded scope) | **Revise and accept** the imperative reference as the default plus optional LangGraph for advanced workflows. The comparison found value in dynamic fan-out, durable interrupts, forks, and capability evolution, without making the graph the authority for application data. | Ratified 2026-09-30; retain an explicit real-user/checkpoint operating gate before broad LangGraph use. |
+| [ADR-0076: model-reviewed consolidated publications](../adr/0076-retain-model-reviewed-consolidated-publications.md) | Accepted (bounded scope) | **Accept for the bounded experimental store.** The implementation retains explicit model provenance and fails closed on structural, support, conflict, freshness, and render-audit failures. | Ratified 2026-09-30; no inference of human approval, public API, or production retention. |
+| [ADR-0077: trusted consolidated bundle import](../adr/0077-trusted-consolidated-bundle-import.md) | Accepted (bounded scope) | **Accept for trusted-server experimental import.** Exact validation, origin authority, bounded grants, idempotent receipts, and deletion/expiry behavior were exercised through the retained-artifact work. | Ratified 2026-09-30; keep public and cross-trust import out of scope. |
+| [ADR-0078: durable backup and artifact authority](../adr/0078-define-durable-research-backup-and-artifact-authority.md) | Accepted (bounded scope) | **Revise and accept.** PostgreSQL is now the authoritative artifact store while Valkey owns bounded execution state, receipts, indexes, and deletion continuity. | Ratified 2026-09-30; preserve the explicit absence of production disaster-recovery RPO/RTO proof. |
+| [ADR-0079: consolidate storage in PostgreSQL](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Accepted | **Retain.** PostgreSQL authority and pgvector serving passed cutover and rollback evidence. | W9 passed; Qdrant removal remains a separate proposal and retirement review. |
+| [ADR-0083: retain prose intake](../adr/0083-retain-prose-intake-over-universal-research-missions.md) | Accepted (bounded scope) | **Accept.** Keep prose as the default and reject universal Research Mission normalization. Preserve smaller typed contracts for explicitly triggered workflows. | Ratified 2026-09-30; any successor needs a narrower trigger and a new frozen comparison. |
+| [ADR-0084: retain independent research roots](../adr/0084-retain-independent-research-roots-over-default-threads.md) | Accepted (bounded scope) | **Accept.** Keep independent durable roots and construct explicit comparisons for follow-up research. Reject default accumulated-thread injection. | Ratified 2026-09-30; any continuity feature must prevent stale-current leakage and prove value in a narrower trial. |
+| [ADR-0085: independent semantic verification](../adr/0085-add-independent-semantic-verification-before-claim-publication.md) | Accepted (bounded scope) | **Accept for experimental rollout.** The verifier removed the tested critical false accepts and missed contradictions without rejecting supported claims. | Ratified 2026-09-30; live false-rejection, latency, case-mix, and rollback calibration remain required before stable-path promotion. |
+| [ADR-0086: evidence-obligation continuation](../adr/0086-add-bounded-evidence-obligation-continuation.md) | Accepted (bounded scope) | **Accept as an opt-in experiment.** Continue only for a named open obligation and stop on closure, zero gain, or the shared budget. Fixed retrieval remains the stable default. | Ratified 2026-09-30; automatic obligation authoring and live retrieval yield remain unproven. |
+| [ADR-0087: retain the generalist default](../adr/0087-retain-generalist-over-generic-specialist-fanout.md) | Accepted (bounded scope) | **Accept.** Reject generic specialist fan-out and retain one research owner. Preserve the typed handoff for narrower task-specific experiments. | Ratified 2026-09-30; future specialist work needs a calibrated router, a separable task class, and independent evaluation. |
 
 ## D1-D7 decision coverage
 
@@ -82,11 +81,11 @@ the following dispositions remain recommendations.
 |---|---|---|
 | D1: execution, knowledge, and rendering boundaries | [ADR-0068](../adr/0068-separate-research-execution-knowledge-and-rendering.md) | Retain the accepted separation. |
 | D2: versioned Knowledge IR and verification | [ADR-0069](../adr/0069-define-versioned-knowledge-and-verification.md) | Retain the accepted contract and independent verification boundary. |
-| D3: evidence retention and vector storage | [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Retain PostgreSQL authority and pgvector serving for the experiment; Qdrant exit remains conditional on W9. |
+| D3: evidence retention and vector storage | [ADR-0071](../adr/0071-store-research-evidence-independently-of-sessions.md), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Retain PostgreSQL authority and pgvector serving for the experiment; W9 passed; Qdrant removal still requires separately reviewed retirement work. |
 | D4: orchestration runtime | [ADR-0073](../adr/0073-compare-research-runtimes-under-one-policy.md) | Revise and accept the imperative default with optional advanced LangGraph use. |
 | D5: durable execution ownership | [ADR-0074](../adr/0074-define-research-recovery-before-selecting-infrastructure.md), [ADR-0078](../adr/0078-define-durable-research-backup-and-artifact-authority.md) | Retain the bounded Valkey execution owner; revise ADR-0078 around PostgreSQL artifact authority. |
 | D6: verified client protocols | [ADR-0072](../adr/0072-expose-verified-research-through-an-experimental-protocol.md) | Retain the accepted experimental protocol and bounded replay behavior. |
-| D7: evaluation and adoption | [ADR-0070](../adr/0070-evaluate-research-policy-and-runtime-separately.md) | Retain the accepted evaluation discipline; final adoption awaits W9. |
+| D7: evaluation and adoption | [ADR-0070](../adr/0070-evaluate-research-policy-and-runtime-separately.md) | Retain the accepted evaluation discipline; bounded adoption was ratified after W9 passed. |
 
 ## Final decision procedure
 

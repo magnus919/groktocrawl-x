@@ -1,7 +1,8 @@
 # Define Durable Research Backup and Artifact Authority
 
-- Status: proposed
+- Status: accepted for bounded experimental use
 - Deciders: Magnus Hedemark
+- Accepted: 2026-09-30; direct owner approval of the bounded W9 recommendations
 - Date: 2026-09-07
 - Scope: bounded experimental durable research route in `magnus919/groktocrawl-x` only
 - Plan: issue [#147](https://github.com/magnus919/groktocrawl-x/issues/147), W5
@@ -52,12 +53,14 @@ retained durable tombstone and removes artifact authority; after process loss or
 restore, status and artifact reads fail closed with deletion rather than resurrecting
 text.
 
-For this experiment, the durable ledger is authoritative for run state, receipts,
-retention and deletion. The bounded terminal payload is the artifact authority for
-the fixture route, subject to the existing 1 MiB encoded payload bound and per-byte
-digest checks. A production artifact/object store remains an open W5 decision; this
-ADR does not select one, select PostgreSQL for production, remove Qdrant, or claim
-disaster recovery.
+The original fixture used bounded ledger payloads as artifact authority. The
+accepted deployed boundary instead makes PostgreSQL authoritative for the complete
+artifact set and manifest. Valkey owns bounded execution state, receipts, indexes,
+retention and deletion continuity, with matching identity/digest pointers rather
+than competing artifact bytes. Deletion fences PostgreSQL publication before the
+Valkey tombstone; combined restore must preserve both stores’ authority contracts.
+The 1 MiB fixture bound remains historical context. This accepts no production
+RPO/RTO, Qdrant removal, or broader disaster-recovery claim.
 
 ## Inherited Decision Impact
 
@@ -84,7 +87,8 @@ deletion fence. The client adapter stores
 only matching identities and digests in Valkey, uses a stable artifact-set identity
 for reconciliation, and orders deletion through PostgreSQL before writing the Valkey
 tombstone. This is implementation evidence for the proposed successor boundary;
-combined backup/restore rehearsal and final decider acceptance remain open.
+combined backup/restore rehearsal passed as recorded below, and bounded decider
+acceptance was recorded on 2026-09-30.
 
 ## Confirmation
 
@@ -97,9 +101,9 @@ successor PostgreSQL authority boundary. Runtime CI run
 [34404714550](https://github.com/magnus919/groktocrawl-x/actions/runs/34404714550)
 then restored PostgreSQL and Valkey into fresh targets and passed exact-byte,
 pointer, deletion, interrupted-publication reconciliation, and idempotent-replay
-checks. The implementation gate has passed. W5 remains open for the durable
-execution-owner decision and final decider acceptance; this rehearsal does not
-close D5 or claim production disaster recovery.
+checks. The implementation gate has passed. ADR-0074 supplies the accepted bounded execution-owner decision, and the W9
+ratification completes the experimental D5 decision. This does not claim
+production disaster recovery.
 
 ## Links
 
@@ -110,9 +114,17 @@ close D5 or claim production disaster recovery.
 - [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md)
 - [ADR-0074](0074-define-research-recovery-before-selecting-infrastructure.md)
 
-## W9 disposition — 2026-09-30
+## W9 pre-approval disposition — 2026-09-30
 
 The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
 supports this record at its bounded experimental scope after the completed
-three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
-ratification; successful implementation evidence does not supply owner approval.
+three-checkpoint pilot. At that pre-approval checkpoint, status remained proposed
+pending Magnus Hedemark’s ratification; successful implementation evidence does not supply owner approval.
+
+## Owner ratification — 2026-09-30
+
+Magnus Hedemark approved the [bounded W9 recommendations](../experiments/w9-replacement-readiness-decision.md)
+in this project conversation: “I approve the bounded ADR recommendations. Please proceed.”
+This accepts the documented experimental scope only; the earlier pending note
+is retained as decision history. It does not authorize production migration,
+upstream replacement, or expansion beyond this record’s confirmation gates.
