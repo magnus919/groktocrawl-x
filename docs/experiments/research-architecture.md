@@ -808,6 +808,10 @@ R1–R6 requirements to direct receipts, code/test coverage, owner acceptance,
 and verified repository rules. It retains rejected quality experiments and
 explicit follow-ups rather than treating them as passing replacements.
 
-## Post-roadmap memory follow-up
+## Post-roadmap operational follow-ups
 
-[#392](https://github.com/magnus919/groktocrawl-x/issues/392) is in progress under the [preregistered memory/process protocol](memory-soak/protocol.md). Two attempts stopped before any completed workload. The second exposed browser process exhaustion: orphaned defunct processes had filled the task limit while `/health` remained `ok`. [PR #397](https://github.com/magnus919/groktocrawl-x/pull/397) adds a container init reaper. Memory-growth acceptance remains unresolved until recovery and a new bounded study pass. This operational finding does not rewrite the completed W9 historical evidence or imply unconditional production qualification.
+- [#392](https://github.com/magnus919/groktocrawl-x/issues/392): **bounded study complete**. [Results](memory-soak/results.md) record sixty browser lifecycle cycles and sixty scrapes, short-term memory stabilization, no zombies or leftover sessions, and explicit limits. Merged PR #397 repaired browser process exhaustion with init; the experimental browser was recreated and tested. Retain the repair and existing memory limits.
+- [#391](https://github.com/magnus919/groktocrawl-x/issues/391): slow model-readiness classification remains under review in PR #396 and is not deployed.
+- [#398](https://github.com/magnus919/groktocrawl-x/issues/398): process-exhaustion health diagnostics remain open.
+
+The resource study does not rewrite completed W9 historical evidence or qualify all concurrency, fallback paths, or long-running workloads. Mainline deployment and Hermes configuration remain unchanged.
