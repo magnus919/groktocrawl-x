@@ -810,8 +810,8 @@ explicit follow-ups rather than treating them as passing replacements.
 
 ## Post-roadmap operational follow-ups
 
-- [#391](https://github.com/magnus919/groktocrawl-x/issues/391): distinguish slow model readiness from definite failure without multiplying requests; see the [model-readiness runbook](../runbooks/model-readiness.md). Implementation is under review and not deployed.
-- [#392](https://github.com/magnus919/groktocrawl-x/issues/392): the [preregistered memory/process study](memory-soak/protocol.md) stopped twice before any completed workload. Browser orphan processes had exhausted its task limit despite healthy status. Merged [PR #397](https://github.com/magnus919/groktocrawl-x/pull/397) adds an init reaper; candidate-only recovery and a fresh study follow. Memory-growth acceptance remains unresolved.
-- [#398](https://github.com/magnus919/groktocrawl-x/issues/398): detect process exhaustion in browser health diagnostics.
+- [#392](https://github.com/magnus919/groktocrawl-x/issues/392): **bounded study complete**. [Results](memory-soak/results.md) record sixty browser lifecycle cycles and sixty scrapes, short-term memory stabilization, no zombies or leftover sessions, and explicit limits. Merged PR #397 repaired browser process exhaustion with init; the experimental browser was recreated and tested. Retain the repair and existing memory limits.
+- [#391](https://github.com/magnus919/groktocrawl-x/issues/391): slow model-readiness classification remains under review in PR #396 and is not deployed; see the [model-readiness runbook](../runbooks/model-readiness.md).
+- [#398](https://github.com/magnus919/groktocrawl-x/issues/398): process-exhaustion health diagnostics remain open.
 
-These operational findings retain completed W9 historical evidence and do not imply unconditional production qualification.
+The resource study does not rewrite completed W9 historical evidence or qualify all concurrency, fallback paths, or long-running workloads. Mainline deployment and Hermes configuration remain unchanged.
