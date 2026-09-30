@@ -9,6 +9,7 @@ import argparse
 import json
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -163,7 +164,7 @@ def main():
                         "/v2/browser/" + session + "/execute",
                         {
                             "action": "executeScript",
-                            "script": "document.body.innerHTML='<main><h1>Memory fixture</h1>'+('<p>Equivalent research content.</p>'.repeat(1000))+'</main>'; true;",
+                            "script": "() => { document.body.innerHTML='<main><h1>Memory fixture</h1>'+('<p>Equivalent research content.</p>'.repeat(1000))+'</main>'; return true; }",
                             "timeout": 10000,
                         },
                     )
@@ -187,7 +188,10 @@ def main():
             time.sleep(30)
             snapshot("idle", block)
         outcome["status"] = "completed"
-    except Exception:
+    except Exception as exc:
+        outcome["failure_type"] = type(exc).__name__
+        if isinstance(exc, urllib.error.HTTPError):
+            outcome["http_status"] = exc.code
         # Do not expose exception messages that may contain private URLs.
         outcome["status"] = "stopped"
     finally:
