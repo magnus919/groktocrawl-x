@@ -11,6 +11,8 @@ from agent.models import AgentRequest
 from agent.routes.agent import _handle_agent_streaming
 from fastapi import HTTPException
 
+pytestmark = pytest.mark.asyncio
+
 
 @pytest.mark.parametrize(
     "status,outcome",
