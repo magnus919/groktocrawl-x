@@ -20,15 +20,18 @@ def read(name): return (p/name).read_text().strip()
 stat=dict(line.split() for line in read('memory.stat').splitlines())
 events=dict(line.split() for line in read('memory.events').splitlines())
 rss=0
+zombies=0
 for f in pathlib.Path('/proc').glob('[0-9]*/status'):
  try:
   for line in f.read_text().splitlines():
    if line.startswith('VmRSS:'): rss+=int(line.split()[1])*1024
+   if line.startswith('State:') and line.split()[1]=='Z': zombies+=1
  except (OSError, ValueError): pass
 health=json.load(urllib.request.urlopen('http://127.0.0.1:PORT/health',timeout=5))
 print(json.dumps(dict(used=int(read('memory.current')),limit=read('memory.max'),rss=rss,
  anon=int(stat.get('anon',0)),file=int(stat.get('file',0)),
  oom=int(events.get('oom',0)),oom_kill=int(events.get('oom_kill',0)),
+ pids_current=int(read('pids.current')),pids_limit=read('pids.max'),zombies=zombies,
  sessions=health.get('active_sessions'),healthy=health.get('status')=='ok')))
 """
 
@@ -137,10 +140,23 @@ def main():
                 pressure_percent=round(pressure, 3),
                 active_sessions=value["sessions"],
                 healthy=value["healthy"],
+                pids_current=value["pids_current"],
+                pids_limit=None
+                if value["pids_limit"] == "max"
+                else int(value["pids_limit"]),
+                zombie_processes=value["zombies"],
                 oom_delta=oom[0] - baseline_oom[name][0],
                 oom_kill_delta=oom[1] - baseline_oom[name][1],
             )
-            if pressure >= 80 or oom != baseline_oom[name] or not value["healthy"]:
+            pid_pressure = value["pids_limit"] != "max" and value[
+                "pids_current"
+            ] >= 0.8 * int(value["pids_limit"])
+            if (
+                pressure >= 80
+                or pid_pressure
+                or oom != baseline_oom[name]
+                or not value["healthy"]
+            ):
                 receipts.append(row)
                 raise RuntimeError("resource stop limit reached")
         receipts.append(row)

@@ -67,6 +67,7 @@ services:
     pids_limit: 256
 
   candidate-browser:
+    init: true
     build:
       context: .
       dockerfile: browser-svc/Dockerfile

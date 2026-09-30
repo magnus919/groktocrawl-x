@@ -175,6 +175,7 @@ services:
       - cloakbrowser_cache:/root/.cloakbrowser
 
   browser-svc:
+    init: true
     mem_limit: 1500m
     cpus: 1.0
     pids_limit: 256
