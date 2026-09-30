@@ -178,3 +178,25 @@ async def test_cancelled_probe_closes_client_and_does_not_open_stream(monkeypatc
     with pytest.raises(asyncio.CancelledError):
         await task
     close.assert_awaited_once()
+
+
+async def test_application_preserves_readiness_header_on_http_error():
+    from agent.app import create_app
+
+    app = create_app()
+
+    @app.get("/test-readiness-failure")
+    async def failure():
+        raise HTTPException(
+            status_code=503,
+            detail="LLM readiness probe failed.",
+            headers={"X-LLM-Readiness": "rate_limited"},
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/test-readiness-failure")
+    assert response.status_code == 503
+    assert response.headers["X-LLM-Readiness"] == "rate_limited"
+    assert response.json()["error"] == "LLM readiness probe failed."
