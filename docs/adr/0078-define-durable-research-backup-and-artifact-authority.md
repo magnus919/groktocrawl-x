@@ -109,3 +109,10 @@ close D5 or claim production disaster recovery.
 - [ADR-0071](0071-store-research-evidence-independently-of-sessions.md)
 - [ADR-0072](0072-expose-verified-research-through-an-experimental-protocol.md)
 - [ADR-0074](0074-define-research-recovery-before-selecting-infrastructure.md)
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.

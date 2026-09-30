@@ -234,3 +234,12 @@ capture `docker compose ps` and service logs, and leave the incumbent deployment
 unchanged. During the pgvector rehearsal, switching the candidate semantic mode
 back to Qdrant is the rollback operation. Deleting PostgreSQL or Qdrant data is
 never part of rollback.
+
+## Completed W9 window
+
+The September 23–30 `free` window passed all three checkpoints and 36 declared
+operations. The final suite passed its single allowed retry after a model
+readiness timeout. See the [final recommendation](../experiments/w9-replacement-readiness-decision.md).
+Owner ADR ratification remains pending. Keep rollback available; documentation
+closeout does not require a redeployment. Future runtime or material configuration
+changes require fresh evidence rather than extending this completed window.

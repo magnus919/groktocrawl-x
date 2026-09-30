@@ -69,3 +69,10 @@ default promotion or the observed 90-point effect as a production forecast.
 - The ledger records control state and does not become a knowledge store or truth
   authority.
 - This proposal becomes accepted only with maintainer approval.
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.

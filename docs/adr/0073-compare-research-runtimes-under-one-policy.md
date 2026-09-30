@@ -164,3 +164,10 @@ value, extensibility, and recovery complexity rather than scheduler latency alon
 - [W4 runtime comparison report](../experiments/runtime-comparison/report.md)
 - [First paired measurement](../experiments/evidence/runtime-comparison/2026-09-08/)
 - [Repeated paired measurement](../experiments/evidence/runtime-comparison/2026-09-09/)
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.

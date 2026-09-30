@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **current frozen window active; checkpoints 0 and 1 passed, checkpoint 2 pending**
+Status: **operational pilot complete; three checkpoints passed, owner architecture ratification pending**
 
 ## Question and decision
 
@@ -18,9 +18,10 @@ mainline replacement or prove production scale.
   experimental candidate was pinned to LiteLLM's `free` model alias.
 - Checkpoint 0 passed at `2026-09-23T00:12:34.352827Z` and checkpoint 1
   passed at `2026-09-26T19:38:03.623260Z`; each completed all 12 declared
-  operations on the frozen candidate. The current window has 24/30 successful
-  operations and 2/3 checkpoints. Checkpoint 2 and the final decision are
-  eligible at or after `2026-09-30T00:09:25.966168Z`.
+  operations on the frozen candidate. Checkpoint 2 passed its single permitted retry at `2026-09-30T19:40:57.866103Z`.
+  The completed window has 36 successful operations and 3/3 checkpoints.
+  [Final evidence and recommendation](w9-replacement-readiness-decision.md) retain
+  the first attempt’s model-health timeout and the remaining owner ratification gate.
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168
