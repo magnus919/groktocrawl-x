@@ -810,10 +810,8 @@ explicit follow-ups rather than treating them as passing replacements.
 
 ## Post-roadmap operational follow-ups
 
-- [#391](https://github.com/magnus919/groktocrawl-x/issues/391): distinguish slow
-  model readiness from definite failure without multiplying requests; see the
-  [model-readiness runbook](../runbooks/model-readiness.md). Implementation is
-  under review; the approved deployed candidate remains unchanged.
-- [#392](https://github.com/magnus919/groktocrawl-x/issues/392): preregister and
-  run a bounded browser/scraper memory soak with cgroup and process evidence,
-  context cleanup, stop thresholds and explicit limits on causal attribution.
+- [#391](https://github.com/magnus919/groktocrawl-x/issues/391): distinguish slow model readiness from definite failure without multiplying requests; see the [model-readiness runbook](../runbooks/model-readiness.md). Implementation is under review and not deployed.
+- [#392](https://github.com/magnus919/groktocrawl-x/issues/392): the [preregistered memory/process study](memory-soak/protocol.md) stopped twice before any completed workload. Browser orphan processes had exhausted its task limit despite healthy status. Merged [PR #397](https://github.com/magnus919/groktocrawl-x/pull/397) adds an init reaper; candidate-only recovery and a fresh study follow. Memory-growth acceptance remains unresolved.
+- [#398](https://github.com/magnus919/groktocrawl-x/issues/398): detect process exhaustion in browser health diagnostics.
+
+These operational findings retain completed W9 historical evidence and do not imply unconditional production qualification.
