@@ -807,3 +807,13 @@ The [September 30 completion audit](roadmap-completion-audit.md) maps original
 R1–R6 requirements to direct receipts, code/test coverage, owner acceptance,
 and verified repository rules. It retains rejected quality experiments and
 explicit follow-ups rather than treating them as passing replacements.
+
+## Post-roadmap operational follow-ups
+
+- [#391](https://github.com/magnus919/groktocrawl-x/issues/391): distinguish slow
+  model readiness from definite failure without multiplying requests; see the
+  [model-readiness runbook](../runbooks/model-readiness.md). Implementation is
+  under review; the approved deployed candidate remains unchanged.
+- [#392](https://github.com/magnus919/groktocrawl-x/issues/392): preregister and
+  run a bounded browser/scraper memory soak with cgroup and process evidence,
+  context cleanup, stop thresholds and explicit limits on causal attribution.

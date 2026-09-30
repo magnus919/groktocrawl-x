@@ -210,8 +210,8 @@ async def _handle_agent_streaming(
 
     # ── Streaming path (cache miss or force_fresh) ────────────────
     if body.stream:
-        # Pre-flight LLM health check — fail fast before opening the stream
-        from ..llm import LLMClient
+        # One bounded readiness probe before opening the stream
+        from ..llm import LLMClient, LLMReadiness
 
         health_logger = logging.getLogger(__name__)
         effective_model = (
@@ -224,16 +224,23 @@ async def _handle_agent_streaming(
             api_key=request.app.state.llm_api_key,
             model=effective_model,
         )
-        if not await llm_check.check_health():
-            health_logger.error("LLM backend unreachable. Agent disabled.")
+        try:
+            readiness = await llm_check.probe_readiness()
+        finally:
             await llm_check.close()
+        if readiness not in (LLMReadiness.READY, LLMReadiness.TIMED_OUT):
             from fastapi import HTTPException
 
             raise HTTPException(
                 status_code=503,
-                detail="LLM backend is not available. Cannot process agent request.",
+                detail="LLM readiness probe failed. Cannot process agent request.",
+                headers={"X-LLM-Readiness": readiness.value},
             )
-        await llm_check.close()
+        headers["X-LLM-Readiness"] = readiness.value
+        if readiness == LLMReadiness.TIMED_OUT:
+            health_logger.warning(
+                "LLM readiness probe timed out; attempting bounded generation"
+            )
 
         from ..research.streaming import stream_research_live
 

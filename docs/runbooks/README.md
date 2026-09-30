@@ -98,3 +98,5 @@ Qdrant ran out of memory. Restart with higher memory limit or reduce index size.
 - agent-svc metrics: `curl http://localhost:8080/metrics`
 - semantic-svc metrics: `curl http://localhost:8003/metrics`
 - Grafana dashboard: `docs/grafana/semantic-svc-dashboard.json`
+
+- [Model readiness probe outcomes](model-readiness.md) — streaming preflight uncertainty and failure classifications.
