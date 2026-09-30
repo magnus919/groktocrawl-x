@@ -77,3 +77,10 @@ not an unobserved production default.
 - The verifier adds one model call and measurable latency to each enabled claim.
 - Live calibration and rollback are required before stable-path promotion.
 - This proposal becomes accepted only with maintainer approval.
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.

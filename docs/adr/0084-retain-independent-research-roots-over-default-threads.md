@@ -73,3 +73,10 @@ decision. The no-change and operational gates passed.
   stale-current leakage, and pass a new frozen comparison before adoption.
 - This proposal becomes accepted only with maintainer approval; the experiment's
   mechanical rejection does not substitute for decision authority.
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.

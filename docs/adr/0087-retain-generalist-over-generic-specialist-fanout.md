@@ -67,3 +67,10 @@ gate.
 - A future task-specific proposal must bring real-task evidence and calibrated
   evaluation rather than reusing this synthetic effect size.
 - This proposal becomes accepted only with maintainer approval.
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.

@@ -1,6 +1,6 @@
 # W9 replacement-readiness preflight
 
-- Status: **preflight complete; operational pilot and architecture decision pending**
+- Status: **operational pilot passed; final recommendation published, owner architecture ratification pending**
 - Candidate repository: [`magnus919/groktocrawl-x`](https://github.com/magnus919/groktocrawl-x)
 - Architecture decider: Magnus Hedemark (`magnus919`)
 - Decision issue: [#312](https://github.com/magnus919/groktocrawl-x/issues/312)
@@ -33,9 +33,13 @@ allocation passed a checkpoint on `general`, then the owner pinned `free` for
 the experimental candidate only. That change ended the `general` window.
 The new [checkpoint 0](evidence/replacement-rehearsal/2026-09-23-free-model-checkpoint-0/README.md)
 passed all 12 operations, including model-backed text and structured output.
-The current `free` window has 24/30 operations and 2/3 checkpoints after
+The `free` window had 24/30 operations and 2/3 checkpoints after
 [checkpoint 1](evidence/replacement-rehearsal/2026-09-26-free-model-checkpoint-1/README.md)
-passed all 12 declared operations. The final gate remains ahead.
+passed all 12 declared operations. [Checkpoint 2](evidence/replacement-rehearsal/2026-09-30-free-model-checkpoint-2/README.md)
+passed on the single permitted retry. Current final credit is 36 operations and
+3/3 checkpoints; [closeout and recommendation](w9-replacement-readiness-decision.md)
+record the failure, limits and owner ratification gate. The preceding counts are
+historical checkpoint-1 context.
 
 ## Requirement-by-requirement matrix
 
@@ -48,7 +52,7 @@ passed all 12 declared operations. The final gate remains ahead.
 | HTTP, SSE, CLI, and MCP expose one coherent retained artifact | Passed | [Client protocol](research-client-protocol.md), [conformance matrix](client-protocol-conformance.md), [recovered-journey PR #251](https://github.com/magnus919/groktocrawl-x/pull/251) | Confirm cross-client equality again at each remaining pilot checkpoint. |
 | PostgreSQL can be the durable authority and pgvector can serve semantic search | Passed for the experimental deployment | [Storage evaluation](storage/pgvector-qdrant-evaluation.md), [application cutover packet](evidence/storage-vector-evaluation/2026-09-09-pgvector-serving-cutover/), [ADR-0079](../adr/0079-consolidate-retained-and-vector-storage-in-postgresql.md) | Keep Qdrant available until the operational rollback window passes; removal is separate work. |
 | Migration to the candidate and rollback to the incumbent are rehearsed | Passed | [Migration and rollback packet](evidence/replacement-rehearsal/2026-09-11-migration-rollback/README.md) | Preserve the tested rollback path through the final decision. |
-| Candidate operates over the required real-time window | In progress: free-model checkpoints 0 and 1 each passed 12/12 operations; current-window credit is 24 of at least 30 operations and 2 of 3 checkpoints | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [checkpoint 0](evidence/replacement-rehearsal/2026-09-23-free-model-checkpoint-0/README.md), [checkpoint 1](evidence/replacement-rehearsal/2026-09-26-free-model-checkpoint-1/README.md) | Run checkpoint 2 no earlier than September 30 at 00:09 UTC. Require unchanged configuration, at least 30 successful representative operations, and all pass rules. |
+| Candidate operates over the required real-time window | Passed: all three free-model checkpoints passed 12/12 operations; final current-window credit is 36 operations and 3 checkpoints | [Pilot protocol](w9-operational-pilot-protocol.md), [tracked state](evidence/replacement-rehearsal/w9-pilot-state.json), [checkpoint 0](evidence/replacement-rehearsal/2026-09-23-free-model-checkpoint-0/README.md), [checkpoint 1](evidence/replacement-rehearsal/2026-09-26-free-model-checkpoint-1/README.md) | Completed September 30; see the [final decision](w9-replacement-readiness-decision.md) and zero-error closeout report. |
 | Resource use fits ordinary operation on the deployment host | Provisional pass at bounded scale, including the 14-CPU semantic configuration | [Checkpoint 1](evidence/replacement-rehearsal/2026-09-26-free-model-checkpoint-1/README.md), [compatibility resource summary](evidence/replacement-rehearsal/2026-09-11-compatibility/resource-summary.json), [pilot protocol limits](w9-operational-pilot-protocol.md#limits) | Compare all three checkpoint snapshots and report any repeated material regression. Do not claim production capacity. |
 | Operator burden is acceptable | Revised after a real failure, two setup-only dependency failures, and one shared model-gateway restart during a checkpoint attempt | [Retained restart failure and correction](evidence/replacement-rehearsal/2026-09-19-pilot-restart/README.md), [current free-model checkpoint](evidence/replacement-rehearsal/2026-09-26-free-model-checkpoint-1/README.md), [operator runbook](../runbooks/experimental-replacement-candidate.md) | Confirm the corrected guarded runner works at both remaining checkpoints without manual reconstruction. Keep persistent private-file placement in the runbook. |
 | Limits and residual risks are explicit | Passed for the preflight | [Pilot limits](w9-operational-pilot-protocol.md#limits), this report | Carry the limits into the final recommendation and create follow-up issues for any newly observed gap. |
@@ -56,7 +60,7 @@ passed all 12 declared operations. The final gate remains ahead.
 ## Architecture decisions
 
 The final W9 PR must update status metadata and predecessor relationships without
-rewriting decision history. Until the operational gate passes and the decider acts,
+rewriting decision history. The operational gate passed. Until the named decider ratifies the bounded scopes,
 the following dispositions remain recommendations.
 
 | ADR | Current status | Evidence-based preflight disposition | Remaining gate |

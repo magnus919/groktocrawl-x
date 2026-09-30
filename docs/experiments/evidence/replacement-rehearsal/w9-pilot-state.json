@@ -1,6 +1,7 @@
 {
   "candidate_revision": "46a528228b1365189cdd38d0bcdb12109a8dc763",
-  "completed_checkpoints": 2,
+  "completed_at": "2026-09-30T19:40:57.866103Z",
+  "completed_checkpoints": 3,
   "earliest_completion_at": "2026-09-30T00:09:25.966168Z",
   "next_checkpoint_not_before": "2026-09-26T00:09:25.966168Z",
   "notes": [
@@ -37,7 +38,8 @@
     "The first new-window checkpoint attempt reached grounded answer and received HTTP 502 while the shared model gateway restarted; the failed receipt is retained without credit. The protocol's single retry passed all 12 declared operations at 2026-09-22T19:20:21.394803Z, giving that historical window 12/30 successful operations and 1/3 checkpoints.",
     "The owner pinned experimental candidate inference to LiteLLM free; the prior general window ended and has zero credit toward the new frozen window.",
     "Free-model checkpoint 0 passed 12/12 declared operations; text and structured model readiness both passed. A setup-only first attempt ran the verifier from the wrong source revision and earned no credit.",
-    "Free-model checkpoint 1 passed all 12 declared operations at 2026-09-26T19:38:03.623260Z from a clean checkout matching the deployed revision; text and structured-output readiness passed and the cross-client research completed."
+    "Free-model checkpoint 1 passed all 12 declared operations at 2026-09-26T19:38:03.623260Z from a clean checkout matching the deployed revision; text and structured-output readiness passed and the cross-client research completed.",
+    "Final free-model checkpoint 2 passed 12/12 on the single permitted retry after an LLM health-check timeout caused HTTP 503. The failed attempt remains zero-credit evidence. Current window has 36 successful operations and three checkpoints; owner ADR ratification remains separate."
   ],
   "previous_windows": [
     {
@@ -113,6 +115,6 @@
   "runtime_revision": "46a528228b1365189cdd38d0bcdb12109a8dc763",
   "schema_version": "w9-operational-pilot-state/2",
   "started_at": "2026-09-23T00:09:25.966168523Z",
-  "status": "in_progress",
-  "successful_requests": 24
+  "status": "complete",
+  "successful_requests": 36
 }

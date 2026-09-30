@@ -60,3 +60,10 @@ Add hosted PostgreSQL tests for schema-12 migration, exact reserve/commit/read
 round trips, quota and retention clamping, idempotent receipts, altered bundles,
 origin deletion/expiry, cancellation and commit races. Run full CI before closing
 issue #109.
+
+## W9 disposition — 2026-09-30
+
+The [final W9 recommendation](../experiments/w9-replacement-readiness-decision.md)
+supports this record at its bounded experimental scope after the completed
+three-checkpoint pilot. Status remains proposed pending Magnus Hedemark’s
+ratification; successful implementation evidence does not supply owner approval.
