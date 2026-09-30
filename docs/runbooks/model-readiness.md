@@ -21,8 +21,9 @@ preflight closes its temporary client and never opens the stream. Cached replay
 and non-streaming behavior remain unchanged; existing boolean health consumers
 continue to treat only `ready` as healthy.
 
-Logs record the bounded outcome, not provider bodies, credentials or endpoints.
+Readiness-probe logs record the bounded outcome, not provider bodies, credentials or endpoints.
 When diagnosing a 503, distinguish `unavailable`, `rate_limited`, and `rejected`
 from `timed_out`; never treat a five-second inference delay as proof that the
 model is absent. The W9 first final attempt remains failed evidence; this fix
-changes no historical result and does not redeploy the approved candidate.
+changes no historical result. Merged PR #396 was separately deployed to the
+experimental agent and verified; see the [deployment and live-stream receipt](../experiments/model-readiness/results.md).
