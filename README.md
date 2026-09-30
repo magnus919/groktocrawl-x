@@ -4,7 +4,7 @@
 > **This is `magnus919/groktocrawl-x`, an experimental fork. It is not a replacement for mainline GroktoCrawl.**
 > Mainline development continues at [groktopus/groktocrawl](https://github.com/groktopus/groktocrawl).
 > This experiment explores a new research architecture: explicit orchestration, a portable claims-and-evidence model (Knowledge IR), verified artifact rendering, and durable workflows.
-> The bounded research substrate is implemented and has passed its seven-day pilot (36 successful operations, three checkpoints). Read the [readiness recommendation and limits](docs/experiments/w9-replacement-readiness-decision.md) and [experiment plan](docs/experiments/research-architecture.md). Owner ratification of the remaining proposed ADRs is pending.
+> The bounded research substrate is implemented and has passed its seven-day pilot (36 successful operations, three checkpoints). Read the [readiness recommendation and limits](docs/experiments/w9-replacement-readiness-decision.md) and [experiment plan](docs/experiments/research-architecture.md). Magnus approved the bounded ADR recommendations on September 30, 2026.
 >
 > The repository preserves upstream Git history but is hosted as a separate GitHub repository. The inherited documentation below describes the starting implementation; it does not promise compatibility for future experiments. No upstream releases, images, or support channels represent this fork.
 

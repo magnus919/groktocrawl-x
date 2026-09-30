@@ -19,4 +19,4 @@ research, and resource receipts; original research/resource digests remain
 available in the normalized receipts. No deployment change was made.
 
 See the [readiness decision](../../../w9-replacement-readiness-decision.md) for
-limits, follow-ups, and the separate owner architecture-ratification gate.
+limits, follow-ups, and the subsequently completed owner architecture ratification.

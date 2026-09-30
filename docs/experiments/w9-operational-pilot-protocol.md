@@ -1,6 +1,6 @@
 # W9 bounded operational pilot protocol
 
-Status: **operational pilot complete; three checkpoints passed, owner architecture ratification pending**
+Status: **operational pilot complete; three checkpoints passed, bounded architecture ratified by Magnus on September 30**
 
 ## Question and decision
 
@@ -21,7 +21,7 @@ mainline replacement or prove production scale.
   operations on the frozen candidate. Checkpoint 2 passed its single permitted retry at `2026-09-30T19:40:57.866103Z`.
   The completed window has 36 successful operations and 3/3 checkpoints.
   [Final evidence and recommendation](w9-replacement-readiness-decision.md) retain
-  the first attempt’s model-health timeout and the remaining owner ratification gate.
+  the first attempt’s model-health timeout and the owner’s completed bounded ratification.
 - Required exposure: at least seven elapsed days **and** at least 30 successful
   representative requests. Both conditions are mandatory.
 - Checkpoints: start, no earlier than 72 elapsed hours, and no earlier than 168

@@ -109,21 +109,21 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0070 | [Evaluate Research Policy and Runtime Separately](0070-evaluate-research-policy-and-runtime-separately.md) | accepted |
 | 0071 | [Store Research Evidence Independently of Sessions](0071-store-research-evidence-independently-of-sessions.md) | accepted for bounded experimental exploration |
 | 0072 | [Expose Verified Research Through an Experimental Protocol](0072-expose-verified-research-through-an-experimental-protocol.md) | accepted |
-| 0073 | [Compare Research Runtimes Under One Policy](0073-compare-research-runtimes-under-one-policy.md) | proposed |
+| 0073 | [Compare Research Runtimes Under One Policy](0073-compare-research-runtimes-under-one-policy.md) | accepted for bounded experimental use (2026-09-30) |
 | 0074 | [Define Research Recovery Before Selecting Infrastructure](0074-define-research-recovery-before-selecting-infrastructure.md) | accepted |
 | 0075 | [Consolidate Research Interchange Contracts](0075-consolidate-research-interchange-contracts.md) | accepted for bounded experimental implementation |
-| 0076 | [Retain Model-Reviewed Consolidated Publications](0076-retain-model-reviewed-consolidated-publications.md) | proposed |
-| 0077 | [Trusted Consolidated Bundle Import](0077-trusted-consolidated-bundle-import.md) | proposed |
-| 0078 | [Define Durable Research Backup and Artifact Authority](0078-define-durable-research-backup-and-artifact-authority.md) | proposed |
+| 0076 | [Retain Model-Reviewed Consolidated Publications](0076-retain-model-reviewed-consolidated-publications.md) | accepted for bounded experimental use (2026-09-30) |
+| 0077 | [Trusted Consolidated Bundle Import](0077-trusted-consolidated-bundle-import.md) | accepted for bounded experimental use (2026-09-30) |
+| 0078 | [Define Durable Research Backup and Artifact Authority](0078-define-durable-research-backup-and-artifact-authority.md) | accepted for bounded experimental use (2026-09-30) |
 | 0079 | [Consolidate Retained and Vector Storage in PostgreSQL](0079-consolidate-retained-and-vector-storage-in-postgresql.md) | accepted |
 | 0080 | [Construct Source-Bound Answer Units](0080-construct-source-bound-answer-units.md) | rejected |
 | 0081 | [Select a Bounded Adaptive Research Policy](0081-select-a-bounded-adaptive-research-policy.md) | accepted; fixed retrieval retained after W10 |
 | 0082 | [Delegate Bounded Retrieval Execution to SlopSearX](0082-delegate-bounded-retrieval-to-slopsearx.md) | accepted; narrow opt-in contracts only |
-| 0083 | [Retain Prose Intake Over Universal Research Missions](0083-retain-prose-intake-over-universal-research-missions.md) | proposed; W12.1 evidence rejects universal typed intake |
-| 0084 | [Retain Independent Research Roots Over Default Longitudinal Threads](0084-retain-independent-research-roots-over-default-threads.md) | proposed; W12.2 evidence rejects default thread injection |
-| 0085 | [Add Independent Semantic Verification Before Claim Publication](0085-add-independent-semantic-verification-before-claim-publication.md) | proposed; W12.3 evidence supports a bounded experimental stage |
-| 0086 | [Add Bounded Evidence-Obligation Continuation](0086-add-bounded-evidence-obligation-continuation.md) | proposed; W12.4 supports an opt-in control contract pending live calibration |
-| 0087 | [Retain the Generalist Over Generic Specialist Fan-Out](0087-retain-generalist-over-generic-specialist-fanout.md) | proposed; W12.5 rejects generic fan-out while preserving typed handoffs |
+| 0083 | [Retain Prose Intake Over Universal Research Missions](0083-retain-prose-intake-over-universal-research-missions.md) | accepted for bounded experimental use (2026-09-30) |
+| 0084 | [Retain Independent Research Roots Over Default Longitudinal Threads](0084-retain-independent-research-roots-over-default-threads.md) | accepted for bounded experimental use (2026-09-30) |
+| 0085 | [Add Independent Semantic Verification Before Claim Publication](0085-add-independent-semantic-verification-before-claim-publication.md) | accepted for bounded experimental use (2026-09-30) |
+| 0086 | [Add Bounded Evidence-Obligation Continuation](0086-add-bounded-evidence-obligation-continuation.md) | accepted for bounded experimental use (2026-09-30) |
+| 0087 | [Retain the Generalist Over Generic Specialist Fan-Out](0087-retain-generalist-over-generic-specialist-fanout.md) | accepted for bounded experimental use (2026-09-30) |
 | 0088 | [Centralize Bounded Barrier Recovery at the Scrape Boundary](0088-centralize-bounded-barrier-recovery.md) | accepted; one classified recovery ladder for all scrape consumers |
 | 0089 | [Bound Browser Concurrency per Effective CPU](0089-bound-browser-concurrency-per-effective-cpu.md) | accepted for bounded experimentation; implementation pending |
 | 0090 | [Optional Post-Scrape Jev Noise Filter](0090-optional-post-scrape-jev-noise-filter.md) | accepted for opt-in implementation in experimental fork |

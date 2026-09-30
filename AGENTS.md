@@ -20,7 +20,7 @@ in this repository has no effect on the status of the upstream record.
 On 2026-09-05 Magnus accepted foundation ADRs 0067–0070 and 0072 for a bounded
 fixture-backed prototype. Magnus subsequently accepted ADR-0071 for bounded,
 isolated PostgreSQL exploration in issue #47 and ADR-0074 for Valkey-backed durable
-execution and recovery. ADR-0073 remains proposed; LangGraph is an optional advanced
+execution and recovery. ADR-0073 is accepted for bounded experimental use; LangGraph is an optional advanced
 runtime, not the application authority. ADR-0079 accepts pgvector serving for the
 experimental deployment after the completed cutover and rollback rehearsals. Keep
 Qdrant available through the W9 rollback window. These decisions do not change the
@@ -262,3 +262,10 @@ The graph's node labels are code identifiers and doc headings, not natural langu
 - **`--context import` for dependency questions** (edges filtered to imports only; e.g. `graphify query "dedup manager" --context import` returns ~19 focused nodes instead of 400+). `--context call` works for call chains. Requires graphify >= 0.6.7 — older versions silently ignore the flag.
 - **`--dfs` traces a chain; `--budget N` raises the output cap** (default 2000 tokens). Neither fixes bad seeds — fix seeds first via vocabulary.
 - **After answering a graph question, run `graphify save-result --question "<verbatim question>" --answer "<answer>" --nodes <labels cited>`** so the Q&A becomes a node on the next `graphify update` (feedback loop, no API cost).
+
+On 2026-09-30 Magnus ratified the bounded W9 recommendations: ADRs 0073,
+0076–0078 and 0083–0087 are accepted at their experimental scopes. The seven-day
+pilot passed 36 declared operations across three checkpoints. PostgreSQL remains
+artifact authority, Valkey owns bounded execution, and optional LangGraph does
+not own application data. Qdrant retirement and stable-path promotion of opt-in
+experiments require separate evidence and review. See the final W9 decision.
