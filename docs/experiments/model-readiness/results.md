@@ -1,6 +1,6 @@
 # Readiness reliability follow-up — September 30
 
-**Complete: merged PR #396 is deployed to the experimental agent at `bb5f2a3eb00df73eadb7163c6ed88504ee5cc843`, model `free`.** The candidate-only update changed agent image/revision, preserved other rendered configuration, waited for no active/pending jobs or admission work, and retained the prior image for rollback. Mainline deployment and Hermes configuration were unchanged.
+**Readiness repair complete: merged PR #396 was deployed to the experimental agent at `bb5f2a3eb00df73eadb7163c6ed88504ee5cc843`, model `free`.** The candidate-only update changed agent image/revision, preserved other rendered configuration, waited for no active/pending jobs or admission work, and retained the prior image for rollback. Mainline deployment and Hermes configuration were unchanged.
 
 All eleven candidate services were running and healthy after deployment. Browser init remained enabled and the semantic service retained its effective 14-CPU quota. This changed runtime is not the frozen seven-day W9 runtime; completed W9 results remain historical bounded evidence.
 
@@ -15,6 +15,6 @@ One minimal readiness probe retains a five-second wall-clock limit. Slow/indeter
 
 ## Coverage boundary
 
-CI's changed-line check succeeded but reported 0/0 applicable executable lines, so it is not used as coverage proof. A separate focused strict-mode run against the same source base/head measured [34/35 changed executable lines](focused-coverage.md): LLM 27/28 (96.4%), agent streaming route 7/7 (100%). The application header argument is not a distinct executable statement. This focused percentage is not aggregate application coverage.
+The original CI changed-line summary reported 0/0 and was not used as coverage proof at delivery. The separate focused strict-mode run remains [34/35 changed executable lines](focused-coverage.md). Subsequent [artifact reprocessing](../coverage-binding/results.md) established that CI had measured all 35/35 changed executable lines; its relative `agent/...` report namespace was not bound correctly. Merged [PR #402](https://github.com/magnus919/groktocrawl-x/pull/402) fixes that binding and makes missing measurement explicit. Neither percentage is aggregate application coverage.
 
-[#400](https://github.com/magnus919/groktocrawl-x/issues/400) tracks binding CI coverage to the measured agent source and distinguishing missing measurement from non-executable changes. [#398](https://github.com/magnus919/groktocrawl-x/issues/398) remains the separate browser process-pressure health-diagnostics follow-up. No new replacement-readiness claim or mainline promotion is made by this repair.
+The separate [browser health follow-up](../browser-process-health/results.md) is also complete and deployed through PR #404. That update advances the agent revision while retaining this readiness behavior and model alias `free`. The earlier readiness deployment and live stream above remain historical evidence. No new replacement-readiness claim or mainline promotion is made by these repairs.
