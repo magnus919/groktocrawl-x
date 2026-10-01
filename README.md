@@ -5,6 +5,8 @@
 > Mainline development continues at [groktopus/groktocrawl](https://github.com/groktopus/groktocrawl).
 > This experiment explores a new research architecture: explicit orchestration, a portable claims-and-evidence model (Knowledge IR), verified artifact rendering, and durable workflows.
 > The bounded research substrate is implemented and has passed its seven-day pilot (36 successful operations, three checkpoints). Read the [readiness recommendation and limits](docs/experiments/w9-replacement-readiness-decision.md) and [experiment plan](docs/experiments/research-architecture.md). Magnus approved the bounded ADR recommendations on September 30, 2026.
+
+> The [operational follow-ups](docs/experiments/research-architecture.md#post-roadmap-operational-follow-ups) are complete. Current browser/API health hardening is documented separately from the historical seven-day pilot.
 >
 > The repository preserves upstream Git history but is hosted as a separate GitHub repository. The inherited documentation below describes the starting implementation; it does not promise compatibility for future experiments. No upstream releases, images, or support channels represent this fork.
 

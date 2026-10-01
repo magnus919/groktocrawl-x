@@ -26,13 +26,13 @@ An Architecture Decision Record captures an important architectural decision mad
 
 ## Index
 
-**Status legend:** accepted ADRs describe decisions used by the current implementation. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
+**Status legend:** accepted ADRs document decisions approved for their stated scope; acceptance alone does not establish implementation or production readiness. Use each record’s confirmation section and the roadmap for implementation evidence. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
 
-**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0064, 0066–0070, 0072, 0074, 0079, 0081, 0082, 0088, 0089–0090, 0092 (bounded experimental scope).
+**Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0064, 0066–0079, 0081–0090, and 0092, with bounded experimental or implementation scope where stated in each record.
 
-**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042, plus fork-local ADR-0073, 0076–0078, and 0083.
+**Proposed work:** ADR-0023–0025, 0027, 0028, 0036, 0037, and 0040–0042. The fork-local records ratified on September 30 are accepted for their stated bounded scope.
 
-**Bounded implementation accepted:** ADR-0075 defines consolidated research interchange contracts; implementation and format-freeze checks remain.
+**Bounded implementation accepted:** ADR-0075 defines consolidated research interchange contracts; its confirmation section defines the required implementation and format-change checks.
 
 **Bounded exploration accepted:** ADR-0071 permits isolated retained-evidence implementation; production adoption and vector cutover remain gated.
 
