@@ -26,7 +26,7 @@ An Architecture Decision Record captures an important architectural decision mad
 
 ## Index
 
-**Status legend:** accepted ADRs describe decisions used by the current implementation. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
+**Status legend:** accepted ADRs document decisions approved for their stated scope; acceptance alone does not establish implementation or production readiness. Use each record’s confirmation section and the roadmap for implementation evidence. Proposed ADRs are design work, not promises of current behavior. Superseded ADRs are historical context only; use their successor when documenting current behavior.
 
 **Current accepted decisions:** ADR-0001–0007, 0009–0012, 0014–0022, 0026, 0029–0035, 0038, 0039, 0043–0057, 0059–0064, 0066–0079, 0081–0090, and 0092, with bounded experimental or implementation scope where stated in each record.
 
