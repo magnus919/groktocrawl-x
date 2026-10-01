@@ -20,7 +20,7 @@ def process_capacity(roots: tuple[Path, ...] = CGROUP_ROOTS) -> dict[str, object
                 continue
             current = int(current_text)
             limit = None if limit_text == "max" else int(limit_text)
-            if current < 0 or (limit is not None and limit <= 0):
+            if current < 0 or (limit is not None and limit < 0):
                 continue
         except (OSError, UnicodeError, ValueError):
             continue

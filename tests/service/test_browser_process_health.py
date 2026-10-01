@@ -20,12 +20,14 @@ def _budget(root, current="7", limit="256"):
     return (root,)
 
 
-@pytest.mark.parametrize("current", ["256", "257", "250"])
+@pytest.mark.parametrize(
+    "current,limit", [("256", "256"), ("257", "256"), ("250", "256"), ("1", "0")]
+)
 @pytest.mark.asyncio
 async def test_exhausted_budget_degrades_transport_without_launch(
-    monkeypatch, tmp_path, current
+    monkeypatch, tmp_path, current, limit
 ):
-    roots = _budget(tmp_path, current)
+    roots = _budget(tmp_path, current, limit)
     monkeypatch.setattr(
         browser_app, "process_capacity", lambda: process_capacity(roots)
     )
@@ -59,7 +61,6 @@ def test_ordinary_and_unlimited_budget(tmp_path, current, limit):
     [
         ("invalid", "256"),
         ("-1", "256"),
-        ("1", "0"),
         ("1", "-2"),
         ("1", "broken"),
         ("1", "9" * 200),
