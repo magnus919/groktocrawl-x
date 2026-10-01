@@ -10,6 +10,8 @@ returns HTTP 503, `status: degraded`, and `reason: process_capacity_low`.
 The reserve is a conservative pressure signal for a Playwright driver and
 Chromium session, not a guarantee that session creation will succeed. Existing
 HTTP-based Docker health checks now detect this failure without parsing JSON.
+The agent dependency probe uses `/health` as well, so aggregate API health
+reports the browser as degraded rather than treating its root 404 as healthy.
 
 Ordinary finite budgets and unlimited container budgets return HTTP 200. Missing,
 unreadable, or invalid controller data return HTTP 200 with capacity explicitly
