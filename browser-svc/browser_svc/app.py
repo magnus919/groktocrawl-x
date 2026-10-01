@@ -13,7 +13,7 @@ import uuid
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from playwright.async_api import async_playwright
 from pydantic import BaseModel
 
@@ -23,6 +23,7 @@ from common.middleware import add_request_id_middleware
 from common.stage_metrics import inc_counter, set_gauge
 from common.url import extract_domain, is_private_host
 
+from .process_health import process_capacity
 from .settings import load_settings
 
 setup_logging()
@@ -284,7 +285,14 @@ async def _cleanup_resources(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "active_sessions": len(_sessions)}
+    capacity = process_capacity()
+    degraded = capacity["state"] == "degraded"
+    payload = {
+        "status": "degraded" if degraded else "ok",
+        "active_sessions": len(_sessions),
+        "process_capacity": capacity,
+    }
+    return JSONResponse(payload, status_code=503 if degraded else 200)
 
 
 @app.get("/metrics")

@@ -116,13 +116,13 @@ async def check_scraper(url: str) -> dict[str, Any]:
 
 
 async def check_browser(url: str) -> dict[str, Any]:
-    """Probe browser-svc by hitting its root endpoint."""
+    """Probe browser-svc through its resource-aware /health endpoint."""
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{url.rstrip('/')}/", timeout=10)
+            resp = await client.get(f"{url.rstrip('/')}/health", timeout=10)
             elapsed = (time.monotonic() - start) * 1000
-            if resp.status_code < 500:
+            if resp.status_code == 200:
                 return {
                     "status": "ok",
                     "latency_ms": round(elapsed, 1),

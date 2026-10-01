@@ -429,7 +429,7 @@ jobs:
           docker cp mcp-svc/. "$svc:/app/mcp-svc/"
 
       - name: Install critical test dependencies
-        run: docker compose exec -T agent-svc pip install pytest pytest-asyncio pytest-cov pytest-timeout jinja2 tabulate markdownify==1.2.3 readability-lxml==0.8.4.1 firecrawl-anydoc==0.2.4 pypdf -q
+        run: docker compose exec -T agent-svc pip install pytest pytest-asyncio pytest-cov pytest-timeout playwright jinja2 tabulate markdownify==1.2.3 readability-lxml==0.8.4.1 firecrawl-anydoc==0.2.4 pypdf -q
 
       - name: Verify LLM fixture contract and agent routing
         run: |
@@ -541,7 +541,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          docker compose exec -T agent-svc pip install pytest pytest-asyncio pytest-cov pytest-xdist pytest-timeout jinja2 tabulate markdownify==1.2.3 readability-lxml==0.8.4.1 firecrawl-anydoc==0.2.4 pypdf PyYAML -q
+          docker compose exec -T agent-svc pip install pytest pytest-asyncio pytest-cov pytest-xdist pytest-timeout playwright jinja2 tabulate markdownify==1.2.3 readability-lxml==0.8.4.1 firecrawl-anydoc==0.2.4 pypdf PyYAML -q
           docker compose exec -T agent-svc mkdir -p /app/coverage
           set +e
           docker compose exec -T agent-svc env \
