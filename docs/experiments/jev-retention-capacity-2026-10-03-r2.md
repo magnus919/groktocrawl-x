@@ -31,18 +31,21 @@ frozen pool, not as a targeted retry.
 
 Use the exact pool SHA-256
 `9c903f589ef1c247aa7364b1769013032c1fb53088ebd98bd837d6d05ea9004d` and its
-34 URLs without exclusions. The 170 new starts are five fixed passes: width 1
-once, width 3 twice, and width 5 twice. The first pool URL is the first request
-of the width-1 pass, not an extra request. Together with the 22 R1 starts,
-this stays below the original 204-start bound (192 starts maximum across R1
+34 URLs without exclusions. The 170 new starts are five fixed passes, in this
+exact order: width 1/repeat 1, width 3/repeat 1, width 5/repeat 1, width
+3/repeat 2, and width 5/repeat 2.
+This yields 34 width-1 requests and 68 each at widths 3 and 5. The first pool
+URL is the first request of the width-1 pass, not an extra request. Together
+with the 22 R1 starts, this stays below the original 204-start bound (192 starts maximum across R1
 and R2). Each start is fsynced to a new append-only, mode-0600 journal before
 dispatch; each response is recorded separately. Counts derive from start
 events. No retry, cache clearing, search, Jev, LLM, job creation, indexing,
 configuration change, deployment, or runtime modification is in scope.
 
-Use the same candidate revision and runtime-configured internal scraper route
-as R1. Before starting and at each sweep boundary, capture the reviewed
-read-only health, route, tier/call metrics, active jobs, revision, and aggregate
+Pin the candidate revision to
+`68ece0cfb50684a5637185048d0db15049bb9d56`, the revision observed in R1, and
+use its runtime-configured internal scraper route. Before starting and at each
+sweep boundary, capture the reviewed read-only health, route, tier/call metrics, active jobs, revision, and aggregate
 resource snapshot. Stop if health/metrics are unavailable, revision changes,
 an unrelated job is active, transport fails, or status 429 is returned. Other
 HTTP statuses remain page-level results and do not trigger a retry; record the
