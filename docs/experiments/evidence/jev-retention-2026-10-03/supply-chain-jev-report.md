@@ -113,9 +113,10 @@ include complementary, contradictory, and post-8k evidence. Bound the run to one
 batch and the already stated external-call budget. If the batch has no
 below-threshold source or complete input exceeds a documented context limit,
 report the comparison as non-identifying/blocked and stop rather than
-manufacturing a contrast or silently truncating text. The existing proxy
-exposes no model-context metadata endpoint, so the free alias context limit
-remains unverified; no oversized synthesis request was made.
+manufacturing a contrast or silently truncating text. A subsequent read-only provider metadata lookup declared
+`max_input_tokens=1,048,576` for alias `free`. This is a declaration, not an
+empirically verified routed context limit; the report's synthesis outcome
+remains unchanged, and no oversized synthesis request was made.
 
 Treat the 25–40-source cold/warm, mixed-failure, cancellation, concurrent-job,
 and progress measurements as separate operational prerequisites if adoption is
