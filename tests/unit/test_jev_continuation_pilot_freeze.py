@@ -24,7 +24,7 @@ PACKET = json.loads(PACKET_PATH.read_text())
 
 def test_frozen_public_pilot_packet_hash_and_scope():
     assert hashlib.sha256(PACKET_PATH.read_bytes()).hexdigest() == (
-        "f7fbfda03c29fbe9689a01ba5f23669083b9a950a6933b6e6fbb78b2860e5160"
+        "6bdff861da0dfb8f20b7d11983034520d7a37bda6e8d0ad7037da40d314d023c"
     )
     assert PACKET["source_revision"] == "7b9bf51de1334d4d7e6bd6256d3085c8c2a8d60d"
     assert len(PACKET["cases"]) == 8

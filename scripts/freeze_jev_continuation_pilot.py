@@ -197,8 +197,8 @@ def main() -> None:
         ),
         make_case(
             case_id="pilot-02",
-            question="When a site-specific adapter fails, what does the documented scraper do next?",
-            obligation="Determine adapter failure fallback behavior.",
+            question="What execution order does the scraping guide specify for site adapters and generic fetching?",
+            obligation="Determine where site adapters run relative to generic fetching.",
             sources=[
                 (
                     "docs/guides/features.md",
@@ -207,12 +207,12 @@ def main() -> None:
                 )
             ],
             status="satisfied",
-            rationale="The passage says adapters use fallback chains and generic extraction follows.",
+            rationale="The passage explicitly says adapters run before generic fetching.",
             proposal_kind="missing_information",
-            proposal="The supplied passage does not say whether generic fallback occurs after adapter failure.",
-            specific_information="whether a failed specialized adapter falls back to the generic scraper pipeline",
-            subject="adapter fallback",
-            context="supported-site scrape behavior",
+            proposal="The supplied passage does not state whether adapters run before or after generic fetching.",
+            specific_information="whether site adapters run before or after generic fetching",
+            subject="adapter execution order",
+            context="supported-site scraping pipeline",
             stage3_yes=False,
             stage4_yes=None,
             stratum="adequate-with-false-missing-proposal",

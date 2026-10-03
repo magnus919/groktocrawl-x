@@ -21,7 +21,7 @@ in scope.
 The frozen packet is
 [`continuation-pilot-2026-10-03.case-packet.json`](continuation-pilot-2026-10-03.case-packet.json).
 Its SHA-256 is
-`f7fbfda03c29fbe9689a01ba5f23669083b9a950a6933b6e6fbb78b2860e5160`.
+`6bdff861da0dfb8f20b7d11983034520d7a37bda6e8d0ad7037da40d314d023c`.
 The request-builder contract and wording are pinned at commit
 `84f5a6498834ccf23eab5f9b6cf930232717908a`.
 It contains exact public source blobs for offline span validation, bounded

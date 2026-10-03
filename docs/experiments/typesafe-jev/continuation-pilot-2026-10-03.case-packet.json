@@ -101,7 +101,7 @@
       "assistant_reference": {
         "evidence_status": "satisfied",
         "provenance": "assistant best-effort assessment; not independent gold",
-        "rationale": "The passage says adapters use fallback chains and generic extraction follows.",
+        "rationale": "The passage explicitly says adapters run before generic fetching.",
         "search_needed": "no",
         "stage1_yes": true,
         "stage3_yes": false,
@@ -109,31 +109,31 @@
       },
       "case_id": "pilot-02",
       "frozen_request_sha256": {
-        "stage1_sufficiency": "b3c18fd271a3732013bcbd7cd9e9442a51ca99d5f737e00455188f7f4aee61a5",
-        "stage3_hypothesis_review": "64a59a2c735703c5a25992f2fa08e583146af0213ff031e4f77fe1ddaf1e1a08",
-        "stage4_addressability_if_stage3_positive": "14a67fae91f3672dfa656c86cd2ed7c4f8ee01ea3487b43397c0bb3766dbe606"
+        "stage1_sufficiency": "49210a4d1ca3f1b67d39e48dbcb5af9421ba74ae3ade3d8aa2eea81ec57235e8",
+        "stage3_hypothesis_review": "1d2fe9ba951de84f1abb45b75266e74e69b2d3263daf74315640e6304e00810b",
+        "stage4_addressability_if_stage3_positive": "f81c1951ae644809414d668197dd0e260f780d8627f8cb22e7f021f5dc2514ca"
       },
       "proposal_provenance": "separate research-agent stage, assistant-authored for this pilot; not Jev-generated and not independent gold",
       "research_agent_proposal": {
         "absence_scope": "supplied_material_only",
-        "context": "supported-site scrape behavior",
+        "context": "supported-site scraping pipeline",
         "hypothesis_id": "pilot-02-h1",
         "kind": "missing_information",
-        "proposition": "The supplied passage does not say whether generic fallback occurs after adapter failure.",
+        "proposition": "The supplied passage does not state whether adapters run before or after generic fetching.",
         "source_spans": [
           {
-            "context": "supported-site scrape behavior",
+            "context": "supported-site scraping pipeline",
             "end_byte": 436,
             "quote": "`POST /v2/scrape` and `scrape` return clean markdown plus optional formats, quality assessment, metadata, links, screenshots, and images. Adapters run before generic fetching for supported sites and use their own fallback chains. Generic extraction applies cache revalidation, politeness/robots controls, llms.txt, markdown negotiation, browser rendering, optional recovery, and quality gates.",
             "source_id": "scrape-guide",
             "source_sha256": "7c13c23e8a166e6779f7e3e5263c1835bbca847df394f6641d7848b218de115e",
             "start_byte": 43,
-            "subject": "adapter fallback",
+            "subject": "adapter execution order",
             "version": "origin/main@7b9bf51de133"
           }
         ],
-        "specific_information": "whether a failed specialized adapter falls back to the generic scraper pipeline",
-        "subject": "adapter fallback",
+        "specific_information": "whether site adapters run before or after generic fetching",
+        "subject": "adapter execution order",
         "version": "origin/main@7b9bf51de133"
       },
       "source_blob_by_id": {
@@ -170,7 +170,7 @@
         "obligation": {
           "id": "pilot-02",
           "scope": "public project documentation at 7b9bf51de1334d4d7e6bd6256d3085c8c2a8d60d",
-          "statement": "Determine adapter failure fallback behavior."
+          "statement": "Determine where site adapters run relative to generic fetching."
         },
         "public_search_scope": {
           "allowed_source_types": [
@@ -184,7 +184,7 @@
             "non-public operational state"
           ]
         },
-        "research_question": "When a site-specific adapter fails, what does the documented scraper do next?"
+        "research_question": "What execution order does the scraping guide specify for site adapters and generic fetching?"
       },
       "stratum": "adequate-with-false-missing-proposal"
     },
