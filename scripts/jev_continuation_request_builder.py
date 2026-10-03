@@ -106,7 +106,7 @@ class RequestPlan:
 @dataclass(frozen=True)
 class ValidatedNoulResponse:
     model: str
-    probabilities: dict[str, float]
+    probabilities: Mapping[str, float]
     request_sha256: str
 
 
@@ -575,5 +575,7 @@ def validate_noul_response(
             )
         probabilities[question_id] = float(probability)
     return ValidatedNoulResponse(
-        MODEL, probabilities, hashlib.sha256(request.serialized).hexdigest()
+        MODEL,
+        MappingProxyType(probabilities),
+        hashlib.sha256(request.serialized).hexdigest(),
     )

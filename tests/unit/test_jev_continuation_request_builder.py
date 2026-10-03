@@ -202,6 +202,8 @@ def test_response_requires_exact_plan_and_uses_noul_not_confidence():
     assert isinstance(accepted, builder.ValidatedNoulResponse)
     assert accepted.probabilities == {"n0": 0.51}
     assert accepted.request_sha256 == hashlib.sha256(plan.serialized).hexdigest()
+    with pytest.raises(TypeError):
+        accepted.probabilities["n0"] = 0.99
     assert isinstance(
         builder.validate_noul_response(
             {
