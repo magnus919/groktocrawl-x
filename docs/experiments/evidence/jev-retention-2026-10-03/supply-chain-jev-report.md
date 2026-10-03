@@ -83,3 +83,43 @@ with a held-out batch that records the actual deployed search revision and
 rerank explanation, independently reviews labels, and uses a synthesis model
 with a verified context limit. Preserve the full-text and keyless-projection
 comparisons as separate questions.
+
+## Issue-scope disposition and evidence boundary
+
+**Research-spike exit: revise; no new activation.** This result answers only a
+narrow first-batch retention question: on one partial 20-result search snapshot,
+19 pages received best-effort positive contribution labels and all 19 were
+retained by the existing rule. It does not support general recall or an
+answer-quality benefit. ADR-0090 remains opt-in and unchanged.
+
+| Requested question | Evidence in this packet or repository | Disposition |
+|---|---|---|
+| Acquire every distinct result returned, without the retired local source quota | All 20 distinct URLs in this one partial snapshot were attempted and yielded Markdown. ADR-0092 and `tests/service/test_research_scrape_all.py` cover no-slice/deduplication and continuation after a mocked failure. | Demonstrated for this packet and deterministic code path; not a live 25–40-result capacity test. |
+| Does the existing post-scrape filter retain useful contributions? | 19 positive and one uncertain page; all 20 were retained. There were no excluded pages, no independent label reviewer, and no labeled complementary or contradictory source. | Narrow recall observation only; negative-page behavior and broader recall remain untested here. |
+| Does filtering improve answer synthesis on the current upstream search baseline? | The snapshot was partial, had no rerank explanation or deployed revision, and no synthesis call was made. Since nothing was excluded, the filtered and score-only source sets would be identical. ADR-0090 records an earlier complete-page replay where the unfiltered model ignored six obvious junk pages; that historical replay is not this baseline or a measured uplift. | Unanswered. Do not claim uplift or no uplift on the current baseline. |
+| Does the keyless 8,000-character projection lose useful evidence? | Of 28 labeled candidate spans, 22 were present, one was partial, and five were beyond the prefix, including a frozen late-passage control. No synthesis was run. | Evidence of input projection loss in this corpus; answer impact is unmeasured. |
+| Does acquisition remain acceptable at 25–40 sources under mixed latency/failure, cold/warm cache, cancellation, concurrent jobs, and progress reporting? | `tests/service/test_research_scrape_all.py` uses fake search/scrape clients and checks a 24-result case, mocked failure continuation, deduplication, and maximum five in flight. `agent-svc/agent/research/acquisition.py` and `discovery.py` implement bounded concurrency/timeouts/streaming. Separate run/cancellation tests cover lifecycle contracts. This packet reports 20 successful scrapes and sequential Jev calls, not end-to-end timings or multi-job load. | Implementation and contract coverage exist; target-width operational behavior and latency were not measured by this study. |
+| Are chunking, threshold failures, version/work identity, source complementarity, contradictions, and safety adequately tested? | All pages fit one Jev chunk; every score exceeded 0.10; result cards had no explicit work/version identifiers; the label freeze has candidate-contribution spans only, including one uncertain status label. Injection/safety was not assessed. | Multi-chunk maximum-score bias, below-threshold recall, explicit duplicate-version handling, complementary/contradictory evidence, and injection behavior remain open. |
+
+The smallest useful next **quality** comparison is one new, prospectively frozen
+current-baseline batch, acquired without a local source quota, that includes
+both a below-threshold page and independently reviewed required contribution
+spans (otherwise the filter-removal contrast is not identified). On the exact
+same acquired Markdown, prompt, synthesis model, and settings, compare full text
+without Jev, full text with scores but no removal, the existing filter, and the
+keyless 8k projection. Freeze the source/work/version labels and answer rubric
+before Jev or synthesis outcomes; verify actual deployed reranking; explicitly
+include complementary, contradictory, and post-8k evidence. Bound the run to one
+batch and the already stated external-call budget. If the batch has no
+below-threshold source or complete input exceeds a documented context limit,
+report the comparison as non-identifying/blocked and stop rather than
+manufacturing a contrast or silently truncating text. The existing proxy
+exposes no model-context metadata endpoint, so the free alias context limit
+remains unverified; no oversized synthesis request was made.
+
+Treat the 25–40-source cold/warm, mixed-failure, cancellation, concurrent-job,
+and progress measurements as separate operational prerequisites if adoption is
+later considered. They are not part of the quality comparison above, and the
+existing unit/lifecycle tests must not be presented as measured throughput or
+capacity. No further provider calls, deployment, or activation are authorized
+by this report.
