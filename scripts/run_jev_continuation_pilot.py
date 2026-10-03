@@ -11,11 +11,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 import jev_continuation_request_builder as builder
+
+PACKET_SHA256 = "6bdff861da0dfb8f20b7d11983034520d7a37bda6e8d0ad7037da40d314d023c"
+CASE_COUNT = 8
+MAX_REQUESTS = 24
 
 
 def _call(proxy: list[str], plan: builder.RequestPlan) -> tuple[dict[str, Any], Any]:
@@ -44,17 +50,41 @@ def _call(proxy: list[str], plan: builder.RequestPlan) -> tuple[dict[str, Any], 
         "request_sha256": checked.request_sha256,
         "response_sha256": hashlib.sha256(process.stdout).hexdigest(),
         "probabilities": dict(checked.probabilities),
-        "elapsed_ms": response.get("_elapsed_ms"),
+        "elapsed_ms": _finite_nonnegative(response.get("_elapsed_ms")),
     }
     if isinstance(response.get("usage"), dict):
-        receipt["usage"] = response["usage"]
+        usage = {
+            key: value
+            for key in ("input_tokens", "output_tokens", "total_tokens")
+            if isinstance((value := response["usage"].get(key)), int)
+            and not isinstance(value, bool)
+            and value >= 0
+        }
+        if usage:
+            receipt["usage"] = usage
     return receipt, checked
+
+
+def _finite_nonnegative(value: Any) -> float | None:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(value)
+        or value < 0
+    ):
+        return None
+    return float(value)
 
 
 def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
     packet_bytes = packet_path.read_bytes()
+    if hashlib.sha256(packet_bytes).hexdigest() != PACKET_SHA256:
+        raise ValueError("case packet digest differs from signed freeze")
     packet = json.loads(packet_bytes)
-    if packet.get("study_id") != "jev-continuation-v2-pilot-2026-10-03":
+    if (
+        packet.get("study_id") != "jev-continuation-v2-pilot-2026-10-03"
+        or len(packet.get("cases", [])) != CASE_COUNT
+    ):
         raise ValueError("unsupported frozen packet")
     results: dict[str, Any] = {
         "study_id": packet["study_id"],
@@ -67,6 +97,8 @@ def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
     }
 
     def call(case: dict[str, Any], stage: str, plan: builder.RequestPlan) -> tuple[dict[str, Any], Any]:
+        if results["requests_attempted"] >= MAX_REQUESTS:
+            raise ValueError("frozen pilot request cap exceeded")
         expected = case["frozen_request_sha256"][stage]
         actual = hashlib.sha256(plan.serialized).hexdigest()
         if actual != expected:
@@ -148,14 +180,17 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("proxy", nargs=argparse.REMAINDER, help="proxy argv after --")
     args = parser.parse_args()
+    if args.proxy and args.proxy[0] == "--":
+        args.proxy = args.proxy[1:]
     if not args.proxy:
         parser.error("supply an operator-configured proxy command after --")
     result = run(args.packet, args.proxy)
-    args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
-    args.output.chmod(0o600)
+    descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        output.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps({key: result[key] for key in (
         "study_id", "requests_attempted", "requests_validated", "requests_unevaluated",
-        "searches_dispatched", "returned_model"
+        "searches_dispatched"
     )}, sort_keys=True))
 
 
