@@ -13,6 +13,7 @@ from common.stage_metrics import StreamTiming
 
 from ..llm import LLMClient
 from ..scraper_client import ScraperClient
+from ..search_metadata import search_metadata
 from ..searxng_client import SearXNGClient
 from .acquisition import (
     AcquisitionResult,
@@ -127,6 +128,7 @@ async def run_deep_search(
                             url=url,
                             title=r.get("title", ""),
                             description=r.get("description", ""),
+                            **search_metadata(r),
                         )
                     )
 

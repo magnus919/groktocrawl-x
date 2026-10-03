@@ -16,6 +16,7 @@ from ..models import (
     SearchResult,
 )
 from ..research.sources import normalize_source_url
+from ..search_metadata import search_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +220,7 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
                         url=r["url"],
                         title=r["title"],
                         description=r.get("description", ""),
+                        **search_metadata(r),
                     )
                     for r in plan.results
                 ]
@@ -240,7 +242,10 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
                 )
             search_results = [
                 SearchResult(
-                    url=r["url"], title=r["title"], description=r.get("description", "")
+                    url=r["url"],
+                    title=r["title"],
+                    description=r.get("description", ""),
+                    **search_metadata(r),
                 )
                 for r in results
             ]
@@ -259,10 +264,7 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
                     contents_payload = {
                         "extras": body.contents.extras.model_dump(exclude_none=True)
                     }
-                candidate_dicts = [
-                    {"url": r.url, "title": r.title, "description": r.description}
-                    for r in search_results[: body.limit]
-                ]
+                candidate_dicts = [r.model_dump() for r in search_results[: body.limit]]
                 acquired = await acquire_source_artifacts(
                     candidate_dicts,
                     scraper,
@@ -335,10 +337,7 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
             from ..research import run_rich_search
 
             output = await run_rich_search(
-                search_results=[
-                    {"url": r.url, "title": r.title, "description": r.description}
-                    for r in search_results
-                ],
+                search_results=[r.model_dump() for r in search_results],
                 query=body.query,
                 limit=body.limit,
                 output_schema=body.output_schema,
@@ -374,10 +373,7 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
             scraper_client = ScraperClient(request.app.state.scraper_url)
             try:
                 # Build result dicts from current search_results
-                result_dicts = [
-                    {"url": r.url, "title": r.title, "description": r.description}
-                    for r in search_results
-                ]
+                result_dicts = [r.model_dump() for r in search_results]
                 enriched = await process_contents_for_results(
                     result_dicts,
                     body.query,
@@ -394,6 +390,7 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
                         url=r["url"],
                         title=r["title"],
                         description=r.get("description", ""),
+                        **search_metadata(r),
                         highlights=r.get("highlights"),
                         summary=r.get("summary"),
                         extras=r.get("extras"),

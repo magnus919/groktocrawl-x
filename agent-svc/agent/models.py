@@ -4,8 +4,18 @@ from enum import Enum
 from typing import Any
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
+
+from .search_metadata import METADATA_FIELDS
 
 # ── Valid scrape format values ──────────────────────────────────
 VALID_SCRAPE_FORMATS: frozenset[str] = frozenset(
@@ -899,6 +909,37 @@ class SearchResult(BaseModel):
     url: str
     title: str
     description: str = ""
+    # Optional additive source metadata; absent keys retain the legacy shape.
+    engine: str | None = None
+    engines: list[str] | None = None
+    doi: str | None = None
+    authors: list[str] | None = None
+    journal: str | None = None
+    publisher: str | None = None
+    editor: str | None = None
+    pages: str | None = None
+    number: str | None = None
+    comments: str | None = None
+    type: str | None = None
+    pdf_url: str | None = None
+    html_url: str | None = None
+    publishedDate: str | None = None
+    issn: list[str] | None = None
+    isbn: list[str] | None = None
+    tags: list[str] | None = None
+    volume: str | int | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_source_metadata(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        data = handler(self)
+        return {
+            key: value
+            for key, value in data.items()
+            if key not in METADATA_FIELDS or value is not None
+        }
+
     # ── Content extraction fields (populated when contents in SearchRequest) ──
     highlights: str | None = None  # LLM-extracted relevant passages
     summary: str | None = None  # LLM-generated summary
