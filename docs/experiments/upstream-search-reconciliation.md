@@ -127,7 +127,7 @@ should evaluate them separately, after acquiring content where needed, rather
 than calling an academic title weak research in itself. This is a bounded
 no-adoption conclusion, not a verdict against Jev or academic sources.
 
-### Downstream findings under review
+### Downstream research dispositions
 
 - **Contribution retention (#371):** [PR #410](https://github.com/magnus919/groktocrawl-x/pull/410)
   audits 20 acquired pages and 28 labeled contribution spans. The frozen filter
@@ -175,7 +175,6 @@ no-adoption conclusion, not a verdict against Jev or academic sources.
   needed before changing user-visible behavior. Failed acquisition was a
   separate zero-call control, not an immaterial-change judgment.
 
-The retention and page-change packets are awaiting publication review. These
-findings do not change deployment defaults.
+These research dispositions do not change deployment defaults.
 Provider response validity, assistant label agreement, and lower call latency
 do not establish better research answers or calibrated action thresholds.

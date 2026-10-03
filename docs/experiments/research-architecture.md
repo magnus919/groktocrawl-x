@@ -829,7 +829,7 @@ The original roadmap remains complete. Follow-on issues #370–373 examine
 post-scrape evidence retention, research continuation, exact claim support and
 intent-sensitive monitoring; they do not duplicate upstream result ranking or
 publication deduplication. Their bounded October 3 evidence is now recorded in
-the reconciliation, with final publication review pending. The upstream
+the reconciliation. The upstream
 complete-set ranking studies do not justify replacing the shipped first-40
 policy. The downstream studies recommend revision or continued shadow testing,
 with no activation or default change.
