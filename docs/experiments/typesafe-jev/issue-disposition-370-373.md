@@ -1,69 +1,114 @@
-# Jev issue criteria disposition: #370 and #373
+# Jev follow-on research decisions: #370–373
 
-Status: **no adoption on the current evidence; both issue questions remain
-open for a bounded follow-up or explicit maintainer no-go.** This is not a
-claim that Jev is intrinsically unsuitable. Existing adaptive-search and
-saved-search mechanisms are the baseline, and deterministic source identity
-and change delivery remain authoritative.
+**Decision: revise before adoption; retain existing defaults.** The bounded
+studies provide research dispositions, including negative and incomplete
+comparisons. Closing these research spikes does not mean their production
+adoption criteria have been met. No study activates a feature or changes a
+notification, publication, search, or deployment policy.
 
-## #370: continuation after first-pass evidence
+Jev returns probabilities for frozen propositions. Application code owns
+search dispatch, budgets, source validation, fallback, and final action. The
+reference labels below are best-effort assistant assessments, not independent
+gold. Probability agreement does not establish calibration or factual truth.
 
-The original four-case shadow screen exercised the existing `Choice` question
-but did not dispatch searches. Its evaluator-only follow-up pool preserved
-possible evidence for replay; merely having that pool is not an evidence-gain
-measurement. The new eight-case staged Noul pilot exercised evidence
-sufficiency, externally supplied gap hypotheses, and conditional public
-addressability. Nineteen of 19 calls validated and all outputs aligned with
-assistant-authored best-effort references. The second pilot also dispatched no
-search and replayed no follow-up pool.
+## #370: deciding whether another search could help
 
-| Issue criterion | Evidence | Disposition |
-|---|---|---|
-| Freeze obligations and distinguish met, unmet, contradiction, and unanswerable | Original packet has one of each; new packet has sufficient, missing, and private/unresolvable cases | Partially exercised; no positive contradiction case in the staged pilot |
-| Compare incumbent and Jev on the same evidence state | Original shadow screen did this descriptively on four cases; staged pilot records separate propositions, not a production incumbent comparison | Feasibility only |
-| Replay a bounded follow-up set and measure distinct evidence gain separately from a recommendation | No replay executed in either completed report | Unmet |
-| Measure missed necessary/unnecessary searches, obligation closure, answer/citation differences | No fresh query or answer arm; the staged pilot made no search decision | Unmet |
-| Separate calibration and validation and review references independently | Original small split and staged assistant-authored references are not independent adjudication; staged pilot has no calibrated threshold | Insufficient for quality claims |
-| Report latency, provider usage, and failure fallback | Captured for the two small shadow runs; no failure occurred in the staged run | Operational observations only |
+The original Choice screen and corrected eight-case staged Noul pilot remain
+separate historical packets. The subsequent [four-case SLSA replay](slsa-replay-2026-10-03.outcome.md)
+returned 11 valid Jev judgments and four parsed incumbent gap arrays. Two
+externally supplied public gaps had contributing passages in the fixed replay
+pool; general public advice could not provide a private deployment value.
+The incumbent proposed topics even for the already satisfied obligation.
+This is a descriptive contrast: Jev judged carefully supplied gap hypotheses,
+while the incumbent generated its own topics. Neither fresh searches nor
+comparative answers were produced.
 
-Issue-level outcome: **do not adopt or integrate**. A next research pass can
-reuse already acquired public SLSA/supply-chain pages as a deterministic,
-evaluator-only second-pass replay, while first-pass Jev sees only its frozen
-initial evidence. Use several external research obligations, include bounded
-answerable gaps and a genuinely private/unresolvable control, and freeze the
-query/result pools, span references, and expected evidence contribution
-before any new call. Count newly dispatched searches as zero. This can assess
-whether the replay pool would close an obligation; it cannot establish live
-search quality, actual search cost savings, or retrieval uplift. The fresh
-packet needs independent label review before execution and must keep future
-evidence hidden from first-pass questions.
+| Requirement | Evidence and remaining limit |
+|---|---|
+| Frozen obligations, questions and source spans | Covered in the pilot and replay packets; the staged route still lacks a positive contradiction case. |
+| Same-state incumbent comparison | Exact first-pass excerpts were reused, but hypothesis judgment and topic generation are different tasks. No causal advantage is established. |
+| Bounded follow-up evidence | Already acquired passages were replayed; zero new searches. Mirror URLs do not establish independent corroboration. |
+| Necessary/unnecessary search and answer outcomes | No live dispatch, search-cost saving, or answer/citation improvement was measured. |
+| Calibration and fallback | No action threshold was fitted; operational response validation does not validate a production policy or failure fallback. |
 
-## #373: intent-significant page changes
+**Disposition: revise, with no integration.** A further trial would require
+aligned tasks, contradiction coverage, independent held-out references, and
+measured search/evidence/answer outcomes. It is a separate prospective study,
+not an unreported extension of these packets.
 
-The first six-case screen included three genuine public project-document
-revision pairs, a synthetic boilerplate edit, a synthetic version-specific
-change, and a synthetic fetch failure. The model marked the boilerplate
-control immaterial and the version control material, but also returned
-material for the failed-fetch control; that failure is unevaluated and cannot
-be scored as a semantic change. It marked all three genuine project-authored
-validation pairs material, matching best-effort assistant labels. These pairs
-are topic- and author-context-selected.
+## #371: retaining useful acquired evidence
 
-| Issue criterion | Evidence | Disposition |
-|---|---|---|
-| Authoritative deterministic before/after identity | Frozen public Git blob hashes, diff identity, and exact changed ranges were retained | Covered for selected repository-document pairs |
-| Real public pairs plus explicitly separate synthetic controls | Three genuine pairs and three synthetic controls | Small and selected; not representative |
-| Factual updates, removals, contradictions, date/price/status changes | The public pairs are documentation changes; no coverage of date, price, status, or contradiction cases, and no dedicated removal stratum | Unmet coverage |
-| Boilerplate, navigation/template, formatting churn | One synthetic boilerplate edit; no genuine navigation/template or formatting-only pair | Weak control coverage |
-| Version-specific and ambiguous changes | One synthetic version-specific control; no ambiguous-intent/change case | Unmet coverage |
-| Missing side/fetch failure behavior | One synthetic after-fetch failure; model returned material, correctly treated as unevaluated rather than a valid positive | Failure fallback must remain deterministic |
-| Intent sensitivity and missed-material risk | Intents were present, but three related authored docs cannot estimate either risk | Unmeasured beyond examples |
-| No notification suppression | Existing deterministic change signal remains authoritative; no implementation is enabled | Preserved |
+The [retention audit](../evidence/jev-retention-2026-10-03/supply-chain-jev-report.md)
+identified 28 contribution spans across 20 acquired pages. All pages passed
+the frozen contribution rule. Full text preserved the spans; the 8,000-character
+projection left five absent and one partial. Because every page was retained,
+this corpus cannot establish specificity or improvement from exclusion.
 
-Issue-level outcome: **no adoption or notification suppression**. The failure
-control alone shows why a Jev response cannot replace source acquisition and
-diff validation. Current examples support only a small shadow feasibility
-screen. Additional cases should be frozen only if they can add independent
-intents and underrepresented strata; otherwise maintain the no-go disposition
-with the current deterministic path. No confidence calibration or reduction
-in noisy notifications has been demonstrated.
+The [direct-scraper study](../evidence/jev-retention-2026-10-03/exp036-capacity-outcome.md)
+preserves the failed setup, partial R1, and prospective R2 separately. R2
+completed 170 requests over the fixed 34-URL pool: 165 HTTP 200 and the same PDF
+returning HTTP 502 once in each of five passes. Cache state and whole-sweep
+wall-clock time were not retained; these per-request observations cannot select
+a production concurrency width.
+
+The frozen synthesis comparison stopped on its first R1 request when the response
+reported `finish_reason=length` with a requested 1,600-token output limit.
+Actual token usage was not retained. No complete answer was graded; the other two unique
+arms were not attempted. The prior uncertain-delivery transport attempt and
+zero-call import setup failure remain recorded. No retry or output-limit change
+was made after the stop.
+
+| Requirement | Evidence and remaining limit |
+|---|---|
+| Full acquisition and missed-value audit | All 20 audit pages acquired; 28 spans labeled. The snapshot is partial and does not prove current upstream reranking ran. |
+| Filter versus unfiltered synthesis | Identical membership on this positive-heavy corpus; the attempted answer comparison failed. Filtering benefit remains unmeasured. |
+| Long-page handling | Structural late-span loss is demonstrated; query-aware chunk aggregation and answer/citation benefit are not. |
+| Operational acquisition | Fixed-pool scraper replay observed mixed tiers and a repeated page failure; controlled slow/timeout, resource-queue, cancellation, progress, and multiple research jobs were not tested. |
+| Contradictions and complementary evidence | Contribution annotations are retained; comparative synthesis handling was not established. |
+
+**Disposition: revise, with no new activation or width selection.** Preserve
+ADR-0090 and ADR-0092 scope. A future trial needs a registered synthesis budget,
+a meaningful mixed-value corpus, and measured research-job lifecycle behavior.
+This study does not qualify those adoption requirements.
+
+## #372: support for an exact claim in an exact passage
+
+The [claim-support report](exact-claim-passage-report.md) compares 25 constructed
+pairs, split into 12 calibration and 13 validation cases. Jev and the adapted
+verifier control each falsely supported zero of nine non-supported validation
+pairs. Jev was faster on this packet. The control was not the actual production
+verifier route, and no unchanged generated-answer comparison was run. Annotated
+hard negatives did not exercise runtime precedence or combined gates.
+
+**Disposition: revise; remain shadow-only.** Representative unchanged
+answer/citation pairs, the production verification route, independent labels,
+and runtime precedence/failure tests are needed before integration. This packet
+does not establish incremental answer quality or a safe publication decision.
+
+## #373: whether a page change matters to a user's interest
+
+The [external revision-pair study](../evidence/jev-change-373/outcome.md) keeps
+the earlier six-case pilot separate. Nine real public revision pairs produced
+11 pair-by-intent judgments: four calibration and seven validation. All requests
+validated. At the frozen 0.50 cut, all seven validation judgments matched their
+assistant references: zero false-immaterial among five material cases and zero
+false-material among two immaterial cases. The same invite-link edit scored
+0.83 for onboarding versus 0.07 for cryptographic verification; navigation-weight
+scores also differed by intent. Repeated diffs and sources are clustered
+observations, not independent cases or a production accuracy estimate.
+
+**Disposition: revise; remain shadow-only.** Genuine version/status, removal,
+formatting, navigation and ambiguous cases improve coverage, but contradiction,
+price/date, template/advertising churn, independent labels and calibrated
+notification policy remain unqualified. Failed acquisition is an unevaluated
+zero-call control. Deterministic source identity, diff reporting and notification
+behavior remain authoritative; no notification was suppressed.
+
+## What this closeout permits
+
+The research spikes can close with these reproducible revise/no-adoption
+findings once their evidence is merged. The [upstream reconciliation](../upstream-search-reconciliation.md)
+records why complete-set reranking also remains unadopted on the bounded quality
+results. Any future adoption study needs a new frozen protocol and explicit
+coverage of the unmet requirements above. The original W0–W13 roadmap stays
+complete; these findings neither reopen it nor expand accepted ADR scope.

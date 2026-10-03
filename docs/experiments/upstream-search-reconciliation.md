@@ -139,7 +139,9 @@ no-adoption conclusion, not a verdict against Jev or academic sources.
   returned content, and the same PDF failed once in each pass. Cache state and
   broader research-job capacity were not established. The synthesis comparison
   stopped on its first request at the frozen output limit; the other arms were
-  not attempted, and no complete answer was graded. **Revise before adoption:**
+  not attempted, and no complete answer was graded. The earlier accidental
+  attempt with unknown provider delivery remains recorded separately.
+  **Revise before adoption:**
   filtering benefit, contradiction handling, chunk aggregation, and comparative
   answer quality remain unmeasured.
 - **Follow-up evidence (#370):** [PR #412](https://github.com/magnus919/groktocrawl-x/pull/412)
