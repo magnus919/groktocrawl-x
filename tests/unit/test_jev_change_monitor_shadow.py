@@ -104,11 +104,12 @@ def test_fake_run_journals_attempt_before_sequential_proxy_and_private_receipts(
     receipts = tmp_path / "receipts"
     calls: list[int] = []
 
-    def fake_run(argv, *, input, capture_output, timeout, env, check):
+    def fake_run(_argv, **kwargs):
         assert journal.exists()
         rows = journal.read_text().splitlines()
         assert json.loads(rows[-1])["event"] == "attempted"
-        assert json.loads(input)["model"] == runner.MODEL
+        assert kwargs["capture_output"] is True
+        assert json.loads(kwargs["input"])["model"] == runner.MODEL
         calls.append(len(calls) + 1)
         response = {
             "model": runner.MODEL,
