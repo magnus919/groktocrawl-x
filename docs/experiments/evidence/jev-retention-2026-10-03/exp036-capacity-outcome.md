@@ -69,8 +69,9 @@ job stop condition occurred. The final postflight ran in the `finally` path:
 agent and scraper health were `ok`, there were zero active jobs, and the candidate
 revision was unchanged.
 
-Per-pass elapsed-time summaries for successful HTTP 200 responses are below.
-The p95 uses nearest-rank. Tier counts include the one failed HTTP 502, whose
+Per-pass per-request scraper latency summaries for successful HTTP 200 responses
+are below; they are not whole-sweep completion times. The p95 uses nearest-rank.
+Whole-sweep wall-clock durations were not retained. Tier counts include the one failed HTTP 502, whose
 tier is `unknown`.
 
 | Width / repeat | Results | HTTP 200 / 502 | p50 / p95 (ms) | Tier counts |
