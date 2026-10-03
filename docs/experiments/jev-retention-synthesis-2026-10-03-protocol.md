@@ -1,9 +1,12 @@
 # Frozen synthesis replay for the Jev retention study
 
-**Study:** GCX-JEV-SYNTH-371. **Status:** preregistered; no synthesis-provider
-call has been made. This replays the existing, partial GroktoCrawl supply-chain
-search snapshot. It is not a fresh search and does not validate upstream
-reranking.
+**Study:** GCX-JEV-SYNTH-371. **Protocol status:** the original call sequence was
+stopped after one proxy transport failure during the first attempt. Provider
+delivery is unknown; no usable output was received. See
+[synthesis-attempt-outcome.md](evidence/jev-retention-2026-10-03/synthesis-attempt-outcome.md)
+and the separate R1 addendum before considering any further replay. This replays
+the existing, partial GroktoCrawl supply-chain search snapshot. It is not a fresh
+search and does not validate upstream reranking.
 
 ## Frozen inputs and equivalence
 

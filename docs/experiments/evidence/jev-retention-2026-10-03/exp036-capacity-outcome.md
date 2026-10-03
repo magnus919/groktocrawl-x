@@ -1,47 +1,67 @@
 # GroktoCrawl direct-scraper capacity outcome (GCX-CAP-036; 2026-10-03)
 
-This GroktoCrawl study uses a 34-URL pool captured by SlopSearX EXP-036; the
-two study IDs refer to separate services and experiments.
+This GroktoCrawl study uses a 34-URL pool captured by SlopSearX EXP-036. The
+study IDs refer to separate services and experiments. See the public source
+card mapping in the [GCX-CAP-036-R1 transport addendum](../../jev-retention-capacity-2026-10-03-transport-addendum.md).
 
-**Disposition: inconclusive; stopped before repeat sweeps.** The preregistered
-34-URL pool was attempted once at caller widths 1, 3, and 5. All 102 attempts
-returned `URLError`; none returned an HTTP response, source tier, or status.
-The experiment therefore produced no successful-source latency or throughput
-estimate. The helper used a literal internal-service host instead of the
-candidate runtime `settings.scraper_url`; read-only diagnostics confirmed that
-the configured target resolves while the helper literal returned DNS
-`EAI_AGAIN` (errno -3). Historical receipts retained only `URLError`, so this
-diagnostic identifies the likely setup error but cannot restore exact
-per-attempt reasons.
+## Historical first attempt
 
-The initial read-only preflight had agent and scraper health `ok`, zero active
-research jobs, and available scraper tier metrics and aggregate CPU/memory
-observations. Candidate revision remained fixed during the three passes. No
-Jev or LLM calls were made. The direct internal scraper service route bypassed
-the API route's semantic-indexing side effect. No result Markdown was captured
-or published. The private, access-restricted ledger contains 102
-candidate-bound attempt receipts, all with missing HTTP status and `URLError`.
-Its receipt array has SHA-256
-`c31dd126ee5fb82e64f8baecdf4ec1200f207b34e915af93e9604ee78ddfff52`. After
-the attempt, I manually set the ledger `requests_completed` field to 102
-without preserving its previous value. That provenance deviation is recorded
-in the GCX-CAP-036-R1 transport addendum; the count here is independently derived
-from receipt objects, and the current ledger will not be rewritten further.
-The historical preflight did not capture a `scrape_calls_total` baseline, so
-current cumulative service counters cannot establish whether these attempts
-reached the service. Later GET-only diagnostics observed the cumulative success
-counter move from 2,059 to 2,061 while the error counter remained 229. This
-lane issued no public `/scrape` request in that interval; the movement may
-reflect other service activity and cannot be attributed to this probe. No
-retained origin-request log proves per-attempt source activity; the failed
-internal transport gives these attempts zero source-quality credit.
+The initial private ledger contains 102 attempt receipts for 34 candidates at
+caller widths 1, 3, and 5. All returned `URLError`; none returned an HTTP
+response, tier, or status. The helper used a literal internal-service host
+instead of the candidate runtime `settings.scraper_url`; read-only diagnostics
+showed the configured target resolving while the helper's literal host returned
+DNS `EAI_AGAIN` (errno -3). The old receipts retained only `URLError`, so the
+later diagnosis cannot recover per-request errno. The receipt array digest is
+`c31dd126ee5fb82e64f8baecdf4ec1200f207b34e915af93e9604ee78ddfff52`. After the
+attempt, the `requests_completed` ledger field was manually set to 102 without
+preserving its earlier value. This provenance deviation is recorded, and the
+historical artifacts were not rewritten further. These 102 attempts receive
+zero source-quality credit.
 
-The run stopped after the first pass at each width because every attempt failed
-at the same transport error class. No retries or repeat passes were issued. The
-30-minute and 204-request caps were not reached. Cold/warm behavior, successful
-scrape capacity, end-to-end agent scheduling, progress, cancellation,
-concurrent-agent behavior, and answer uplift remain unmeasured. The corrected
-transport and canary-first protocol are recorded in the
-[GCX-CAP-036-R1 transport addendum](../../jev-retention-capacity-2026-10-03-transport-addendum.md);
-it requires independent review before further URL requests. Do not reinterpret
-these failures as irrelevant or negative sources.
+## Corrected partial run R1
+
+A new corrected run used the fixed pool and runtime-configured internal
+`/scrape` route. Its canary returned HTTP 200. The first width-1 pass then
+returned 20 more HTTP 200 responses before the next URL, public card `c1`
+(pool rank 22, an arXiv PDF result), returned HTTP 502 (`http_error`, tier
+`unknown`, no Markdown). R1 stopped immediately as preregistered: 22 starts and
+22 result records total, 21 HTTP 200 and one HTTP 502. There was no retry or
+replacement URL. Observed latency for the 21 HTTP 200 responses ranged from
+86.7 to 7,259.9 ms (median 870.6 ms); this partial, rank-ordered prefix is not a
+throughput or general-capacity estimate. The remaining pool and all repeat
+widths were not attempted in R1.
+
+The runner's early-stop path left its postflight field empty. A separate,
+read-only postflight was therefore captured immediately afterward and retained
+as a distinct mode-0600 artifact. Health was `ok`, there were zero active
+research jobs, the candidate revision was unchanged, and tier metrics/resources
+were available. Cumulative counters moved from success=2,062/error=229 at the
+R1 baseline to success=2,083/error=230 after the read-only postflight. This
+service-level movement is not attributable to this probe because other service
+traffic may have occurred. The separate postflight capture is a documented
+procedure deviation; it does not repair the missing field in the original
+ledger.
+
+Private artifact digests: append-only request receipts
+`0f615bfa09f0c526d1940e8d34a4dac02c18fabd67b9d5ba26a2d10986219f7d`; R1
+ledger `6f3039c75fd27afe21a8ea26c24b6a587fc9b15396b34fd08c8eab89edeba12c`;
+separate postflight `2c58b476d97d22d2810185ead6f33f36c9a6dee4a43309a057ed0b1808f3e9d4`.
+The private files contain sanitized request metadata and no complete page
+text. The R1 direct-scraper experiment is incomplete and gets no broad capacity
+claim.
+
+## Registered continuation
+
+[GCX-CAP-036-R2](../../jev-retention-capacity-2026-10-03-r2.md) prospectively
+registers 170 starts over the same unfiltered frozen pool: width 1 once, width
+3 twice, and width 5 twice. The R2 protocol treats HTTP statuses as per-page
+outcomes, except HTTP 429 stops admission; transport, health, revision, and
+unrelated-job stop rules remain. R2 has not started. Its outcome will be added
+without overwriting R1 evidence.
+
+Even if R2 completes, this direct scraper-service slice will not test
+end-to-end agent scheduling, progress, cancellation, two concurrent jobs, or
+synthesis/chunk complementarity and contradiction handling. Those adoption
+criteria remain unmeasured. No Jev filter was activated and no deployment or
+runtime configuration changed.
