@@ -3,9 +3,9 @@
 Status: **frozen exploratory pilot; no TypeSafe calls or searches have been
 made. Independent packet review is required before calls.**
 
-Study ID: `jev-continuation-v2-pilot-2026-10-03`  
-Contract: `continuation-evidence-gap-addressability/2`  
-Pinned model: requested and returned `jev-1.13.0`  
+Study ID: `jev-continuation-v2-pilot-2026-10-03`
+Contract: `continuation-evidence-gap-addressability/2`
+Pinned model: requested and returned `jev-1.13.0`
 Public source revision: [`7b9bf51de1334d4d7e6bd6256d3085c8c2a8d60d`](https://github.com/magnus919/groktocrawl-x/tree/7b9bf51de1334d4d7e6bd6256d3085c8c2a8d60d)
 
 This bounded pilot evaluates eight fresh obligations from public GroktoCrawl
