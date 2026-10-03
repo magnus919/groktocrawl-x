@@ -818,3 +818,16 @@ The [operational-hardening milestone](https://github.com/magnus919/groktocrawl-x
 - [#400](https://github.com/magnus919/groktocrawl-x/issues/400): **complete**. Merged PR #402 binds the relative `agent/...` coverage namespace to repository sources and reports missing measurement explicitly under the existing risk policy. [Reprocessed original evidence](coverage-binding/results.md) measures 35/35 readiness lines; subsequent browser CI measures 30/30. No coverage thresholds or required checks were relaxed.
 
 The resource study does not rewrite completed W9 historical evidence or qualify all concurrency, fallback paths, or long-running workloads. Mainline deployment and Hermes configuration remain unchanged.
+
+## Follow-on studies on the improved search baseline
+
+The [October 3 upstream reconciliation](upstream-search-reconciliation.md) records
+SlopSearX's implemented Jev result reranking and scholarly-work grouping, plus
+GroktoCrawl X's merged provenance preservation and all-distinct-result acquisition.
+Historical negative or inconclusive studies do not characterize this newer baseline.
+The original roadmap remains complete. Follow-on issues #370–373 now examine
+post-scrape evidence retention, research continuation, exact claim support and
+intent-sensitive monitoring; they do not duplicate upstream result ranking or
+publication deduplication. Audit #371 first, then #372, use those labels for #370,
+and keep #373 a separate monitoring study. Pin the actual deployed upstream revision
+and preserve its returned snapshots before any new model-backed comparison.
