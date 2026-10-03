@@ -34,6 +34,14 @@ singular engine supplies a one-element engines array when the upstream array
 is absent. Malformed metadata is omitted. Existing ADR bodies remain immutable;
 this record extends compatibility scope, not runtime/artifact authority.
 
+## Consequences
+
+Source agreement and scholarly fields remain available to callers after retrieval
+and enrichment. Additive metadata increases result size within explicit bounds.
+Consumers that reject unknown optional fields may need to update their schemas.
+Missing or malformed identifiers still limit producer grouping; this consumer
+change does not establish publication validity or independent relevance.
+
 ## Validation and rollout
 
 Hermetic fixtures cover client request count, public serialization, malformed
