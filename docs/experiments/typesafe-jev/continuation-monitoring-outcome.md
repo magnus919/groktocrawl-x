@@ -104,6 +104,11 @@ evaluator-only pool replays existing search-snapshot evidence and known public
 pages. Added evidence and decision-only cases are kept separate. The #373
 validation material is not an independent or representative monitor corpus.
 
+A separate [v2 contract proposal](continuation-judgment-contract-v2.md) now
+decomposes evidence status from conditional public addressability and leaves
+search policy deterministic. It is a new, untested design; the v1 results above
+remain attached only to the original three-choice question.
+
 ## Validation
 
 The runner's four focused tests pass with `pytest --no-cov`. Ruff check and
