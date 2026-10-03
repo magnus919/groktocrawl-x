@@ -36,19 +36,61 @@ failures, #370 used 8 attempts in its 25-call allocation and #373 used 12.
 
 ## What the run establishes
 
-This is a small exposed-case feasibility screen. In #370 Jev chose `search` on
-all four cases. That matched the best-effort reference for the contradiction
-and unmet-gap validation cases, but disagreed on the met calibration case
-(`no`) and unnamed-system/unanswerable case (`uncertain`). The evaluator-only
-pool adds authoritative LangGraph interruption semantics for the contradiction
-and a relevant cross-framework conformance study for the unmet gap; it cannot
-answer the unnamed deployment's guarantee. These two alignments are not
-independent gold and establish neither search quality nor calibration or
-generalization. No fresh search query was issued.
+This is a small exposed-case feasibility screen. For #370, the argmax `Choice`
+was `search` in all four records; this was a shadow judgment only, and **no
+search was dispatched**. The `probabilities.search` values differ from the
+separate returned `confidence` field:
 
-In #373 Jev marked the synthetic boilerplate change `immaterial` and
-version-specific change `material`, matching those constructed controls. It
-also marked the synthetic fetch-failure control `material`; its reference is
+| Case | Reference | Argmax choice | P(search) | Choice confidence |
+|---|---|---|---:|---:|
+| `370-cal-01` | met / no | search | 0.87 | 0.81 |
+| `370-val-01` | contradiction / yes | search | 0.99 | 0.97 |
+| `370-val-02` | unmet / yes | search | 0.97 | 0.95 |
+| `370-val-03` | unanswerable / uncertain | search | 0.85 | 0.78 |
+
+The two validation cases with a best-effort `yes` reference also had high
+`P(search)`. The evaluator-only pool adds authoritative LangGraph interruption
+semantics for the contradiction and a relevant cross-framework conformance
+study for the unmet gap; it cannot answer the unnamed deployment's guarantee.
+These alignments are not independent gold and establish neither search
+judgment accuracy nor calibration or generalization. No fresh search query was
+issued.
+
+An offline, post-hoc sweep using **only** `probabilities.search` gives the
+following candidate trigger counts on the three validation cases. It does not
+use `confidence`, and no threshold is selected:
+
+| Inclusive P(search) threshold | Raw threshold triggers | Of which reference yes | Reference yes missed | Unanswerable/uncertain triggered |
+|---:|---|---|---|---|
+| 0.50 | contradiction, unmet, unanswerable | 2 | 0 | 1 |
+| 0.80 | contradiction, unmet, unanswerable | 2 | 0 | 1 |
+| 0.90 | contradiction, unmet | 2 | 0 | 0 |
+| 0.95 | contradiction, unmet | 2 | 0 | 0 |
+| 0.99 | contradiction | 1 | 1 (unmet) | 0 |
+
+These are illustrative counts on two positive and one uncertain validation
+case, not evidence for threshold quality. At 0.50/0.80 a raw probability rule
+would nominate the unanswerable case; at 0.99 it would miss the unmet gap.
+The single calibration case (`met`, P(search)=0.87, confidence=0.81) is kept
+separate and is not used to choose a threshold. The executable offline sweep is
+in `scripts/evaluate_jev_shadow_policy.py`; its tests make no provider calls.
+
+The proposed offline safety control is separate from model judgment accuracy:
+only a **known, addressable** unmet obligation or contradiction can become a
+candidate bounded search for the caller. A low probability or received
+`uncertain` result defers to the existing caller-directed flow; it is not a
+Jev-issued stop/veto. An unanswerable obligation with no public resolution path
+is left unresolved rather than searched forever. A proxy, validation, or
+timeout failure falls back to the existing caller flow and is never converted
+to `no_search`. These controls were tested offline only; no product search was
+dispatched. For #373, deterministic changed-content delivery remains
+authoritative on failures or uncertain assessments; the model cannot suppress
+a report or notification.
+
+In #373 the returned `Choice` argmax was `immaterial` for the synthetic
+boilerplate change and `material` for the version-specific change, matching
+those constructed controls. It also returned `material` for the synthetic
+fetch-failure control; its reference is
 `unevaluated`, because without the new page content no semantic-change
 judgment is valid. All three real validation pairs were marked `material`,
 matching best-effort assistant assessments of three related project-authored
