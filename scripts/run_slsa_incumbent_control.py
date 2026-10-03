@@ -68,16 +68,20 @@ def run(packet_path: Path, proxy: list[str], checkpoint=None) -> dict[str, Any]:
     outcomes = []
 
     def record(outcome):
-        outcomes.append(outcome)
+        if outcomes and outcomes[-1].get("status") == "inflight" and outcomes[-1].get("case_id") == outcome.get("case_id"):
+            outcomes[-1] = outcome
+        else:
+            outcomes.append(outcome)
         if checkpoint is not None:
-            checkpoint({
+            checkpoint(json.loads(json.dumps({
                 "study_id": packet["study_id"], "case_packet_sha256": digest,
                 "requested_model_alias": MODEL_ALIAS, "calls_attempted": len(outcomes),
                 "calls_evaluated": sum(x["status"] == "parsed_incumbent_array" for x in outcomes),
                 "searches_dispatched": 0, "outcomes": outcomes,
-            })
+            }, allow_nan=False)))
 
     for case, request in requests:
+        record({"case_id": case["case_id"], "status": "inflight", "requested_alias": MODEL_ALIAS})
         try:
             process = subprocess.run(proxy, input=request, capture_output=True, timeout=105, check=False)
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -92,7 +96,7 @@ def run(packet_path: Path, proxy: list[str], checkpoint=None) -> dict[str, Any]:
         except (json.JSONDecodeError, UnicodeDecodeError):
             record({"case_id": case["case_id"], "status": "invalid_proxy_json", "response_sha256": response_hash})
             continue
-        if response.get("error"):
+        if isinstance(response, dict) and response.get("error"):
             record({
                 "case_id": case["case_id"], "status": "proxy_or_provider_failure",
                 "error_type": response["error"] if response["error"] in {
@@ -100,6 +104,9 @@ def run(packet_path: Path, proxy: list[str], checkpoint=None) -> dict[str, Any]:
                 } else "unspecified_proxy_error",
                 "response_sha256": response_hash,
             })
+            continue
+        if not isinstance(response, dict):
+            record({"case_id": case["case_id"], "status": "invalid_response_shape", "response_sha256": response_hash})
             continue
         try:
             content = response["choices"][0]["message"]["content"]
@@ -163,6 +170,9 @@ def main() -> None:
             out.seek(0)
             out.truncate()
             failed = latest or {"calls_attempted": 0, "outcomes": []}
+            for outcome in failed.get("outcomes", []):
+                if outcome.get("status") == "inflight":
+                    outcome["status"] = "unevaluated_interrupted"
             failed["status"] = "failed_incomplete"
             failed["error_type"] = type(exc).__name__
             out.write(json.dumps(failed, sort_keys=True) + "\n")

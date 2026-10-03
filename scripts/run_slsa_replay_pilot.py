@@ -118,6 +118,9 @@ def run(packet_path: Path, corpus_root: Path, proxy: list[str], checkpoint=None)
         stage3 = builder.build_hypothesis_review_request(state, [hypothesis], documents)
         if isinstance(stage1, builder.Abstention) or isinstance(stage3, builder.Abstention):
             raise ValueError(f"preflight request abstention for {case['case_id']}")
+        # This synthetic validated response is used only to preflight the
+        # deterministic addressability request shape. Stage 4 dispatch below
+        # remains gated exclusively on the actual checked Stage-3 response.
         dummy_stage3 = builder.ValidatedNoulResponse(
             builder.MODEL, {"q0000": 0.9}, hashlib.sha256(stage3.serialized).hexdigest()
         )
@@ -148,13 +151,19 @@ def run(packet_path: Path, corpus_root: Path, proxy: list[str], checkpoint=None)
 
     def checkpoint_now() -> None:
         if checkpoint is not None:
-            checkpoint(results)
+            checkpoint(json.loads(json.dumps(results, allow_nan=False)))
 
     def call(case: dict[str, Any], stage_key: str, plan: builder.RequestPlan) -> tuple[dict[str, Any], Any]:
         if results["requests_attempted"] >= MAX_REQUESTS:
             raise RuntimeError("frozen call budget exhausted")
         expected = case["frozen_request_sha256"][stage_key]
         results["requests_attempted"] += 1
+        journal = {
+            "case_id": case["case_id"], "stage": stage_key,
+            "request_sha256": expected, "status": "inflight",
+        }
+        results["partial_receipts"].append(journal)
+        checkpoint_now()
         receipt, checked = _call(proxy, plan)
         receipt["request_sha256"] = expected
         if receipt["status"] == "evaluated":
@@ -166,7 +175,8 @@ def run(packet_path: Path, corpus_root: Path, proxy: list[str], checkpoint=None)
                 results["returned_model"] = model
         if receipt["status"] != "evaluated":
             results["requests_unevaluated"] += 1
-        results["partial_receipts"].append({"case_id": case["case_id"], "stage": stage_key, **receipt})
+        journal.clear()
+        journal.update({"case_id": case["case_id"], "stage": stage_key, **receipt})
         checkpoint_now()
         return receipt, checked
 
@@ -237,6 +247,9 @@ def main() -> None:
             result = run(args.packet, args.corpus, args.proxy, checkpoint=persist)
         except Exception as exc:
             failed = latest or {"requests_attempted": 0, "partial_receipts": [], "cases": []}
+            for receipt in failed.get("partial_receipts", []):
+                if receipt.get("status") == "inflight":
+                    receipt["status"] = "unevaluated_interrupted"
             failed["status"] = "failed_incomplete"
             failed["error_type"] = type(exc).__name__
             persist(failed)

@@ -94,3 +94,44 @@ def test_missing_source_is_caught_before_first_provider_call(tmp_path):
     else:
         raise AssertionError("missing first-pass page should fail during preflight")
     assert not marker.exists()
+
+
+def test_request_is_journaled_before_proxy_invocation(tmp_path, monkeypatch):
+    packet = {
+        "schema_version": "jev-slsa-replay-pilot/2",
+        "study_id": "jev-slsa-deterministic-replay-2026-10-03",
+        "call_budget": {"hard_max_total_requests": 11},
+        "corpus": {"source_pages": []},
+        "cases": [],
+    }
+    for index in range(4):
+        packet["cases"].append({
+            "case_id": f"case-{index}",
+            "state": {"first_pass": {"sources": []}},
+            "research_agent_proposal": {"hypothesis_id": f"h-{index}"},
+            "frozen_request_sha256": {
+                "stage1_sufficiency": __import__("hashlib").sha256(b"s1").hexdigest(),
+                "stage3_hypothesis_review": __import__("hashlib").sha256(b"s3").hexdigest(),
+                "stage4_addressability_if_stage3_positive": __import__("hashlib").sha256(b"s4").hexdigest(),
+            },
+        })
+    path = tmp_path / "packet.json"
+    raw = json.dumps(packet).encode()
+    path.write_bytes(raw)
+    monkeypatch.setattr(runner, "PACKET_SHA256", hashlib.sha256(raw).hexdigest())
+
+    class Plan:
+        def __init__(self, stage, value):
+            self.stage = stage
+            self.serialized = value
+
+    p1, p3, p4 = Plan("sufficiency", b"s1"), Plan("hypothesis", b"s3"), Plan("addressability", b"s4")
+    monkeypatch.setattr(runner.builder, "build_sufficiency_request", lambda state: p1)
+    monkeypatch.setattr(runner.builder, "build_hypothesis_review_request", lambda state, hypotheses, documents: p3)
+    monkeypatch.setattr(runner.builder, "ValidatedNoulResponse", lambda *args: object())
+    monkeypatch.setattr(runner.builder, "build_addressability_request", lambda *args, **kwargs: p4)
+    monkeypatch.setattr(runner, "_call", lambda proxy, plan: ({"status": "proxy_process_failure"}, None))
+    progress = []
+    runner.run(path, tmp_path, ["unused"], checkpoint=progress.append)
+    assert progress[0]["partial_receipts"][-1]["status"] == "inflight"
+    assert progress[1]["partial_receipts"][-1]["status"] == "proxy_process_failure"

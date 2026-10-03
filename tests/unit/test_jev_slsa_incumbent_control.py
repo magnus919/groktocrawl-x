@@ -45,6 +45,17 @@ def test_parse_failures_are_distinct_from_empty_recommendations():
     )
 
 
+def test_non_object_provider_json_and_inflight_calls_are_journaled(tmp_path):
+    proxy = tmp_path / "array_response.py"
+    proxy.write_text("print('[]')\n")
+    progress = []
+    result = runner.run(PACKET, [sys.executable, str(proxy)], checkpoint=progress.append)
+    assert result["calls_attempted"] == 4
+    assert all(row["status"] == "invalid_response_shape" for row in result["outcomes"])
+    assert progress[0]["outcomes"][0]["status"] == "inflight"
+    assert progress[1]["outcomes"][0]["status"] == "invalid_response_shape"
+
+
 def test_cli_existing_output_fails_before_any_call(tmp_path):
     output = tmp_path / "existing.json"
     output.write_text("preserve")
