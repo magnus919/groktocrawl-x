@@ -8,9 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import run_exact_claim_passage_jev as harness
 
 
-def pair(
-    pair_id: str, split: str, family: str, capture_path: Path | None = None
-) -> dict:
+def pair(pair_id: str, split: str, family: str) -> dict:
     passage = "Version 2 supports the claim only for public repositories."
     return {
         "pair_id": pair_id,
