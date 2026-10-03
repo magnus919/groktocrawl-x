@@ -127,9 +127,9 @@ def test_request_is_journaled_before_proxy_invocation(tmp_path, monkeypatch):
 
     p1, p3, p4 = Plan("sufficiency", b"s1"), Plan("hypothesis", b"s3"), Plan("addressability", b"s4")
     monkeypatch.setattr(runner.builder, "build_sufficiency_request", lambda state: p1)
-    monkeypatch.setattr(runner.builder, "build_hypothesis_review_request", lambda state, hypotheses, documents: p3)
+    monkeypatch.setattr(runner.builder, "build_hypothesis_review_request", lambda state, _hypotheses, documents: p3)
     monkeypatch.setattr(runner.builder, "ValidatedNoulResponse", lambda *args: object())
-    monkeypatch.setattr(runner.builder, "build_addressability_request", lambda *args, **kwargs: p4)
+    monkeypatch.setattr(runner.builder, "build_addressability_request", lambda *args, **_kwargs: p4)
     monkeypatch.setattr(runner, "_call", lambda proxy, plan: ({"status": "proxy_process_failure"}, None))
     progress = []
     runner.run(path, tmp_path, ["unused"], checkpoint=progress.append)
