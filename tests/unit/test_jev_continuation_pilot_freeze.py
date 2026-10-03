@@ -1,0 +1,86 @@
+import hashlib
+import importlib.util
+import json
+import sys
+from pathlib import Path
+from types import MappingProxyType
+
+import pytest
+
+ROOT = Path(__file__).parents[2]
+BUILDER_SPEC = importlib.util.spec_from_file_location(
+    "jev_pilot_builder", ROOT / "scripts/jev_continuation_request_builder.py"
+)
+builder = importlib.util.module_from_spec(BUILDER_SPEC)
+sys.modules[BUILDER_SPEC.name] = builder
+BUILDER_SPEC.loader.exec_module(builder)
+
+PACKET_PATH = (
+    ROOT
+    / "docs/experiments/typesafe-jev/continuation-pilot-2026-10-03.case-packet.json"
+)
+PACKET = json.loads(PACKET_PATH.read_text())
+
+
+def test_frozen_public_pilot_packet_hash_and_scope():
+    assert hashlib.sha256(PACKET_PATH.read_bytes()).hexdigest() == (
+        "f7fbfda03c29fbe9689a01ba5f23669083b9a950a6933b6e6fbb78b2860e5160"
+    )
+    assert PACKET["source_revision"] == "7b9bf51de1334d4d7e6bd6256d3085c8c2a8d60d"
+    assert len(PACKET["cases"]) == 8
+    assert all(
+        "assistant_reference" not in case["state"]
+        and "research_agent_proposal" not in case["state"]
+        for case in PACKET["cases"]
+    )
+
+
+@pytest.mark.parametrize("case", PACKET["cases"], ids=lambda c: c["case_id"])
+def test_each_frozen_request_digest_matches_builder_and_excludes_labels(case):
+    state = case["state"]
+    hypothesis = case["research_agent_proposal"]
+    stage1 = builder.build_sufficiency_request(state)
+    stage3 = builder.build_hypothesis_review_request(
+        state,
+        [hypothesis],
+        {
+            source_id: PACKET["acquired_public_source_blobs"][path]
+            for source_id, path in case["source_blob_by_id"].items()
+        },
+    )
+    assert isinstance(stage1, builder.RequestPlan)
+    assert isinstance(stage3, builder.RequestPlan)
+    digests = case["frozen_request_sha256"]
+    assert (
+        hashlib.sha256(stage1.serialized).hexdigest() == digests["stage1_sufficiency"]
+    )
+    assert (
+        hashlib.sha256(stage3.serialized).hexdigest()
+        == digests["stage3_hypothesis_review"]
+    )
+    assert "assistant_reference" not in stage1.payload["state"]
+    assert "assistant_reference" not in stage3.payload["state"]
+
+    stage3_response = builder.ValidatedNoulResponse(
+        builder.MODEL,
+        MappingProxyType({"q0000": 0.9}),
+        hashlib.sha256(stage3.serialized).hexdigest(),
+    )
+    stage4 = builder.build_addressability_request(
+        state,
+        hypothesis,
+        {
+            source_id: PACKET["acquired_public_source_blobs"][path]
+            for source_id, path in case["source_blob_by_id"].items()
+        },
+        stage3_plan=stage3,
+        stage3_response=stage3_response,
+        stage3_question_id="q0000",
+        policy_qualified_hypothesis_id=hypothesis["hypothesis_id"],
+    )
+    assert isinstance(stage4, builder.RequestPlan)
+    assert (
+        hashlib.sha256(stage4.serialized).hexdigest()
+        == digests["stage4_addressability_if_stage3_positive"]
+    )
+    assert "assistant_reference" not in stage4.payload["state"]
