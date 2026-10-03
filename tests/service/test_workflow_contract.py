@@ -140,6 +140,12 @@ def test_compose_run_id_and_failure_provenance_are_unambiguous():
     compose = (root / "docker-compose.yml").read_text()
     workflow = (root / ".github/workflows/docker.yml").read_text()
     docker = yaml.safe_load(workflow)
+    runtime_workflow = (root / ".github/workflows/runtime.yml").read_text()
+    for source in (workflow, runtime_workflow):
+        assert source.count("TWIN_EVENT_KIND: ${{ github.event_name }}") == 2
+        assert source.count(
+            "TWIN_EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}"
+        ) == 2
     assert "${LLM_BASE_URL:-http://llm-svc:8011/v1?run_id=${" not in compose
     assert "LLM_BASE_URL=${LLM_BASE_URL:-http://llm-svc:8011/v1}" in compose
     assert "TWIN_RUN_ID=${TWIN_RUN_ID:-local}" in compose
@@ -156,6 +162,11 @@ def test_compose_run_id_and_failure_provenance_are_unambiguous():
     assert "uv run --no-sync python scripts/twin_provenance.py" in compose_evidence
     assert (
         "TWIN_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}"
+        in compose_evidence
+    )
+    assert "TWIN_EVENT_KIND: ${{ github.event_name }}" in compose_evidence
+    assert (
+        "TWIN_EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}"
         in compose_evidence
     )
     assert (
