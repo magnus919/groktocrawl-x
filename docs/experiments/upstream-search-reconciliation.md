@@ -147,8 +147,19 @@ no-adoption conclusion, not a verdict against Jev or academic sources.
   Runtime precedence, failure fallback, and unchanged generated answers were
   not tested. **Remain in shadow testing:** this sample does not establish
   incremental answer quality or integration readiness.
+- **Page-change significance (#373):** [PR #415](https://github.com/magnus919/groktocrawl-x/pull/415)
+  records 11 judgments over nine real public revision pairs. The seven validation
+  cases agreed with their assistant reference labels at the frozen 0.50 cut;
+  these are small, clustered observations, not a production accuracy estimate.
+  The same invite-link edit scored 0.83 for contributor onboarding and 0.07 for
+  cryptographic verification. Navigation metadata likewise scored differently
+  for content and navigation interests. This supports a larger shadow study
+  of intent-sensitive judgments. **Remain in shadow testing:** independent
+  labels, calibrated thresholds, and a reviewed notification policy are still
+  needed before changing user-visible behavior. Failed acquisition was a
+  separate zero-call control, not an immaterial-change judgment.
 
-The retention/synthesis (#371) and external page-change (#373) comparisons
-remain in progress. These reviewed findings do not change deployment defaults.
+The retention/synthesis (#371) comparison remains in progress. The page-change
+packet is awaiting publication review. These findings do not change deployment defaults.
 Provider response validity, assistant label agreement, and lower call latency
 do not establish better research answers or calibrated action thresholds.
