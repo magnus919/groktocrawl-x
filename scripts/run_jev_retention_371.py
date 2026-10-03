@@ -219,7 +219,9 @@ def run(
                     "status": "timeout",
                     "timeout_seconds": 100,
                     "stdout_sha256": _sha256(
-                        (exc.stdout if isinstance(exc.stdout, bytes) else (exc.stdout or "").encode())
+                        exc.stdout
+                        if isinstance(exc.stdout, bytes)
+                        else (exc.stdout or "").encode()
                     ),
                 }
             row = {
