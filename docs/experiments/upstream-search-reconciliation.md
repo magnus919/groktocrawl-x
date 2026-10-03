@@ -126,7 +126,29 @@ should evaluate them separately, after acquiring content where needed, rather
 than calling an academic title weak research in itself. This is a bounded
 no-adoption conclusion, not a verdict against Jev or academic sources.
 
-The downstream studies retain their separate questions. Their evidence and
-final dispositions will be reconciled here after their reviewed result PRs
-merge. Provider response validity, assistant label agreement and lower call
-latency do not establish better research answers or calibrated action thresholds.
+### Downstream findings under review
+
+- **Follow-up evidence (#370):** [PR #412](https://github.com/magnus919/groktocrawl-x/pull/412)
+  records the corrected staged judgment pilot. [PR #414](https://github.com/magnus919/groktocrawl-x/pull/414)
+  adds four public SLSA obligations and an already acquired evidence replay.
+  All 11 Jev requests validated. Two public gaps had directly contributing
+  pages in the frozen pool; general advice could not supply a private deployment
+  value. The incumbent gap prompt recommended topics for all four cases,
+  including the already answered obligation. Jev received assistant-written
+  gap hypotheses while the incumbent generated topics, so this is a descriptive
+  contrast, not proof that Jev caused better decisions. No search or comparative
+  answer was produced. **Revise before adoption:** the next trial needs genuine
+  contradiction cases, held-out judgments, and measured answer/citation outcomes.
+- **Claim support (#372):** [PR #409](https://github.com/magnus919/groktocrawl-x/pull/409)
+  records 25 constructed claim/passage pairs, including 13 validation pairs.
+  Neither Jev nor the adapted verifier control falsely supported any of the nine
+  non-supported validation pairs. Jev was faster, but the reference labels are
+  assistant assessments and the control was not the production verifier route.
+  Runtime precedence, failure fallback, and unchanged generated answers were
+  not tested. **Remain in shadow testing:** this sample does not establish
+  incremental answer quality or integration readiness.
+
+The retention/synthesis (#371) and external page-change (#373) comparisons
+remain in progress. These reviewed findings do not change deployment defaults.
+Provider response validity, assistant label agreement, and lower call latency
+do not establish better research answers or calibrated action thresholds.
