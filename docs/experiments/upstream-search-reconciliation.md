@@ -93,3 +93,40 @@ labeled obligations for #370; #373 can remain a separate monitoring study.
 5. Do not turn this reconciliation into a deployment, a new default, or an
    assumption that both installations already run the reviewed upstream code.
    Preserve the historical experiment packets and accepted ADR scope.
+
+## October 3 follow-on evidence and decisions
+
+The bounded complete-set upstream studies are published in
+[SlopSearX PR #512](https://github.com/magnus919/SlopSearX/pull/512), merged at
+`35b60dc282f47e84d462f8299312a05e400b6c9e`.
+[PR #513](https://github.com/magnus919/SlopSearX/pull/513) reconciles the experiment
+ledger. These are evidence commits, not reranker deployment changes.
+
+- [EXP-034](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-034-whole-set-jev-reranking.md)
+  found complete-set requests feasible on two observed pools, but shared-state
+  batch scores were composition-sensitive and relevance improvement was not established.
+- [EXP-035](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-035-card-local-whole-set-reranking.md)
+  bound each Score question to its own result card. This reduced batch drift;
+  the exposed quality sample still did not justify adoption. The constructed
+  80-card probe establishes bounded request feasibility, not a natural search
+  pool or production queue/deadline behavior.
+- [EXP-036](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-036-heldout-complete-set-reranking.md)
+  captured fresh complete pre-rerank pools and compared the same candidates.
+  Seven valid original pairs missed the +0.05 mean nDCG improvement gate under
+  both assistant references. The broad climate/cardio extension returned 38/44
+  cards. Cardiac ranking regressed under both references and promoted a
+  title-only academic lead above substantive supplied evidence. Only one fresh
+  natural pool exceeded 40, so tail benefit remains inconclusive. One candidate
+  response failed validation; partial engine coverage and disputed labels remain visible.
+
+**Upstream disposition: retain the shipped first-40 policy.** Do not activate
+whole-set advice from these findings. A promising publication to acquire and a
+passage that already contributes evidence are different judgments. Future work
+should evaluate them separately, after acquiring content where needed, rather
+than calling an academic title weak research in itself. This is a bounded
+no-adoption conclusion, not a verdict against Jev or academic sources.
+
+The downstream studies retain their separate questions. Their evidence and
+final dispositions will be reconciled here after their reviewed result PRs
+merge. Provider response validity, assistant label agreement and lower call
+latency do not establish better research answers or calibrated action thresholds.
