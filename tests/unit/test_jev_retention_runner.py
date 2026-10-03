@@ -34,6 +34,9 @@ def _freeze(tmp_path: Path, text: str):
         "schema_version": "jev-retention-label-freeze/1",
         "protocol_commit": "d46f852",
         "protocol_sha256": hashlib.sha256(protocol.read_bytes()).hexdigest(),
+        "runner_sha256": hashlib.sha256(
+            Path(runner.__file__).read_bytes()
+        ).hexdigest(),
         "research_question": "Does this passage help answer the question?",
         "labels_frozen_before_jev": True,
         "sources": [

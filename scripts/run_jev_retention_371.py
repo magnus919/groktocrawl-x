@@ -72,6 +72,9 @@ def load_frozen_pages(freeze_path: Path, pages_dir: Path) -> tuple[dict, list[di
     protocol_hash = _sha256(protocol.read_bytes())
     if protocol_hash != freeze.get("protocol_sha256"):
         raise ValueError("label freeze does not reference the current protocol hash")
+    runner_hash = _sha256(Path(__file__).read_bytes())
+    if runner_hash != freeze.get("runner_sha256"):
+        raise ValueError("label freeze does not reference this exact runner")
     sources = freeze.get("sources")
     if not isinstance(sources, list) or not sources:
         raise ValueError("label freeze has no sources")
