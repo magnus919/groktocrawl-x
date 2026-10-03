@@ -129,5 +129,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0090 | [Optional Post-Scrape Jev Noise Filter](0090-optional-post-scrape-jev-noise-filter.md) | accepted for opt-in implementation in experimental fork |
 | 0091 | [Bound Research Acquisition by the Per-Query Search Maximum](0091-bound-research-acquisition-by-search-maximum.md) | superseded by ADR-0092 |
 | 0092 | [Retire the Per-Query Search Maximum and Acquire Every Distinct Result](0092-retire-per-query-search-maximum-and-acquire-all-distinct-results.md) | accepted and implemented in experimental fork |
+| 0093 | [Retain Source Search Provenance](0093-retain-source-search-provenance.md) | proposed; implementation prepared for review |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.

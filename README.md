@@ -125,3 +125,5 @@ tracked in [experiment W0](docs/experiments/research-architecture.md); those set
 are not inherited with Git history.
 
 Merges to `main` require the **Code Quality Gate** and **Runtime Gate** checks to pass and at least one approving review for non-automation changes (stale approvals are dismissed and open review conversations block merge). `dependabot[bot]` skips the review requirement only — it must still pass the required checks; the sole maintainer can merge their own PRs without an approving review (review bypass only — required checks still bind); release-please PRs require a human approving review. See [ADR-0046](docs/adr/0046-enforce-qa-checks-and-review-policy-on-main.md) for the full policy and [Emergency Branch Protection Bypass](docs/runbooks/emergency-branch-protection-bypass.md) for the audited emergency exception path.
+
+Search web/news results retain optional upstream `engine` and `engines` provenance and type-checked scholarly metadata, including DOI strings. [ADR-0093](docs/adr/0093-retain-source-search-provenance.md) describes the additive contract and rollout checks. Results without this metadata retain their existing shape.

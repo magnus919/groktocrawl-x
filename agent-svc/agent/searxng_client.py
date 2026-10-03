@@ -10,6 +10,8 @@ import httpx
 
 from common.stage_metrics import inc_counter, observe_elapsed
 
+from .search_metadata import search_metadata
+
 logger = logging.getLogger(__name__)
 
 _SEARCH_QUERY_SECONDS = "groktocrawl_search_query_seconds"
@@ -280,7 +282,7 @@ class SearXNGClient:
                         "url": item.get("url", ""),
                         "title": item.get("title", ""),
                         "description": item.get("content", ""),
-                        "engine": item.get("engine", ""),
+                        **search_metadata(item),
                     }
                 )
 
