@@ -19,6 +19,7 @@ def _isolate_twin_environment(monkeypatch):
         "TWIN_BASE_SHA",
         "TWIN_EVENT_HEAD_SHA",
         "TWIN_EVENT_KIND",
+        "GITHUB_EVENT_NAME",
         "TWIN_SEARCH_BACKEND",
         "TWIN_BUILT_FROM_CHECKOUT",
         "TWIN_CALIBRATION_ARTIFACT",
@@ -102,7 +103,7 @@ def test_twin_selection_is_conservative_and_docs_only_is_negative():
 
 def test_twin_evidence_schema_records_event_and_checked_out_revisions():
     schema = json.loads((ROOT / "provenance/twin-evidence.schema.json").read_text())
-    assert "event_diff" in schema["required"]
+    assert "event_diff" not in schema["required"]
     assert schema["properties"]["event_diff"]["required"] == [
         "event",
         "base_sha",
@@ -122,6 +123,14 @@ def test_provenance_manifest_matches_versioned_schema(tmp_path):
     assert manifest["selection"]["tests"]
     assert manifest["versions"]["llm_schema"] == "v1"
     assert "prompt" not in json.dumps(manifest)
+
+
+def test_historical_twin_evidence_v1_without_event_diff_still_validates(tmp_path):
+    provenance = _load("historical_provenance", ROOT / "scripts/twin_provenance.py")
+    manifest = provenance.build_manifest(tmp_path, ["llm-svc/llm_svc/app.py"])
+    manifest.pop("event_diff")
+    schema = json.loads((ROOT / "provenance/twin-evidence.schema.json").read_text())
+    validate(manifest, schema)
 
 
 def test_pull_request_diff_uses_event_identity_when_base_advances(
@@ -159,6 +168,20 @@ def test_pull_request_diff_fails_closed_for_missing_or_invalid_head(
     monkeypatch.setenv("TWIN_BASE_SHA", event_base)
     monkeypatch.setenv("TWIN_EVENT_HEAD_SHA", event_head)
     assert provenance._actual_changed_paths("hosted") is None
+
+
+def test_pull_request_context_without_explicit_event_kind_or_head_fails_closed(
+    tmp_path, monkeypatch
+):
+    provenance = _load("github_pr_context_provenance", ROOT / "scripts/twin_provenance.py")
+    repo, event_base, _, _ = _advanced_base_and_pr_merge(tmp_path)
+    monkeypatch.setattr(provenance, "ROOT", repo)
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setenv("TWIN_BASE_SHA", event_base)
+    assert provenance._actual_changed_paths("hosted") is None
+    _, identity = provenance._event_diff_identity("hosted")
+    assert identity["event"] == "pull_request"
+    assert identity["head_sha"] == "unavailable"
 
 
 def test_pull_request_diff_fails_closed_for_non_ancestor_head(tmp_path, monkeypatch):

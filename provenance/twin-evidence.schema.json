@@ -4,7 +4,7 @@
   "title": "GroktoCrawl twin evidence manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "execution_mode", "commit", "event_diff", "selection", "corpus", "versions", "identity", "images", "bounds", "outcome"],
+  "required": ["schema_version", "execution_mode", "commit", "selection", "corpus", "versions", "identity", "images", "bounds", "outcome"],
   "properties": {
     "schema_version": {"const": "twin-evidence-v1"},
     "execution_mode": {"enum": ["hosted", "compose", "live"]},

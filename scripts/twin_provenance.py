@@ -102,7 +102,9 @@ def _is_sha(value: str) -> bool:
 def _event_diff_identity(mode: str) -> tuple[list[str] | None, dict[str, str]]:
     """Recompute changed paths from event SHAs, not the mutable PR merge ref."""
     checked_out_sha = _git("rev-parse", "HEAD")
-    event_kind = os.environ.get("TWIN_EVENT_KIND", "local")
+    event_kind = os.environ.get(
+        "TWIN_EVENT_KIND", os.environ.get("GITHUB_EVENT_NAME", "local")
+    )
     base_sha = os.environ.get("TWIN_BASE_SHA", "")
     head_sha = os.environ.get("TWIN_EVENT_HEAD_SHA", "")
     if event_kind == "local" and not head_sha:
