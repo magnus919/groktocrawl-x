@@ -63,3 +63,11 @@ of agent jobs, concurrent jobs, slow/failing mixed tiers at 25–40 sources,
 answer synthesis, chunk complementarity, or contradiction handling. Those
 criteria remain unmeasured. Report the resulting outcome as a bounded capacity
 observation, not a production-readiness claim.
+
+
+## Execution status
+
+R2 completed the registered 170 starts with no stop condition. The aggregate results, per-pass latency and tier counts, R1/R2 distinction, and
+unmeasured criteria are recorded in the
+[capacity outcome](evidence/jev-retention-2026-10-03/exp036-capacity-outcome.md).
+This status note does not change the frozen request plan.

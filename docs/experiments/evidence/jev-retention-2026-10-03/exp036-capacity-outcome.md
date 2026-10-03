@@ -54,14 +54,46 @@ claim.
 ## Registered continuation
 
 [GCX-CAP-036-R2](../../jev-retention-capacity-2026-10-03-r2.md) prospectively
-registers 170 starts over the same unfiltered frozen pool: width 1 once, width
+registered 170 starts over the same unfiltered frozen pool: width 1 once, width
 3 twice, and width 5 twice. The R2 protocol treats HTTP statuses as per-page
 outcomes, except HTTP 429 stops admission; transport, health, revision, and
-unrelated-job stop rules remain. R2 has not started. Its outcome will be added
-without overwriting R1 evidence.
+unrelated-job stop rules remain.
 
-Even if R2 completes, this direct scraper-service slice will not test
-end-to-end agent scheduling, progress, cancellation, two concurrent jobs, or
-synthesis/chunk complementarity and contradiction handling. Those adoption
-criteria remain unmeasured. No Jev filter was activated and no deployment or
+R2 completed all five planned passes. It recorded 170 start and 170 result
+events:
+165 HTTP 200 and five HTTP 502. In each pass, 33 results were HTTP 200 and the
+same frozen card `c1` (rank 22, the arXiv PDF) returned HTTP 502 with no content.
+This was a fixed-pool replay, not a targeted retry, and the repeated failure does
+not establish the cause. No 429, internal transport, health, revision, or active-
+job stop condition occurred. The final postflight ran in the `finally` path:
+agent and scraper health were `ok`, there were zero active jobs, and the candidate
+revision was unchanged.
+
+Per-pass elapsed-time summaries for successful HTTP 200 responses are below.
+The p95 uses nearest-rank. Tier counts include the one failed HTTP 502, whose
+tier is `unknown`.
+
+| Width / repeat | Results | HTTP 200 / 502 | p50 / p95 (ms) | Tier counts |
+|---|---:|---:|---:|---|
+| 1 / 1 | 34 | 33 / 1 | 100.8 / 7,052.1 | content-negotiation 22, Playwright 10, llms.txt 1, unknown 1 |
+| 3 / 1 | 34 | 33 / 1 | 17.4 / 313.4 | content-negotiation 22, Playwright 10, llms.txt 1, unknown 1 |
+| 5 / 1 | 34 | 33 / 1 | 16.4 / 390.4 | content-negotiation 22, Playwright 10, llms.txt 1, unknown 1 |
+| 3 / 2 | 34 | 33 / 1 | 15.5 / 373.3 | content-negotiation 22, Playwright 10, llms.txt 1, unknown 1 |
+| 5 / 2 | 34 | 33 / 1 | 16.4 / 418.7 | content-negotiation 22, Playwright 10, llms.txt 1, unknown 1 |
+
+The same URLs and ordering were used repeatedly. Cache state was not observable,
+so these passes cannot be classified as cold or warm. Do not use these latency
+summaries to select a width or claim fresh-source throughput. For R2, cumulative
+service counters moved from success=2,086/error=230 at baseline to success=2,251/
+error=235 at postflight; this movement matches the request result counts but
+remains unattributed because concurrent service activity is possible. R2's
+private receipts are mode 0600, SHA-256
+`0b9e7b07b82e572ecdc7374149d5039fb1c5e785012588c4b345bbd2960602f0`; its ledger
+is mode 0600, SHA-256
+`d1ef359cab372745c7216020726d38868cd04810cc7b39693c63bb706eac41d8`.
+
+This direct scraper-service slice did not test end-to-end agent scheduling,
+progress reporting, cancellation of agent jobs, multiple concurrent jobs,
+slow/failing mixed-tier behavior under concurrent load, or synthesis/chunk
+complementarity and contradiction handling. Those adoption criteria remain unmeasured. No Jev filter was activated and no deployment or
 runtime configuration changed.
