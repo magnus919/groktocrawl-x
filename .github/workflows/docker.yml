@@ -173,6 +173,8 @@ jobs:
           TWIN_FAILURE_SOURCE: ${{ steps.twin_tests.outcome == 'success' && 'none' || 'twin' }}
           TWIN_CHANGED_PATHS_JSON: ${{ needs.changes.outputs.changed_paths_json }}
           TWIN_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TWIN_EVENT_KIND: ${{ github.event_name }}
+          TWIN_EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           TWIN_EXECUTION_MODE: hosted
         run: |
           uv run --no-sync python scripts/twin_provenance.py --output twin-out --changed-paths-json "$TWIN_CHANGED_PATHS_JSON"
@@ -982,6 +984,8 @@ jobs:
           TWIN_TEST_OUTCOME: ${{ job.status }}
           TWIN_CHANGED_PATHS_JSON: ${{ needs.changes.outputs.changed_paths_json }}
           TWIN_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TWIN_EVENT_KIND: ${{ github.event_name }}
+          TWIN_EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           TWIN_EXECUTION_MODE: compose
           TWIN_REQUIRE_IMAGES: "1"
           TWIN_RECORD_IMAGES: "1"
