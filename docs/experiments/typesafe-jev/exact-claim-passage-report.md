@@ -64,9 +64,13 @@ labels too weakly independent to claim confidence calibration. No threshold or
 combination rule was selected.
 
 The existing deterministic checks verified source URL, exact passage offsets,
-and capture digest for all 25 pairs. Those checks establish citation integrity,
-not entailment. The hard-negative rule blocks the 18 marked cases independently
-of model results; no model can override it. The model result files and complete
+and capture digest for all 25 pairs. Those checks establish input and citation
+integrity, not entailment. The `hard_negative` flags are frozen case annotations
+used to identify a subset for analysis; this runner did not execute a
+deterministic runtime block, nor test whether a model could override one. Thus
+the 0/18 model false-supported count is an observed result on annotated cases,
+not evidence about runtime gate or fallback behavior. Runtime gate and fallback
+behavior remain untested by this pilot. The model result files and complete
 input digests are in `exact-claim-passage-results.json`.
 
 The first escalated semantic-control pass exposed a harness/parser defect: it
@@ -85,7 +89,8 @@ The constructed cases are straightforward and labels are not independent; there
 are few source families, no real generated answers, no corrected-history cases,
 and no production-route semantic-verifier replay. These results do not establish
 incremental field value, reliable false-support performance, or readiness for
-runtime integration. Keep Jev in shadow-only research and retain deterministic
-hard-negative/fallback behavior. Next evidence should use independently
-adjudicated unchanged answer/citation pairs and the actual current verifier
-route, with a new frozen protocol before any live integration decision.
+runtime integration. Keep Jev in shadow-only research; this experiment makes no
+determination about runtime hard-negative enforcement or fallback behavior.
+Next evidence should use independently adjudicated unchanged answer/citation
+pairs and the actual current verifier route, with a new frozen protocol before
+any live integration decision.

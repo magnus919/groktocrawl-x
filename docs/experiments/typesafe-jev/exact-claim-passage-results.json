@@ -1413,5 +1413,12 @@
     }
   ],
   "reference_label_provenance": "assistant_proposed",
-  "schema_version": "exact-claim-passage-results/1"
+  "schema_version": "exact-claim-passage-results/1",
+  "runtime_gate_audit": {
+    "deterministic_checks": "source URL, captured passage offsets, and capture digest integrity only",
+    "hard_negative_flags": "frozen case annotations used for analysis; not executed as a runtime block",
+    "runtime_hard_negative_gate_executed": false,
+    "runtime_fallback_behavior_tested": false,
+    "pre_correction_artifact_sha256": "f8baff0b613333b70a4ec264eec652b82cc227907d3567671dbb1916284c21a1"
+  }
 }
