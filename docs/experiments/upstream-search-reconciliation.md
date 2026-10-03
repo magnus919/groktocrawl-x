@@ -24,6 +24,18 @@ new answer-quality comparison. The fork remains experimental.
   internally available. Group bounds or conflicting identifiers can decline
   a merge. Public output retains compatible Paper fields, not arbitrary
   internal member records. See [the grouping contract](https://github.com/magnus919/SlopSearX/blob/6bb683d4a9e154186c9d76af1b55e4faa24cf0e4/docs/SCHOLARLY_WORK_GROUPING.md).
+- **Research orchestration and monitoring contracts:** upstream also provides
+  [caller-directed adaptive research](https://github.com/magnus919/SlopSearX/blob/6bb683d4a9e154186c9d76af1b55e4faa24cf0e4/docs/ADAPTIVE_RESEARCH.md),
+  [staged search](https://github.com/magnus919/SlopSearX/blob/6bb683d4a9e154186c9d76af1b55e4faa24cf0e4/docs/STAGED_SEARCH.md),
+  and [saved-search events](https://github.com/magnus919/SlopSearX/blob/6bb683d4a9e154186c9d76af1b55e4faa24cf0e4/docs/SAVED_SEARCH_EVENTS.md).
+  These require separate MCP grants and storage; the ordinary HTTP consumer
+  does not automatically use them. Adaptive research records caller-selected
+  follow-ups, budgets and subquestions; the caller still judges sufficiency.
+  Staged fallback requires fully observed clean-empty coverage, not timeouts or
+  partial failure. Saved-search events provide durable retrieval-change reports,
+  not judgment of page changes against user intent. Use these as available
+  execution/receipt primitives in future integration designs rather than
+  rebuilding them. Their existence does not answer #370 or #373.
 - **GroktoCrawl integration already improved:** merged PR #406 preserves
   returned engine provenance and compatible scholarly fields through search
   results. Experimental research uses `limit=None` and admits every distinct
