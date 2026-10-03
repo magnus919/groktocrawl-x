@@ -112,8 +112,9 @@ ledger. These are evidence commits, not reranker deployment changes.
   pool or production queue/deadline behavior.
 - [EXP-036](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-036-heldout-complete-set-reranking.md)
   captured fresh complete pre-rerank pools and compared the same candidates.
-  Seven valid original pairs missed the +0.05 mean nDCG improvement gate under
-  both assistant references. The broad climate/cardio extension returned 38/44
+  Mean nDCG gains across the seven valid original query pairs were +0.0104 and
+  +0.0327 under the two assistant references, below the +0.05 improvement gate.
+  The broad climate/cardio extension returned 38/44
   cards. Cardiac ranking regressed under both references and promoted a
   title-only academic lead above substantive supplied evidence. Only one fresh
   natural pool exceeded 40, so tail benefit remains inconclusive. One candidate
