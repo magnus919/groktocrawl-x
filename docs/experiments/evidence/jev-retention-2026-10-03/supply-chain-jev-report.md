@@ -118,7 +118,7 @@ manufacturing a contrast or silently truncating text. A subsequent read-only pro
 empirically verified routed context limit; the report's synthesis outcome
 remains unchanged, and no oversized synthesis request was made.
 
-The follow-on [EXP-036 direct scraper probe](exp036-capacity-outcome.md)
+The follow-on [GroktoCrawl direct-scraper capacity probe](exp036-capacity-outcome.md)
 attempted the fixed 34-URL pool at widths 1, 3, and 5, but all 102 requests
 failed with `URLError` before returning HTTP responses. A follow-up read-only
 diagnostic found the helper used a literal host that does not resolve, instead
@@ -126,7 +126,7 @@ of the runtime configured scraper base. The 102 records remain zero-credit
 transport evidence, not a capacity or source-quality result. The receipt count
 is independently derived; its counter-repair provenance deviation is recorded
 in the outcome addendum. A corrected canary-first protocol is pending review
-in the [EXP-036-R1 transport addendum](../../jev-retention-capacity-2026-10-03-transport-addendum.md).
+in the [GCX-CAP-036-R1 transport addendum](../../jev-retention-capacity-2026-10-03-transport-addendum.md).
 Cold/warm behavior, mixed outcomes, cancellation, concurrent jobs, and progress
 remain unmeasured; existing unit/lifecycle tests must not be presented as
 measured throughput or capacity. No deployment or filter activation follows

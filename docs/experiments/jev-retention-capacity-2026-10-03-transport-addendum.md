@@ -1,8 +1,39 @@
-# EXP-036-R1 transport correction and canary preregistration
+# GroktoCrawl direct-scraper capacity run: corrected transport preregistration
+
+**Study ID:** GCX-CAP-036-R1. The earlier private working label `EXP-036`
+refers to this GroktoCrawl scraper-capacity work only; it is distinct from
+SlopSearX EXP-036 (held-out reranking). This run reuses the fixed 34-URL
+q1-returned pool captured by SlopSearX EXP-036; it does not repeat that search.
+The source card records are public in
+[SlopSearX EXP-036 q1-frozen.json](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/evidence/EXP-036/q1-frozen.json)
+(file SHA-256 `f61501a1548affe232a7bd47e26a6e2427117d9b12171f5b2c7af1669b571e56`).
+The acquisition runner's opaque IDs and order are blind-shuffled; exact URL
+matching establishes this complete mapping from private pool order to public
+card IDs:
+
+| Pool rank | Public card ID | Pool rank | Public card ID |
+|---:|:---|---:|:---|
+| 1 | c6 | 18 | c24 |
+| 2 | c5 | 19 | c12 |
+| 3 | c14 | 20 | c31 |
+| 4 | c23 | 21 | c13 |
+| 5 | c18 | 22 | c1 |
+| 6 | c27 | 23 | c11 |
+| 7 | c28 | 24 | c20 |
+| 8 | c2 | 25 | c25 |
+| 9 | c26 | 26 | c17 |
+| 10 | c4 | 27 | c33 |
+| 11 | c0 | 28 | c15 |
+| 12 | c21 | 29 | c22 |
+| 13 | c32 | 30 | c10 |
+| 14 | c7 | 31 | c8 |
+| 15 | c30 | 32 | c19 |
+| 16 | c29 | 33 | c16 |
+| 17 | c3 | 34 | c9 |
 
 **Status:** pending independent protocol review; no new public URL requests have
-been made under this addendum. The original EXP-036 receipts remain a separate,
-zero-credit setup/transport outcome.
+been made under this addendum. The original GCX capacity receipts remain a
+separate, zero-credit setup/transport outcome.
 
 ## Reconciliation of the first attempt
 
@@ -31,7 +62,7 @@ quality credit; exact per-attempt origin activity remains unverified.
 
 ## Corrected protocol
 
-Use the exact privately retained 34-URL EXP-036 q1 pool, SHA-256
+Use the exact privately retained SlopSearX EXP-036 q1 pool, SHA-256
 `9c903f589ef1c247aa7364b1769013032c1fb53088ebd98bd837d6d05ea9004d`. Do not
 search for replacement URLs. The corrected helper must derive the internal
 `/scrape` URL from the candidate agent's runtime `load_settings().scraper_url`;
@@ -40,33 +71,43 @@ status, failure/reason category, source tier, warning/degraded state, Markdown
 length, elapsed time, and content digest. Never log or print the configured
 base, credentials, URLs, titles, body text, or raw responses.
 
-Create a new private run ledger; do not append to or replace the first ledger.
+Create a new private run ledger and append-only attempt journal; do not append
+to or replace the first ledger. Before dispatching every request, fsync a
+sanitized start event containing candidate ID, URL digest, sweep, and canary
+flag. Append a separate result event after response. Derive request budget and
+started/in-flight counts only from start events; never hand-edit the count. If
+interrupted, an unmatched start is an attempted request with no recorded
+result, not a source-quality failure.
 Start with a single canary: the first URL in frozen pool order, at caller width
 1. Capture a private per-URL receipt. If the configured internal transport
 fails before an HTTP response, record the exception class and sanitized reason
-category and stop immediately. Do not retry the canary or issue other URLs. If
-the service returns an HTTP response, that demonstrates the corrected internal
-route is reachable; retain any source-level failure as an outcome and continue
-only if health, revision, active-job, metrics, and resource checks remain
-within the parent-reviewed baseline.
+category and stop immediately. Do not retry the canary or issue other URLs. A
+canary HTTP 429 or any status other than 200 is an immediate stop and must not
+enter the remaining sweep. An HTTP 200 demonstrates the corrected internal
+route is reachable; retain a scraper-level unsuccessful/empty outcome and
+continue only if health, revision, active-job, metrics, and resource checks
+remain within the parent-reviewed baseline.
 
 If the canary passes, continue the fixed pool at caller widths 1, 3, and 5,
 then repeat each width once in that order. Count the canary as the first URL of
 width 1/repeat 1. Maximum: 204 additional internal scraper requests, one
 request per origin at a time, 70 seconds per request, 30 minutes total, no
 retries. Do not call the repeat a warm-cache pass unless cache state is directly
-observable. Stop on any unexpected internal transport failure, health failure
-twice, candidate revision change, unrelated active job, HTTP 429, or time/request
-bound. Preserve every attempted receipt and the stop reason.
+observable. Stop on any unexpected internal transport failure or non-200
+internal response, failed required preflight, candidate revision change,
+unrelated active research job, HTTP 429, or time/request bound. Preserve every
+attempt-start and result event and the stop reason.
 
 Immediately before the canary and at each sweep boundary, read health,
-OpenAPI route presence, scraper tier counters, `scrape_calls_total`, active
-research job count, candidate revision, and aggregate CPU/memory through the
-existing read-only path. Capture the same after the run. These are service-level
+OpenAPI route presence, parsed scraper tier counters, parsed
+`scrape_calls_total`, active research job count, candidate revision, and
+aggregate CPU/memory through the existing read-only path. Capture the same
+after the run. These are service-level
 observations, not proof of general capacity or proof that unrelated traffic did
-not occur. No `/v2/scrape`, search, Jev, LLM, job creation, indexing, cache
-clearing, configuration change, deployment, or runtime modification is in
-scope.
+not occur. Aggregate counter movement can include concurrent service activity;
+attribute only request-level outcomes to this probe's own journal. No
+`/v2/scrape`, search, Jev, LLM, job creation, indexing, cache clearing,
+configuration change, deployment, or runtime modification is in scope.
 
 This run measures only direct scraper-service behavior over this returned
 pool and candidate revision. It does not measure end-to-end agent scheduling,
