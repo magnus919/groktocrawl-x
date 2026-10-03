@@ -3,6 +3,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).parents[2] / "scripts/jev_continuation_request_builder.py"
 SPEC = importlib.util.spec_from_file_location(
     "jev_continuation_request_builder", SCRIPT
@@ -20,6 +22,8 @@ def _source(source_id, text):
         "title": source_id,
         "supplied_text": text,
         "text_scope": "full_source",
+        "excerpt_start_byte": 0,
+        "excerpt_end_byte": len(text.encode()),
         "fetch_status": "success",
     }
 
@@ -117,6 +121,15 @@ def test_batched_fixed_hypotheses_are_bound_and_stage4_is_sequential():
     assert plan.question_to_hypothesis == {"q0000": "h1", "q0001": "h2"}
     assert questions["q0000"]["instructions"]["hypothesis"] == h1
     assert questions["q0001"]["instructions"]["hypothesis"] == h2
+
+    # RequestPlan is only shallowly frozen, so mutate its public dict surfaces.
+    # Stage 4 must use the signed serialized snapshot, not those mutable maps.
+    changed_view = plan.payload
+    changed_view["state"]["obligation"]["statement"] = "mutated view"
+    changed_view["questions"]["q0000"]["instructions"]["hypothesis"] = h2
+    assert plan.payload["state"]["obligation"]["statement"] != "mutated view"
+    with pytest.raises(TypeError):
+        plan.question_to_hypothesis["q0000"] = "h2"
 
     stage4 = builder.build_addressability_request(
         state,
@@ -234,3 +247,112 @@ def test_coverage_and_exact_span_checks_block_overclaims():
     )
     full["first_pass"]["coverage"]["acquired_source_ids"] = ["s1", "not-presented"]
     assert isinstance(builder.build_sufficiency_request(full), builder.Abstention)
+
+
+def test_stage3_span_must_be_in_fetched_evidence_excerpt():
+    full_text = "The cache uses a stable key. More omitted detail follows."
+    excerpt = "The cache"
+    start = 0
+    src = _source("s1", full_text)
+    src.update(
+        supplied_text=excerpt,
+        text_scope="excerpt",
+        excerpt_start_byte=start,
+        excerpt_end_byte=start + len(excerpt.encode()),
+    )
+    state = _state()
+    state["first_pass"]["coverage"].update(
+        scope="bounded_excerpts_only", omitted_text_within_sources=True
+    )
+    state["first_pass"]["sources"] = [src]
+    valid_excerpt_hypothesis = _hypothesis(state)
+    valid_excerpt_hypothesis["absence_scope"] = "supplied_material_only"
+    valid_span = valid_excerpt_hypothesis["source_spans"][0]
+    valid_span.update(
+        source_sha256=hashlib.sha256(full_text.encode()).hexdigest(),
+        start_byte=start,
+        end_byte=start + len(excerpt.encode()),
+        quote=excerpt,
+    )
+    accepted = builder.build_hypothesis_review_request(
+        state, [valid_excerpt_hypothesis], {"s1": full_text}
+    )
+    assert isinstance(accepted, builder.RequestPlan)
+
+    full_page_hypothesis = _hypothesis(state)
+    full_page_hypothesis["absence_scope"] = "supplied_material_only"
+    # This proposal cites a perfectly valid full-source quote, but the quote
+    # comes from text omitted from the evidence Jev would receive.
+    span = full_page_hypothesis["source_spans"][0]
+    span.update(
+        source_sha256=hashlib.sha256(full_text.encode()).hexdigest(),
+        start_byte=0,
+        end_byte=len(full_text.encode()),
+        quote=full_text,
+    )
+    result = builder.build_hypothesis_review_request(
+        state, [full_page_hypothesis], {"s1": full_text}
+    )
+    assert isinstance(result, builder.Abstention)
+    assert "outside the exact evidence excerpt" in result.reason
+
+    # The same restriction applies to each side of a contradiction pair.
+    second_full = "The cache does not use a stable key."
+    second_excerpt = "The cache"
+    second = _source("s2", second_full)
+    second.update(
+        supplied_text=second_excerpt,
+        text_scope="excerpt",
+        excerpt_start_byte=0,
+        excerpt_end_byte=len(second_excerpt.encode()),
+    )
+    pair_state = _state()
+    pair_state["first_pass"]["coverage"].update(
+        scope="bounded_excerpts_only",
+        acquired_source_ids=["s1", "s2"],
+        presented_source_ids=["s1", "s2"],
+        omitted_text_within_sources=True,
+    )
+    pair_state["first_pass"]["sources"] = [src, second]
+    first_full = full_text
+
+    def _span(sid, text):
+        return {
+            "source_id": sid,
+            "source_sha256": hashlib.sha256(text.encode()).hexdigest(),
+            "start_byte": 0,
+            "end_byte": len(text.encode()),
+            "quote": text,
+            "subject": "cache identity",
+            "version": "v2",
+            "context": "normal operation",
+        }
+
+    contradiction = {
+        "hypothesis_id": "h-contradiction",
+        "kind": "contradiction",
+        "proposition": "The passages conflict about cache identity.",
+        "subject": "cache identity",
+        "version": "v2",
+        "context": "normal operation",
+        "source_spans": [
+            _span("s1", first_full),
+            _span("s2", second_full),
+        ],
+    }
+    pair_result = builder.build_hypothesis_review_request(
+        pair_state,
+        [contradiction],
+        {"s1": first_full, "s2": second_full},
+    )
+    assert isinstance(pair_result, builder.Abstention)
+    assert "outside the exact evidence excerpt" in pair_result.reason
+
+    failed = _state()
+    failed["first_pass"]["sources"][0]["fetch_status"] = "failed"
+    failed_result = builder.build_hypothesis_review_request(
+        failed,
+        [_hypothesis(failed)],
+        {"s1": "The cache uses a stable key."},
+    )
+    assert isinstance(failed_result, builder.Abstention)

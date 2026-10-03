@@ -64,6 +64,8 @@ Use one research question and one scoped obligation per stage-1 request:
         "url": "retrieved public URL",
         "title": "source title",
         "supplied_text": "excerpt or full text, as declared by coverage",
+        "excerpt_start_byte": 0,
+        "excerpt_end_byte": 120,
         "text_scope": "excerpt | full_source",
         "fetch_status": "success | failed"
       }
@@ -90,7 +92,11 @@ references, not a Jev-generated paraphrase. A span carries `source_id`, the
 full-source SHA-256, zero-based half-open UTF-8 byte offsets, and a `quote`
 string whose UTF-8 bytes exactly match that source slice. Validate the source
 ID, full-source digest, offsets, and quote against the locally acquired source
-before building a request. A missing-info hypothesis must identify the exact
+before building a request. Every supplied excerpt also carries its exact
+full-source byte interval (`excerpt_start_byte`, `excerpt_end_byte`); validate
+that interval against the acquired source and require every cited span to fall
+within the successful-fetch excerpt actually sent to Jev. A valid quote from
+an omitted part of an acquired page is not evidence Jev saw. A missing-info hypothesis must identify the exact
 information sought and at least one reviewed span (or deterministic no-input
 abstention if there is no span to cite). A contradiction hypothesis must supply
 exactly two spans with identical explicit subject, version, and context keys;

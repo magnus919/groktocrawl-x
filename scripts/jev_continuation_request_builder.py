@@ -13,7 +13,9 @@ import json
 import math
 import re
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 MODEL = "jev-1.13.0"
@@ -92,9 +94,13 @@ class Abstention:
 class RequestPlan:
     stage: str
     model: str
-    payload: dict[str, Any]
     serialized: bytes
-    question_to_hypothesis: dict[str, str]
+    question_to_hypothesis: Mapping[str, str]
+
+    @property
+    def payload(self) -> dict[str, Any]:
+        """Return a fresh view decoded from the immutable serialized request."""
+        return json.loads(self.serialized)
 
 
 @dataclass(frozen=True)
@@ -173,6 +179,20 @@ def _validate_base_state(state: Any) -> str | None:
         scope = source.get("text_scope")
         if scope not in {"excerpt", "full_source"}:
             return "source text_scope is invalid"
+        excerpt_start = source.get("excerpt_start_byte")
+        excerpt_end = source.get("excerpt_end_byte")
+        if (
+            isinstance(excerpt_start, bool)
+            or isinstance(excerpt_end, bool)
+            or not isinstance(excerpt_start, int)
+            or not isinstance(excerpt_end, int)
+            or excerpt_start < 0
+            or excerpt_end <= excerpt_start
+            or excerpt_end - excerpt_start != len(supplied.encode("utf-8"))
+        ):
+            return "source excerpt byte boundaries are invalid"
+        if scope == "full_source" and excerpt_start != 0:
+            return "full source must begin at byte zero"
         if source["fetch_status"] == "success" and supplied.strip():
             usable = True
         if (
@@ -233,7 +253,11 @@ def _make_plan(
     questions: dict[str, dict[str, Any]],
     question_to_hypothesis: dict[str, str] | None = None,
 ) -> PlanResult:
-    payload = {"model": MODEL, "state": state, "questions": questions}
+    payload = {
+        "model": MODEL,
+        "state": deepcopy(state),
+        "questions": deepcopy(questions),
+    }
     try:
         serialized = json.dumps(
             payload,
@@ -252,9 +276,8 @@ def _make_plan(
     return RequestPlan(
         stage=stage,
         model=MODEL,
-        payload=payload,
         serialized=serialized,
-        question_to_hypothesis=question_to_hypothesis or {},
+        question_to_hypothesis=MappingProxyType(question_to_hypothesis or {}),
     )
 
 
@@ -330,6 +353,8 @@ def _validate_hypothesis(
         document = source_documents.get(source_id)
         if source is None or not isinstance(document, str):
             return "span references an unpresented or unavailable source"
+        if source.get("fetch_status") != "success":
+            return "span references a failed source fetch"
         digest = hashlib.sha256(document.encode("utf-8")).hexdigest()
         if (
             span["source_sha256"] != digest
@@ -355,6 +380,15 @@ def _validate_hypothesis(
             return "span byte offsets do not align to UTF-8"
         if selected != span["quote"]:
             return "span quote does not match its exact source bytes"
+        excerpt_start = source["excerpt_start_byte"]
+        excerpt_end = source["excerpt_end_byte"]
+        excerpt = source["supplied_text"].encode("utf-8")
+        if (
+            raw[excerpt_start:excerpt_end] != excerpt
+            or start < excerpt_start
+            or end > excerpt_end
+        ):
+            return "span is outside the exact evidence excerpt supplied to Jev"
         span_scope = tuple(span.get(key) for key in ("subject", "version", "context"))
         if any(not _nonempty_string(value) for value in span_scope):
             return "span subject/version/context is incomplete"
@@ -416,7 +450,7 @@ def build_hypothesis_review_request(
             hypothesis["kind"], slot, hypothesis
         )
         mapping[question_id] = hypothesis["hypothesis_id"]
-    request_state = dict(state)
+    request_state = deepcopy(state)
     return _make_plan("hypothesis_review", request_state, questions, mapping)
 
 
@@ -443,8 +477,7 @@ def build_addressability_request(
         or stage3_response.model != MODEL
         or stage3_response.request_sha256
         != hashlib.sha256(stage3_plan.serialized).hexdigest()
-        or stage3_question_id not in stage3_plan.question_to_hypothesis
-        or stage3_plan.question_to_hypothesis[stage3_question_id] != hypothesis_id
+        or stage3_question_id not in _questions_from_snapshot(stage3_plan)
         or stage3_question_id not in stage3_response.probabilities
         or policy_qualified_hypothesis_id != hypothesis_id
     ):
@@ -455,16 +488,20 @@ def build_addressability_request(
     # Bind stage 4 to the exact source state and hypothesis that stage 3 saw.
     # Matching a reused opaque ID is insufficient: changed text or evidence
     # must require a new stage-3 judgment.
-    source_state = stage3_plan.payload.get("state")
-    proposal_by_id = {
-        hid: q.get("instructions", {}).get("hypothesis")
-        for qid, q in stage3_plan.payload.get("questions", {}).items()
-        if (hid := stage3_plan.question_to_hypothesis.get(qid))
-    }
+    snapshot = _payload_from_snapshot(stage3_plan)
+    source_state = snapshot.get("state") if snapshot else None
+    recorded = (
+        _questions_from_snapshot(stage3_plan)
+        .get(stage3_question_id, {})
+        .get("instructions", {})
+        .get("hypothesis")
+    )
     if (
         not isinstance(source_state, dict)
         or _canonical(source_state) != _canonical(state)
-        or _canonical(proposal_by_id.get(hypothesis_id)) != _canonical(hypothesis)
+        or not isinstance(recorded, dict)
+        or recorded.get("hypothesis_id") != hypothesis_id
+        or _canonical(recorded) != _canonical(hypothesis)
     ):
         return Abstention(
             "addressability",
@@ -477,7 +514,7 @@ def build_addressability_request(
             "gap_hypothesis": hypothesis,
         },
     }
-    return _make_plan("addressability", dict(state), {"n0": question})
+    return _make_plan("addressability", deepcopy(state), {"n0": question})
 
 
 def _canonical(value: Any) -> bytes | None:
@@ -493,6 +530,23 @@ def _canonical(value: Any) -> bytes | None:
         return None
 
 
+def _payload_from_snapshot(plan: RequestPlan) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(plan.serialized)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("model") != plan.model:
+        return None
+    return payload
+
+
+def _questions_from_snapshot(plan: RequestPlan) -> dict[str, Any]:
+    payload = _payload_from_snapshot(plan)
+    if payload is None or not isinstance(payload.get("questions"), dict):
+        return {}
+    return payload["questions"]
+
+
 def validate_noul_response(
     response: Any, request: RequestPlan
 ) -> ValidatedNoulResponse | Abstention:
@@ -502,7 +556,7 @@ def validate_noul_response(
     if response.get("model") != MODEL:
         return Abstention("response", "returned model revision does not match pin")
     answers = response.get("answers")
-    ids = set(request.payload.get("questions", {}))
+    ids = set(_questions_from_snapshot(request))
     if not ids or not isinstance(answers, dict) or set(answers) != ids:
         return Abstention("response", "answer IDs do not exactly match request")
     probabilities: dict[str, float] = {}
