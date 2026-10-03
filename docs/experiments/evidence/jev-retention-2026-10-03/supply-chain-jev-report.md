@@ -1,11 +1,12 @@
 # Jev contribution retention: supply-chain search batch (2026-10-03)
 
-**Disposition: revise / gather more evidence.** On this one frozen batch, the
+**Disposition: revise; no new activation.** On this one frozen batch, the
 existing ADR-0090 filter retained every page labeled as a possible material
 contributor. The filter excluded nothing, so this is a retention result rather
 than evidence that filtering improves answers. The keyless 8,000-character
-projection separately clipped or omitted six labeled passage spans. Their
-answer impact remains unmeasured.
+projection separately clipped or omitted six labeled passage spans. A bounded
+synthesis replay produced no usable complete answer, so the projection loss and
+any score-metadata effect on answers remain unmeasured.
 
 ## Frozen packet and acquisition
 
@@ -67,21 +68,30 @@ The draft specification’s labeled verification passage begins at character
 20,890. These are pre-Jev, best-effort labels. They show projection loss in
 this corpus, not that a generated answer would necessarily use every passage.
 
-No synthesis calls were made: the full packet is about 80,000 tokens, and the
-context limit for the available free-model alias was not verified. Since the
-filter removed no source, the filter and score-only arms have the same source
-set; score metadata could still affect synthesis. Answer quality, citation
-support, and any such metadata effect therefore remain unmeasured.
+The registered synthesis replay was attempted but yielded no usable answer. A
+pre-call setup error failed before an output directory, call journal, or provider
+request existed; after correcting the local import path, one request for the
+full-text/no-score arm reached the configured `free` alias and ended with
+`finish_reason=length` at the 1,600-token output cap. The response was not a
+complete answer, and the failure record did not retain usage or latency, so
+these are unknown. The earlier accidental proxy attempt has unknown remote
+delivery; together, the study has two external-call attempts, no retries, and
+no usable synthesis output. The remaining two distinct arms were not attempted.
+Because the filter removed no source, its arm and score-only arm are identical
+in content and score metadata; the comparison is not measured. Answer quality,
+citation support, projection impact, and score-metadata effect remain
+unmeasured. See the [synthesis attempt outcome](synthesis-attempt-outcome.md).
 
 ## What this supports
 
 Keep ADR-0090’s current experimental behavior unchanged. This batch supports
 that the 0.10 rule did not discard any pre-labeled contribution in this
 particular 20-result packet. It does not establish general recall, useful
-source yield, answer improvement, safety, or production readiness. Continue
-with a held-out batch that records the actual deployed search revision and
-rerank explanation, independently reviews labels, and uses a synthesis model
-with a verified context limit. Preserve the full-text and keyless-projection
+source yield, answer improvement, safety, or production readiness. Any future
+quality comparison requires a separate registration and approved budget, records
+the deployed search revision and rerank explanation, independently reviews
+labels, and completes with a synthesis output that can be graded. This study
+makes no further provider calls. Preserve the full-text and keyless-projection
 comparisons as separate questions.
 
 ## Issue-scope disposition and evidence boundary
@@ -94,40 +104,39 @@ answer-quality benefit. ADR-0090 remains opt-in and unchanged.
 
 | Requested question | Evidence in this packet or repository | Disposition |
 |---|---|---|
-| Acquire every distinct result returned, without the retired local source quota | All 20 distinct URLs in this one partial snapshot were attempted and yielded Markdown. ADR-0092 and `tests/service/test_research_scrape_all.py` cover no-slice/deduplication and continuation after a mocked failure. | Demonstrated for this packet and deterministic code path; not a live 25–40-result capacity test. |
+| Acquire every distinct result returned, without the retired local source quota | All 20 URLs in the partial search snapshot were attempted and yielded Markdown. The separate direct-scraper run attempted the fixed 34-URL pool. ADR-0092 and `tests/service/test_research_scrape_all.py` cover no-slice/deduplication and continuation after a mocked failure. | Demonstrated for the 20-result packet and a separate bounded direct-service pool; not a live end-to-end 25–40-result agent acquisition test. |
 | Does the existing post-scrape filter retain useful contributions? | 19 positive and one uncertain page; all 20 were retained. There were no excluded pages, no independent label reviewer, and no labeled complementary or contradictory source. | Narrow recall observation only; negative-page behavior and broader recall remain untested here. |
-| Does filtering improve answer synthesis on the current upstream search baseline? | The snapshot was partial, had no rerank explanation or deployed revision, and no synthesis call was made. Since nothing was excluded, the filtered and score-only source sets would be identical. ADR-0090 records an earlier complete-page replay where the unfiltered model ignored six obvious junk pages; that historical replay is not this baseline or a measured uplift. | Unanswered. Do not claim uplift or no uplift on the current baseline. |
-| Does the keyless 8,000-character projection lose useful evidence? | Of 28 labeled candidate spans, 22 were present, one was partial, and five were beyond the prefix, including a frozen late-passage control. No synthesis was run. | Evidence of input projection loss in this corpus; answer impact is unmeasured. |
-| Does acquisition remain acceptable at 25–40 sources under mixed latency/failure, cold/warm cache, cancellation, concurrent jobs, and progress reporting? | `tests/service/test_research_scrape_all.py` uses fake search/scrape clients and checks a 24-result case, mocked failure continuation, deduplication, and maximum five in flight. `agent-svc/agent/research/acquisition.py` and `discovery.py` implement bounded concurrency/timeouts/streaming. Separate run/cancellation tests cover lifecycle contracts. This packet reports 20 successful scrapes and sequential Jev calls, not end-to-end timings or multi-job load. | Implementation and contract coverage exist; target-width operational behavior and latency were not measured by this study. |
+| Does filtering improve answer synthesis on the current upstream search baseline? | The snapshot was partial, with no rerank explanation or deployed revision. The current synthesis replay yielded one truncated full-text/no-score response and no usable answer; the other two distinct payloads were not attempted. The filter and score-only inputs are identical because nothing was excluded. ADR-0090 records an earlier complete-page replay where the unfiltered model ignored six obvious junk pages; that historical replay is not this baseline or a measured uplift. | Unanswered. Do not claim uplift or no uplift on the current baseline. |
+| Does the keyless 8,000-character projection lose useful evidence? | Of 28 labeled candidate spans, 22 were present, one was partial, and five were beyond the prefix, including a frozen late-passage control. The only synthesis response was truncated and unusable. | Evidence of input projection loss in this corpus; answer impact is unmeasured. |
+| Does acquisition remain acceptable at 25–40 sources under mixed latency/failure, cold/warm cache, cancellation, concurrent jobs, and progress reporting? | The direct scraper slice replayed the same 34 URLs at widths 1, 3, and 5 (width 1 once, widths 3/5 twice): 165 HTTP 200 responses and the same PDF result returned HTTP 502 in all five passes. Cache state was not observable. Fake-client unit tests cover 24 results, continuation after mocked failure, deduplication, and maximum five in flight; lifecycle contract tests exist. | A bounded direct-service observation only. It does not establish cold/warm behavior, width selection, end-to-end queue/progress/cancellation, concurrent jobs, controlled timeouts, or resource contention. |
 | Are chunking, threshold failures, version/work identity, source complementarity, contradictions, and safety adequately tested? | All pages fit one Jev chunk; every score exceeded 0.10; result cards had no explicit work/version identifiers; the label freeze has candidate-contribution spans only, including one uncertain status label. Injection/safety was not assessed. | Multi-chunk maximum-score bias, below-threshold recall, explicit duplicate-version handling, complementary/contradictory evidence, and injection behavior remain open. |
 
-The smallest useful next **quality** comparison is one new, prospectively frozen
-current-baseline batch, acquired without a local source quota, that includes
-both a below-threshold page and independently reviewed required contribution
-spans (otherwise the filter-removal contrast is not identified). On the exact
-same acquired Markdown, prompt, synthesis model, and settings, compare full text
-without Jev, full text with scores but no removal, the existing filter, and the
-keyless 8k projection. Freeze the source/work/version labels and answer rubric
-before Jev or synthesis outcomes; verify actual deployed reranking; explicitly
-include complementary, contradictory, and post-8k evidence. Bound the run to one
-batch and the already stated external-call budget. If the batch has no
-below-threshold source or complete input exceeds a documented context limit,
-report the comparison as non-identifying/blocked and stop rather than
-manufacturing a contrast or silently truncating text. A subsequent read-only provider metadata lookup declared
-`max_input_tokens=1,048,576` for alias `free`. This is a declaration, not an
-empirically verified routed context limit; the report's synthesis outcome
-remains unchanged, and no oversized synthesis request was made.
+A future quality comparison would need a prospectively frozen current-baseline
+batch, acquired without a local source quota, that includes a below-threshold
+page and independently reviewed required contribution spans (otherwise the
+filter-removal contrast is not identified). On identical acquired Markdown,
+prompt, synthesis model, and settings, compare full text without Jev, full text
+with scores but no removal, the existing filter, and the keyless 8k projection.
+Freeze source/work/version labels and the answer rubric before Jev or synthesis
+outcomes; verify actual deployed reranking; include complementary, contradictory,
+and post-8k evidence. Such work requires a new registration and call budget. If
+the batch has no below-threshold source or complete input exceeds a documented
+context limit, report the comparison as non-identifying/blocked and stop rather
+than manufacturing a contrast or silently truncating text. The alias metadata declared `max_input_tokens=1,048,576`; this is not
+empirical routed-capacity proof. The attempted full packet was within that
+declaration, but the only response stopped at the output limit. No request was
+made with more than the 20 frozen pages.
 
 The follow-on [GroktoCrawl direct-scraper capacity probe](exp036-capacity-outcome.md)
-attempted the fixed 34-URL pool at widths 1, 3, and 5, but all 102 requests
-failed with `URLError` before returning HTTP responses. A follow-up read-only
-diagnostic found the helper used a literal host that does not resolve, instead
-of the runtime configured scraper base. The 102 records remain zero-credit
-transport evidence, not a capacity or source-quality result. The receipt count
-is independently derived; its counter-repair provenance deviation is recorded
-in the outcome addendum. A corrected canary-first protocol is pending review
-in the [GCX-CAP-036-R1 transport addendum](../../jev-retention-capacity-2026-10-03-transport-addendum.md).
-Cold/warm behavior, mixed outcomes, cancellation, concurrent jobs, and progress
-remain unmeasured; existing unit/lifecycle tests must not be presented as
-measured throughput or capacity. No deployment or filter activation follows
-from this report.
+first preserved 102 setup failures as zero-credit transport evidence. Its
+corrected R1 run stopped after 22 attempts at the first HTTP 502; R2 then
+completed all five prospectively fixed passes over the same 34 URLs, with 165
+HTTP 200 and five HTTP 502 responses for the same PDF page. Per-request latency
+was measured, but whole-sweep duration, cache warmth, queue/resource saturation,
+and agent lifecycle behavior were not. Counter movement remains unattributed.
+The experiment therefore does not justify a production width or capacity claim.
+The corrected protocol and outcomes are recorded in the [R1 transport
+addendum](../../jev-retention-capacity-2026-10-03-transport-addendum.md), [R2
+registration](../../jev-retention-capacity-2026-10-03-r2.md), and [capacity
+outcome](exp036-capacity-outcome.md).
+No filter activation or deployment follows from this report.

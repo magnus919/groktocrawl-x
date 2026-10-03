@@ -1,7 +1,8 @@
 # Jev-retention synthesis replay: registered continuation R1
 
-**Study:** GCX-JEV-SYNTH-371. **Status:** registered; no new provider calls have
-been made under this continuation. This addendum supersedes the original
+**Study:** GCX-JEV-SYNTH-371. **Status:** stopped after its first provider
+response was truncated. No additional calls are authorized or made under this
+continuation. This addendum supersedes the original
 call-sequence execution instructions only as to run identity, budget, and
 failure recording. It does not change the frozen sources, question, prompts,
 payloads, rubric, or original total maximum of four attempted provider calls.
@@ -20,10 +21,12 @@ files remain private and unchanged. No answer text was received or persisted.
 The public deviation record is
 [the attempt outcome](evidence/jev-retention-2026-10-03/synthesis-attempt-outcome.md).
 
-If the independent static review and parent review approve the separate R1
-runner, it may attempt at most three further unique frozen payloads, one at a
-time, with no retries. These are the three distinct inputs in the original
-protocol: full text without scores, full text with score metadata (also the
+The R1 runner passed static review and parent review, then attempted one
+frozen payload. The response matched the `free` alias but ended with
+`finish_reason=length` at the registered output cap. No complete answer was
+persisted, and the remaining two unique frozen payloads were not attempted.
+No retries or further calls are authorized under this registration. The
+original protocol registered three distinct inputs: full text without scores, full text with score metadata (also the
 existing-filter arm), and the no-score 8,000-character-per-page projection.
 The uncertain first attempt may have been delivered, so the full/no-score input
 could have been sent twice across the study. Count all four possible
@@ -34,14 +37,8 @@ an unmatched call-start event as attempted with unknown outcome after
 interruption. Error strings and full provider error bodies must not be stored or
 printed.
 
-The reviewed runner must use a new, empty mode-0700 output directory distinct
-from the original attempt directory; refuse if it exists. It must require
-explicit `--execute`, with help/argument parsing before repository imports or
-other side effects. Pin the frozen plan digest and validate the exact 20-source
-manifest, four registered arm names, three distinct payloads, and known
-payload hashes before creating an output directory or contacting the proxy.
-Sanitize status categories, validate response shape, usage, and finite elapsed
-time, cap output at 20,000 characters/100,000 bytes, and append an explicit
-result record for every attempted call whenever the process remains able to
-write. No provider execution is authorized by this registration itself; the
-parent must review and own any execution after independent static review.
+The runner used a new, empty mode-0700 output directory distinct from the
+original attempt directory. It required explicit `--execute`, parsed help before
+repository imports, pinned the frozen plan and payload hashes, and wrote a call
+start before dispatch. The completed attempt does not support an answer-quality
+grade or filter recommendation.

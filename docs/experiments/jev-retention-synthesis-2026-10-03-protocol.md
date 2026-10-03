@@ -1,8 +1,9 @@
 # Frozen synthesis replay for the Jev retention study
 
 **Study:** GCX-JEV-SYNTH-371. **Protocol status:** the original call sequence was
-stopped after one proxy transport failure during the first attempt. Provider
-delivery is unknown; no usable output was received. See
+stopped after the initial unknown-delivery proxy attempt and one later R1
+provider response truncated at the output limit. No usable complete answer was
+received; no further calls were made. See
 [synthesis-attempt-outcome.md](evidence/jev-retention-2026-10-03/synthesis-attempt-outcome.md)
 and the separate R1 addendum before considering any further replay. This replays
 the existing, partial GroktoCrawl supply-chain search snapshot. It is not a fresh
