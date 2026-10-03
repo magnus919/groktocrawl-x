@@ -4,7 +4,7 @@
   "title": "GroktoCrawl twin evidence manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "execution_mode", "commit", "selection", "corpus", "versions", "identity", "images", "bounds", "outcome"],
+  "required": ["schema_version", "execution_mode", "commit", "event_diff", "selection", "corpus", "versions", "identity", "images", "bounds", "outcome"],
   "properties": {
     "schema_version": {"const": "twin-evidence-v1"},
     "execution_mode": {"enum": ["hosted", "compose", "live"]},
@@ -12,6 +12,17 @@
     "commit": {
       "type": "object", "additionalProperties": false, "required": ["sha", "event", "ref"],
       "properties": {"sha": {"type": "string", "pattern": "^[a-f0-9]{40}$"}, "event": {"type": "string", "minLength": 1}, "ref": {"type": "string", "minLength": 1}}
+    },
+    "event_diff": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event", "base_sha", "head_sha", "comparison_base_sha", "checked_out_sha"],
+      "properties": {
+        "event": {"type": "string", "minLength": 1},
+        "base_sha": {"type": "string", "pattern": "^(unavailable|[a-f0-9]{40})$"},
+        "head_sha": {"type": "string", "pattern": "^(unavailable|[a-f0-9]{40})$"},
+        "comparison_base_sha": {"type": "string", "pattern": "^(unavailable|[a-f0-9]{40})$"},
+        "checked_out_sha": {"type": "string", "pattern": "^(unavailable|[a-f0-9]{40})$"}
+      }
     },
     "selection": {
        "type": "object", "additionalProperties": false, "required": ["inputs", "twin", "runtime", "tests", "excluded_tests", "checks"],
