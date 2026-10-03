@@ -129,6 +129,19 @@ no-adoption conclusion, not a verdict against Jev or academic sources.
 
 ### Downstream findings under review
 
+- **Contribution retention (#371):** [PR #410](https://github.com/magnus919/groktocrawl-x/pull/410)
+  audits 20 acquired pages and 28 labeled contribution spans. The frozen filter
+  retained every page; this positive-heavy corpus cannot establish specificity
+  or a benefit from exclusion. The 8,000-character projection left five spans
+  absent and one partial, while full text preserved all 28. This is a structural
+  evidence-retention result, not an answer-quality improvement. A 34-URL direct
+  scraper replay completed 170 requests at widths one, three, and five: 165
+  returned content, and the same PDF failed once in each pass. Cache state and
+  broader research-job capacity were not established. The synthesis comparison
+  stopped on its first request at the frozen output limit; the other arms were
+  not attempted, and no complete answer was graded. **Revise before adoption:**
+  filtering benefit, contradiction handling, chunk aggregation, and comparative
+  answer quality remain unmeasured.
 - **Follow-up evidence (#370):** [PR #412](https://github.com/magnus919/groktocrawl-x/pull/412)
   records the corrected staged judgment pilot. [PR #414](https://github.com/magnus919/groktocrawl-x/pull/414)
   adds four public SLSA obligations and an already acquired evidence replay.
@@ -160,7 +173,7 @@ no-adoption conclusion, not a verdict against Jev or academic sources.
   needed before changing user-visible behavior. Failed acquisition was a
   separate zero-call control, not an immaterial-change judgment.
 
-The retention/synthesis (#371) comparison remains in progress. The page-change
-packet is awaiting publication review. These findings do not change deployment defaults.
+The retention and page-change packets are awaiting publication review. These
+findings do not change deployment defaults.
 Provider response validity, assistant label agreement, and lower call latency
 do not establish better research answers or calibrated action thresholds.
