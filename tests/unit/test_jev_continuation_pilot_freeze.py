@@ -20,12 +20,41 @@ PACKET_PATH = (
     / "docs/experiments/typesafe-jev/continuation-pilot-2026-10-03.case-packet.json"
 )
 PACKET = json.loads(PACKET_PATH.read_text())
+RESULTS_PATH = (
+    ROOT
+    / "docs/experiments/typesafe-jev/continuation-pilot-2026-10-03.results.json"
+)
 
 
 def test_frozen_public_pilot_packet_hash_and_scope():
     assert hashlib.sha256(PACKET_PATH.read_bytes()).hexdigest() == (
         "6bdff861da0dfb8f20b7d11983034520d7a37bda6e8d0ad7037da40d314d023c"
     )
+
+
+def test_sanitized_results_bind_to_frozen_requests_and_gating():
+    results = json.loads(RESULTS_PATH.read_text())
+    assert results["case_packet_sha256"] == hashlib.sha256(
+        PACKET_PATH.read_bytes()
+    ).hexdigest()
+    assert results["requests_attempted"] == results["requests_validated"] == 19
+    assert results["requests_unevaluated"] == results["searches_dispatched"] == 0
+    assert len(results["cases"]) == len(PACKET["cases"]) == 8
+    for result, case in zip(results["cases"], PACKET["cases"], strict=True):
+        assert result["case_id"] == case["case_id"]
+        for stage, frozen_key in (
+            ("stage1", "stage1_sufficiency"),
+            ("stage3", "stage3_hypothesis_review"),
+            ("stage4", "stage4_addressability_if_stage3_positive"),
+        ):
+            if stage in result["request_sha256"]:
+                assert result["request_sha256"][stage] == case[
+                    "frozen_request_sha256"
+                ][frozen_key]
+        if "stage4_yes_probability" in result:
+            assert result["stage3_yes_probability"] > 0.5
+        else:
+            assert result["stage3_yes_probability"] <= 0.5
     assert PACKET["source_revision"] == "7b9bf51de1334d4d7e6bd6256d3085c8c2a8d60d"
     assert len(PACKET["cases"]) == 8
     assert all(
