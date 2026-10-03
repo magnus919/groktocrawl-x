@@ -31,17 +31,17 @@ print(json.dumps({'model':'free','_configured_model_alias':'free','_elapsed_ms':
     assert result["calls_attempted"] == result["calls_evaluated"] == 4
     assert result["searches_dispatched"] == 0
     assert len(marker.read_text().splitlines()) == 4
-    assert all(row["status"] == "valid_json_array" for row in result["outcomes"])
+    assert all(row["status"] == "parsed_incumbent_array" for row in result["outcomes"])
     assert all(row["recommendation_only"] is True for row in result["outcomes"])
     assert all(row["topics"] == [] for row in result["outcomes"])
 
 
 def test_parse_failures_are_distinct_from_empty_recommendations():
-    assert runner._parse_content("[]") == ("valid_json_array", [])
-    assert runner._parse_content("not json") == ("invalid_json", None)
-    assert runner._parse_content("{\"topic\":\"x\"}") == ("invalid_shape", None)
+    assert runner._parse_content("[]") == ("parsed_incumbent_array", [], 0)
+    assert runner._parse_content("not json") == ("invalid_json", None, None)
+    assert runner._parse_content("{\"topic\":\"x\"}") == ("invalid_shape", None, None)
     assert runner._parse_content("[1, \"valid topic\"]") == (
-        "valid_json_array", ["valid topic"]
+        "parsed_incumbent_array", ["valid topic"], 1
     )
 
 

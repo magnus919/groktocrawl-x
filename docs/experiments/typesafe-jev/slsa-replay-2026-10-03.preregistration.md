@@ -9,7 +9,7 @@ Contract: `continuation-evidence-gap-addressability/2`
 Requested model: `jev-1.13.0`  
 Frozen case packet:
 [`slsa-replay-2026-10-03.case-packet.json`](slsa-replay-2026-10-03.case-packet.json)  
-Packet SHA-256: `bf080316bf2470d068b7207df4718971a385dbcc517450f802728a062815bea9`
+Packet SHA-256: `01f362a5ed691a970c58169afb33ee05fc45f313eed2022f00683f929179625c`
 
 The packet freezes four SLSA research obligations from an already acquired
 public search snapshot. Its query was “software supply chain provenance SLSA
@@ -32,12 +32,14 @@ is used.
    not explain whether level requirements extend to transitive dependency
    artifacts. The fixed replay pool includes the public SLSA FAQ and a
    separate public explanation of independent artifact ratings.
-3. **Unmet / authority-check premise challenge.** A first-pass secondary page
-   claims SLSA v1.0 defined Build Level 4. The first-pass evidence lacks the
-   official v1.0 level enumeration. A later result in the fixed pool is the
-   official SLSA v1.0 levels page, which enumerates Build L0–L3. This is a
-   missing-authoritative-check case; it is **not** labeled as an aligned
-   first-pass contradiction or as a contradiction-detection positive.
+3. **Unmet / authority-check and label-completeness case.** The first-pass
+   secondary excerpt says “four build levels, each building on the previous”;
+   that count is compatible with the official Build L0–L3 enumeration. The
+   excerpt does not supply the exact labels or authoritative version-specific
+   enumeration. A later result in the fixed pool is the official SLSA v1.0
+   levels page, which lists Build L0–L3. This is a missing-authoritative-check
+   case; it is **not** labeled as an aligned first-pass contradiction or as a
+   contradiction-detection positive.
 4. **Unanswerable / private-state control.** The question asks for a specific
    organization's private signing-key rotation interval. The public corpus
    has general key-management advice but no value for a particular private

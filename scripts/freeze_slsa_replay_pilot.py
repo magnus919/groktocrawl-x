@@ -71,7 +71,7 @@ CASE_DEFINITIONS = [
     },
     {
         "case_id": "slsa-replay-03",
-        "stratum": "unmet_authority_check_premise_challenge",
+        "stratum": "unmet_authority_check_label_completeness",
         "question": "Which Build-level labels does the official SLSA v1.0 levels page enumerate?",
         "obligation": "Verify the official SLSA v1.0 Build-track level enumeration against the retrieved secondary claim.",
         "source_rank": 3,
@@ -86,7 +86,7 @@ CASE_DEFINITIONS = [
         "context": "official specification enumeration, checked against a secondary page",
         "stage3_yes": True,
         "stage4_yes": True,
-        "replay_contribution": "The hidden pool contains the official v1.0 levels page, whose table enumerates Build L0 through Build L3 and does not include the secondary page's asserted Build Level 4.",
+        "replay_contribution": "The hidden pool contains the official v1.0 levels page, whose table supplies the authoritative labels Build L0 through Build L3. The secondary excerpt's count of four levels is compatible with that list; this is an authority/completeness check, not a contradiction.",
         "contributing_result_ids": ["rank-11"],
         "replay_spans": [
             (11, "Build L0", None),

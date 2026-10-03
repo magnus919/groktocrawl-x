@@ -19,7 +19,7 @@ from typing import Any
 
 import jev_continuation_request_builder as builder
 
-PACKET_SHA256 = "bf080316bf2470d068b7207df4718971a385dbcc517450f802728a062815bea9"
+PACKET_SHA256 = "01f362a5ed691a970c58169afb33ee05fc45f313eed2022f00683f929179625c"
 MAX_REQUESTS = 11
 CASE_COUNT = 4
 
@@ -77,7 +77,7 @@ def _call(proxy: list[str], plan: builder.RequestPlan) -> tuple[dict[str, Any], 
     return receipt, checked
 
 
-def run(packet_path: Path, corpus_root: Path, proxy: list[str]) -> dict[str, Any]:
+def run(packet_path: Path, corpus_root: Path, proxy: list[str], checkpoint=None) -> dict[str, Any]:
     packet_bytes = packet_path.read_bytes()
     packet_hash = hashlib.sha256(packet_bytes).hexdigest()
     if packet_hash != PACKET_SHA256:
@@ -94,26 +94,66 @@ def run(packet_path: Path, corpus_root: Path, proxy: list[str]) -> dict[str, Any
         row["result_id"]: row["markdown_file"]
         for row in packet["corpus"]["source_pages"]
     }
+
+    # Validate every acquired source and every possible Jev request before the
+    # first provider call. No later case can fail locally after earlier spend.
+    prepared: list[dict[str, Any]] = []
+    for case in packet["cases"]:
+        state = case["state"]
+        hypothesis = case["research_agent_proposal"]
+        documents: dict[str, str] = {}
+        for source in state["first_pass"]["sources"]:
+            source_id = source["source_id"]
+            filename = source_files.get(source_id)
+            if not filename:
+                raise ValueError(f"missing source identity for {source_id}")
+            try:
+                document = (corpus_root / filename).read_text()
+            except OSError as exc:
+                raise ValueError(f"first-pass source unavailable for {source_id}") from exc
+            if hashlib.sha256(document.encode()).hexdigest() != source["source_sha256"]:
+                raise ValueError(f"first-pass source digest mismatch for {source_id}")
+            documents[source_id] = document
+        stage1 = builder.build_sufficiency_request(state)
+        stage3 = builder.build_hypothesis_review_request(state, [hypothesis], documents)
+        if isinstance(stage1, builder.Abstention) or isinstance(stage3, builder.Abstention):
+            raise ValueError(f"preflight request abstention for {case['case_id']}")
+        dummy_stage3 = builder.ValidatedNoulResponse(
+            builder.MODEL, {"q0000": 0.9}, hashlib.sha256(stage3.serialized).hexdigest()
+        )
+        stage4 = builder.build_addressability_request(
+            state, hypothesis, documents, stage3_plan=stage3,
+            stage3_response=dummy_stage3, stage3_question_id="q0000",
+            policy_qualified_hypothesis_id=hypothesis["hypothesis_id"],
+        )
+        if isinstance(stage4, builder.Abstention):
+            raise ValueError(f"preflight addressability abstention for {case['case_id']}")
+        plans = {
+            "stage1_sufficiency": stage1,
+            "stage3_hypothesis_review": stage3,
+            "stage4_addressability_if_stage3_positive": stage4,
+        }
+        for key, plan in plans.items():
+            if hashlib.sha256(plan.serialized).hexdigest() != case["frozen_request_sha256"][key]:
+                raise ValueError(f"{case['case_id']} {key} request differs from frozen digest")
+        prepared.append({"case": case, "state": state, "hypothesis": hypothesis,
+                         "documents": documents, "plans": plans})
+
     results: dict[str, Any] = {
-        "study_id": packet["study_id"],
-        "case_packet_sha256": packet_hash,
-        "requested_model": builder.MODEL,
-        "requests_attempted": 0,
-        "requests_unevaluated": 0,
-        "searches_dispatched": 0,
-        "cases": [],
+        "study_id": packet["study_id"], "case_packet_sha256": packet_hash,
+        "requested_model": builder.MODEL, "requests_attempted": 0,
+        "requests_unevaluated": 0, "searches_dispatched": 0,
+        "partial_receipts": [], "cases": [],
     }
 
-    def call(
-        case: dict[str, Any],
-        stage_key: str,
-        plan: builder.RequestPlan,
-    ) -> tuple[dict[str, Any], Any]:
+    def checkpoint_now() -> None:
+        if checkpoint is not None:
+            checkpoint(results)
+
+    def call(case: dict[str, Any], stage_key: str, plan: builder.RequestPlan) -> tuple[dict[str, Any], Any]:
         if results["requests_attempted"] >= MAX_REQUESTS:
             raise RuntimeError("frozen call budget exhausted")
         expected = case["frozen_request_sha256"][stage_key]
-        if hashlib.sha256(plan.serialized).hexdigest() != expected:
-            raise ValueError(f"{case['case_id']} request differs from frozen digest")
         results["requests_attempted"] += 1
         receipt, checked = _call(proxy, plan)
         receipt["request_sha256"] = expected
@@ -126,79 +166,39 @@ def run(packet_path: Path, corpus_root: Path, proxy: list[str]) -> dict[str, Any
                 results["returned_model"] = model
         if receipt["status"] != "evaluated":
             results["requests_unevaluated"] += 1
+        results["partial_receipts"].append({"case_id": case["case_id"], "stage": stage_key, **receipt})
+        checkpoint_now()
         return receipt, checked
 
-    for case in packet["cases"]:
-        state = case["state"]
-        hypothesis = case["research_agent_proposal"]
-        documents: dict[str, str] = {}
-        for source in state["first_pass"]["sources"]:
-            source_id = source["source_id"]
-            filename = source_files.get(source_id)
-            if not filename:
-                raise ValueError(f"missing source identity for {source_id}")
-            document = (corpus_root / filename).read_text()
-            if hashlib.sha256(document.encode()).hexdigest() != source["source_sha256"]:
-                raise ValueError(f"first-pass source digest mismatch for {source_id}")
-            documents[source_id] = document
-
+    for entry in prepared:
+        case = entry["case"]
+        state = entry["state"]
+        hypothesis = entry["hypothesis"]
+        plans = entry["plans"]
         row: dict[str, Any] = {"case_id": case["case_id"]}
-        stage1 = builder.build_sufficiency_request(state)
-        if isinstance(stage1, builder.Abstention):
-            row["stage1"] = {"status": "pre_call_abstention", "reason": stage1.reason}
-            row["stage3"] = {"status": "skipped_after_stage1_abstention"}
-            results["cases"].append(row)
-            continue
-        row["stage1"], _ = call(case, "stage1_sufficiency", stage1)
+        results["cases"].append(row)
+        row["stage1"], _ = call(case, "stage1_sufficiency", plans["stage1_sufficiency"])
         if row["stage1"]["status"] != "evaluated":
             row["stage3"] = {"status": "skipped_after_stage1_failure"}
-            results["cases"].append(row)
+            checkpoint_now()
             continue
-
-        stage3 = builder.build_hypothesis_review_request(state, [hypothesis], documents)
-        if isinstance(stage3, builder.Abstention):
-            row["stage3"] = {"status": "pre_call_abstention", "reason": stage3.reason}
-            results["cases"].append(row)
-            continue
-        row["stage3"], checked3 = call(case, "stage3_hypothesis_review", stage3)
+        row["stage3"], checked3 = call(case, "stage3_hypothesis_review", plans["stage3_hypothesis_review"])
         if row["stage3"]["status"] != "evaluated" or checked3 is None:
             row["stage4"] = {"status": "skipped_after_stage3_failure"}
-            results["cases"].append(row)
+            checkpoint_now()
             continue
-
         probability = checked3.probabilities["q0000"]
         if probability <= 0.5:
-            row["stage4"] = {
-                "status": "skipped_by_frozen_binary_argmax",
-                "stage3_yes_probability": probability,
-            }
+            row["stage4"] = {"status": "skipped_by_frozen_binary_argmax", "stage3_yes_probability": probability}
         elif results["requests_attempted"] >= MAX_REQUESTS:
-            row["stage4"] = {
-                "status": "not_called_budget_exhausted",
-                "stage3_yes_probability": probability,
-            }
+            row["stage4"] = {"status": "not_called_budget_exhausted", "stage3_yes_probability": probability}
         else:
-            stage4 = builder.build_addressability_request(
-                state,
-                hypothesis,
-                documents,
-                stage3_plan=stage3,
-                stage3_response=checked3,
-                stage3_question_id="q0000",
-                policy_qualified_hypothesis_id=hypothesis["hypothesis_id"],
-            )
-            if isinstance(stage4, builder.Abstention):
-                row["stage4"] = {"status": "pre_call_abstention", "reason": stage4.reason}
-            else:
-                row["stage4"], _ = call(
-                    case, "stage4_addressability_if_stage3_positive", stage4
-                )
-        results["cases"].append(row)
+            row["stage4"], _ = call(case, "stage4_addressability_if_stage3_positive", plans["stage4_addressability_if_stage3_positive"])
+        checkpoint_now()
 
-    results["requests_validated"] = (
-        results["requests_attempted"] - results["requests_unevaluated"]
-    )
+    results["requests_validated"] = results["requests_attempted"] - results["requests_unevaluated"]
     results["status"] = "completed"
+    checkpoint_now()
     return results
 
 
@@ -222,23 +222,26 @@ def main() -> None:
         output.write('{"status":"running_incomplete"}\n')
         output.flush()
         os.fsync(output.fileno())
-        try:
-            result = run(args.packet, args.corpus, args.proxy)
-        except Exception as exc:
+        latest: dict[str, Any] | None = None
+
+        def persist(progress: dict[str, Any]) -> None:
+            nonlocal latest
+            latest = json.loads(json.dumps(progress, allow_nan=False))
             output.seek(0)
             output.truncate()
-            output.write(json.dumps({
-                "status": "failed_incomplete",
-                "error_type": type(exc).__name__,
-            }, sort_keys=True) + "\n")
+            output.write(json.dumps(latest, indent=2, sort_keys=True, allow_nan=False) + "\n")
             output.flush()
             os.fsync(output.fileno())
+
+        try:
+            result = run(args.packet, args.corpus, args.proxy, checkpoint=persist)
+        except Exception as exc:
+            failed = latest or {"requests_attempted": 0, "partial_receipts": [], "cases": []}
+            failed["status"] = "failed_incomplete"
+            failed["error_type"] = type(exc).__name__
+            persist(failed)
             raise
-        output.seek(0)
-        output.truncate()
-        output.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
-        output.flush()
-        os.fsync(output.fileno())
+        persist(result)
     print(json.dumps({
         key: result[key]
         for key in (

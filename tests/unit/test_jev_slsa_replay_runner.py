@@ -81,3 +81,16 @@ def test_existing_output_path_fails_before_proxy_or_call(tmp_path):
     assert process.returncode != 0
     assert output.read_text() == "preserve"
     assert not marker.exists()
+
+
+def test_missing_source_is_caught_before_first_provider_call(tmp_path):
+    marker = tmp_path / "called"
+    proxy = tmp_path / "proxy.py"
+    proxy.write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
+    try:
+        runner.run(PACKET, tmp_path, [sys.executable, str(proxy)])
+    except ValueError as error:
+        assert "first-pass source unavailable" in str(error)
+    else:
+        raise AssertionError("missing first-pass page should fail during preflight")
+    assert not marker.exists()

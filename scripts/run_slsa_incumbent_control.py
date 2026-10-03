@@ -15,7 +15,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-PACKET_SHA256 = "bf080316bf2470d068b7207df4718971a385dbcc517450f802728a062815bea9"
+PACKET_SHA256 = "01f362a5ed691a970c58169afb33ee05fc45f313eed2022f00683f929179625c"
 CASE_COUNT = 4
 MODEL_ALIAS = "free"
 
@@ -26,19 +26,19 @@ def _safe_model(value: Any) -> str | None:
     return None
 
 
-def _parse_content(content: str) -> tuple[str, list[str] | None]:
+def _parse_content(content: str) -> tuple[str, list[str] | None, int | None]:
     cleaned = content.strip().removeprefix("```json").removesuffix("```").strip()
     try:
         parsed = json.loads(cleaned)
     except json.JSONDecodeError:
-        return "invalid_json", None
+        return "invalid_json", None, None
     if not isinstance(parsed, list) or len(parsed) > 5:
-        return "invalid_shape", None
+        return "invalid_shape", None, None
     topics = [value[:500] for value in parsed if isinstance(value, str)]
-    return "valid_json_array", topics
+    return "parsed_incumbent_array", topics, len(parsed) - len(topics)
 
 
-def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
+def run(packet_path: Path, proxy: list[str], checkpoint=None) -> dict[str, Any]:
     raw = packet_path.read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
     if digest != PACKET_SHA256:
@@ -49,7 +49,7 @@ def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
             or len(packet.get("cases", [])) != CASE_COUNT
             or packet.get("call_budget", {}).get("incumbent_control_max_total_requests") != CASE_COUNT):
         raise ValueError("unsupported packet or incumbent budget")
-    outcomes = []
+    requests = []
     for case in packet["cases"]:
         control = case["incumbent_gap_control"]
         prompt = control["user_prompt"]
@@ -63,22 +63,37 @@ def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
             ],
         }
         request = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+        requests.append((case, request))
+    # All frozen prompts and digests are checked before the first call.
+    outcomes = []
+
+    def record(outcome):
+        outcomes.append(outcome)
+        if checkpoint is not None:
+            checkpoint({
+                "study_id": packet["study_id"], "case_packet_sha256": digest,
+                "requested_model_alias": MODEL_ALIAS, "calls_attempted": len(outcomes),
+                "calls_evaluated": sum(x["status"] == "parsed_incumbent_array" for x in outcomes),
+                "searches_dispatched": 0, "outcomes": outcomes,
+            })
+
+    for case, request in requests:
         try:
             process = subprocess.run(proxy, input=request, capture_output=True, timeout=105, check=False)
         except (OSError, subprocess.TimeoutExpired) as exc:
-            outcomes.append({"case_id": case["case_id"], "status": "proxy_or_timeout_failure", "error_type": type(exc).__name__})
+            record({"case_id": case["case_id"], "status": "proxy_or_timeout_failure", "error_type": type(exc).__name__})
             continue
         if process.returncode:
-            outcomes.append({"case_id": case["case_id"], "status": "proxy_process_failure", "returncode": process.returncode})
+            record({"case_id": case["case_id"], "status": "proxy_process_failure", "returncode": process.returncode})
             continue
         response_hash = hashlib.sha256(process.stdout).hexdigest()
         try:
             response = json.loads(process.stdout)
         except (json.JSONDecodeError, UnicodeDecodeError):
-            outcomes.append({"case_id": case["case_id"], "status": "invalid_proxy_json", "response_sha256": response_hash})
+            record({"case_id": case["case_id"], "status": "invalid_proxy_json", "response_sha256": response_hash})
             continue
         if response.get("error"):
-            outcomes.append({
+            record({
                 "case_id": case["case_id"], "status": "proxy_or_provider_failure",
                 "error_type": response["error"] if response["error"] in {
                     "provider_http", "proxy_transport", "TimeoutError", "URLError"
@@ -89,12 +104,12 @@ def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
         try:
             content = response["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError):
-            outcomes.append({"case_id": case["case_id"], "status": "invalid_response_shape", "response_sha256": response_hash})
+            record({"case_id": case["case_id"], "status": "invalid_response_shape", "response_sha256": response_hash})
             continue
         if not isinstance(content, str):
-            outcomes.append({"case_id": case["case_id"], "status": "invalid_content_type", "response_sha256": response_hash})
+            record({"case_id": case["case_id"], "status": "invalid_content_type", "response_sha256": response_hash})
             continue
-        status, topics = _parse_content(content)
+        status, topics, dropped = _parse_content(content)
         outcome: dict[str, Any] = {
             "case_id": case["case_id"], "status": status,
             "response_sha256": response_hash,
@@ -106,11 +121,12 @@ def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
         if topics is not None:
             outcome["recommendation_only"] = True
             outcome["topics"] = topics
-        outcomes.append(outcome)
+            outcome["non_string_items_dropped"] = dropped
+        record(outcome)
     return {
         "study_id": packet["study_id"], "case_packet_sha256": digest,
         "requested_model_alias": MODEL_ALIAS, "calls_attempted": len(outcomes),
-        "calls_evaluated": sum(x["status"] == "valid_json_array" for x in outcomes),
+        "calls_evaluated": sum(x["status"] == "parsed_incumbent_array" for x in outcomes),
         "searches_dispatched": 0, "outcomes": outcomes,
     }
 
@@ -130,20 +146,30 @@ def main() -> None:
         out.write('{"status":"running_incomplete"}\n')
         out.flush()
         os.fsync(out.fileno())
+        latest = None
+
+        def persist(progress):
+            nonlocal latest
+            latest = json.loads(json.dumps(progress, allow_nan=False))
+            out.seek(0)
+            out.truncate()
+            out.write(json.dumps(latest, indent=2, sort_keys=True, allow_nan=False) + "\n")
+            out.flush()
+            os.fsync(out.fileno())
+
         try:
-            result = run(args.packet, args.proxy)
+            result = run(args.packet, args.proxy, checkpoint=persist)
         except Exception as exc:
             out.seek(0)
             out.truncate()
-            out.write(json.dumps({"status": "failed_incomplete", "error_type": type(exc).__name__}) + "\n")
+            failed = latest or {"calls_attempted": 0, "outcomes": []}
+            failed["status"] = "failed_incomplete"
+            failed["error_type"] = type(exc).__name__
+            out.write(json.dumps(failed, sort_keys=True) + "\n")
             out.flush()
             os.fsync(out.fileno())
             raise
-        out.seek(0)
-        out.truncate()
-        out.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
-        out.flush()
-        os.fsync(out.fileno())
+        persist(result)
     print(json.dumps({"calls_attempted": result["calls_attempted"], "calls_evaluated": result["calls_evaluated"], "searches_dispatched": 0}))
 
 if __name__ == "__main__":

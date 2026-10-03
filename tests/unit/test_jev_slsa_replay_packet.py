@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
 PACKET_PATH = ROOT / "docs/experiments/typesafe-jev/slsa-replay-2026-10-03.case-packet.json"
-PACKET_SHA256 = "bf080316bf2470d068b7207df4718971a385dbcc517450f802728a062815bea9"
+PACKET_SHA256 = "01f362a5ed691a970c58169afb33ee05fc45f313eed2022f00683f929179625c"
 
 
 def test_packet_hash_budget_and_fixed_evaluator_pool():
@@ -26,7 +26,7 @@ def test_future_replay_content_and_labels_never_enter_first_pass_state():
     expected_strata = {
         "met_false_gap_unnecessary_followup",
         "unmet_public_transitivity_rule",
-        "unmet_authority_check_premise_challenge",
+        "unmet_authority_check_label_completeness",
         "unanswerable_private_deployment_value",
     }
     assert {case["stratum"] for case in packet["cases"]} == expected_strata

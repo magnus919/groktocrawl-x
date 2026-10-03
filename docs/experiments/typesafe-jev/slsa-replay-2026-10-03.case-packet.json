@@ -339,7 +339,7 @@
               "url": "https://slsa.dev/spec/v1.0/levels"
             }
           ],
-          "expected_contribution_summary": "The hidden pool contains the official v1.0 levels page, whose table enumerates Build L0 through Build L3 and does not include the secondary page's asserted Build Level 4.",
+          "expected_contribution_summary": "The hidden pool contains the official v1.0 levels page, whose table supplies the authoritative labels Build L0 through Build L3. The secondary excerpt's count of four levels is compatible with that list; this is an authority/completeness check, not a contradiction.",
           "expected_distinct_page_contribution": [
             "rank-11"
           ]
@@ -429,7 +429,7 @@
         },
         "research_question": "Which Build-level labels does the official SLSA v1.0 levels page enumerate?"
       },
-      "stratum": "unmet_authority_check_premise_challenge"
+      "stratum": "unmet_authority_check_label_completeness"
     },
     {
       "case_id": "slsa-replay-04",
