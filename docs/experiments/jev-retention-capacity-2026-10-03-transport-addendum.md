@@ -90,21 +90,24 @@ remain within the parent-reviewed baseline.
 
 If the canary passes, continue the fixed pool at caller widths 1, 3, and 5,
 then repeat each width once in that order. Count the canary as the first URL of
-width 1/repeat 1. Maximum: 204 additional internal scraper requests, one
-request per origin at a time, 70 seconds per request, 30 minutes total, no
-retries. Do not call the repeat a warm-cache pass unless cache state is directly
-observable. Stop on any unexpected internal transport failure or non-200
-internal response, failed required preflight, candidate revision change,
-unrelated active research job, HTTP 429, or time/request bound. Preserve every
+width 1/repeat 1. Maximum: 204 internal scraper request starts including the
+canary, one request per origin at a time, 70 seconds per request, a 30-minute
+request-admission window, and no retries. Do not call the repeat a warm-cache
+pass unless cache state is directly observable. Stop admitting requests when
+the 30-minute window closes or the 204-start bound is reached. Already-started
+requests may drain for up to 90 seconds; the final read-only postflight has a
+separate 60-second timeout. Stop earlier on any unexpected internal transport
+failure or non-200 internal response, failed required preflight, candidate
+revision change, unrelated active research job, or HTTP 429. Preserve every
 attempt-start and result event and the stop reason.
 
 Immediately before the canary and at each sweep boundary, read health,
 OpenAPI route presence, parsed scraper tier counters, parsed
 `scrape_calls_total`, active research job count, candidate revision, and
 aggregate CPU/memory through the existing read-only path. Capture the same
-after the run. These are service-level
-observations, not proof of general capacity or proof that unrelated traffic did
-not occur. Aggregate counter movement can include concurrent service activity;
+after the run. These are service-level observations, not proof of general
+capacity or proof that unrelated traffic did not occur. Aggregate counter
+movement can include concurrent service activity;
 attribute only request-level outcomes to this probe's own journal. No
 `/v2/scrape`, search, Jev, LLM, job creation, indexing, cache clearing,
 configuration change, deployment, or runtime modification is in scope.
