@@ -171,6 +171,7 @@ def run(packet_path: Path, proxy: list[str]) -> dict[str, Any]:
     results["requests_validated"] = (
         results["requests_attempted"] - results["requests_unevaluated"]
     )
+    results["status"] = "completed"
     return results
 
 
@@ -184,10 +185,30 @@ def main() -> None:
         args.proxy = args.proxy[1:]
     if not args.proxy:
         parser.error("supply an operator-configured proxy command after --")
-    result = run(args.packet, args.proxy)
-    descriptor = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+    descriptor = os.open(
+        args.output,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    with os.fdopen(descriptor, "w+", encoding="utf-8") as output:
+        output.write('{"status":"running_incomplete"}\n')
+        output.flush()
+        os.fsync(output.fileno())
+        try:
+            result = run(args.packet, args.proxy)
+        except Exception as exc:
+            result = {"status": "failed_incomplete", "error_type": type(exc).__name__}
+            output.seek(0)
+            output.truncate()
+            output.write(json.dumps(result, sort_keys=True) + "\n")
+            output.flush()
+            os.fsync(output.fileno())
+            raise
+        output.seek(0)
+        output.truncate()
         output.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
+        output.flush()
+        os.fsync(output.fileno())
     print(json.dumps({key: result[key] for key in (
         "study_id", "requests_attempted", "requests_validated", "requests_unevaluated",
         "searches_dispatched"

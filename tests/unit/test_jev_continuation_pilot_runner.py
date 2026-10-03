@@ -39,6 +39,7 @@ print(json.dumps({'model': 'jev-1.13.0', 'answers': {question_id: {'type': 'noul
     result = runner.run(PACKET, [sys.executable, str(fake)])
     assert result["requests_attempted"] == result["requests_validated"] == 17
     assert result["requests_unevaluated"] == result["searches_dispatched"] == 0
+    assert result["status"] == "completed"
     rows = {case["case_id"]: case for case in result["cases"]}
     assert rows["pilot-03"]["stage4"]["probabilities"]["n0"] == 0.8
     assert rows["pilot-01"]["stage4"]["status"] == "skipped_by_frozen_binary_argmax"
@@ -95,6 +96,65 @@ def test_cli_strips_separator_secures_output_and_handles_all_failures(tmp_path):
     assert json.loads(process.stdout)["requests_unevaluated"] == 8
     assert output.stat().st_mode & 0o777 == 0o600
     assert "returned_model" not in json.loads(output.read_text())
+    assert json.loads(output.read_text())["status"] == "completed"
+
+
+def test_cli_reserves_output_before_any_provider_calls(tmp_path):
+    fake = tmp_path / "fake_provider.py"
+    marker = tmp_path / "called"
+    fake.write_text(f"from pathlib import Path; Path({str(marker)!r}).touch()\n")
+    output = tmp_path / "existing.json"
+    output.write_text("keep this file")
+    process = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/run_jev_continuation_pilot.py"),
+            "--packet",
+            str(PACKET),
+            "--output",
+            str(output),
+            "--",
+            sys.executable,
+            str(fake),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert process.returncode != 0
+    assert not marker.exists()
+    assert output.read_text() == "keep this file"
+
+
+def test_cli_leaves_failed_run_distinct_from_completed_receipt(tmp_path):
+    packet = json.loads(PACKET.read_text())
+    packet["extra"] = "mutation"
+    mutated = tmp_path / "mutated.json"
+    mutated.write_text(json.dumps(packet))
+    fake = tmp_path / "fake_provider.py"
+    fake.write_text("import sys; sys.exit(0)\n")
+    output = tmp_path / "failed.json"
+    process = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/run_jev_continuation_pilot.py"),
+            "--packet",
+            str(mutated),
+            "--output",
+            str(output),
+            "--",
+            sys.executable,
+            str(fake),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert process.returncode != 0
+    assert json.loads(output.read_text()) == {
+        "error_type": "ValueError",
+        "status": "failed_incomplete",
+    }
 
 
 def test_provider_metadata_is_allowlisted_in_receipts(tmp_path):
