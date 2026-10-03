@@ -71,10 +71,10 @@ this corpus, not that a generated answer would necessarily use every passage.
 The registered synthesis replay was attempted but yielded no usable answer. A
 pre-call setup error failed before an output directory, call journal, or provider
 request existed; after correcting the local import path, one request for the
-full-text/no-score arm reached the configured `free` alias and ended with
-`finish_reason=length` at the 1,600-token output cap. The response was not a
-complete answer, and the failure record did not retain usage or latency, so
-these are unknown. The earlier accidental proxy attempt has unknown remote
+full-text/no-score arm reached the configured `free` alias and returned
+`finish_reason=length` for a request with `max_tokens=1600`. The response was
+not a complete answer. Usage and latency were not retained, so generated-token
+count and timing are unknown. The earlier accidental proxy attempt has unknown remote
 delivery; together, the study has two external-call attempts, no retries, and
 no usable synthesis output. The remaining two distinct arms were not attempted.
 Because the filter removed no source, its arm and score-only arm are identical
@@ -124,8 +124,8 @@ the batch has no below-threshold source or complete input exceeds a documented
 context limit, report the comparison as non-identifying/blocked and stop rather
 than manufacturing a contrast or silently truncating text. The alias metadata declared `max_input_tokens=1,048,576`; this is not
 empirical routed-capacity proof. The attempted full packet was within that
-declaration, but the only response stopped at the output limit. No request was
-made with more than the 20 frozen pages.
+declaration, but the only response returned `finish_reason=length` for a request
+with `max_tokens=1600`. No request was made with more than the 20 frozen pages.
 
 The follow-on [GroktoCrawl direct-scraper capacity probe](exp036-capacity-outcome.md)
 first preserved 102 setup failures as zero-credit transport evidence. Its

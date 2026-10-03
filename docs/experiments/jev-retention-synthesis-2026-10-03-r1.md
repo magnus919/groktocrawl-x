@@ -22,8 +22,8 @@ The public deviation record is
 [the attempt outcome](evidence/jev-retention-2026-10-03/synthesis-attempt-outcome.md).
 
 The R1 runner passed static review and parent review, then attempted one
-frozen payload. The response matched the `free` alias but ended with
-`finish_reason=length` at the registered output cap. No complete answer was
+frozen payload. The response matched the `free` alias and returned
+`finish_reason=length` for the registered request with `max_tokens=1600`. No complete answer was
 persisted, and the remaining two unique frozen payloads were not attempted.
 No retries or further calls are authorized under this registration. The
 original protocol registered three distinct inputs: full text without scores, full text with score metadata (also the

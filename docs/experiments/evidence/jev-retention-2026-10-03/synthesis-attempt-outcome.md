@@ -9,10 +9,10 @@ provider request existed; it counts as zero provider attempts.
 
 After fixing the local import path, the registered R1 runner made one
 provider attempt for the frozen full-text/no-score payload. The configured
-`free` alias matched, but the response finished with `finish_reason=length` at
-the 1,600-token output cap. It was not a complete answer and was not persisted
-for grading. The failure branch did not retain usage or latency, so both remain
-unknown. The remaining two distinct payloads were not attempted, and there were
+`free` alias matched, but the response returned `finish_reason=length` for a
+request with `max_tokens=1600`. It was not a complete answer and was not
+persisted for grading. The failure branch did not retain usage or latency, so
+generated-token count and timing remain unknown. The remaining two distinct payloads were not attempted, and there were
 no retries or subsequent provider calls. Across the study there are two external
 attempts: the original attempt with unknown delivery and this one confirmed
 provider response. The four-attempt maximum was not expanded.
