@@ -450,12 +450,30 @@ def run_semantic(
                 else None
             )
             parsed = json.loads(content) if isinstance(content, str) else {}
-            raw_verdict = parsed.get("verdict")
+            if not isinstance(parsed, dict):
+                parsed = {}
+            raw_verdict = (
+                parsed.get("verdict").strip().lower()
+                if isinstance(parsed.get("verdict"), str)
+                else None
+            )
+            raw_confidence = parsed.get("confidence")
+            # W12 expects 0-100. This prompt did not explicitly declare a unit;
+            # values in [0,1] are therefore preserved but not silently converted.
+            confidence_unit = (
+                "ambiguous_0_to_1_or_0_to_100"
+                if isinstance(raw_confidence, (int, float))
+                and not isinstance(raw_confidence, bool)
+                and 0 <= raw_confidence <= 1
+                else "w12_0_to_100"
+            )
+            confidence = raw_confidence
             valid = (
                 raw_verdict in SEMANTIC_MAP
-                and isinstance(parsed.get("confidence"), (int, float))
-                and not isinstance(parsed.get("confidence"), bool)
-                and 0 <= parsed["confidence"] <= 100
+                and choice.get("finish_reason") == "stop"
+                and isinstance(confidence, (int, float))
+                and not isinstance(confidence, bool)
+                and 0 <= confidence <= 100
             )
             record = {
                 "pair_id": pair["pair_id"],
@@ -463,7 +481,14 @@ def run_semantic(
                 "input_digest": canonical_digest(state),
                 "status": "completed" if valid else "failed",
                 "verdict": SEMANTIC_MAP.get(raw_verdict) if valid else None,
-                "confidence": parsed.get("confidence") if valid else None,
+                "confidence": confidence if valid else None,
+                "confidence_unit": confidence_unit if valid else None,
+                "returned_model": response.get("model")
+                if isinstance(response, dict)
+                else None,
+                "finish_reason": choice.get("finish_reason")
+                if isinstance(choice, dict)
+                else None,
                 "latency_ms": round(
                     response.get(
                         "_elapsed_ms", (__import__("time").monotonic() - started) * 1000
@@ -475,7 +500,13 @@ def run_semantic(
                 "configured_model_alias": response.get("_configured_model_alias")
                 if isinstance(response, dict)
                 else None,
-                "error_class": None if valid else "proxy_or_schema_error",
+                "error_class": None
+                if valid
+                else (
+                    "proxy_error"
+                    if response.get("error")
+                    else "invalid_semantic_schema"
+                ),
             }
         except (OSError, subprocess.SubprocessError, ValueError, TypeError, IndexError):
             record = {

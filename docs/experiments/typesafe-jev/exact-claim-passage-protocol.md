@@ -1,8 +1,9 @@
 # Exact claim–cited passage Jev evaluation
 
-Status: pre-call protocol; the corpus and labels are being frozen in a recorded
-commit. Provider calls remain prohibited until that commit exists and its digest
-is recorded in the run manifest.
+Status: frozen before provider calls in commit `2c8a7b9` (packet digest
+`2a2e2fba2f99230702beed7d1c6e886544cd9b9fc51f1f0a0df0506113d60d12`; labels
+digest `b478f92e46ea91c441a5904c3c744d5b8c1f2120e52cd7469533470167b215b8`).
+Results and post-call limitations are reported separately.
 
 ## Question and boundary
 

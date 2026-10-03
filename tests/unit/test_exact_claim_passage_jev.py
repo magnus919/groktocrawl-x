@@ -172,3 +172,36 @@ def test_exact_capture_offsets_reject_a_rewritten_passage(tmp_path: Path):
     item["passage"] = "A paraphrase not in the source capture."
     with pytest.raises(ValueError, match=r"passage length|does not match"):
         harness.validate_source_pair(item)
+
+
+def test_semantic_runner_normalizes_case_but_preserves_ambiguous_confidence_scale(
+    tmp_path: Path,
+):
+    item = harness.validate_source_pair(pair("case-cal", "calibration", "cal-group"))
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "exact-claim-passage-jev-packet/1",
+                "pairs": [item],
+            }
+        ),
+        encoding="utf-8",
+    )
+    proxy = tmp_path / "semantic_proxy.py"
+    proxy.write_text(
+        "import json\n"
+        "print(json.dumps({'model':'free','_configured_model_alias':'free',"
+        "'_elapsed_ms':5,'usage':{'prompt_tokens':20,'completion_tokens':8},"
+        "'choices':[{'finish_reason':'stop','message':{'content':json.dumps("
+        "{'verdict':'Supported','confidence':0.98,'reason':'entails'})}}]}))\n",
+        encoding="utf-8",
+    )
+    result = harness.run_semantic(
+        packet_path, tmp_path / "semantic_receipts", [sys.executable, str(proxy)]
+    )
+    assert result["completed"] == 1
+    receipt = json.loads((tmp_path / "semantic_receipts" / "case-cal.json").read_text())
+    assert receipt["verdict"] == "supported"
+    assert receipt["confidence"] == 0.98
+    assert receipt["confidence_unit"] == "ambiguous_0_to_1_or_0_to_100"
