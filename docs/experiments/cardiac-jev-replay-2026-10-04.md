@@ -98,3 +98,29 @@ and sanitized receipt metadata, excluding credentials and transport details.
 
 Publish analysis, call receipts, a plain-English outcome, integrity hashes and a
 reviewable PR in this experimental fork. No mainline or service behavior changes.
+
+### Pre-expansion validation amendment after four calls
+
+The three pilot calls passed the original check. The fourth call, W0 first-40
+original, stopped expansion on `c21:score`: score 2.88, displayed probability sum
+0.99 and weighted mean 2.75 fail the registered absolute tolerance 0.1.
+The original receipts remain unchanged in `original-validation/`; this is an
+actual initial harness rejection, not a retrospectively passing original check.
+No call is repeated or replaced.
+
+Before further calls, root and a Luna reviewer checked an explicit rounding
+hypothesis. If each printed probability was rounded to nearest 0.01 and the
+underlying distribution sums to one, the feasible weighted expectation is
+2.695–2.915; 2.88 lies inside it. The current provider pages describe a weighted
+mean but do not guarantee this rounding convention. We adopt this **exploratory
+rounding assumption**, not a verified provider contract, in validator v2.
+It checks finite values, exact probability keys, normalized-distribution
+feasibility under ±0.005 intervals, and score feasibility under those intervals
+plus ±0.005 score rounding. It rejects the same distribution with score 4.
+
+All four saved responses qualify under v2 without new provider calls. Derived
+receipts retain original validation status/errors and identify the amendment;
+original failures remain in the strict-validation denominator. All later calls
+use v2, while the frozen questions, input, matrix, budget, and analysis remain
+unchanged. If a response fails v2, stop again with no automatic retry. Report
+both initial strict coverage and final assumption-qualified coverage.

@@ -7,6 +7,22 @@ def encoded(body):
 def finite(x):
     return type(x) in (int,float) and math.isfinite(x)
 
+def expectation_bounds(probabilities):
+    # Explicit exploratory assumption: each printed probability is rounded to
+    # nearest 0.01; intervals must permit a normalized distribution.
+    lo={int(k):max(0.0,v-.005) for k,v in probabilities.items()}
+    hi={int(k):min(1.0,v+.005) for k,v in probabilities.items()}
+    if sum(lo.values())>1+1e-9 or sum(hi.values())<1-1e-9:
+        return None
+    bounds=[]
+    for descending in (False,True):
+        actual=dict(lo);remaining=1-sum(actual.values())
+        for k in sorted(actual,reverse=descending):
+            delta=min(remaining,hi[k]-lo[k]);actual[k]+=delta;remaining-=delta
+        if remaining>1e-9:return None
+        bounds.append(sum(k*v for k,v in actual.items()))
+    return bounds
+
 def validate(raw,body):
     errors=[]
     if raw.get('model')!=body['model']: errors.append('model_identity')
@@ -24,7 +40,8 @@ def validate(raw,body):
         if not finite(a.get('confidence')) or not 0<=a['confidence']<=1: errors.append(id+':confidence')
         if q['type']=='score':
             s=a.get('score')
-            if not finite(s) or not 0<=s<=len(q['criteria'])-1 or abs(sum(int(k)*v for k,v in p.items())-s)>.1: errors.append(id+':score')
+            bounds=expectation_bounds(p)
+            if not finite(s) or not 0<=s<=len(q['criteria'])-1 or bounds is None or not bounds[0]-.005-1e-9<=s<=bounds[1]+.005+1e-9: errors.append(id+':score')
         elif a.get('choice') not in expected or p[a['choice']]<max(p.values())-.011: errors.append(id+':choice')
     usage=raw.get('usage')
     if not isinstance(usage,dict) or any(type(usage.get(k)) is not int or usage[k]<0 for k in ('input_tokens','output_tokens')): errors.append('usage')
@@ -82,7 +99,7 @@ def main():
         except subprocess.TimeoutExpired:raw={'error':'transport_timeout'}
         except (OSError,ValueError):raw={'error':'transport_or_response_limit'}
         errors=validate(raw,r['body'])
-        row.update(status='valid' if not errors else 'invalid',model=raw.get('model'),answers=clean_answers(raw),usage=raw.get('usage',{}),provider_ms=raw.get('_elapsed_ms'),total_ms=round((time.monotonic()-started)*1000,3),validation_errors=errors,error=raw.get('error'),http_status=raw.get('status'))
+        row.update(validation_protocol='v2-rounding-feasibility',status='valid' if not errors else 'invalid',model=raw.get('model'),answers=clean_answers(raw),usage=raw.get('usage',{}),provider_ms=raw.get('_elapsed_ms'),total_ms=round((time.monotonic()-started)*1000,3),validation_errors=errors,error=raw.get('error'),http_status=raw.get('status'))
         receipt.write_text(json.dumps(row,indent=2,allow_nan=False)+'\n')
         print(json.dumps({k:row[k] for k in ('id','status','provider_ms','total_ms','validation_errors')}),flush=True)
         if errors:raise SystemExit('invalid output: stop expansion, preserve attempt')
