@@ -93,3 +93,88 @@ labeled obligations for #370; #373 can remain a separate monitoring study.
 5. Do not turn this reconciliation into a deployment, a new default, or an
    assumption that both installations already run the reviewed upstream code.
    Preserve the historical experiment packets and accepted ADR scope.
+
+## October 3 follow-on evidence and decisions
+
+The bounded complete-set upstream studies are published in
+[SlopSearX PR #512](https://github.com/magnus919/SlopSearX/pull/512), merged at
+`35b60dc282f47e84d462f8299312a05e400b6c9e`.
+[PR #513](https://github.com/magnus919/SlopSearX/pull/513) reconciles the experiment
+ledger. These are evidence commits, not reranker deployment changes.
+
+- [EXP-034](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-034-whole-set-jev-reranking.md)
+  found complete-set requests feasible on two observed pools, but shared-state
+  batch scores were composition-sensitive and relevance improvement was not established.
+- [EXP-035](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-035-card-local-whole-set-reranking.md)
+  bound each Score question to its own result card. This reduced batch drift;
+  the exposed quality sample still did not justify adoption. The constructed
+  80-card probe establishes bounded request feasibility, not a natural search
+  pool or production queue/deadline behavior.
+- [EXP-036](https://github.com/magnus919/SlopSearX/blob/main/docs/experiments/EXP-036-heldout-complete-set-reranking.md)
+  captured fresh complete pre-rerank pools and compared the same candidates.
+  Mean nDCG gains across the seven valid original query pairs were +0.0104 and
+  +0.0327 under the two assistant references, below the +0.05 improvement gate.
+  The broad climate/cardio extension returned 38/44
+  cards. Cardiac ranking regressed under both references and promoted a
+  title-only academic lead above substantive supplied evidence. Only one fresh
+  natural pool exceeded 40, so tail benefit remains inconclusive. One candidate
+  response failed validation; partial engine coverage and disputed labels remain visible.
+
+**Upstream disposition: retain the shipped first-40 policy.** Do not activate
+whole-set advice from these findings. A promising publication to acquire and a
+passage that already contributes evidence are different judgments. Future work
+should evaluate them separately, after acquiring content where needed, rather
+than calling an academic title weak research in itself. This is a bounded
+no-adoption conclusion, not a verdict against Jev or academic sources.
+
+### Downstream research dispositions
+
+- **Contribution retention (#371):** [PR #410](https://github.com/magnus919/groktocrawl-x/pull/410)
+  audits 20 acquired pages and 28 labeled contribution spans. The frozen filter
+  retained every page; this positive-heavy corpus cannot establish specificity
+  or a benefit from exclusion. The 8,000-character projection left five spans
+  absent and one partial, while full text preserved all 28. This is a structural
+  evidence-retention result, not an answer-quality improvement. A 34-URL direct
+  scraper replay completed 170 requests at widths one, three, and five: 165
+  returned content, and the same PDF failed once in each pass. Cache state and
+  broader research-job capacity were not established. The synthesis comparison
+  stopped on its first request at the frozen output limit; the other arms were
+  not attempted, and no complete answer was graded. The earlier accidental
+  attempt with unknown provider delivery remains recorded separately.
+  **Revise before adoption:**
+  filtering benefit, contradiction handling, chunk aggregation, and comparative
+  answer quality remain unmeasured.
+- **Follow-up evidence (#370):** [PR #412](https://github.com/magnus919/groktocrawl-x/pull/412)
+  records the corrected staged judgment pilot. [PR #414](https://github.com/magnus919/groktocrawl-x/pull/414)
+  adds four public SLSA obligations and an already acquired evidence replay.
+  All 11 Jev requests validated. Two public gaps had directly contributing
+  pages in the frozen pool; general advice could not supply a private deployment
+  value. The incumbent gap prompt recommended topics for all four cases,
+  including the already answered obligation. Jev received assistant-written
+  gap hypotheses while the incumbent generated topics, so this is a descriptive
+  contrast, not proof that Jev caused better decisions. No search or comparative
+  answer was produced. **Revise before adoption:** the next trial needs genuine
+  contradiction cases, held-out judgments, and measured answer/citation outcomes.
+- **Claim support (#372):** [PR #409](https://github.com/magnus919/groktocrawl-x/pull/409)
+  records 25 constructed claim/passage pairs, including 13 validation pairs.
+  Neither Jev nor the adapted verifier control falsely supported any of the nine
+  non-supported validation pairs. Jev was faster, but the reference labels are
+  assistant assessments and the control was not the production verifier route.
+  Runtime precedence, failure fallback, and unchanged generated answers were
+  not tested. **Remain in shadow testing:** this sample does not establish
+  incremental answer quality or integration readiness.
+- **Page-change significance (#373):** [PR #415](https://github.com/magnus919/groktocrawl-x/pull/415)
+  records 11 judgments over nine real public revision pairs. The seven validation
+  cases agreed with their assistant reference labels at the frozen 0.50 cut;
+  these are small, clustered observations, not a production accuracy estimate.
+  The same invite-link edit scored 0.83 for contributor onboarding and 0.07 for
+  cryptographic verification. Navigation metadata likewise scored differently
+  for content and navigation interests. This supports a larger shadow study
+  of intent-sensitive judgments. **Remain in shadow testing:** independent
+  labels, calibrated thresholds, and a reviewed notification policy are still
+  needed before changing user-visible behavior. Failed acquisition was a
+  separate zero-call control, not an immaterial-change judgment.
+
+These research dispositions do not change deployment defaults.
+Provider response validity, assistant label agreement, and lower call latency
+do not establish better research answers or calibrated action thresholds.

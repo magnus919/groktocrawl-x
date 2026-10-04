@@ -825,9 +825,19 @@ The [October 3 upstream reconciliation](upstream-search-reconciliation.md) recor
 SlopSearX's implemented Jev result reranking and scholarly-work grouping, plus
 GroktoCrawl X's merged provenance preservation and all-distinct-result acquisition.
 Historical negative or inconclusive studies do not characterize this newer baseline.
-The original roadmap remains complete. Follow-on issues #370–373 now examine
+The original roadmap remains complete. Follow-on issues #370–373 examine
 post-scrape evidence retention, research continuation, exact claim support and
 intent-sensitive monitoring; they do not duplicate upstream result ranking or
-publication deduplication. Audit #371 first, then #372, use those labels for #370,
-and keep #373 a separate monitoring study. Pin the actual deployed upstream revision
-and preserve its returned snapshots before any new model-backed comparison.
+publication deduplication. Their bounded October 3 evidence is now recorded in
+the reconciliation. The upstream
+complete-set ranking studies do not justify replacing the shipped first-40
+policy. The downstream studies recommend revision or continued shadow testing,
+with no activation or default change.
+
+These conclusions preserve unresolved adoption requirements: representative
+independent labels, actual follow-up searches and answer outcomes, the production
+verifier route and fallback behavior, complete synthesis comparisons, and
+research-job capacity beyond direct scraper replays. The aborted synthesis
+comparison and acquisition/setup failures remain evidence rather than passing
+results. Any subsequent trial needs a new prospective protocol and frozen
+current upstream snapshots; this closeout does not authorize another call batch.
