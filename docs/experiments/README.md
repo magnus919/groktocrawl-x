@@ -45,3 +45,5 @@ frozen protocol or completed evidence packet to make history look current.
 
 Update this guide and the roadmap whenever an ADR changes state, a workstream
 starts or finishes, or a new experiment becomes part of the replacement decision.
+
+The [frozen cardiac Jev replay](cardiac-jev-replay-2026-10-04.md) reuses the 44-card upstream corpus with zero new searches. The split evidence question was more stable in this replay; fetch judgments remained context-sensitive. All 28 calls and the initial validation rejection are retained. No runtime change.
