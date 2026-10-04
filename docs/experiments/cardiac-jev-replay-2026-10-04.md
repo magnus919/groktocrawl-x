@@ -173,9 +173,9 @@ for each separately.
 | Old question, first 40, original order | 10 | 0.8210 | 0.9217 |
 | New evidence question, first 40, original order | 10 | 0.9202 | 0.8553 |
 
-Every new evidence-first ranking across both pool sizes, all three orders and
-the four corresponding all-44 trials including repeats retained ten useful
-cards. The old question ranged from five to ten. For all-44, reversing or
+All eight W1 evidence-first rankings—six matrix requests across both pool
+sizes and three orders, plus two exact all-44 repeats—retained ten useful
+cards. The four total exact repeats across the study span W0 and W1. The old question ranged from five to ten. For all-44, reversing or
 shuffling retained nine of the new question's original top ten, versus six/eight
 for the old question. Exact repeat top-ten overlaps were 1.0 for original order
 and 0.9 for shuffled order under **both** contracts; neither yielded identical
