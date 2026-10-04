@@ -178,3 +178,7 @@ no-adoption conclusion, not a verdict against Jev or academic sources.
 These research dispositions do not change deployment defaults.
 Provider response validity, assistant label agreement, and lower call latency
 do not establish better research answers or calibrated action thresholds.
+
+### Frozen cardiac replay follow-up (October 4)
+
+[Issue #416](https://github.com/magnus919/groktocrawl-x/issues/416) and the [replay report](cardiac-jev-replay-2026-10-04.md) reuse all 44 cardiac cards with no new searches or page fetches. The new visible-evidence question retained ten useful cards in every tested ordering, while the old all-44 question ranged from five to nine. Fetch priority remained context-sensitive, and no useful tail promotion was demonstrated. These are exposed-corpus development findings; keep the shipped policy and separate evidence ranking from retrieval triage.

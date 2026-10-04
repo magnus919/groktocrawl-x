@@ -841,3 +841,7 @@ research-job capacity beyond direct scraper replays. The aborted synthesis
 comparison and acquisition/setup failures remain evidence rather than passing
 results. Any subsequent trial needs a new prospective protocol and frozen
 current upstream snapshots; this closeout does not authorize another call batch.
+
+### Frozen cardiac Jev replay
+
+The completed bounded [cardiac replay](cardiac-jev-replay-2026-10-04.md), tracked by [#416](https://github.com/magnus919/groktocrawl-x/issues/416) in [milestone 15](https://github.com/magnus919/groktocrawl-x/milestone/15), reuses the existing 44-card corpus. It made 28 authorized Jev calls and no new searches/page fetches. Separating visible evidence from retrieval priority improved ordering stability on this exposed corpus; fetch judgments need further qualification and tail benefit remains unproven. The original validation rejection and rounding-assumption amendment are retained. No deployment, ADR adoption, or completed-roadmap status changed.
