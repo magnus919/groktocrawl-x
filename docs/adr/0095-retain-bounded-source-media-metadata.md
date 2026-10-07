@@ -27,7 +27,7 @@ reference boundaries. CLI JSON and MCP preserve the API record without another
 media schema or network request. Existing image-result fields remain compatible;
 reported original URL/dimensions take precedence over legacy resolution text.
 
-URLs are limited to 2,048 characters and HTTP(S), without userinfo, control
+URLs are limited to 2,048 characters and HTTP(S), without percent-escaped authority, userinfo, control
 characters, known private/local hosts or credential/signature query parameters.
 The policy does not resolve DNS and therefore cannot establish whether a public
 hostname later resolves privately; these values are discovery metadata, never

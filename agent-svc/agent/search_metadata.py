@@ -57,6 +57,10 @@ def _public_media_url(value: Any) -> str | None:
         return None
     try:
         parsed = urlsplit(value)
+        # Browser URL parsers decode authority escapes before classifying IPs.
+        # Reject them here rather than retaining an encoded private-IP alias.
+        if "%" in parsed.netloc:
+            return None
         host = (parsed.hostname or "").lower().rstrip(".")
         if (
             parsed.scheme not in {"https", "http"}
