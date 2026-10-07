@@ -350,6 +350,7 @@ async def _run_research_events(
                     "id": artifact.url,
                     "url": artifact.url,
                     "markdown": artifact.markdown or "",
+                    "material_contribution_score": artifact.material_contribution_score,
                 }
                 for artifact in selected_artifacts
             ]

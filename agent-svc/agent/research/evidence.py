@@ -211,8 +211,14 @@ def build_evidence(
             + span["text"]
             for index, span in enumerate(spans)
         )
+        score = source.get("material_contribution_score")
+        score_header = (
+            f"\nmaterial_contribution_score: {score:.2f}"
+            if isinstance(score, (int, float))
+            else ""
+        )
         contexts.append(
-            f"Source: {source.get('url') or identity}\nReference: {identity}\nContent SHA-256: {selected['content_sha256']}\n\n{body}"
+            f"Source: {source.get('url') or identity}\nReference: {identity}\nContent SHA-256: {selected['content_sha256']}{score_header}\n\n{body}"
         )
     selected_chars = budget - remaining
     complete = bool(evidence) and all(s["complete"] for s in evidence)
