@@ -1466,11 +1466,15 @@ class TestRecoveryAfterOutage:
 
 class TestURLConstruction:
     def test_trailing_slash_stripped(self):
-        client = GroktocrawlClient(base_url="http://deployment.example.internal:8080/", api_key=None)
+        client = GroktocrawlClient(
+            base_url="http://deployment.example.internal:8080/", api_key=None
+        )
         assert client._base_url == "http://deployment.example.internal:8080"
 
     def test_subpath_in_base_url(self):
-        client = GroktocrawlClient(base_url="http://deployment.example.internal:8080/api", api_key=None)
+        client = GroktocrawlClient(
+            base_url="http://deployment.example.internal:8080/api", api_key=None
+        )
         assert client._base_url == "http://deployment.example.internal:8080/api"
 
 
@@ -1485,3 +1489,21 @@ class TestLifecycle:
 
         was_open = asyncio.run(run())
         assert was_open is True
+
+
+def test_search_preserves_bounded_media_payload():
+    media = {"media_type": "image", "url": "https://example.org/full.jpg", "width": 640}
+    row = {
+        "url": "https://example.org/page",
+        "media": media,
+        "engines": ["brave", "images"],
+    }
+    client = _make_matched_client(
+        {
+            ("POST", "/v2/search"): _json_handler(
+                {"success": True, "data": {"web": [row]}}
+            )
+        }
+    )
+    result = asyncio.run(client.search("fixture"))
+    assert result["data"]["web"][0] == row

@@ -131,4 +131,6 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0092 | [Retire the Per-Query Search Maximum and Acquire Every Distinct Result](0092-retire-per-query-search-maximum-and-acquire-all-distinct-results.md) | accepted and implemented in experimental fork |
 | 0093 | [Retain Source Search Provenance](0093-retain-source-search-provenance.md) | proposed; implementation prepared for review |
 
+| 0095 | [Retain Bounded Source Media Metadata](0095-retain-bounded-source-media-metadata.md) | proposed; implementation prepared for review |
+
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.

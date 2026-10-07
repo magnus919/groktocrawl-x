@@ -63,3 +63,20 @@ Use the two-step parse flow when an upload must be staged: `PUT /v2/parse/upload
 ## Compatibility
 
 GroktoCrawl targets Firecrawl v2 request/response conventions for its compatible operations. GroktoCrawl-specific facilities—plans, sessions, research memory, citation resolution, enrichment, semantic similarity, portal support, and MCP—extend that surface. Do not infer unsupported Firecrawl options from compatibility language; consult `/openapi.json` for accepted fields.
+
+
+### Source-reported media metadata
+
+Search results may include optional `media` records with `media_type` (`image`
+or `video`), original `url`, `thumbnail`, source-page `source`, pixel `width`/
+`height`, and `duration` in seconds. Values are retained only when reported by
+the upstream engine; missing values stay absent. Existing engine attribution
+and scholarly fields remain intact. API sync/SSE, CLI JSON, MCP and session refs
+retain the same bounded record. Image search retains its existing Firecrawl
+fields and adds this metadata. News does not acquire a fabricated media kind.
+
+This is discovery metadata: previews/originals are not downloaded or used as
+crawl evidence. Unsafe/private/local URLs, signed or credential-bearing links,
+malformed values, unknown fields and embed HTML are omitted. A public hostname
+is not a guarantee about DNS or permission to fetch/render it. See
+[ADR-0095](../adr/0095-retain-bounded-source-media-metadata.md) for bounds.

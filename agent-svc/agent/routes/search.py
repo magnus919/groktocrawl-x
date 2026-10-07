@@ -123,11 +123,16 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
                 image_results.append(
                     ImageSearchResult(
                         title=item.get("title", ""),
-                        image_url=item.get("url", ""),
-                        image_width=width,
-                        image_height=height,
+                        image_url=item.get("media", {}).get("url", item.get("url", "")),
+                        image_width=item.get("media", {}).get("width", width),
+                        image_height=item.get("media", {}).get("height", height),
                         url=item.get("url", ""),
                         position=pos + 1,
+                        **{
+                            key: value
+                            for key, value in search_metadata(item).items()
+                            if key in {"engine", "engines", "media"}
+                        },
                     )
                 )
 

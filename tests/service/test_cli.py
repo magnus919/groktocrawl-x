@@ -181,9 +181,7 @@ class TestSearchRetrievalContract:
             "operations": {},
         }
         response.headers = {}
-        response.url = (
-            "http://test-server:8080/experimental/research/v1/capabilities"
-        )
+        response.url = "http://test-server:8080/experimental/research/v1/capabilities"
 
         import requests as requests_module
 
@@ -1719,3 +1717,26 @@ class TestImageSupport:
             if "--search-type" in action.option_strings:
                 assert "images" in action.choices
                 break
+
+
+def test_search_json_keeps_media_and_engine_attribution(monkeypatch):
+    media = {
+        "media_type": "video",
+        "url": "https://example.org/video.mp4",
+        "duration": 90,
+    }
+    row = {
+        "url": "https://example.org/watch",
+        "title": "Video",
+        "media": media,
+        "engines": ["brave", "videos"],
+    }
+    args = _cli_ns["make_parser"]().parse_args(["search", "fixture"])
+    client = MagicMock()
+    client.dry_run = False
+    client.search.return_value = {"success": True, "data": {"web": [row]}}
+    output = []
+    monkeypatch.setitem(_cli_ns, "JSON_OUTPUT", True)
+    monkeypatch.setitem(_cli_ns, "emit", lambda _text, data: output.append(data))
+    _cli_ns["cmd_search"](client, args)
+    assert output[0]["results"][0] == row
