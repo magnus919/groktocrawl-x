@@ -5,12 +5,16 @@
 - Date: 2026-10-07
 - Scope: experimental fork issue [#419](https://github.com/magnus919/groktocrawl-x/issues/419)
 
-## Context and Decision
+## Context
 
 Parse already extracts local PDF/office uploads; inherited sessions already retain
 full Markdown references, synchronize writes, and expire/delete those references.
 There is no reason to create another authoritative document warehouse to connect
-these two paths. Admit complete parser output as an explicit document reference
+these two paths.
+
+## Decision
+
+Admit complete parser output as an explicit document reference
 in the existing session store, with separate hashes for uploaded bytes and exact
 UTF-8 extracted text. Attach/detach serialize with existing session operations;
 admission rejects explicit per-file/per-session limits instead of truncating.
