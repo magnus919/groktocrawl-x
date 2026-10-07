@@ -118,3 +118,37 @@ def test_temporal_status_never_equates_recency_with_current_truth():
     assert temporal_status("bad", 60, now) == "unknown"
     assert temporal_status(None, 60, now) == "unknown"
     assert temporal_status("2026-01-01", 60, now) == "unknown"
+
+
+@pytest.mark.parametrize(
+    "wording",
+    [
+        "How does it compare with them?",
+        "Can it support that?",
+        "Explain its relationship to the other one",
+        "Compare its capabilities with theirs",
+        "Does it replace those?",
+        "Can these run with it?",
+        "What about the other   one and its cost?",
+    ],
+)
+def test_single_selection_checks_every_referent(wording):
+    request = FollowupRequest(wording=wording, selected=[choice()])
+    result = preview(request, selected(*request.selected))
+    assert result.original_wording == wording
+    assert result.status == "needs_clarification"
+    assert result.proposed_query is None
+    assert result.actions == []
+    request.standalone_override = "Compare Alpha with Beta"
+    override = preview(request, selected(*request.selected))
+    assert override.status == "ready"
+    assert override.proposed_query == "Compare Alpha with Beta"
+
+
+def test_multiple_singular_mentions_resolve_only_selected_subject_once():
+    request = FollowupRequest(
+        wording="Explain it and its behavior", selected=[choice(subject="It Toolkit")]
+    )
+    result = preview(request, selected(*request.selected))
+    assert result.status == "ready"
+    assert result.proposed_query == "Explain It Toolkit and It Toolkit's behavior"

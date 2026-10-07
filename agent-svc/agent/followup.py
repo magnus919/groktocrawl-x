@@ -84,16 +84,25 @@ def preview(
     """
     query = body.standalone_override or body.wording
     ambiguities = []
-    pronouns = re.search(
-        r"\b(it|its|they|them|their|that|this|other one)\b", query, re.IGNORECASE
+    pronouns = re.findall(
+        r"\b(it|its|they|them|their|theirs|that|this|these|those|other\s+one)\b",
+        query,
+        re.IGNORECASE,
     )
     if not body.standalone_override and pronouns:
-        if len(selected) == 1 and pronouns.group().lower() in {"it", "its"}:
+        if len(selected) == 1 and all(
+            word.lower() in {"it", "its"} for word in pronouns
+        ):
             subject = selected[0].identity.subject
+            # One substitution pass keeps explicitly supplied subject text inert.
             query = re.sub(
-                r"\bits\b", lambda _: subject + "'s", query, flags=re.IGNORECASE
+                r"\b(it|its)\b",
+                lambda match: (
+                    subject + ("'s" if match.group().lower() == "its" else "")
+                ),
+                query,
+                flags=re.IGNORECASE,
             )
-            query = re.sub(r"\bit\b", lambda _: subject, query, flags=re.IGNORECASE)
         else:
             ambiguities.append(
                 "Name each referent or supply standalone_override; selection order is not identity."
