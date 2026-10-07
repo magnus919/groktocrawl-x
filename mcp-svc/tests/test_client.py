@@ -1596,3 +1596,43 @@ async def test_staged_attachment_does_not_read_remote_url_or_local_path():
         assert len(calls) == 1
     finally:
         await client.close()
+
+def test_workspace_client_lists_selects_and_resumes_exact_revision():
+    captured = []
+
+    def handler(request):
+        captured.append(
+            (
+                request.method,
+                request.url.path,
+                json.loads(request.content) if request.content else None,
+            )
+        )
+        return httpx.Response(
+            200,
+            json={"revision": "observed", "markdown": "exact evidence"},
+            request=request,
+        )
+
+    client = GroktocrawlClient(base_url="http://test:8080", api_key=None)
+    client._client = httpx.AsyncClient(
+        base_url=client._base_url, transport=httpx.MockTransport(handler)
+    )
+
+    async def exercise():
+        await client.experimental_research_workspace()
+        await client.experimental_research_workspace("root-1")
+        await client.experimental_research_resume(
+            "root-1", "render", expected_revision="observed"
+        )
+
+    asyncio.run(exercise())
+    assert captured == [
+        ("GET", "/experimental/research/v1/workspace", None),
+        ("GET", "/experimental/research/v1/workspace/root-1", None),
+        (
+            "POST",
+            "/experimental/research/v1/workspace/root-1/actions",
+            {"action": "render", "expected_revision": "observed"},
+        ),
+    ]

@@ -114,9 +114,7 @@ async def test_cancel_returns_one_cancelled_terminal(app: FastAPI) -> None:
             json={"objective": "Cancel the fictional pilot"},
         )
         run_id = created.json()["run_id"]
-        cancelled = await client.post(
-            f"/experimental/research/v1/runs/{run_id}/cancel"
-        )
+        cancelled = await client.post(f"/experimental/research/v1/runs/{run_id}/cancel")
         assert cancelled.status_code == 202
         status = await _wait_for_terminal(client, run_id)
         assert status["state"] == "cancelled"
@@ -126,7 +124,9 @@ async def test_cancel_returns_one_cancelled_terminal(app: FastAPI) -> None:
 
 
 @pytest.mark.asyncio
-async def test_session_attachment_is_idempotent_and_revision_guarded(app: FastAPI) -> None:
+async def test_session_attachment_is_idempotent_and_revision_guarded(
+    app: FastAPI,
+) -> None:
     async with await _client(app) as client:
         created = await client.post(
             "/experimental/research/v1/runs",
@@ -245,14 +245,135 @@ async def test_deletion_tombstone_wins_over_late_completion(
         assert deleted.status_code == 202
         gate.set()
         await asyncio.wait_for(record.task, timeout=2)
-        assert record.state == "completed"
+        assert record.state == "cancelled"
+        assert record.result is None
         assert record.deleted is True
 
         assert (await client.get(admission["status_url"])).status_code == 410
         assert (await client.get(admission["events_url"])).status_code == 410
-        assert (await client.get(record.result["manifest_url"])).status_code == 410
+        assert (await client.get(f"/experimental/research/v1/workspace/{run_id}")).status_code == 410
         attached = await client.post(
             "/experimental/research/v1/sessions/deleted-session/attachments",
             json={"run_id": run_id, "expected_revision": 0},
         )
         assert attached.status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_workspace_scope_revision_reload_and_deletion(app: FastAPI) -> None:
+    async with await _client(app) as client:
+        created = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "workspace"},
+                json={"objective": "Inspect retained fictional evidence"},
+            )
+        ).json()
+        status = await _wait_for_terminal(client, created["run_id"])
+        listing = (await client.get("/experimental/research/v1/workspace")).json()
+        assert listing["items"][0]["run_id"] == created["run_id"]
+        selected_url = listing["items"][0]["url"]
+        selected = (await client.get(selected_url)).json()
+        assert selected["revision"] and selected["manifest"]
+        assert selected["capabilities"]["recovery_mode"] == "process_local"
+        assert (
+            await client.get(selected_url, params={"expected_revision": "stale"})
+        ).status_code == 409
+        assert (
+            await client.get(selected_url, headers={"Authorization": "Bearer foreign"})
+        ).status_code == 404
+        assert (
+            await client.get(
+                "/experimental/research/v1/workspace",
+                headers={"Authorization": "Bearer foreign"},
+            )
+        ).json()["items"] == []
+        assert (await client.get(selected_url)).json()["revision"] == selected[
+            "revision"
+        ]
+        await client.delete(
+            "/experimental/research/v1/research/" + status["research_id"]
+        )
+        assert (await client.get(selected_url)).status_code == 410
+        assert (await client.get("/experimental/research/v1/workspace")).json()[
+            "items"
+        ] == []
+        assert (
+            await client.get("/experimental/research/v1/workspace?limit=101")
+        ).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_named_workspace_actions_pin_revision_and_citations(app: FastAPI):
+    async with await _client(app) as client:
+        created = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "named-action"},
+                json={"objective": "Explicit actions"},
+            )
+        ).json()
+        await _wait_for_terminal(client, created["run_id"])
+        url = "/experimental/research/v1/workspace/" + created["run_id"]
+        selected = (await client.get(url)).json()
+        assert (
+            await client.post(url + "/actions", json={"action": "render"})
+        ).status_code == 409
+        assert (
+            await client.post(
+                url + "/actions", json={"action": "render", "expected_revision": "old"}
+            )
+        ).status_code == 409
+        base = {"expected_revision": selected["revision"]}
+        export = (
+            await client.post(url + "/actions", json={**base, "action": "export"})
+        ).json()
+        assert export["audited"] and export["markdown"]
+        cite = selected["evidence"][0]
+        evidence = (
+            await client.post(
+                url + "/actions",
+                json={
+                    **base,
+                    "action": "request_evidence",
+                    "snapshot_id": cite["snapshot_id"],
+                },
+            )
+        ).json()
+        assert evidence["body"][cite["start"] : cite["end"]]
+        assert (
+            await client.post(
+                url + "/actions",
+                json={**base, "action": "request_evidence", "snapshot_id": "foreign"},
+            )
+        ).status_code == 404
+        assert (
+            await client.post(url + "/actions", json={**base, "action": "cancel"})
+        ).status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_deleting_one_root_does_not_block_other_roots(app: FastAPI):
+    async with await _client(app) as client:
+        runs = []
+        for key in ["first", "second"]:
+            created = (
+                await client.post(
+                    "/experimental/research/v1/runs",
+                    headers={"Idempotency-Key": key},
+                    json={"objective": key},
+                )
+            ).json()
+            runs.append(await _wait_for_terminal(client, created["run_id"]))
+        await client.delete(
+            "/experimental/research/v1/research/" + runs[0]["research_id"]
+        )
+        other = await client.get(
+            "/experimental/research/v1/workspace/" + runs[1]["run_id"]
+        )
+        assert other.status_code == 200
+        for url in runs[1]["result"]["artifacts"].values():
+            assert (await client.get(url)).status_code == 200
+        assert (
+            await client.get("/experimental/research/v1/artifacts/unknown")
+        ).status_code == 404

@@ -32,3 +32,41 @@ def test_validation_rejects_partial_or_oversized_sets():
     values["dossier"] = ("set-dossier", b"x" * (MAX_ARTIFACT_BYTES + 1))
     with pytest.raises(ValueError, match="artifact byte"):
         ArtifactAuthority._validate(b"manifest", values)
+
+
+@pytest.mark.asyncio
+async def test_evidence_admission_bounds_fail_before_storage_connection():
+    from uuid import uuid4
+
+    authority = ArtifactAuthority("postgresql://unused.invalid/fixture")
+    identity = uuid4()
+    with pytest.raises(ValueError, match="knowledge byte"):
+        await authority.commit(
+            identity,
+            identity,
+            identity,
+            identity,
+            b"manifest",
+            _artifacts(),
+            knowledge=b"x" * (1048576 + 1),
+        )
+    with pytest.raises(ValueError, match="invalid retained evidence"):
+        await authority.commit(
+            identity,
+            identity,
+            identity,
+            identity,
+            b"manifest",
+            _artifacts(),
+            evidence={"source-1": (b"x" * (MAX_ARTIFACT_BYTES + 1), "text/plain")},
+        )
+    with pytest.raises(UnicodeDecodeError):
+        await authority.commit(
+            identity,
+            identity,
+            identity,
+            identity,
+            b"manifest",
+            _artifacts(),
+            evidence={"source-1": (b"\xff", "text/plain")},
+        )

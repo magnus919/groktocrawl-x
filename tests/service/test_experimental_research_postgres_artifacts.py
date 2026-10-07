@@ -10,6 +10,7 @@ import os
 import runpy
 import sys
 import types
+from datetime import datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -17,6 +18,7 @@ import httpx
 import pytest
 from agent.experimental.artifact_authority import (
     ArtifactAuthority,
+    ArtifactLifecycleError,
     RetainedArtifactSet,
 )
 from agent.experimental.durable_research import DurableResearchLedger
@@ -30,8 +32,71 @@ class FakeAuthority:
     def __init__(self) -> None:
         self.values: dict[tuple[UUID, UUID], RetainedArtifactSet] = {}
         self.deleted: set[tuple[UUID, UUID]] = set()
+        self.identities = {}
+        self.knowledge = {}
+        self.evidence = {}
         self.commits = 0
         self.deletions = 0
+
+    async def list_retained(self, scope, *, limit=100, offset=0):
+        return [
+            {
+                "research_id": value.research_id,
+                "run_id": value.run_id,
+                "artifact_set_id": value.artifact_set_id,
+                "set_digest": value.set_digest,
+                "expires_at": datetime.fromisoformat("2026-11-01T00:00:00+00:00"),
+            }
+            for value in sorted(
+                self.values.values(), key=lambda value: str(value.run_id)
+            )
+            if value.scope_id == scope
+            and (scope, value.research_id) not in self.deleted
+        ][offset : offset + limit]
+
+    async def lookup(self, scope, *, run=None, artifact_set=None, artifact_id=None):
+        for (owner, research), (run_id, set_id) in self.identities.items():
+            if (
+                owner == scope
+                and (run_id == run or set_id == artifact_set)
+                and (owner, research) in self.deleted
+            ):
+                raise ArtifactLifecycleError(410)
+        for value in self.values.values():
+            if value.scope_id == scope and (
+                value.run_id == run
+                or value.artifact_set_id == artifact_set
+                or any(item.artifact_id == artifact_id for item in value.artifacts)
+            ):
+                return await self.read(scope, value.research_id)
+        raise ArtifactLifecycleError(404)
+
+    async def retention(self, scope, research):
+        if (scope, research) not in self.values and (
+            scope,
+            research,
+        ) not in self.deleted:
+            raise ArtifactLifecycleError(404)
+        return {
+            "deleted": (scope, research) in self.deleted,
+            "live": True,
+            "expires_at": "2026-11-01T00:00:00+00:00",
+        }
+
+    async def read_knowledge(self, scope, research):
+        return self.knowledge[(scope, research)]
+
+    async def read_evidence(self, scope, research, snapshot):
+        if (scope, research) in self.deleted or snapshot not in self.evidence.get(
+            (scope, research), {}
+        ):
+            raise ArtifactLifecycleError(
+                410 if (scope, research) in self.deleted else 404
+            )
+        return self.evidence[(scope, research)][snapshot]
+
+    async def ensure_evidence_schema(self):
+        return None
 
     async def ensure_scope(self, scope: UUID) -> None:
         return None
@@ -44,6 +109,8 @@ class FakeAuthority:
         artifact_set: UUID,
         manifest: bytes,
         artifacts: dict[str, tuple[str, bytes]],
+        evidence=None,
+        knowledge=None,
     ) -> RetainedArtifactSet:
         self.commits += 1
         manifest_digest, retained, set_digest, _ = ArtifactAuthority._validate(
@@ -64,12 +131,15 @@ class FakeAuthority:
         prior = self.values.get((scope, research))
         if prior is not None and prior != candidate:
             raise StorageConflictError("artifact set replay changed")
+        self.identities[(scope, research)] = (run, artifact_set)
+        self.knowledge[(scope, research)] = knowledge
+        self.evidence[(scope, research)] = evidence or {}
         self.values[(scope, research)] = candidate
         return candidate
 
     async def read(self, scope: UUID, research: UUID) -> RetainedArtifactSet:
         if (scope, research) in self.deleted:
-            raise StorageConflictError("artifact set unavailable")
+            raise ArtifactLifecycleError(410)
         try:
             return self.values[(scope, research)]
         except KeyError as exc:
@@ -88,6 +158,8 @@ class FakeAuthority:
     async def delete(self, scope: UUID, research: UUID) -> None:
         self.deletions += 1
         self.deleted.add((scope, research))
+        self.knowledge.pop((scope, research), None)
+        self.evidence.pop((scope, research), None)
         self.values.pop((scope, research), None)
 
 
@@ -302,3 +374,204 @@ async def test_recovered_bytes_match_http_sse_cli_and_mcp(
         experimental._RUNS.clear()
         assert (await client.get(summary_url)).status_code == 410
         assert (await client.get(created.json()["events_url"])).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_workspace_recovers_cited_evidence_without_process_memory(authority_app):
+    app, _, _ = authority_app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        created = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "workspace-restart"},
+                json={"objective": "Retain citations"},
+            )
+        ).json()
+        status = await _wait(client, created["status_url"])
+        selected_url = "/experimental/research/v1/workspace/" + status["run_id"]
+        before = (await client.get(selected_url)).json()
+        assert before["evidence"]
+        cite = before["evidence"][0]
+        original = (await client.get(cite["url"])).json()
+        experimental._RUNS.clear()
+        after = (await client.get(selected_url)).json()
+        assert after["revision"] == before["revision"]
+        assert after["evidence"] == before["evidence"]
+        assert after["evidence_recovery"] == "postgres_artifact_authority"
+        recovered = (await client.get(cite["url"])).json()
+        assert recovered == original
+        await client.delete(
+            "/experimental/research/v1/research/" + status["research_id"]
+        )
+        experimental._RUNS.clear()
+        assert (await client.get(cite["url"])).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_postgres_workspace_outlives_ledger_and_deletes_durably(authority_app):
+    app, authority, _ = authority_app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "catalog-lifetime"},
+                json={"objective": "Independent artifact retention"},
+            )
+        ).json()
+        status = await _wait(client, admitted["status_url"])
+        run_id = status["run_id"]
+        record = experimental._RUNS[run_id]
+        record.durable_ledger.redis.delete(record.durable_ledger._run_key(run_id))
+        experimental._RUNS.clear()
+        listing = (await client.get("/experimental/research/v1/workspace")).json()
+        assert any(item["run_id"] == run_id for item in listing["items"])
+        selected = (
+            await client.get("/experimental/research/v1/workspace/" + run_id)
+        ).json()
+        assert selected["lifetime"]["authority"] == "postgres_artifact_authority"
+        cite = selected["evidence"][0]
+        assert (await client.get(cite["url"])).status_code == 200
+        assert (
+            await client.get(status["result"]["artifacts"]["summary"])
+        ).status_code == 200
+        response = await client.post(
+            "/experimental/research/v1/workspace/" + run_id + "/actions",
+            json={"action": "delete", "expected_revision": selected["revision"]},
+        )
+        assert response.status_code == 200
+        assert authority.deletions == 1
+        experimental._RUNS.clear()
+        assert (
+            await client.get("/experimental/research/v1/workspace/" + run_id)
+        ).status_code == 410
+        assert (await client.get(cite["url"])).status_code == 410
+        assert (await client.get("/experimental/research/v1/workspace")).json()[
+            "items"
+        ] == []
+
+
+@pytest.mark.asyncio
+async def test_pending_postgres_root_delete_fences_late_fixture_result(
+    authority_app, monkeypatch
+):
+    app, authority, _ = authority_app
+    release = asyncio.Event()
+    original = experimental.example_journey
+
+    class DelayedJourney:
+        def __init__(self, **options):
+            self.journey = original(**options)
+
+        async def run(self):
+            await release.wait()
+            return await self.journey.run()
+
+    monkeypatch.setattr(experimental, "example_journey", DelayedJourney)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "pending-delete"},
+                json={"objective": "Do not retain late bytes"},
+            )
+        ).json()
+        await asyncio.sleep(0)
+        record = experimental._RUNS[admitted["run_id"]]
+        assert record.state in {"accepted", "running"}
+        response = await client.delete(
+            "/experimental/research/v1/research/" + record.research_id
+        )
+        assert response.status_code == 202
+        release.set()
+        await record.task
+        assert record.state == "cancelled"
+        assert authority.commits == 0
+        assert authority.evidence == {}
+        assert (
+            await client.get("/experimental/research/v1/workspace/" + record.run_id)
+        ).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_failed_root_without_committed_authority_expires(
+    authority_app, monkeypatch
+):
+    app, authority, _ = authority_app
+
+    class FailedJourney:
+        def __init__(self, **_):
+            pass
+
+        async def run(self):
+            raise RuntimeError("Synthetic fixture failure before publication")
+
+    monkeypatch.setattr(experimental, "example_journey", FailedJourney)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "failed-expired-root"},
+                json={"objective": "No artifact commit"},
+            )
+        ).json()
+        status = await _wait(client, admitted["status_url"])
+        assert status["state"] == "failed"
+        record = experimental._RUNS[admitted["run_id"]]
+        assert authority.commits == 0
+        record.durable_ledger.redis.delete(
+            record.durable_ledger._run_key(record.run_id)
+        )
+        response = await client.get(
+            "/experimental/research/v1/workspace/" + record.run_id
+        )
+        assert response.status_code == 410
+        assert (await client.get("/experimental/research/v1/workspace")).json()[
+            "items"
+        ] == []
+
+
+@pytest.mark.asyncio
+async def test_postgres_catalog_paging_and_foreign_scope(authority_app):
+    app, _, _ = authority_app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted_ids = set()
+        for i in range(3):
+            admitted = (
+                await client.post(
+                    "/experimental/research/v1/runs",
+                    headers={"Idempotency-Key": f"catalog-page-{i}"},
+                    json={"objective": f"Catalog page fixture {i}"},
+                )
+            ).json()
+            await _wait(client, admitted["status_url"])
+            admitted_ids.add(admitted["run_id"])
+        observed = set()
+        offset = 0
+        while True:
+            page = (
+                await client.get(
+                    "/experimental/research/v1/workspace",
+                    params={"limit": 1, "offset": offset},
+                )
+            ).json()
+            assert len(page["items"]) == 1
+            observed.add(page["items"][0]["run_id"])
+            if page["next_offset"] is None:
+                break
+            offset = page["next_offset"]
+        assert observed == admitted_ids
+        foreign = await client.get(
+            "/experimental/research/v1/workspace",
+            headers={"Authorization": "Bearer foreign-fixture"},
+        )
+        assert foreign.json()["items"] == []

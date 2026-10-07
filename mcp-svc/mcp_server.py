@@ -1583,5 +1583,59 @@ def main() -> None:
     loop.run_until_complete(server.serve())
 
 
+@mcp.tool(annotations=_RO)
+async def research_workspace(
+    run_id: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+    run_offset: int = 0,
+    expected_revision: str | None = None,
+) -> str:
+    """List caller-permitted roots or inspect a root's explicit actions and revision."""
+    result = await _client.experimental_research_workspace(
+        run_id,
+        offset=offset,
+        limit=limit,
+        run_offset=run_offset,
+        expected_revision=expected_revision,
+    )
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_DESTRUCTIVE)
+async def research_resume(
+    run_id: str,
+    action: str,
+    expected_revision: str | None = None,
+    layer: str = "summary",
+    snapshot_id: str | None = None,
+    session_id: str | None = None,
+    expected_session_revision: int | None = None,
+    ref_id: str | None = None,
+    start: int | None = None,
+    end: int | None = None,
+    wording: str | None = None,
+    selected: list[dict[str, str]] | None = None,
+) -> str:
+    """Explicitly resume render/export/evidence/attach/cancel/delete on a selected revision."""
+    result = await _client.experimental_research_resume(
+        run_id,
+        action,
+        expected_revision=expected_revision,
+        layer=layer,
+        snapshot_id=snapshot_id,
+        session_id=session_id,
+        expected_session_revision=expected_session_revision,
+        ref_id=ref_id,
+        start=start,
+        end=end,
+        wording=wording,
+        selected=selected or [],
+    )
+    _ensure_success(result)
+    return _resp(result)
+
+
 if __name__ == "__main__":
     main()

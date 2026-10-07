@@ -712,6 +712,25 @@ class Client:
         """Validate selected context and return an unexecuted query proposal."""
         return self._request("POST", "/v2/followup/preview", json_data=body)
 
+    def experimental_research_workspace(
+        self, run_id: str | None = None, offset: int = 0, limit: int = 50, run_offset: int = 0, expected_revision: str | None = None
+    ) -> dict[str, Any]:
+        path = "/experimental/research/v1/workspace"
+        params = {"expected_revision":expected_revision} if run_id and expected_revision else {} if run_id else {"offset":offset,"limit":limit,"run_offset":run_offset}
+        return self._request("GET", f"{path}/{run_id}" if run_id else path, params=params)
+
+    def experimental_research_resume(
+        self, run_id: str, action: str, **options: Any
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/experimental/research/v1/workspace/{run_id}/actions",
+            {
+                "action": action,
+                **{key: value for key, value in options.items() if value is not None},
+            },
+        )
+
     def experimental_research_capabilities(self) -> dict[str, Any]:
         """Return opt-in experimental research protocol capabilities."""
         return self._request("GET", "/experimental/research/v1/capabilities")
@@ -740,13 +759,17 @@ class Client:
     def experimental_research_cancel(self, run_id: str) -> dict[str, Any]:
         return self._request("POST", f"/experimental/research/v1/runs/{run_id}/cancel")
 
-    def experimental_research_artifact_set(self, artifact_set_id: str) -> dict[str, Any]:
+    def experimental_research_artifact_set(
+        self, artifact_set_id: str
+    ) -> dict[str, Any]:
         return self._request(
             "GET", f"/experimental/research/v1/artifact-sets/{artifact_set_id}"
         )
 
     def experimental_research_artifact(self, artifact_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/experimental/research/v1/artifacts/{artifact_id}")
+        return self._request(
+            "GET", f"/experimental/research/v1/artifacts/{artifact_id}"
+        )
 
     def experimental_research_artifact_bytes(self, artifact_id: str) -> bytes:
         """Download exact server-retained artifact bytes."""
@@ -1332,9 +1355,7 @@ class Client:
                 "file": filepath,
                 "ocr": ocr,
             }
-        headers = (
-            {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-        )
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         with open(filepath, "rb") as f:
             resp = requests.post(
                 url,
@@ -1401,11 +1422,7 @@ class Client:
             headers={
                 "Content-Type": content_type,
                 "X-Filename": filename,
-                **(
-                    {"Authorization": f"Bearer {self.api_key}"}
-                    if self.api_key
-                    else {}
-                ),
+                **({"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}),
             },
             timeout=120,
         )
@@ -1431,9 +1448,7 @@ class Client:
                 "url": url,
                 "upload_id": upload_id,
             }
-        headers = (
-            {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-        )
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         resp = requests.post(
             url, data={"upload_id": upload_id}, headers=headers, timeout=120
         )
@@ -1861,7 +1876,23 @@ def cmd_research(client: Client, args: argparse.Namespace) -> None:
         return
 
     try:
-        if action == "create":
+        if action == "workspace":
+            result = client.experimental_research_workspace(args.run_id, offset=args.offset, limit=args.limit, run_offset=args.run_offset, expected_revision=args.expected_revision)
+            emit("Retained research workspace", result)
+        elif action == "resume":
+            result = client.experimental_research_resume(
+                args.run_id,
+                args.operation,
+                expected_revision=args.expected_revision,
+                layer=args.layer,
+                snapshot_id=args.snapshot_id,
+                session_id=args.session_id,
+                expected_session_revision=args.expected_session_revision,
+                ref_id=args.ref_id, start=args.start, end=args.end, wording=args.wording,
+                selected=json.loads(args.selected) if args.selected else [],
+            )
+            emit("Named research workspace action", result)
+        elif action == "create":
             result = client.experimental_research_create(
                 args.objective,
                 idempotency_key=args.idempotency_key,
@@ -1901,11 +1932,21 @@ def cmd_research(client: Client, args: argparse.Namespace) -> None:
         elif action == "download":
             content = client.experimental_research_artifact_bytes(args.artifact_id)
             if client.dry_run:
-                emit("[dry-run] Would download experimental research artifact", {"artifact_id": args.artifact_id})
+                emit(
+                    "[dry-run] Would download experimental research artifact",
+                    {"artifact_id": args.artifact_id},
+                )
             elif args.output:
                 with open(args.output, "wb") as handle:
                     handle.write(content)
-                emit(f"Wrote artifact to {args.output}", {"artifact_id": args.artifact_id, "path": args.output, "bytes": len(content)})
+                emit(
+                    f"Wrote artifact to {args.output}",
+                    {
+                        "artifact_id": args.artifact_id,
+                        "path": args.output,
+                        "bytes": len(content),
+                    },
+                )
             else:
                 sys.stdout.buffer.write(content)
         elif action == "delete":
@@ -3320,12 +3361,38 @@ def make_parser() -> argparse.ArgumentParser:
     p_research = subparsers.add_parser(
         "research", help="Inspect the opt-in experimental research protocol"
     )
-    p_research_sub = p_research.add_subparsers(
-        dest="research_action", required=True
-    )
+    p_research_sub = p_research.add_subparsers(dest="research_action", required=True)
     p_research_sub.add_parser(
         "capabilities", help="Show the advertised research protocol capabilities"
     )
+    p_workspace = p_research_sub.add_parser(
+        "workspace", help="List or inspect retained research roots"
+    )
+    p_workspace.add_argument("run_id", nargs="?", help="Optional selected run ID")
+    p_workspace.add_argument("--offset", type=int, default=0)
+    p_workspace.add_argument("--run-offset", type=int, default=0)
+    p_workspace.add_argument("--limit", type=int, default=50)
+    p_workspace.add_argument("--expected-revision")
+    p_resume = p_research_sub.add_parser(
+        "resume", help="Resume a named retained-root operation"
+    )
+    p_resume.add_argument("run_id")
+    p_resume.add_argument(
+        "operation",
+        choices=["render", "export", "request_evidence", "attach", "cancel", "delete", "documents", "document_evidence", "followup_preview"],
+    )
+    p_resume.add_argument("--expected-revision")
+    p_resume.add_argument(
+        "--layer", choices=["summary", "analysis", "dossier"], default="summary"
+    )
+    p_resume.add_argument("--snapshot-id")
+    p_resume.add_argument("--session-id")
+    p_resume.add_argument("--expected-session-revision", type=int)
+    p_resume.add_argument("--ref-id")
+    p_resume.add_argument("--start", type=int)
+    p_resume.add_argument("--end", type=int)
+    p_resume.add_argument("--wording")
+    p_resume.add_argument("--selected", help="Explicit identity selections as JSON")
     p_research_create = p_research_sub.add_parser(
         "create", help="Admit a fixture-backed experimental research run"
     )

@@ -93,6 +93,7 @@ curl -N -X POST http://localhost:8080/v2/crawl \
 - [API guide](docs/guides/api.md) — authentication, jobs, SSE, webhooks, examples, and compatibility.
 - [CLI guide](docs/guides/cli.md) — commands, global flags, and streaming/JSON output.
 - [Deployment and configuration](docs/guides/deployment.md) — services, profiles, configuration, security, and operations.
+- [Retained research workspace](docs/guides/research-workspace.md) — opt-in scoped root browsing, audited citations and named continuation.
 - [Feature guides](docs/guides/features.md) — scraping, crawl, search, research, sessions, browser, monitors, parse, portal, and MCP.
 - [Architecture](docs/architecture.md) — current service and data-flow design.
 - [Contributor guide](CONTRIBUTING.md) — contribution intake, local development, tests, API/CLI parity, and ADRs.

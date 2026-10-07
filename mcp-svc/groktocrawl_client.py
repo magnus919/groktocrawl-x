@@ -1030,6 +1030,36 @@ class GroktocrawlClient:
         """Server health check."""
         return await self._get("/health")
 
+    async def experimental_research_workspace(
+        self,
+        run_id: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+        run_offset: int = 0,
+        expected_revision: str | None = None,
+    ) -> dict:
+        path = "/experimental/research/v1/workspace"
+        params = (
+            {"expected_revision": expected_revision}
+            if run_id and expected_revision
+            else {}
+            if run_id
+            else {"offset": offset, "limit": limit, "run_offset": run_offset}
+        )
+        path = f"{path}/{run_id}" if run_id else path
+        return await self._get(path + ("?" + urlencode(params) if params else ""))
+
+    async def experimental_research_resume(
+        self, run_id: str, action: str, **options
+    ) -> dict:
+        return await self._post(
+            f"/experimental/research/v1/workspace/{run_id}/actions",
+            {
+                "action": action,
+                **{key: value for key, value in options.items() if value is not None},
+            },
+        )
+
     async def experimental_research_capabilities(self) -> dict:
         """Return opt-in experimental research protocol capabilities."""
         return await self._get("/experimental/research/v1/capabilities")
