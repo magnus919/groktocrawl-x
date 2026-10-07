@@ -151,11 +151,10 @@ async def test_actual_upload_reservation_transfer_and_document_admission(
     storage, monkeypatch
 ):
     import httpx
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-
     from agent.exceptions import GroktoCrawlError
     from agent.routes import documents, parse
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
 
     store, _redis, sessions, uploads = storage
     session_id = await store.acreate(owner_scope="anonymous")
