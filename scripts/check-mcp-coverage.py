@@ -64,6 +64,7 @@ EXEMPT: dict[str, str] = {
 # Map each expressible API path to the MCP tool that covers it.
 PATH_TO_MCP_TOOL: dict[str, str] = {
     "GET /v2/activity": "get_activity",
+    "GET /v2/session/{session_id}/evidence/{ref_id}": "select_session_evidence",
     "POST /v2/agent": "agent",
     "GET /v2/agent/{job_id}": "get_agent_status",
     "DELETE /v2/agent/{job_id}": "cancel_agent",

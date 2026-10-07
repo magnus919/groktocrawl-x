@@ -213,4 +213,9 @@ async def test_research_loop_filters_after_scrape_only_with_key(monkeypatch, wit
         assert not calls
         assert done["sources"] == [good.url, garbage.url]
         assert "material_contribution_score" not in context
-        assert len(context) < 9000  # Legacy keyless projection is unchanged.
+        assert (
+            good.markdown in context
+        )  # Keyless synthesis also retains full permitted text.
+        assert done["evidence_coverage"]["selected_chars"] == len(good.markdown) + len(
+            garbage.markdown
+        )

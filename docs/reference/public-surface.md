@@ -57,6 +57,7 @@ POST /v2/scrape
 POST /v2/search
 POST /v2/session/create
 GET /v2/session/{session_id}
+GET /v2/session/{session_id}/evidence/{ref_id}
 POST /v2/session/{session_id}/export
 POST /v2/session/{session_id}/resolve
 POST /v2/session/{session_id}/step
@@ -84,6 +85,7 @@ POST /experimental/research/v1/sessions/{session_id}/attachments
 - crawl
 - download
 - enrich
+- evidence
 - extract
 - find-similar
 - generate-llmstxt
@@ -257,3 +259,20 @@ The configuration inventory follows `.env.sample`; unlisted implementation-only 
 - VECTOR_STORE_MODE
 - WEBHOOK_SECRET
 <!-- env-inventory:end -->
+
+## Bounded evidence controls
+
+`agent` and `answer` accept optional `--evidence-budget-chars` (256–128000),
+matching API/MCP `evidence_budget_chars`. Omission preserves server defaults.
+CLI JSON retains `evidence_coverage` in synchronous and streaming completion
+results. This budget selects verbatim source characters for synthesis; it does
+not limit acquisition or claim exhaustive evidence coverage.
+
+`groktocrawl evidence SESSION_ID REF_ID --query "question" --json` and MCP
+`select_session_evidence` inspect exact retained spans, content digest and
+coverage without retrieval or model work. Omit query to page from `--offset`
+(default 0), using `--budget-chars` (default 32000, range 256–128000). Query
+selection and a nonzero offset are mutually exclusive. Follow the returned
+continuation with its offset and `--expected-digest` (64 lowercase hexadecimal
+characters); changed content is rejected. `coverage_complete` remains false.
+Session ownership, reference liveness, deletion and existing TTL govern access.

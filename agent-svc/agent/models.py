@@ -466,6 +466,13 @@ class ScrapeResponse(BaseModel):
 
 
 class AgentRequest(BaseModel):
+    evidence_budget_chars: int = Field(
+        default=32_000,
+        strict=True,
+        ge=256,
+        le=128_000,
+        description="Aggregate verbatim source-character budget for synthesis; acquisition is unchanged",
+    )
     prompt: str = Field(
         ...,
         min_length=1,
@@ -987,6 +994,7 @@ class ImageSearchResult(BaseModel):
 
 class SearchResponse(BaseModel):
     success: bool = True
+    evidence_coverage: dict[str, Any] | None = None
     data: dict = Field(default_factory=lambda: {"web": [], "images": [], "news": []})
     output: dict[str, Any] | None = None  # Present only when output_schema provided
     query_variations: list[str] | None = None  # Present for deep search type
@@ -1255,6 +1263,13 @@ class Citation(BaseModel):
 
 
 class AnswerRequest(BaseModel):
+    evidence_budget_chars: int = Field(
+        default=32_000,
+        strict=True,
+        ge=256,
+        le=128_000,
+        description="Aggregate verbatim source-character budget, separate from retained-byte admission",
+    )
     query: str = Field(..., max_length=10000, description="Natural language question")
     search_type: str = Field(default="auto", description="Hint for search depth")
     retrieval_mode: str = Field(
@@ -1307,6 +1322,7 @@ class AnswerRequest(BaseModel):
 
 
 class AnswerResponse(BaseModel):
+    evidence_coverage: dict[str, Any] = Field(default_factory=dict)
     success: bool = True
     answer: str = ""
     sources: list[Source] = Field(default_factory=list)

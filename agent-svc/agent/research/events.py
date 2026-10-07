@@ -33,6 +33,7 @@ ResearchEvent = TypedDict(
         "retry_after_seconds": NotRequired[float | None],
         "result": NotRequired[str],
         "source_details": NotRequired[list[dict[str, Any]]],
+        "evidence_coverage": NotRequired[dict[str, Any]],
         "latency_ms": NotRequired[int],
     },
     total=False,

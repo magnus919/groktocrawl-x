@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from .acquisition import acquire_source_artifacts
+from .evidence import build_evidence_async
 from .prompts import HIGHLIGHTS_SYSTEM_PROMPT, SUMMARY_SYSTEM_PROMPT
 from .sources import SourceArtifact, normalize_source_url
 
@@ -15,6 +16,7 @@ async def extract_highlights(
     query: str | None,
     max_chars: int,
     llm_client,
+    evidence_context: str | None = None,
 ) -> str:
     """Extract the most relevant passages from text matching the query.
 
@@ -36,7 +38,13 @@ async def extract_highlights(
         return ""
 
     effective_query = query or "the main topic"
-    truncated = text[:10000]
+    context = evidence_context
+    if context is None:
+        context = (
+            await build_evidence_async(
+                [{"id": "content", "markdown": text}], effective_query
+            )
+        )["context"]
 
     try:
         user_prompt = (
@@ -47,7 +55,7 @@ async def extract_highlights(
         result = await llm_client.generate(
             system_prompt=HIGHLIGHTS_SYSTEM_PROMPT,
             user_prompt=user_prompt,
-            context=truncated,
+            context=context,
         )
         # Trim to requested max characters
         if len(result) > max_chars:
@@ -63,6 +71,7 @@ async def extract_summary(
     query: str | None,
     max_tokens: int,
     llm_client,
+    evidence_context: str | None = None,
 ) -> str:
     """Generate a concise summary of the text.
 
@@ -83,7 +92,13 @@ async def extract_summary(
         return ""
 
     focus_clause = f" with focus on: {query}" if query else ""
-    truncated = text[:10000]
+    context = evidence_context
+    if context is None:
+        context = (
+            await build_evidence_async(
+                [{"id": "content", "markdown": text}], query or "summary"
+            )
+        )["context"]
 
     try:
         user_prompt = (
@@ -93,7 +108,7 @@ async def extract_summary(
         result = await llm_client.generate(
             system_prompt=SUMMARY_SYSTEM_PROMPT,
             user_prompt=user_prompt,
-            context=truncated,
+            context=context,
         )
         return result.strip()
     except Exception as e:
@@ -166,13 +181,27 @@ async def process_contents_for_results(
         if not markdown:
             return entry
         entry["markdown"] = markdown
+        entry["evidence_coverage"] = (
+            await build_evidence_async(
+                [{"id": url, "url": url, "markdown": markdown}], query
+            )
+        )["coverage"]
 
         async def _highlights() -> tuple[str, str]:
             hq = highlights_opts.get("query") or query
             hmax = highlights_opts.get("maxCharacters", 500)
             try:
+                selection = await build_evidence_async(
+                    [{"id": url, "url": url, "markdown": markdown}],
+                    hq or "the main topic",
+                )
+                entry["highlights_evidence_coverage"] = selection["coverage"]
                 return "highlights", await extract_highlights(
-                    markdown, hq, hmax, llm_client
+                    markdown,
+                    hq,
+                    hmax,
+                    llm_client,
+                    evidence_context=selection["context"],
                 )
             except Exception:
                 return "highlights", ""
@@ -181,7 +210,17 @@ async def process_contents_for_results(
             sq = summary_opts.get("query") or query
             smax = summary_opts.get("maxTokens", 150)
             try:
-                return "summary", await extract_summary(markdown, sq, smax, llm_client)
+                selection = await build_evidence_async(
+                    [{"id": url, "url": url, "markdown": markdown}], sq or "summary"
+                )
+                entry["summary_evidence_coverage"] = selection["coverage"]
+                return "summary", await extract_summary(
+                    markdown,
+                    sq,
+                    smax,
+                    llm_client,
+                    evidence_context=selection["context"],
+                )
             except Exception:
                 return "summary", ""
 

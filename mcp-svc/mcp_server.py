@@ -1,7 +1,7 @@
 """MCP server exposing GroktoCrawl tools via Model Context Protocol.
 
 Uses FastMCP from the official mcp SDK (v1.x) with Streamable HTTP
-transport.  Defines 44 tools matching the GroktoCrawl agent-svc
+transport.  Defines 45 tools matching the GroktoCrawl agent-svc
 API surface, with proper readOnlyHint/destructiveHint annotations.
 
 Tool surface policy (see scripts/check-mcp-coverage.py): every agent-svc
@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import time
-from typing import Any
+from typing import Annotated, Any
 
 from browser_handler import BrowserHandler
 from groktocrawl_client import GroktocrawlClient
@@ -26,6 +26,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
+from pydantic import Field
 from session_store import SessionStore
 
 logger = logging.getLogger("grokto_crawl.mcp")
@@ -542,6 +543,9 @@ async def agent(
     include_images: bool = False,
     force_fresh: bool = False,
     search_type: str | None = None,
+    evidence_budget_chars: Annotated[
+        int | None, Field(ge=256, le=128_000, strict=True)
+    ] = None,
 ) -> str:
     """Run autonomous research: search → scrape → LLM synthesis with sources.
 
@@ -551,6 +555,7 @@ async def agent(
     cancel_agent to stop an in-progress job.
 
     Args:
+        evidence_budget_chars: Aggregate verbatim source budget (256..128000 characters); omitted uses server default.
         prompt: What the agent should research (max 100k chars).
         model: Optional per-request LLM model override (e.g. ``gpt-4o``).
             When omitted or ``default``, the server-configured model is used.
@@ -565,6 +570,9 @@ async def agent(
         search_type: Research depth — ``deep`` (multi-query, default) or
             ``focused`` (single-query, single-pass).
     """
+    evidence_options = {}
+    if evidence_budget_chars is not None:
+        evidence_options["evidence_budget_chars"] = evidence_budget_chars
     result = await _client.create_agent(
         prompt=prompt,
         model=model,
@@ -575,6 +583,7 @@ async def agent(
         include_images=include_images,
         force_fresh=force_fresh,
         search_type=search_type,
+        **evidence_options,
     )
     _ensure_success(result)
     return _resp(result)
@@ -611,6 +620,36 @@ async def cancel_agent(job_id: str) -> str:
     return _resp(result)
 
 
+@mcp.tool(annotations=_RO)
+async def select_session_evidence(
+    session_id: str,
+    ref_id: str,
+    query: Annotated[str, Field(max_length=10_000)] = "",
+    budget_chars: Annotated[int, Field(ge=256, le=128_000, strict=True)] = 32_000,
+    offset: Annotated[int, Field(ge=0, strict=True)] = 0,
+    expected_digest: Annotated[str | None, Field(pattern=r"^[0-9a-f]{64}$")] = None,
+) -> str:
+    """Inspect exact retained session evidence without fetching or synthesis.
+
+    Returns spans, content digest, bounded coverage and continuation. Select
+    by query or page by offset, never both. Coverage_complete remains false;
+    continuation binds later pages to expected_digest. Session ownership and
+    reference liveness are validated by the API. No action is executed.
+    """
+    if query and offset:
+        raise ToolError("Use either query selection or an offset page")
+    result = await _client.select_session_evidence(
+        session_id,
+        ref_id,
+        query=query,
+        budget_chars=budget_chars,
+        offset=offset,
+        expected_digest=expected_digest,
+    )
+    _ensure_success(result)
+    return _resp(result)
+
+
 # ── Tool 10: answer ────────────────────────────────────────────────
 
 
@@ -623,6 +662,9 @@ async def answer(
     citation_style: str | None = None,
     search_type: str | None = None,
     retrieval_mode: str | None = None,
+    evidence_budget_chars: Annotated[
+        int | None, Field(ge=256, le=128_000, strict=True)
+    ] = None,
 ) -> str:
     """Grounded Q&A: search → scrape → LLM answer with inline citations.
 
@@ -631,6 +673,7 @@ async def answer(
     answer with [N] citation markers and a list of source URLs.
 
     Args:
+        evidence_budget_chars: Aggregate verbatim source budget (256..128000 characters); omitted uses server default.
         query: Natural language question.
         num_sources: Number of sources to scrape and cite (1–20,
             default 5).
@@ -643,6 +686,9 @@ async def answer(
         retrieval_mode: Retrieval strategy — keyword (default),
             semantic, hybrid, vector, or hybrid_vector.
     """
+    evidence_options = {}
+    if evidence_budget_chars is not None:
+        evidence_options["evidence_budget_chars"] = evidence_budget_chars
     result = await _client.answer(
         question=query,
         num_sources=num_sources,
@@ -651,6 +697,7 @@ async def answer(
         citation_style=citation_style,
         search_type=search_type,
         retrieval_mode=retrieval_mode,
+        **evidence_options,
     )
     _ensure_success(result)
     return _resp(result)

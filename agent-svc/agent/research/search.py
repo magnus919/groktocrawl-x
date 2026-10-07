@@ -20,6 +20,7 @@ from .acquisition import (
     acquire_source_artifacts,
     stream_source_artifacts,
 )
+from .evidence import build_evidence_async
 from .prompts import DEEP_SEARCH_GAP_PROMPT, RICH_SEARCH_SYSTEM_PROMPT
 from .sources import SourceArtifact, normalize_source_url
 
@@ -149,6 +150,26 @@ async def run_deep_search(
         await llm.close()
 
 
+async def _rich_evidence_context(enriched: list[dict], query: str) -> dict[str, Any]:
+    """Select across full retained bodies, preserving the numbered source order."""
+    selected = await build_evidence_async(
+        [
+            {"id": item["url"], "url": item["url"], "markdown": item["content"]}
+            for item in enriched
+        ],
+        query,
+    )
+    notice = selected["context"].partition("\n\n")[0]
+    context_parts = [
+        f"[{index}] URL: {item['url']}\nTitle: {item['title']}\nContent: {context}"
+        for index, (item, context) in enumerate(
+            zip(enriched, selected["contexts"], strict=True), start=1
+        )
+    ]
+    selected["context"] = notice + "\n\n" + "\n\n---\n\n".join(context_parts)
+    return selected
+
+
 async def run_rich_search(
     search_results: list[dict],
     query: str,
@@ -213,7 +234,7 @@ async def run_rich_search(
                 {
                     "url": url,
                     "title": r.get("title", ""),
-                    "content": artifact.markdown[:3000]
+                    "content": artifact.markdown
                     if artifact and artifact.markdown
                     else r.get("description", ""),
                 }
@@ -222,19 +243,14 @@ async def run_rich_search(
         if not enriched:
             return None
 
-        # Build context for LLM
-        context_parts = []
-        for i, item in enumerate(enriched, start=1):
-            context_parts.append(
-                f"[{i}] URL: {item['url']}\nTitle: {item['title']}\nContent: {item['content']}"
-            )
-
-        context = "\n\n---\n\n".join(context_parts)
+        # The source bodies remain intact; only synthesis evidence is bounded.
+        selected = await _rich_evidence_context(enriched, query)
+        context = selected["context"]
 
         # Build prompt
         prompt_parts = [
             f"Search query: {query}",
-            f"\nSearch results with full content:\n\n{context}",
+            f"\nSearch results with selected evidence:\n\n{context}",
         ]
 
         if output_schema:
@@ -253,7 +269,7 @@ async def run_rich_search(
             stage="rich_search",
         )
 
-        result: dict[str, Any] = {}
+        result: dict[str, Any] = {"evidence_coverage": selected["coverage"]}
 
         if output_schema:
             # Try to parse structured JSON from the response
@@ -477,6 +493,9 @@ async def run_search_stream(
                             "type": "scrape_result",
                             "url": source_event.url,
                             "contents": {"markdown": source_event.markdown[:3000]},
+                            "source_chars": len(source_event.markdown),
+                            "preview_chars": min(3000, len(source_event.markdown)),
+                            "omitted_chars": max(0, len(source_event.markdown) - 3000),
                         }
 
             acquired_artifacts.extend(
@@ -493,7 +512,7 @@ async def run_search_stream(
                     continue
                 artifact = artifacts_by_url.get(normalize_source_url(url))
                 if artifact and artifact.markdown:
-                    md = artifact.markdown[:3000]
+                    md = artifact.markdown
                     content = md
                 else:
                     content = item.get("description", "")
@@ -506,20 +525,14 @@ async def run_search_stream(
                 )
 
             if enriched:
-                # Build context for LLM
-                context_parts = []
-                for i, item in enumerate(enriched, start=1):
-                    context_parts.append(
-                        f"[{i}] URL: {item['url']}\nTitle: {item['title']}\n"
-                        f"Content: {item['content']}"
-                    )
-                context = "\n\n---\n\n".join(context_parts)
+                selected = await _rich_evidence_context(enriched, query)
+                context = selected["context"]
 
                 if output_schema:
                     # Structured extraction: single LLM call
                     prompt_parts = [
                         f"Search query: {query}",
-                        f"\nSearch results with full content:\n\n{context}",
+                        f"\nSearch results with selected evidence:\n\n{context}",
                         f"\nExtract structured data matching this JSON Schema:\n"
                         f"```json\n{json.dumps(output_schema, indent=2)}\n```",
                     ]
@@ -541,6 +554,7 @@ async def run_search_stream(
                                 parsed_output = json.loads(block)
 
                     output = {
+                        "evidence_coverage": selected["coverage"],
                         "content": parsed_output,
                         "grounding": [
                             {"url": item["url"], "title": item["title"]}
@@ -551,7 +565,7 @@ async def run_search_stream(
                     # Enrichment mode: stream LLM tokens
                     prompt_parts = [
                         f"Search query: {query}",
-                        f"\nSearch results with full content:\n\n{context}",
+                        f"\nSearch results with selected evidence:\n\n{context}",
                     ]
                     prompt = "\n".join(prompt_parts)
                     effective_system = system_prompt or RICH_SEARCH_SYSTEM_PROMPT
@@ -573,6 +587,7 @@ async def run_search_stream(
                             full_result = event["full_content"]
 
                     output = {
+                        "evidence_coverage": selected["coverage"],
                         "content": full_result,
                         "grounding": [
                             {"url": item["url"], "title": item["title"]}
@@ -588,6 +603,7 @@ async def run_search_stream(
         }
         if output is not None:
             done_event["output"] = output
+            done_event["evidence_coverage"] = output["evidence_coverage"]
         # Ensure TTFB is sampled even when zero results were returned: the
         # terminal ``done`` event is the only event delivered in that case.
         # ``on_first_event`` is idempotent, so the loop-entry call for the

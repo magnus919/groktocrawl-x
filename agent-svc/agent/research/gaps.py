@@ -41,7 +41,7 @@ async def _detect_gaps(
             "by the gathered sources. Focus on what's missing or thin, not what's present. "
             "Return a JSON array of topic strings (max 5) that would make good follow-up search queries. "
             "Return [] if you're satisfied with coverage.\n\n"
-            f"Context:\n{combined_context[:12000]}"
+            f"Context:\n{combined_context}"
         )
         try:
             result = await llm.generate(

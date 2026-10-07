@@ -8,7 +8,7 @@ import os
 import socket
 import time
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlencode, urlparse
 
 import httpx
 
@@ -347,6 +347,26 @@ class GroktocrawlClient:
     async def _delete(self, path: str) -> dict:
         return await self._request("DELETE", path)
 
+    async def select_session_evidence(
+        self,
+        session_id: str,
+        ref_id: str,
+        query: str = "",
+        budget_chars: int = 32_000,
+        offset: int = 0,
+        expected_digest: str | None = None,
+    ) -> dict:
+        """Return exact spans, coverage and digest-bound continuation without acquisition."""
+        params: dict[str, Any] = {
+            "query": query,
+            "budget_chars": budget_chars,
+            "offset": offset,
+        }
+        if expected_digest is not None:
+            params["expected_digest"] = expected_digest
+        path = f"/v2/session/{quote(session_id, safe='')}/evidence/{quote(ref_id, safe='')}"
+        return await self._get(path + "?" + urlencode(params))
+
     # ── API methods ─────────────────────────────────────────────
 
     async def scrape(
@@ -400,9 +420,12 @@ class GroktocrawlClient:
         prompt: str,
         model: str | None = None,
         output_schema: dict | None = None,
+        evidence_budget_chars: int | None = None,
     ) -> dict:
         """Autonomous research agent — create job and poll until complete."""
         body: dict[str, Any] = {"prompt": prompt}
+        if evidence_budget_chars is not None:
+            body["evidence_budget_chars"] = evidence_budget_chars
         if model and model != "default":
             body["model"] = model
         if output_schema:
@@ -438,6 +461,7 @@ class GroktocrawlClient:
         include_images: bool = False,
         force_fresh: bool = False,
         search_type: str | None = None,
+        evidence_budget_chars: int | None = None,
     ) -> dict:
         """Create an agent research job without polling for completion.
 
@@ -446,6 +470,8 @@ class GroktocrawlClient:
         :meth:`cancel_agent` to stop an in-progress job.
         """
         body: dict[str, Any] = {"prompt": prompt}
+        if evidence_budget_chars is not None:
+            body["evidence_budget_chars"] = evidence_budget_chars
         if model and model != "default":
             body["model"] = model
         if urls:
@@ -473,9 +499,12 @@ class GroktocrawlClient:
         citation_style: str | None = None,
         search_type: str | None = None,
         retrieval_mode: str | None = None,
+        evidence_budget_chars: int | None = None,
     ) -> dict:
         """Grounded Q&A — synchronous."""
         body: dict[str, Any] = {"query": question, "num_sources": num_sources}
+        if evidence_budget_chars is not None:
+            body["evidence_budget_chars"] = evidence_budget_chars
         if model and model != "default":
             body["model"] = model
         if output_schema:
