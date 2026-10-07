@@ -273,3 +273,16 @@ async def test_cache_stream_replays_exact_coverage_and_budget_fingerprints_diffe
         next(event for event in events if event["type"] == "done")["evidence_coverage"]
         == coverage
     )
+
+
+def test_selected_construction_keeps_utf8_byte_ceiling():
+    with pytest.raises(EvidenceAdmissionLimitError) as error:
+        prepare_query_passages(
+            (RetainedSourceText("unicode-snapshot", "🐙" * 32000),), "octopus", 32000
+        )
+    assert error.value.limit == "construction_bytes"
+    passages, coverage = prepare_query_passages(
+        (RetainedSourceText("unicode-snapshot", "🐙" * 32000),), "octopus", 1800
+    )
+    assert sum(len(p.quote.encode("utf-8")) for p in passages) <= 120000
+    assert coverage["omitted_chars"] > 0

@@ -114,6 +114,11 @@ def prepare_query_passages(
         for source in selected["coverage"]["sources"]
         for span in source["spans"]
     )
+    if sum(len(p.quote.encode("utf-8")) for p in passages) > MAX_SOURCE_BYTES:
+        raise EvidenceAdmissionLimitError(
+            "selected source byte budget exceeded; lower the context budget",
+            "construction_bytes",
+        )
     if len(passages) > MAX_PASSAGES:
         raise EvidenceAdmissionLimitError(
             "selected sources exceed passage-count budget; narrow sources or lower the context budget",

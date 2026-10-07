@@ -90,7 +90,7 @@ jobs:
         run: >-
           cd mcp-svc &&
           uv run --with pytest --with pytest-asyncio --with pytest-cov
-          python -m pytest tests/test_mcp_server.py tests/test_client.py tests/test_session_store.py
+          python -m pytest tests/test_mcp_server.py tests/test_client.py tests/test_session_store.py tests/test_evidence.py
           -q -p no:cacheprovider -o "addopts=" -o "testpaths=tests"
 
       - name: Check changed-line coverage
