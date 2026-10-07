@@ -9,7 +9,8 @@ Use `groktocrawl research workspace --json` to list permitted roots and
 audited manifest, citation references, coverage, state, retention information and
 named actions. Listing accepts bounded `--limit` (1–100), `--offset` and
 `--run-offset`; follow `next_offset` and `next_run_offset` independently when
-PostgreSQL artifact roots and temporary execution records coexist. The MCP equivalents are `research_workspace` and `research_resume`.
+PostgreSQL artifact roots and temporary execution records coexist. The MCP equivalents
+are `research_workspace` and `research_resume`.
 
 Explicitly resume with `groktocrawl research resume RUN_ID render
 --expected-revision DIGEST --layer summary --json`. Operations are render, export,
@@ -35,7 +36,7 @@ Document context lists and reads actual owned session document refs through name
 existing document/session APIs. Experimental root attachment records only an
 attachment; it does not copy root sources into session query evidence.
 
-follow-up previews use `/v2/followup/preview` with selected identities and do not
+Follow-up previews use `/v2/followup/preview` with selected identities and do not
 execute research. Each follow-up remains an independent root. Pending, failed and
 cancelled runs expose their true state; partial/insufficient completed coverage is
 reported as supplied by the audited manifest, never called exhaustive.
