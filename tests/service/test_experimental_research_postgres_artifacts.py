@@ -496,3 +496,82 @@ async def test_pending_postgres_root_delete_fences_late_fixture_result(
         assert (
             await client.get("/experimental/research/v1/workspace/" + record.run_id)
         ).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_failed_root_without_committed_authority_expires(
+    authority_app, monkeypatch
+):
+    app, authority, _ = authority_app
+
+    class FailedJourney:
+        def __init__(self, **_):
+            pass
+
+        async def run(self):
+            raise RuntimeError("Synthetic fixture failure before publication")
+
+    monkeypatch.setattr(experimental, "example_journey", FailedJourney)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "failed-expired-root"},
+                json={"objective": "No artifact commit"},
+            )
+        ).json()
+        status = await _wait(client, admitted["status_url"])
+        assert status["state"] == "failed"
+        record = experimental._RUNS[admitted["run_id"]]
+        assert authority.commits == 0
+        record.durable_ledger.redis.delete(
+            record.durable_ledger._run_key(record.run_id)
+        )
+        response = await client.get(
+            "/experimental/research/v1/workspace/" + record.run_id
+        )
+        assert response.status_code == 410
+        assert (await client.get("/experimental/research/v1/workspace")).json()[
+            "items"
+        ] == []
+
+
+@pytest.mark.asyncio
+async def test_postgres_catalog_paging_and_foreign_scope(authority_app):
+    app, _, _ = authority_app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted_ids = set()
+        for i in range(3):
+            admitted = (
+                await client.post(
+                    "/experimental/research/v1/runs",
+                    headers={"Idempotency-Key": f"catalog-page-{i}"},
+                    json={"objective": f"Catalog page fixture {i}"},
+                )
+            ).json()
+            await _wait(client, admitted["status_url"])
+            admitted_ids.add(admitted["run_id"])
+        observed = set()
+        offset = 0
+        while True:
+            page = (
+                await client.get(
+                    "/experimental/research/v1/workspace",
+                    params={"limit": 1, "offset": offset},
+                )
+            ).json()
+            assert len(page["items"]) == 1
+            observed.add(page["items"][0]["run_id"])
+            if page["next_offset"] is None:
+                break
+            offset = page["next_offset"]
+        assert observed == admitted_ids
+        foreign = await client.get(
+            "/experimental/research/v1/workspace",
+            headers={"Authorization": "Bearer foreign-fixture"},
+        )
+        assert foreign.json()["items"] == []

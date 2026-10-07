@@ -372,7 +372,11 @@ def _check_retained_ledger(record: _RunRecord) -> None:
     if record.durable_ledger is not None:
         current = record.durable_ledger.get(record.run_id)
         if current is None:
-            if record.artifact_authority is not None:
+            if (
+                record.artifact_authority is not None
+                and record.state == "completed"
+                and record.authority_set_digest is not None
+            ):
                 record.durable_ledger = (
                     None  # completed PostgreSQL roots outlive the execution ledger
                 )

@@ -131,7 +131,7 @@ class ArtifactAuthorityTests(unittest.IsolatedAsyncioTestCase):
             self.manifest,
             self.artifacts,
             evidence=evidence,
-            knowledge=b'{"context":{}}',
+            knowledge=b'{"context":{"objective":"Retained synthetic policy"}}',
         )
         assert (
             await self.store.read_evidence(self.scope, self.research, "source-1")
@@ -139,8 +139,16 @@ class ArtifactAuthorityTests(unittest.IsolatedAsyncioTestCase):
         )
         assert (
             await self.store.read_knowledge(self.scope, self.research)
-            == b'{"context":{}}'
+            == b'{"context":{"objective":"Retained synthetic policy"}}'
         )
+        catalog = await self.store.list_retained(self.scope, limit=1, offset=0)
+        self.assertEqual(len(catalog), 1)
+        self.assertEqual(catalog[0]["objective"], "Retained synthetic policy")
+        self.assertEqual(catalog[0]["run_id"], self.run)
+        self.assertEqual(await self.store.list_retained(self.scope, offset=1), [])
+        self.assertEqual(await self.store.list_retained(uuid4()), [])
+        restored = await self.store.lookup(self.scope, run=self.run)
+        self.assertEqual(restored.research_id, self.research)
         with self.assertRaises(StorageConflictError):
             await self.store.read_evidence(uuid4(), self.research, "source-1")
         with self.assertRaises(StorageConflictError):
@@ -154,6 +162,20 @@ class ArtifactAuthorityTests(unittest.IsolatedAsyncioTestCase):
                 evidence={"source-1": (b"tampered", "text/plain")},
             )
         await self.store.delete(self.scope, self.research)
+        self.assertEqual(await self.store.list_retained(self.scope), [])
+        with self.assertRaises(StorageConflictError) as deleted:
+            await self.store.lookup(self.scope, run=self.run)
+        self.assertEqual(deleted.exception.status_code, 410)
+        async with self.store._transaction() as conn:
+            cleared = await (
+                await conn.execute(
+                    "SELECT knowledge,knowledge_digest,objective FROM research_staging.research_artifact_sets WHERE scope_id=%s AND research_id=%s",
+                    (self.scope, self.research),
+                )
+            ).fetchone()
+        self.assertEqual(
+            cleared, {"knowledge": None, "knowledge_digest": None, "objective": None}
+        )
         with self.assertRaises(StorageConflictError):
             await self.store.read_evidence(self.scope, self.research, "source-1")
 
