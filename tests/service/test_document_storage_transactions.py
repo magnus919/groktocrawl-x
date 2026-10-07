@@ -157,7 +157,11 @@ async def test_actual_upload_reservation_transfer_and_document_admission(
     from fastapi.responses import JSONResponse
 
     store, _redis, sessions, uploads = storage
-    session_id = await store.acreate(owner_scope="anonymous")
+    session_id = await store.acreate(
+        owner_scope=request_scope(
+            SimpleNamespace(headers={"Authorization": "Bearer owner-fixture"})
+        )
+    )
     sessions.append(session_id)
     url = (
         os.environ.get("DOCUMENT_TEST_REDIS_URL")
@@ -186,9 +190,13 @@ async def test_actual_upload_reservation_transfer_and_document_admission(
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://fixture"
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://fixture",
+        headers={"X-API-Key": "owner-fixture"},
     ) as client:
-        response = await client.post("/v2/parse/upload-url")
+        response = await client.post(
+            "/v2/parse/upload-url", headers={"Authorization": "Bearer owner-fixture"}
+        )
         assert response.status_code == 200
         upload_id = response.json()["upload_id"]
         uploads.append(upload_id)
@@ -214,17 +222,35 @@ async def test_actual_upload_reservation_transfer_and_document_admission(
         assert admitted.json()["filename"] == "staged-report.txt"
         assert admitted.json()["file_digest"]
         assert (
+            await client.get(
+                f"/v2/session/{session_id}/documents/{admitted.json()['ref_id']}",
+                headers={"Authorization": "Bearer owner-fixture"},
+            )
+        ).status_code == 200
+        assert (
             await client.post(
                 f"/v2/session/{session_id}/documents", data={"upload_id": upload_id}
             )
         ).status_code == 404
-        next_upload = (await client.post("/v2/parse/upload-url")).json()["upload_id"]
+        next_upload = (
+            await client.post(
+                "/v2/parse/upload-url",
+                headers={"Authorization": "Bearer owner-fixture"},
+            )
+        ).json()["upload_id"]
         uploads.append(next_upload)
         monkeypatch.setattr(parse, "PARSE_MAX_UPLOAD_BYTES", 2)
         assert (
             await client.put(f"/v2/parse/upload/{next_upload}", content=b"123")
         ).status_code == 400
-        assert _consume_upload(_redis, next_upload, "anonymous") is None
+        assert (
+            _consume_upload(
+                _redis,
+                next_upload,
+                request_scope(SimpleNamespace(headers={"X-API-Key": "owner-fixture"})),
+            )
+            is None
+        )
 
 
 @pytest.mark.asyncio
