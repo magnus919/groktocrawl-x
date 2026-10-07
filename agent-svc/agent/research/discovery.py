@@ -9,6 +9,7 @@ from typing import Any, cast
 from ..barrier_guard import is_barrier_flagged, log_refusal
 from ..metrics import METRICS
 from ..scraper_client import ScraperClient
+from ..search_metadata import search_metadata
 from ..searxng_client import SearXNGClient
 from .scoring import _is_video_platform_url
 from .sources import (
@@ -268,6 +269,11 @@ def _discovery_result(
     all_artifacts = (
         source_registry.artifacts() if source_registry is not None else artifacts
     )
+    by_url = {normalize_source_url(row.get("url", "")): row for row in search_results}
+    for artifact in all_artifacts:
+        row = by_url.get(normalize_source_url(artifact.url))
+        if row is not None:
+            artifact.discovery_metadata.update(search_metadata(row))
     documents, source_details = artifacts_to_documents_and_details(all_artifacts)
     context = "\n\n---\n\n".join(documents) if documents else ""
     novel_artifacts = [
@@ -786,7 +792,7 @@ def _build_answer_context(
 
     # source_map is ordered to match context_parts so that the ``[N]`` markers
     # the LLM sees map 1:1 onto source_map[N-1].
-    source_map: list[dict[str, str]] = []
+    source_map: list[dict] = []
     for artifact in artifacts:
         title = next(
             (
@@ -804,7 +810,17 @@ def _build_answer_context(
             ),
             "",
         )
-        source_map.append({"url": artifact.url, "title": title, "relevance": relevance})
+        metadata = next(
+            (
+                search_metadata(r)
+                for r in search_results
+                if r.get("url") == artifact.url
+            ),
+            {},
+        )
+        source_map.append(
+            {"url": artifact.url, "title": title, "relevance": relevance, **metadata}
+        )
 
     return {
         "context_parts": context_parts,

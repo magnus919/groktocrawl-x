@@ -10,11 +10,13 @@ artifact is never persisted into the replayable event state.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from common.url import extract_domain
+
+from ..search_metadata import search_metadata
 
 # Legacy default for keyless callers; Jev-enabled research explicitly sends
 # the complete retained page so the assessed contribution reaches synthesis.
@@ -46,6 +48,7 @@ class SourceArtifact:
     fetch_options: dict[str, Any] | None = None
     contents_options: dict[str, Any] | None = None
     extras: dict[str, Any] | None = None
+    discovery_metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_document(self, max_chars: int | None = DOCUMENT_MAX_CHARS) -> str:
         """Render the source into a ``Source: url (domain: ...)`` context block."""
@@ -66,6 +69,7 @@ class SourceArtifact:
             "url": self.url,
             "source": self.source,
             "char_count": self.char_count,
+            **search_metadata(self.discovery_metadata),
         }
         if self.material_contribution_score is not None:
             detail["material_contribution_score"] = self.material_contribution_score
@@ -165,6 +169,8 @@ class SourceRegistry:
         previous = self._entries.get(key)
         if previous is not None:
             old = previous.artifact
+            if not artifact.discovery_metadata:
+                artifact.discovery_metadata = dict(old.discovery_metadata)
             if not artifact.title:
                 artifact.title = old.title
             if not artifact.relevance:

@@ -15,7 +15,7 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 
-from .search_metadata import METADATA_FIELDS
+from .search_metadata import METADATA_FIELDS, media_metadata
 
 # ── Valid scrape format values ──────────────────────────────────
 VALID_SCRAPE_FORMATS: frozenset[str] = frozenset(
@@ -928,6 +928,12 @@ class SearchResult(BaseModel):
     isbn: list[str] | None = None
     tags: list[str] | None = None
     volume: str | int | None = None
+    media: dict[str, Any] | None = None
+
+    @field_validator("media", mode="before")
+    @classmethod
+    def validate_media(cls, value: Any) -> dict[str, Any] | None:
+        return media_metadata({"media": value}) or None
 
     @model_serializer(mode="wrap")
     def serialize_source_metadata(
@@ -959,6 +965,24 @@ class ImageSearchResult(BaseModel):
     image_height: int | None = None
     url: str = ""
     position: int = 0
+    engine: str | None = None
+    engines: list[str] | None = None
+    media: dict[str, Any] | None = None
+
+    @field_validator("media", mode="before")
+    @classmethod
+    def validate_media(cls, value: Any) -> dict[str, Any] | None:
+        return media_metadata({"media": value}) or None
+
+    @model_serializer(mode="wrap")
+    def serialize_source_metadata(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in handler(self).items()
+            if key not in METADATA_FIELDS or value is not None
+        }
 
 
 class SearchResponse(BaseModel):
@@ -1203,6 +1227,24 @@ class Source(BaseModel):
     url: str
     title: str = ""
     relevance: str = ""
+    engine: str | None = None
+    engines: list[str] | None = None
+    media: dict[str, Any] | None = None
+
+    @field_validator("media", mode="before")
+    @classmethod
+    def validate_media(cls, value: Any) -> dict[str, Any] | None:
+        return media_metadata({"media": value}) or None
+
+    @model_serializer(mode="wrap")
+    def serialize_source_metadata(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in handler(self).items()
+            if key not in METADATA_FIELDS or value is not None
+        }
 
 
 class Citation(BaseModel):
@@ -1473,7 +1515,7 @@ class SessionExportResponse(BaseModel):
     session_id: str = ""
     artifact: str = ""
     steps: list[dict[str, Any]] = Field(default_factory=list)
-    refs: dict[str, dict[str, str]] = Field(default_factory=dict)
+    refs: dict[str, dict[str, Any]] = Field(default_factory=dict)
     artifact_length: int = 0
 
 

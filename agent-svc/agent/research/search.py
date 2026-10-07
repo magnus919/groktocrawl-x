@@ -392,6 +392,7 @@ async def run_search_stream(
                     "url": r.get("url", ""),
                     "title": r.get("title", ""),
                     "description": r.get("description", ""),
+                    **search_metadata(r),
                 },
             }
 

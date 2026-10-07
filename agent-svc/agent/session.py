@@ -17,6 +17,7 @@ from typing import Any
 from .barrier_guard import is_barrier_flagged, log_refusal
 from .llm import LLMClient
 from .scraper_client import ScraperClient
+from .search_metadata import search_metadata
 from .searxng_client import SearXNGClient
 from .session_store import SessionStore
 
@@ -456,13 +457,14 @@ class SessionManager:
             )
 
         # Build a compact refs view (URLs + titles only, no full content)
-        compact_refs: dict[str, dict[str, str]] = {}
+        compact_refs: dict[str, dict[str, Any]] = {}
         for ref_id, ref_data in refs.items():
             char_count = ref_data.get("char_count", 0)
             compact_refs[ref_id] = {
                 "url": ref_data.get("url", ""),
                 "title": ref_data.get("title", ""),
                 "char_count": str(char_count),
+                **search_metadata(ref_data),
             }
 
         return {
@@ -519,7 +521,7 @@ class SessionManager:
             step_data["index"] = step_index
 
         # Store search results as references
-        top_urls: list[dict[str, str]] = []
+        top_urls: list[dict[str, Any]] = []
         refs_to_add: dict[str, dict] = {}
         ref_count = 0
         for i, r in enumerate(results):
@@ -533,10 +535,18 @@ class SessionManager:
                 "markdown": r.get("description", ""),
                 "scraped_at": "",
                 "source": "search",
+                **search_metadata(r),
                 "relevance": r.get("description", ""),
                 "char_count": len(r.get("description", "")),
             }
-            top_urls.append({"ref_id": ref_id, "url": url, "title": r.get("title", "")})
+            top_urls.append(
+                {
+                    "ref_id": ref_id,
+                    "url": url,
+                    "title": r.get("title", ""),
+                    **search_metadata(r),
+                }
+            )
             refs_to_add[ref_id] = ref_data
             ref_count += 1
 

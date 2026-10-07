@@ -19,6 +19,7 @@ from ..exceptions import (
 from ..llm import LLMClient
 from ..models import CitationStyle
 from ..scraper_client import ScraperClient
+from ..search_metadata import search_metadata
 from ..searxng_client import SearXNGClient
 from ..settings import load_settings
 from .citations import _apply_citation_style, _build_answer_user_prompt
@@ -75,6 +76,7 @@ async def _discover_with_progress(factory, initial_pending=None):
                         "url": result["url"],
                         "title": result.get("title", ""),
                         "relevance": result.get("description", ""),
+                        **search_metadata(result),
                     }
                     for result in results
                     if result.get("url")
@@ -808,6 +810,7 @@ async def run_answer_stream(
                 "url": r["url"],
                 "title": r.get("title", ""),
                 "relevance": r.get("description", ""),
+                **search_metadata(r),
             }
             for r in search_results
             if r.get("url")
