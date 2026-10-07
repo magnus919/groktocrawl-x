@@ -564,7 +564,11 @@ async def run_research(
                     "result": result,
                     "sources": event["sources"],
                     "source_details": event["source_details"],
-                    "evidence_coverage": event.get("evidence_coverage", {}),
+                    **(
+                        {"evidence_coverage": event["evidence_coverage"]}
+                        if "evidence_coverage" in event
+                        else {}
+                    ),
                 }
     raise RuntimeError("Research event engine ended without a terminal done event")
 

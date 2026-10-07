@@ -315,3 +315,47 @@ def test_scope_normalizes_accepted_auth_header_aliases(monkeypatch, enabled):
             scope({"Authorization": "Bearer wrong", "X-API-Key": "owner"}) == expected
         )
     assert "owner" not in expected
+
+
+@pytest.mark.asyncio
+async def test_legacy_delete_idempotency_is_indistinguishable_for_foreign_ids(
+    monkeypatch,
+):
+    import agent.session as module
+    from agent.routes.session import delete_session
+
+    store = MagicMock(aget=AsyncMock(return_value=None))
+    manager = MagicMock(store=store, delete_session=AsyncMock(return_value=True))
+    monkeypatch.setattr(module, "SessionManager", lambda **_kwargs: manager)
+    request = Request({"type": "http", "headers": [], "app": MagicMock()})
+    absent = await delete_session(request, "id")
+    store.aget.return_value = {"id": "id", "owner_scope": "foreign"}
+    foreign = await delete_session(request, "id")
+    assert absent.model_dump() == foreign.model_dump()
+    assert absent.deleted is False
+    manager.delete_session.assert_not_awaited()
+    store.aget.return_value = {"id": "id", "owner_scope": "anonymous"}
+    assert (await delete_session(request, "id")).deleted is True
+    manager.delete_session.assert_awaited_once_with("id")
+    store.aget.return_value = None
+    assert (await delete_session(request, "id")).deleted is False
+
+
+@pytest.mark.asyncio
+async def test_polling_preserves_coverage_when_canonical_producer_emits_it(monkeypatch):
+    from agent.research import loop
+
+    coverage = build_evidence([source("exact quote")], "quote", 256)["coverage"]
+
+    async def events(*_args, **_kwargs):
+        yield {
+            "type": "done",
+            "result": "answer",
+            "sources": [],
+            "source_details": [],
+            "evidence_coverage": coverage,
+        }
+
+    monkeypatch.setattr(loop, "_run_research_events", events)
+    result = await loop.run_research("query", llm_model="fixture")
+    assert result["evidence_coverage"] == coverage

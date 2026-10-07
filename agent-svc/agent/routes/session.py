@@ -227,7 +227,12 @@ async def delete_session(request: Request, session_id: str) -> Any:
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
-    await authorize_session(mgr.store, session_id, request)
+    try:
+        await authorize_session(mgr.store, session_id, request)
+    except NotFoundError:
+        # Preserve idempotent deletion without disclosing a foreign session's
+        # existence: absent, expired and unauthorized IDs have one response.
+        return SessionDeleteResponse(session_id=session_id, deleted=False)
     deleted = await mgr.delete_session(session_id)
     return SessionDeleteResponse(session_id=session_id, deleted=deleted)
 
