@@ -61,6 +61,10 @@ GET /v2/session/{session_id}/evidence/{ref_id}
 POST /v2/session/{session_id}/export
 POST /v2/session/{session_id}/resolve
 POST /v2/session/{session_id}/step
+POST /v2/session/{session_id}/documents
+GET /v2/session/{session_id}/documents
+GET /v2/session/{session_id}/documents/{ref_id}
+DELETE /v2/session/{session_id}/documents/{ref_id}
 DELETE /v2/session/{session_id}
 GET /experimental/research/v1/capabilities
 POST /experimental/research/v1/runs
@@ -83,6 +87,7 @@ POST /experimental/research/v1/sessions/{session_id}/attachments
 - batch-scrape
 - browser
 - crawl
+- document
 - download
 - enrich
 - evidence

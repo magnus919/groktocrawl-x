@@ -7,6 +7,7 @@ running agent-svc is required.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 from typing import Any
 
@@ -1507,3 +1508,91 @@ def test_search_preserves_bounded_media_payload():
     )
     result = asyncio.run(client.search("fixture"))
     assert result["data"]["web"][0] == row
+@pytest.mark.asyncio
+async def test_document_client_bytes_and_scoped_metadata_workflow():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(
+            200, json={"ref_id": "doc_fixture", "markdown": "Private source"}
+        )
+
+    client = GroktocrawlClient(base_url="http://fixture", api_key="fixture-key")
+    client._client = httpx.AsyncClient(
+        base_url="http://fixture",
+        headers=client._headers(),
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        await client.document_attach(
+            "session",
+            "report.pdf",
+            base64.b64encode(b"private file bytes").decode(),
+            media_type="application/pdf",
+        )
+        assert calls[-1].headers["Authorization"] == "Bearer fixture-key"
+        assert b'filename="report.pdf"' in calls[-1].content
+        assert b"private file bytes" in calls[-1].content
+        await client.document_list("session")
+        assert calls[-1].method == "GET"
+        await client.document_read("session", "doc_fixture", 4, 16)
+        assert calls[-1].url.params == httpx.QueryParams({"start": 4, "end": 16})
+        await client.session_query(
+            "session",
+            "Compare documents and web",
+            ["doc_fixture", "ref_1_2"],
+            evidence_budget_chars=32000,
+            model="fixture",
+        )
+        assert json.loads(calls[-1].content)["params"] == {
+            "question": "Compare documents and web",
+            "ref_ids": ["doc_fixture", "ref_1_2"],
+            "evidence_budget_chars": 32000,
+            "model": "fixture",
+        }
+        await client.document_detach("session", "doc_fixture")
+        assert calls[-1].method == "DELETE"
+        await client.session_delete("session")
+        assert calls[-1].url.path == "/v2/session/session"
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_invalid_document_bytes_do_not_send_network_requests():
+    client = GroktocrawlClient(base_url="http://fixture")
+    calls = []
+    client._client = httpx.AsyncClient(
+        base_url="http://fixture",
+        transport=httpx.MockTransport(lambda request: calls.append(request)),
+    )
+    try:
+        with pytest.raises(ValueError):
+            await client.document_attach("session", "report.txt", "%%%")
+        with pytest.raises(ValueError, match="exactly one"):
+            await client.document_attach("session", "report.txt", "dGV4dA==", "upload")
+        assert calls == []
+    finally:
+        await client.close()
+
+
+@pytest.mark.asyncio
+async def test_staged_attachment_does_not_read_remote_url_or_local_path():
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json={"ref_id": "doc_fixture"})
+
+    client = GroktocrawlClient(base_url="http://fixture")
+    client._client = httpx.AsyncClient(
+        base_url="http://fixture", transport=httpx.MockTransport(handler)
+    )
+    try:
+        await client.document_attach("session", "unused", upload_id="scoped-upload")
+        assert calls[0].url.host == "fixture"
+        assert calls[0].content == b"upload_id=scoped-upload"
+        assert len(calls) == 1
+    finally:
+        await client.close()

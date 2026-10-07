@@ -1,5 +1,6 @@
 """Parse route handlers — file upload and content extraction."""
 
+import asyncio
 import logging
 import uuid
 from typing import Any
@@ -9,6 +10,8 @@ from fastapi import APIRouter, Request
 
 from ..exceptions import InvalidRequestError, NotFoundError, UpstreamError
 from ..models import ParseResponse, ParseUploadUrlResponse
+from ..session_scope import request_scope
+from ._helpers import _get_redis_url
 
 logger = logging.getLogger(__name__)
 
@@ -16,23 +19,64 @@ router = APIRouter()
 
 PARSE_SVC_URL = "http://parse-svc:8013"
 PARSE_UPLOAD_TTL = 3 * 60 * 60  # 3 hours, matches parse-svc/config.py
+PARSE_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 # Lua script: atomically get and delete the upload data.
 # Prevents race conditions where two concurrent parse requests
 # with the same upload_id both retrieve and process the file.
 _ATOMIC_GETDEL_SCRIPT = """
+if #KEYS > 4 then
+    local owner = redis.call('GET', KEYS[5]) or 'anonymous'
+    if owner ~= ARGV[1] then return nil end
+end
 local data = redis.call('GET', KEYS[1])
 if data then
     local content_type = redis.call('GET', KEYS[2])
     local filename = redis.call('GET', KEYS[3])
-    redis.call('DEL', KEYS[1], KEYS[2], KEYS[3], KEYS[4])
+    redis.call('DEL', unpack(KEYS))
     return {data, content_type or false, filename or false}
 end
 return nil
 """
 
 
-def _consume_upload(r: Any, upload_id: str) -> tuple[bytes, str, str] | None:
+def _stage_upload(
+    r: Any, upload_id: str, scope: str, body: bytes, content_type: str, filename: str
+) -> bool:
+    """Owner and reservation liveness are checked in the same write transaction."""
+    script = """
+    if not redis.call('GET', KEYS[1]) then return 0 end
+    local owner = redis.call('GET', KEYS[5]) or 'anonymous'
+    if owner ~= ARGV[1] then return 0 end
+    redis.call('SET', KEYS[2], ARGV[2], 'EX', ARGV[5])
+    redis.call('SET', KEYS[3], ARGV[3], 'EX', ARGV[5])
+    redis.call('SET', KEYS[4], ARGV[4], 'EX', ARGV[5])
+    redis.call('SET', KEYS[5], owner, 'EX', ARGV[5])
+    redis.call('SET', KEYS[1], 'uploaded', 'EX', ARGV[5])
+    return 1
+    """
+    prefix = f"parse:upload:{upload_id}"
+    return bool(
+        r.eval(
+            script,
+            5,
+            prefix,
+            prefix + ":data",
+            prefix + ":content_type",
+            prefix + ":filename",
+            prefix + ":owner",
+            scope,
+            body,
+            content_type,
+            filename,
+            PARSE_UPLOAD_TTL,
+        )
+    )
+
+
+def _consume_upload(
+    r: Any, upload_id: str, scope_id: str | None = None
+) -> tuple[bytes, str, str] | None:
     """Atomically consume staged bytes and the metadata needed to parse them."""
     keys = [
         f"parse:upload:{upload_id}:data",
@@ -40,7 +84,11 @@ def _consume_upload(r: Any, upload_id: str) -> tuple[bytes, str, str] | None:
         f"parse:upload:{upload_id}:filename",
         f"parse:upload:{upload_id}",
     ]
-    consumed = r.register_script(_ATOMIC_GETDEL_SCRIPT)(keys=keys)
+    if scope_id is not None:
+        keys.append(f"parse:upload:{upload_id}:owner")
+        consumed = r.register_script(_ATOMIC_GETDEL_SCRIPT)(keys=keys, args=[scope_id])
+    else:
+        consumed = r.register_script(_ATOMIC_GETDEL_SCRIPT)(keys=keys)
     if not consumed:
         return None
 
@@ -51,9 +99,7 @@ def _consume_upload(r: Any, upload_id: str) -> tuple[bytes, str, str] | None:
         else "application/octet-stream"
     )
     filename = (
-        filename_raw.decode()
-        if isinstance(filename_raw, bytes)
-        else "uploaded_file"
+        filename_raw.decode() if isinstance(filename_raw, bytes) else "uploaded_file"
     )
     return content, content_type, filename
 
@@ -81,8 +127,16 @@ async def request_parse_upload_url(request: Request) -> ParseUploadUrlResponse:
     from redis import Redis
 
     upload_id = str(uuid.uuid4())
-    r = Redis.from_url("redis://valkey:6379/0", decode_responses=False)
-    r.set(f"parse:upload:{upload_id}", b"pending", ex=PARSE_UPLOAD_TTL)
+    r = Redis.from_url(_get_redis_url(request), decode_responses=False)
+    await asyncio.to_thread(
+        r.set, f"parse:upload:{upload_id}", b"pending", ex=PARSE_UPLOAD_TTL
+    )
+    await asyncio.to_thread(
+        r.set,
+        f"parse:upload:{upload_id}:owner",
+        request_scope(request).encode(),
+        ex=PARSE_UPLOAD_TTL,
+    )
     return ParseUploadUrlResponse(
         upload_id=upload_id,
         upload_url=f"{request.url.scheme}://{request.url.netloc}/v2/parse/upload/{upload_id}",
@@ -99,29 +153,40 @@ async def upload_parse_file(upload_id: str, request: Request) -> dict[str, Any]:
     """
     from redis import Redis
 
-    r = Redis.from_url("redis://valkey:6379/0", decode_responses=False)
-    meta = r.get(f"parse:upload:{upload_id}")
-    if meta is None:
+    r = Redis.from_url(_get_redis_url(request), decode_responses=False)
+    meta = await asyncio.to_thread(r.get, f"parse:upload:{upload_id}")
+    owner = await asyncio.to_thread(r.get, f"parse:upload:{upload_id}:owner")
+    owner_text = owner.decode() if isinstance(owner, bytes) else owner or "anonymous"
+    if meta is None or owner_text != request_scope(request):
         raise NotFoundError(
             detail="Upload ID not found or expired",
             details={"upload_id": upload_id},
         )
 
-    raw_body = await request.body()
+    parts = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > PARSE_MAX_UPLOAD_BYTES:
+            raise InvalidRequestError(detail="Upload exceeds 50 MiB limit")
+        parts.append(chunk)
+    raw_body = b"".join(parts)
     if not raw_body:
         raise InvalidRequestError(detail="Empty body — no file data received")
 
     content_type = request.headers.get("Content-Type", "application/octet-stream")
     filename = request.headers.get("X-Filename", "uploaded_file")
 
-    pipe = r.pipeline()
-    pipe.set(f"parse:upload:{upload_id}:data", raw_body, ex=PARSE_UPLOAD_TTL)
-    pipe.set(
-        f"parse:upload:{upload_id}:content_type", content_type, ex=PARSE_UPLOAD_TTL
-    )
-    pipe.set(f"parse:upload:{upload_id}:filename", filename, ex=PARSE_UPLOAD_TTL)
-    pipe.set(f"parse:upload:{upload_id}", b"uploaded", ex=PARSE_UPLOAD_TTL)
-    pipe.execute()
+    if not await asyncio.to_thread(
+        _stage_upload,
+        r,
+        upload_id,
+        request_scope(request),
+        raw_body,
+        content_type,
+        filename,
+    ):
+        raise NotFoundError(detail="Upload reservation expired or outside scope")
 
     return {"status": "uploaded", "upload_id": upload_id}
 
@@ -150,8 +215,10 @@ async def parse_file(request: Request) -> Any:
     if upload_id_str:
         from redis import Redis
 
-        r = Redis.from_url("redis://valkey:6379/0", decode_responses=False)
-        consumed = _consume_upload(r, upload_id_str)
+        r = Redis.from_url(_get_redis_url(request), decode_responses=False)
+        consumed = await asyncio.to_thread(
+            _consume_upload, r, upload_id_str, request_scope(request)
+        )
         if consumed is None:
             raise InvalidRequestError(
                 detail="Upload data not found or expired",

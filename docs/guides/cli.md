@@ -49,3 +49,9 @@ The checked [CLI inventory](../reference/public-surface.md#cli-commands) tracks 
 ```
 
 Commands that start asynchronous work print a job identifier unless polling is enabled. The API guide explains the matching status, cancellation, webhook, and streaming behavior.
+
+## Private documents
+
+Use `groktocrawl document create-session|attach|list|show|query|detach` for scoped
+parsed-file evidence. See [Private Document Evidence](private-documents.md) for
+byte/span bounds, selected document/web refs, ownership and session lifetimes.

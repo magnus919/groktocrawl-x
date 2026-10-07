@@ -1115,6 +1115,97 @@ class GroktocrawlClient:
             {"run_id": run_id, "expected_revision": expected_revision},
         )
 
+    async def session_create(self, ttl: int = 3600) -> dict:
+        return await self._post("/v2/session/create", {"ttl": ttl})
+
+    async def session_query(
+        self,
+        session_id: str,
+        question: str,
+        ref_ids: list[str] | None = None,
+        evidence_budget_chars: int | None = None,
+        model: str | None = None,
+    ) -> dict:
+        params: dict[str, Any] = {"question": question}
+        if evidence_budget_chars is not None:
+            params["evidence_budget_chars"] = evidence_budget_chars
+        if model is not None:
+            params["model"] = model
+        if ref_ids is not None:
+            params["ref_ids"] = ref_ids
+        return await self._post(
+            f"/v2/session/{quote(session_id, safe='')}/step",
+            {"action": "query", "params": params},
+        )
+
+    async def session_export(self, session_id: str) -> dict:
+        return await self._post(f"/v2/session/{quote(session_id, safe='')}/export")
+
+    async def session_delete(self, session_id: str) -> dict:
+        return await self._delete(f"/v2/session/{quote(session_id, safe='')}")
+
+    async def document_attach(
+        self,
+        session_id: str,
+        filename: str,
+        content_base64: str | None = None,
+        upload_id: str | None = None,
+        media_type: str = "application/octet-stream",
+    ) -> dict:
+        """Accept explicit bytes or a staged ID, never a path or acquisition URL."""
+        if (content_base64 is None) == (upload_id is None):
+            raise ValueError("Provide exactly one content_base64 or upload_id")
+        client = await self._client_ctx()
+        if upload_id is not None:
+            response = await client.post(
+                f"/v2/session/{quote(session_id, safe='')}/documents",
+                data={"upload_id": upload_id},
+            )
+        else:
+            if content_base64 is None or len(content_base64) > 4 * (
+                (10 * 1024 * 1024 + 2) // 3
+            ):
+                raise ValueError("Document exceeds 10 MiB admission limit")
+            content = base64.b64decode(content_base64, validate=True)
+            if len(content) > 10 * 1024 * 1024:
+                raise ValueError("Document exceeds 10 MiB admission limit")
+            response = await client.post(
+                f"/v2/session/{quote(session_id, safe='')}/documents",
+                files={"file": (filename, content, media_type)},
+                timeout=120,
+            )
+        if response.status_code >= 400:
+            return self._error_result(
+                f"Document admission failed ({response.status_code})",
+                status_code=response.status_code,
+            )
+        return response.json()
+
+    async def document_list(self, session_id: str) -> dict:
+        return await self._get(f"/v2/session/{quote(session_id, safe='')}/documents")
+
+    async def document_read(
+        self,
+        session_id: str,
+        ref_id: str,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> dict:
+        params = {
+            key: value
+            for key, value in {"start": start, "end": end}.items()
+            if value is not None
+        }
+        suffix = "?" + urlencode(params) if params else ""
+        return await self._get(
+            f"/v2/session/{quote(session_id, safe='')}/documents/{quote(ref_id, safe='')}{suffix}"
+        )
+
+    async def document_detach(self, session_id: str, ref_id: str) -> dict:
+        return await self._delete(
+            f"/v2/session/{quote(session_id, safe='')}/documents/{quote(ref_id, safe='')}"
+        )
+
     async def browser_create(self, ttl: int = 300) -> dict:
         """Create a browser session."""
         return await self._post("/v2/browser", {"ttl": ttl})

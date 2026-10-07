@@ -66,6 +66,7 @@ PATH_TO_CLI_COMMAND: dict[str, str] = {
     "parse": "parse",
     "scrape": "scrape",
     "search": "search",
+    "session": "document",
 }
 
 

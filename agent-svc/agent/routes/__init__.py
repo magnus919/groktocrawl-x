@@ -9,6 +9,7 @@ from .agent import router as agent_router
 from .browser import router as browser_router
 from .citations import router as citations_router
 from .crawl import router as crawl_router
+from .documents import router as documents_router
 from .enrich import router as enrich_router
 from .experimental_research import router as experimental_research_router
 from .extract import router as extract_router
@@ -42,6 +43,7 @@ router.include_router(llmstxt_router)
 router.include_router(citations_router)
 router.include_router(plan_router)
 router.include_router(session_router)
+router.include_router(documents_router)
 router.include_router(research_memory_router)
 router.include_router(parse_router)
 router.include_router(find_similar_router)
