@@ -1356,6 +1356,7 @@ class Client:
     def document_attach(self, session_id: str, filepath: str | None = None, upload_id: str | None = None) -> dict[str, Any]:
         """Attach a bounded local file or scoped staged upload to a session."""
         import mimetypes
+
         import requests
 
         url = self._url(f"/session/{quote(session_id, safe='')}/documents")

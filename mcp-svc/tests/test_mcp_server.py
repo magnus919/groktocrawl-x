@@ -198,14 +198,9 @@ class TestToolDiscovery:
             "create_monitor",
             "list_monitors",
             "get_monitor",
-            "document_list",
-            "document_read",
-            "session_export",
             "update_monitor",
             "run_monitor",
             "delete_monitor",
-            "document_detach",
-            "session_delete",
         }
         missing = expected - names
         extra = names - expected
