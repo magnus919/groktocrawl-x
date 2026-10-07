@@ -84,3 +84,31 @@ def test_anchor_and_extraction_metadata_budgets_reject_instead_of_truncate(monke
         document_ref(
             "session", b"bytes", "report.txt", "text/plain", parsed("# " + "x" * 40)
         )
+
+
+def test_same_binary_with_different_extraction_has_distinct_exact_evidence_identity():
+    from agent.research.evidence import evidence_page
+
+    refs = [
+        document_ref(
+            "session",
+            b"same original bytes",
+            "report.pdf",
+            "application/pdf",
+            parsed(text),
+        )
+        for text in [
+            "# Report\nVersion one extraction",
+            "# Report\nVersion two extraction",
+        ]
+    ]
+    assert refs[0][0] == refs[1][0]
+    first, second = [ref for _ref_id, ref in refs]
+    assert first["file_digest"] == second["file_digest"]
+    assert first["snapshot_id"] != second["snapshot_id"]
+    assert first["content_digest"] != second["content_digest"]
+    for ref in [first, second]:
+        assert ref["snapshot_id"] == f"doc:{ref['file_digest']}:{ref['content_digest']}"
+    pages = [evidence_page({"id": ref_id, **ref}, 256) for ref_id, ref in refs]
+    assert pages[0]["spans"][0]["passage_id"] != pages[1]["spans"][0]["passage_id"]
+    assert pages[0]["spans"][0]["quote_digest"] != pages[1]["spans"][0]["quote_digest"]

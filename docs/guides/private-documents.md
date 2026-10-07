@@ -40,6 +40,9 @@ Attachment metadata includes session-local `ref_id`, `snapshot_id`, display file
 upload-declared media type (`media_type_source: upload-header`), uploaded-byte `file_digest`, exact UTF-8 text `content_digest`, parser
 `extraction` metadata and actual extraction `anchors`. Character spans use Unicode
 string offsets (start inclusive, end exclusive); reads return an exact `quote_digest`.
+Snapshot identity includes both uploaded-byte and extracted-text digests, so different
+parser output for the same binary has distinct snapshot and passage identities.
+The session-local ref ID and duplicate-byte admission policy remain binary-based.
 The retained text is the parser's complete Markdown, without a leading-prefix cap.
 This does not certify that every page, image or table in the original binary was
 extracted; parser provenance and missing anchors remain explicit.

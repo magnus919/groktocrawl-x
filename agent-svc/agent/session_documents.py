@@ -83,11 +83,12 @@ def document_ref(
         )
     file_digest = hashlib.sha256(content).hexdigest()
     ref_id = "doc_" + file_digest
+    content_digest = hashlib.sha256(markdown.encode("utf-8")).hexdigest()
     # Never retain private paths returned by a parser in the filename field.
     metadata = {**metadata, "filename": name}
     return ref_id, {
         "source": "document",
-        "snapshot_id": "doc:" + file_digest,
+        "snapshot_id": f"doc:{file_digest}:{content_digest}",
         "url": f"/v2/session/{session_id}/documents/{ref_id}",
         "title": name,
         "filename": name,
@@ -95,7 +96,7 @@ def document_ref(
         "media_type_source": "upload-header",
         "markdown": markdown,
         "char_count": len(markdown),
-        "content_digest": hashlib.sha256(markdown.encode("utf-8")).hexdigest(),
+        "content_digest": content_digest,
         "file_digest": file_digest,
         "extraction": metadata,
         "anchors": anchors,
