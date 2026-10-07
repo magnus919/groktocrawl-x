@@ -245,12 +245,13 @@ async def test_deletion_tombstone_wins_over_late_completion(
         assert deleted.status_code == 202
         gate.set()
         await asyncio.wait_for(record.task, timeout=2)
-        assert record.state == "completed"
+        assert record.state == "cancelled"
+        assert record.result is None
         assert record.deleted is True
 
         assert (await client.get(admission["status_url"])).status_code == 410
         assert (await client.get(admission["events_url"])).status_code == 410
-        assert (await client.get(record.result["manifest_url"])).status_code == 410
+        assert (await client.get(f"/experimental/research/v1/workspace/{run_id}")).status_code == 410
         attached = await client.post(
             "/experimental/research/v1/sessions/deleted-session/attachments",
             json={"run_id": run_id, "expected_revision": 0},

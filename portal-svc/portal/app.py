@@ -189,7 +189,7 @@ async def workspace_proxy(path: str, request: Request):
         return PlainTextResponse("Unknown workspace operation", status_code=404)
     headers = {
         key: request.headers[key]
-        for key in ("authorization", "x-api-key")
+        for key in ("authorization", "x-api-key", "x-groktocrawl-api-key")
         if key in request.headers
     }
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -227,7 +227,12 @@ async def workspace_action(path: str, request: Request):
         raise HTTPException(status_code=413, detail="Workspace action too large")
     headers = {
         key: request.headers[key]
-        for key in ("authorization", "x-api-key", "content-type")
+        for key in (
+            "authorization",
+            "x-api-key",
+            "x-groktocrawl-api-key",
+            "content-type",
+        )
         if key in request.headers
     }
     async with httpx.AsyncClient(timeout=30.0) as client:

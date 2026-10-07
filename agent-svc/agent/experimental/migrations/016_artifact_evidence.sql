@@ -1,3 +1,4 @@
+ALTER TABLE research_staging.research_artifact_sets ADD COLUMN objective text CHECK(objective IS NULL OR length(objective)<=10000);
 ALTER TABLE research_staging.research_artifact_sets ADD COLUMN knowledge bytea CHECK(knowledge IS NULL OR octet_length(knowledge)<=1048576);
 ALTER TABLE research_staging.research_artifact_sets ADD COLUMN knowledge_digest text CHECK(knowledge_digest IS NULL OR length(knowledge_digest)=64);
 -- Exact citation material shares artifact authority retention and tombstones.

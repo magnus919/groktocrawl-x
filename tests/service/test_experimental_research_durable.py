@@ -123,9 +123,7 @@ async def test_cancel_persists_durable_terminal_state(
         assert created.status_code == 202
         run_id = created.json()["run_id"]
         await asyncio.wait_for(started.wait(), timeout=1)
-        cancelled = await client.post(
-            f"/experimental/research/v1/runs/{run_id}/cancel"
-        )
+        cancelled = await client.post(f"/experimental/research/v1/runs/{run_id}/cancel")
         assert cancelled.status_code == 202
         assert cancelled.json()["state"] == "cancelled"
 
@@ -241,7 +239,9 @@ async def test_tampered_durable_artifact_projection_fails_closed(app: FastAPI) -
         assert raw is not None
         record = json.loads(raw)
         artifact_id = status["result"]["artifacts"]["summary"].rsplit("/", 1)[-1]
-        record["terminal_payload"]["artifacts"][artifact_id]["body_b64"] = "dGFtcGVyZWQ="
+        record["terminal_payload"]["artifacts"][artifact_id]["body_b64"] = (
+            "dGFtcGVyZWQ="
+        )
         ledger.redis.set(ledger._run_key(admission["run_id"]), json.dumps(record))
 
         experimental._RUNS.clear()
@@ -280,3 +280,46 @@ async def test_durable_deletion_tombstone_survives_process_loss(app: FastAPI) ->
         assert recovered_status.status_code == 410
         recovered_artifact = await client.get(status["result"]["artifacts"]["summary"])
         assert recovered_artifact.status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_cached_workspace_cannot_serve_after_external_durable_delete(app):
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        admitted = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "external-delete"},
+                json={"objective": "No stale private evidence"},
+            )
+        ).json()
+        for _ in range(100):
+            status = (await client.get(admitted["status_url"])).json()
+            if status["state"] == "completed":
+                break
+            await asyncio.sleep(0)
+        assert status["state"] == "completed"
+        record = experimental._RUNS[admitted["run_id"]]
+        assert record.journey is not None
+        record.durable_ledger.delete(
+            record.run_id,
+            terminal_payload={"deleted": True, "research_id": record.research_id},
+        )
+        assert not record.deleted  # mimic another process's deletion
+        assert (
+            await client.get("/experimental/research/v1/workspace/" + record.run_id)
+        ).status_code == 410
+        assert (
+            await client.get(
+                "/experimental/research/v1/research/"
+                + record.research_id
+                + "/evidence/source-1"
+            )
+        ).status_code == 410
+        assert (
+            await client.get(status["result"]["artifacts"]["summary"])
+        ).status_code == 410
+        assert (await client.get("/experimental/research/v1/workspace")).json()[
+            "items"
+        ] == []

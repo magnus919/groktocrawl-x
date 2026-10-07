@@ -1584,9 +1584,21 @@ def main() -> None:
 
 
 @mcp.tool(annotations=_RO)
-async def research_workspace(run_id: str | None = None) -> str:
+async def research_workspace(
+    run_id: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+    run_offset: int = 0,
+    expected_revision: str | None = None,
+) -> str:
     """List caller-permitted roots or inspect a root's explicit actions and revision."""
-    result = await _client.experimental_research_workspace(run_id)
+    result = await _client.experimental_research_workspace(
+        run_id,
+        offset=offset,
+        limit=limit,
+        run_offset=run_offset,
+        expected_revision=expected_revision,
+    )
     _ensure_success(result)
     return _resp(result)
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,6 +53,14 @@ def artifact_set_digest(
         )
     )
     return _sha256("\n".join(material).encode("utf-8"))
+
+
+class ArtifactLifecycleError(StorageConflictError):
+    """A caller-scoped known root is unavailable under its current lifecycle."""
+
+    def __init__(self, status_code: int):
+        super().__init__("retained root unavailable")
+        self.status_code = status_code
 
 
 class ArtifactAuthority(SourceStore):
@@ -150,6 +159,20 @@ class ArtifactAuthority(SourceStore):
             manifest, artifacts
         )
         evidence = evidence or {}
+        objective = None
+        if knowledge is not None:
+            if not isinstance(knowledge, bytes) or len(knowledge) > MAX_MANIFEST_BYTES:
+                raise ValueError("knowledge byte limit exceeded")
+            payload = json.loads(knowledge)
+            if not isinstance(payload, dict) or not isinstance(
+                payload.get("context", {}), dict
+            ):
+                raise ValueError("invalid retained knowledge")
+            objective = payload.get("context", {}).get("objective")
+            if objective is not None and (
+                not isinstance(objective, str) or len(objective) > 10_000
+            ):
+                raise ValueError("invalid retained objective")
         if knowledge is not None and len(knowledge) > MAX_MANIFEST_BYTES:
             raise ValueError("knowledge byte limit exceeded")
         evidence_total = len(knowledge or b"")
@@ -244,8 +267,8 @@ class ArtifactAuthority(SourceStore):
                 )
             if knowledge is not None:
                 await conn.execute(
-                    "UPDATE research_staging.research_artifact_sets SET knowledge=%s,knowledge_digest=%s WHERE scope_id=%s AND research_id=%s",
-                    (knowledge, _sha256(knowledge), scope, research),
+                    "UPDATE research_staging.research_artifact_sets SET knowledge=%s,knowledge_digest=%s,objective=%s WHERE scope_id=%s AND research_id=%s",
+                    (knowledge, _sha256(knowledge), objective, scope, research),
                 )
             for snapshot, (body, media_type) in evidence.items():
                 await conn.execute(
@@ -271,7 +294,17 @@ class ArtifactAuthority(SourceStore):
             )
         ).fetchone()
         if row is None:
-            raise StorageConflictError("artifact set unavailable")
+            state = await (
+                await conn.execute(
+                    "SELECT deleted,expires_at>now() AS live FROM research_staging.research_artifact_sets WHERE scope_id=%s AND research_id=%s",
+                    (scope, research),
+                )
+            ).fetchone()
+            raise ArtifactLifecycleError(
+                410
+                if state is not None and (state["deleted"] or not state["live"])
+                else 404
+            )
         children = await (
             await conn.execute(
                 "SELECT artifact_id,layer,body,content_digest FROM research_staging.research_artifacts WHERE scope_id=%s AND research_id=%s ORDER BY CASE layer WHEN 'summary' THEN 1 WHEN 'analysis' THEN 2 WHEN 'dossier' THEN 3 END,artifact_id",
@@ -363,7 +396,7 @@ class ArtifactAuthority(SourceStore):
             ).fetchall()
             if version == [{"version": 16}]:
                 await conn.execute(
-                    "UPDATE research_staging.research_artifact_sets SET knowledge=NULL,knowledge_digest=NULL WHERE scope_id=%s AND research_id=%s",
+                    "UPDATE research_staging.research_artifact_sets SET knowledge=NULL,knowledge_digest=NULL,objective=NULL WHERE scope_id=%s AND research_id=%s",
                     (scope, research),
                 )
                 await conn.execute(
@@ -466,3 +499,54 @@ class ArtifactAuthority(SourceStore):
             ).fetchall()
             if version != [{"version": 16}]:
                 raise StorageConflictError("evidence authority migration required")
+
+    async def list_retained(
+        self, scope: UUID, *, limit: int = 100, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 101 or not 0 <= offset <= 100_000:
+            raise ValueError("invalid authority page")
+        async with self._transaction(read=True) as conn:
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            objective_column = (
+                "objective" if version == [{"version": 16}] else "NULL AS objective"
+            )
+            return await (
+                await conn.execute(
+                    f"SELECT research_id,run_id,artifact_set_id,set_digest,expires_at,{objective_column} FROM research_staging.research_artifact_sets WHERE scope_id=%s AND NOT deleted AND expires_at>now() ORDER BY run_id LIMIT %s OFFSET %s",
+                    (scope, limit, offset),
+                )
+            ).fetchall()
+
+    async def lookup(
+        self,
+        scope: UUID,
+        *,
+        run: UUID | None = None,
+        artifact_set: UUID | None = None,
+        artifact_id: str | None = None,
+    ) -> RetainedArtifactSet:
+        if sum(value is not None for value in (run, artifact_set, artifact_id)) != 1:
+            raise ValueError("one retained identity is required")
+        async with self._transaction(read=True) as conn:
+            if artifact_id is not None:
+                row = await (
+                    await conn.execute(
+                        "SELECT research_id FROM research_staging.research_artifacts WHERE scope_id=%s AND artifact_id=%s",
+                        (scope, artifact_id),
+                    )
+                ).fetchone()
+            else:
+                column = "run_id" if run is not None else "artifact_set_id"
+                row = await (
+                    await conn.execute(
+                        f"SELECT research_id FROM research_staging.research_artifact_sets WHERE scope_id=%s AND {column}=%s",
+                        (scope, run if run is not None else artifact_set),
+                    )
+                ).fetchone()
+            if row is None:
+                raise ArtifactLifecycleError(404)
+            return await self._read(conn, scope, row["research_id"])

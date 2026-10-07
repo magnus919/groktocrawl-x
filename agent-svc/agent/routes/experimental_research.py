@@ -330,7 +330,8 @@ async def _hydrate_authority_record(record: _RunRecord) -> None:
         )
     except StorageConflictError as exc:
         raise HTTPException(
-            status_code=503, detail="Artifact authority unavailable"
+            status_code=getattr(exc, "status_code", 503),
+            detail="Artifact authority unavailable",
         ) from exc
     if retained.set_digest != record.authority_set_digest:
         raise HTTPException(status_code=503, detail="Artifact integrity unavailable")
@@ -367,6 +368,22 @@ def _record_projection(record: _RunRecord) -> dict[str, Any]:
     }
 
 
+def _check_retained_ledger(record: _RunRecord) -> None:
+    if record.durable_ledger is not None:
+        current = record.durable_ledger.get(record.run_id)
+        if current is None:
+            if record.artifact_authority is not None:
+                record.durable_ledger = (
+                    None  # completed PostgreSQL roots outlive the execution ledger
+                )
+                return
+            raise HTTPException(status_code=410, detail="Research run expired")
+        if current.state == "deleted":
+            record.deleted = True
+    if record.deleted:
+        raise HTTPException(status_code=410, detail="Research run deleted")
+
+
 def _find_run(run_id: str, request: Request) -> _RunRecord:
     record = _RUNS.get(run_id)
     if record is None and _durable_enabled():
@@ -391,13 +408,7 @@ def _find_run(run_id: str, request: Request) -> _RunRecord:
                 record.task = asyncio.create_task(_execute_run(record))
     if record is None or record.scope_id != _scope_id(request):
         raise HTTPException(status_code=404, detail="Research run not found")
-    if record.deleted:
-        raise HTTPException(status_code=410, detail="Research run deleted")
-    if (
-        record.durable_ledger is not None
-        and record.durable_ledger.get(record.run_id) is None
-    ):
-        raise HTTPException(status_code=410, detail="Research run expired")
+    _check_retained_ledger(record)
     return record
 
 
@@ -583,6 +594,9 @@ async def _reconcile_authority(record: _RunRecord) -> None:
 
 async def _execute_run(record: _RunRecord) -> None:
     async with record.lock:
+        if record.deleted:
+            record.state = "cancelled"
+            return
         if record.state not in {"accepted", "running"}:
             return
         if record.durable_ledger is not None:
@@ -625,7 +639,7 @@ async def _execute_run(record: _RunRecord) -> None:
                 _event(record, "error", "failed", error=record.error)
         return
     async with record.lock:
-        if record.state == "cancel_requested":
+        if record.deleted or record.state == "cancel_requested":
             record.state = "cancelled"
             _event(record, "cancelled", "cancelled")
             return
@@ -980,6 +994,7 @@ async def get_experimental_artifact_set(
         )
         if expected_set != artifact_set_id:
             continue
+        _check_retained_ledger(record)
         if record.deleted:
             raise HTTPException(status_code=410, detail="Artifact set deleted")
         if (
@@ -992,7 +1007,8 @@ async def get_experimental_artifact_set(
                 )
             except StorageConflictError as exc:
                 raise HTTPException(
-                    status_code=503, detail="Artifact authority unavailable"
+                    status_code=getattr(exc, "status_code", 503),
+                    detail="Artifact authority unavailable",
                 ) from exc
             if retained.set_digest != record.authority_set_digest:
                 raise HTTPException(
@@ -1017,6 +1033,19 @@ async def get_experimental_artifact_set(
         if manifest_payload.get("artifact_set_id") != artifact_set_id:
             continue
         return manifest_payload
+    if _artifact_authority_enabled():
+        authority = _artifact_authority(request)
+        try:
+            retained = await authority.lookup(
+                _scope_uuid(scope), artifact_set=UUID(artifact_set_id)
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=getattr(exc, "status_code", 404),
+                detail="Retained artifact set unavailable",
+            ) from exc
+        _catalog_record(retained, scope, authority)
+        return json.loads(retained.manifest)
     raise HTTPException(status_code=404, detail="Artifact set not found")
 
 
@@ -1047,6 +1076,7 @@ async def get_experimental_artifact(artifact_id: str, request: Request) -> Respo
         )
         if artifact_id not in known_ids:
             continue
+        _check_retained_ledger(record)
         if record.deleted:
             raise HTTPException(status_code=410, detail="Artifact deleted")
         if (
@@ -1059,7 +1089,8 @@ async def get_experimental_artifact(artifact_id: str, request: Request) -> Respo
                 )
             except StorageConflictError as exc:
                 raise HTTPException(
-                    status_code=503, detail="Artifact authority unavailable"
+                    status_code=getattr(exc, "status_code", 503),
+                    detail="Artifact authority unavailable",
                 ) from exc
             if retained.set_digest != record.authority_set_digest:
                 raise HTTPException(
@@ -1087,6 +1118,24 @@ async def get_experimental_artifact(artifact_id: str, request: Request) -> Respo
                     status_code=503, detail="Artifact integrity unavailable"
                 )
             return Response(body, media_type="text/markdown")
+    if _artifact_authority_enabled():
+        authority = _artifact_authority(request)
+        try:
+            retained = await authority.lookup(
+                _scope_uuid(scope), artifact_id=artifact_id
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=getattr(exc, "status_code", 404),
+                detail="Retained artifact unavailable",
+            ) from exc
+        _catalog_record(retained, scope, authority)
+        item = next(
+            (item for item in retained.artifacts if item.artifact_id == artifact_id),
+            None,
+        )
+        if item is not None:
+            return Response(item.body, media_type="text/markdown")
     raise HTTPException(status_code=404, detail="Artifact not found")
 
 
@@ -1098,14 +1147,15 @@ async def get_experimental_evidence(
     _require_runs()
     scope = _scope_id(request)
     for record in _RUNS.values():
-        if (
-            record.scope_id != scope
-            or record.research_id != research_id
-            or record.journey is None
-        ):
+        if record.scope_id != scope or record.research_id != research_id:
             continue
+        _check_retained_ledger(record)
+        if record.artifact_authority is not None:
+            await _workspace_lifetime(record)
         if record.deleted:
             raise HTTPException(status_code=410, detail="Research evidence deleted")
+        if record.journey is None:
+            continue
         for source in record.journey.sources:
             if source.reference.snapshot_id == snapshot_id:
                 return {
@@ -1118,6 +1168,9 @@ async def get_experimental_evidence(
     for record in _durable_read_records(request):
         if record.research_id != research_id or record.scope_id != scope:
             continue
+        _check_retained_ledger(record)
+        if record.artifact_authority is not None:
+            await _workspace_lifetime(record)
         if record.deleted:
             raise HTTPException(status_code=410, detail="Research evidence deleted")
         if record.artifact_authority is None:
@@ -1145,6 +1198,25 @@ async def get_experimental_evidence(
             "body": body.decode("utf-8"),
             "content_digest": hashlib.sha256(body).hexdigest(),
         }
+    if _artifact_authority_enabled():
+        authority = _artifact_authority(request)
+        try:
+            research = UUID(research_id)
+            body, media_type = await authority.read_evidence(
+                _scope_uuid(scope), research, snapshot_id
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=getattr(exc, "status_code", 404),
+                detail="Retained evidence unavailable",
+            ) from exc
+        return {
+            "research_id": research_id,
+            "snapshot_id": snapshot_id,
+            "media_type": media_type,
+            "body": body.decode("utf-8"),
+            "content_digest": hashlib.sha256(body).hexdigest(),
+        }
     raise HTTPException(status_code=404, detail="Evidence not found")
 
 
@@ -1155,6 +1227,31 @@ async def delete_experimental_research(
     """Tombstone the process-local research root before physical cleanup."""
     _require_runs()
     scope = _scope_id(request)
+    authority_deleted = False
+    if _artifact_authority_enabled():
+        authority = _artifact_authority(request)
+        try:
+            identity = UUID(research_id)
+            known = any(
+                record.scope_id == scope and record.research_id == research_id
+                for record in _RUNS.values()
+            )
+            if not known and _durable_enabled():
+                known = any(
+                    run.scope_id == scope
+                    and run.payload.get("research_id") == research_id
+                    for run in _durable_ledger(request).retained()
+                )
+            if not known:
+                await authority.retention(
+                    _scope_uuid(scope), identity
+                )  # PostgreSQL-only roots, including expiry
+            await authority.delete(_scope_uuid(scope), identity)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=404, detail="Research root not found"
+            ) from exc
+        authority_deleted = True
     if _durable_enabled():
         ledger = _durable_ledger(request)
         for durable in ledger.retained():
@@ -1163,15 +1260,6 @@ async def delete_experimental_research(
                 or durable.payload.get("research_id") != research_id
             ):
                 continue
-            if _artifact_authority_enabled():
-                authority = _artifact_authority(request)
-                try:
-                    await authority.delete(_scope_uuid(scope), UUID(research_id))
-                except StorageConflictError as exc:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="Artifact deletion authority unavailable",
-                    ) from exc
             ledger.delete(
                 durable.run_id,
                 terminal_payload={"research_id": research_id, "deleted": True},
@@ -1184,6 +1272,8 @@ async def delete_experimental_research(
         if record.scope_id == scope and record.research_id == research_id:
             record.deleted = True
             return {"research_id": research_id, "state": "deleted"}
+    if authority_deleted:
+        return {"research_id": research_id, "state": "deleted"}
     raise HTTPException(status_code=404, detail="Research root not found")
 
 
@@ -1222,6 +1312,55 @@ async def attach_experimental_research_session(
     }
 
 
+def _catalog_record(
+    retained: RetainedArtifactSet, scope: str, authority: ArtifactAuthority
+) -> _RunRecord:
+    record = _RunRecord(
+        run_id=str(retained.run_id),
+        research_id=str(retained.research_id),
+        scope_id=scope,
+        objective="Retained completed research",
+        request_digest="",
+        state="completed",
+        result=_retained_artifact_result(retained),
+        artifact_authority=authority,
+        authority_set_digest=retained.set_digest,
+    )
+    _RUNS[record.run_id] = record
+    return record
+
+
+async def _select_workspace_record(run_id: str, request: Request) -> _RunRecord:
+    original_error = None
+    try:
+        return _find_run(run_id, request)
+    except HTTPException as exc:
+        if (
+            not _artifact_authority_enabled()
+            or exc.status_code not in {404, 410}
+            or (exc.status_code == 410 and exc.detail != "Research run expired")
+        ):
+            raise
+        original_error = exc
+    authority = _artifact_authority(request)
+    try:
+        retained = await authority.lookup(
+            _scope_uuid(_scope_id(request)), run=UUID(run_id)
+        )
+    except ValueError as exc:
+        if (
+            original_error is not None
+            and original_error.status_code == 410
+            and getattr(exc, "status_code", 404) == 404
+        ):
+            raise original_error from exc
+        raise HTTPException(
+            status_code=getattr(exc, "status_code", 404),
+            detail="Retained root unavailable",
+        ) from exc
+    return _catalog_record(retained, _scope_id(request), authority)
+
+
 async def _workspace_lifetime(record: _RunRecord) -> dict[str, Any]:
     if record.artifact_authority is not None and record.state == "completed":
         lifetime = await record.artifact_authority.retention(
@@ -1245,19 +1384,34 @@ async def _workspace_lifetime(record: _RunRecord) -> dict[str, Any]:
 
 @router.get(f"{_ROUTE_PREFIX}/workspace")
 async def list_research_workspace(
-    request: Request, offset: int = 0, limit: int = 50
+    request: Request, offset: int = 0, limit: int = 50, run_offset: int = 0
 ) -> dict[str, Any]:
     """Browse caller-scoped retained runs; server records remain authoritative."""
     _require_runs()
-    if offset < 0 or not 1 <= limit <= 100:
+    if (
+        not 0 <= offset <= 100_000
+        or not 0 <= run_offset <= 100_000
+        or not 1 <= limit <= 100
+    ):
         raise HTTPException(status_code=422, detail="Invalid workspace page")
     scope = _scope_id(request)
     records = {record.run_id: record for record in _durable_read_records(request)}
     records.update(
         {record.run_id: record for record in _RUNS.values() if record.scope_id == scope}
     )
+    live = []
+    for record in records.values():
+        try:
+            _check_retained_ledger(record)
+        except HTTPException as exc:
+            if exc.status_code == 410:
+                continue
+            raise
+        if _artifact_authority_enabled() and record.state == "completed":
+            continue  # retained roots are paged independently from temporary execution records
+        live.append(record)
     selected = sorted(
-        (record for record in records.values() if not record.deleted),
+        live,
         key=lambda record: record.run_id,
     )
     items = [
@@ -1268,14 +1422,44 @@ async def list_research_workspace(
             "state": record.state,
             "url": f"{_ROUTE_PREFIX}/workspace/{record.run_id}",
         }
-        for record in selected[offset : offset + limit]
+        for record in selected[
+            (run_offset if _artifact_authority_enabled() else offset) : (
+                run_offset if _artifact_authority_enabled() else offset
+            )
+            + limit
+        ]
     ]
+    authority_next = None
+    if _artifact_authority_enabled():
+        catalog = await _artifact_authority(request).list_retained(
+            _scope_uuid(scope), limit=limit + 1, offset=offset
+        )
+        for root in catalog[:limit]:
+            identity = str(root["run_id"])
+            items.append(
+                {
+                    "run_id": identity,
+                    "research_id": str(root["research_id"]),
+                    "objective": root.get("objective") or "Retained completed research",
+                    "state": "completed",
+                    "revision": root["set_digest"],
+                    "expires_at": root["expires_at"].isoformat(),
+                    "url": f"{_ROUTE_PREFIX}/workspace/{identity}",
+                }
+            )
+        authority_next = offset + limit if len(catalog) > limit else None
     return {
         "items": items,
         "offset": offset,
-        "next_offset": offset + limit if offset + limit < len(selected) else None,
+        "next_offset": authority_next
+        if _artifact_authority_enabled()
+        else (offset + limit if offset + limit < len(selected) else None),
+        "next_run_offset": run_offset + limit
+        if _artifact_authority_enabled() and run_offset + limit < len(selected)
+        else None,
+        "page_bound": "up to limit retained roots plus limit execution records",
         "capabilities": capability_document(),
-        "ordering": "run_id; not a snapshot",
+        "ordering": "run_id per authority; independent offsets, not a snapshot",
     }
 
 
@@ -1285,7 +1469,7 @@ async def inspect_research_workspace(
 ) -> dict[str, Any]:
     """Inspect an independent root and explicitly named continuation actions."""
     _require_runs()
-    record = _find_run(run_id, request)
+    record = await _select_workspace_record(run_id, request)
     await _reconcile_authority(record)
     lifetime = await _workspace_lifetime(record)
     await _hydrate_authority_record(record)
@@ -1325,6 +1509,11 @@ async def inspect_research_workspace(
     if knowledge_bytes is not None:
         knowledge = json.loads(knowledge_bytes)
         context = knowledge.get("context", knowledge)
+        record.objective = context.get("objective", record.objective)
+        snapshots = {
+            snapshot["snapshot_id"]: snapshot
+            for snapshot in context.get("snapshots", [])
+        }
         for evidence in context.get("evidence", []):
             evidence_links.append(
                 {
@@ -1333,6 +1522,7 @@ async def inspect_research_workspace(
                     "start": evidence["start"],
                     "end": evidence["end"],
                     "quote_digest": evidence["quote_digest"],
+                    "source": snapshots.get(evidence["snapshot_id"]),
                     "url": f"{_ROUTE_PREFIX}/research/{record.research_id}/evidence/{evidence['snapshot_id']}",
                 }
             )
@@ -1361,6 +1551,8 @@ async def inspect_research_workspace(
         actions["attach"] = {
             "method": "POST",
             "url_template": f"{_ROUTE_PREFIX}/sessions/{{session_id}}/attachments",
+            "available": importlib.util.find_spec("agent.session_scope") is not None,
+            "mode": "attachment_only",
             "body": {
                 "run_id": run_id,
                 "expected_revision": "required session revision",
@@ -1373,6 +1565,12 @@ async def inspect_research_workspace(
         }
     return {
         **_record_projection(record),
+        "status_url": f"{_ROUTE_PREFIX}/workspace/{run_id}",
+        "execution_history_available": record.durable_ledger is not None
+        or record.journey is not None,
+        "events_url": f"{_ROUTE_PREFIX}/runs/{run_id}/events"
+        if record.durable_ledger is not None or record.journey is not None
+        else None,
         "objective": record.objective,
         "document_context": {
             "mode": "explicit_session_attachment",
