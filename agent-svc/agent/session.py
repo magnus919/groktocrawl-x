@@ -153,7 +153,9 @@ class SessionManager:
 
     # ── Lifecycle ───────────────────────────────────────────────
 
-    async def create_session(self, ttl: int | None = None) -> str:
+    async def create_session(
+        self, ttl: int | None = None, *, owner_scope: str | None = None
+    ) -> str:
         """Create a new research session.
 
         Args:
@@ -162,7 +164,10 @@ class SessionManager:
         Returns:
             The new session ID.
         """
-        return await self._store_call("acreate", "create", ttl=ttl)
+        kwargs = {"ttl": ttl}
+        if owner_scope is not None:
+            kwargs["owner_scope"] = owner_scope
+        return await self._store_call("acreate", "create", **kwargs)
 
     async def get_session(self, session_id: str) -> dict | None:
         """Get session metadata + step summaries (no full refs)."""

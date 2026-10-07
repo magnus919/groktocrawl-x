@@ -17,6 +17,7 @@ from ..models import (
     SessionStepRequest,
     SessionStepResponse,
 )
+from ..session_scope import authorize_session, request_scope
 from ._helpers import _get_redis_url
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,9 @@ async def create_session(request: Request, body: SessionCreateRequest) -> Any:
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
-    session_id = await mgr.create_session(ttl=body.ttl)
+    session_id = await mgr.create_session(
+        ttl=body.ttl, owner_scope=request_scope(request)
+    )
     session = await mgr.get_session(session_id)
     if session is None:
         raise NotFoundError(detail="Failed to create session")
@@ -60,6 +63,7 @@ async def session_step(
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
+    await authorize_session(mgr.store, session_id, request)
     try:
         result = await mgr.step(
             session_id=session_id,
@@ -96,6 +100,7 @@ async def get_session(request: Request, session_id: str) -> Any:
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
+    await authorize_session(mgr.store, session_id, request)
     session = await mgr.get_session(session_id)
     if session is None:
         raise NotFoundError(detail=f"Session not found: {session_id}")
@@ -116,6 +121,7 @@ async def export_session(request: Request, session_id: str) -> Any:
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
+    await authorize_session(mgr.store, session_id, request)
     try:
         export = await mgr.export_session(session_id)
         return SessionExportResponse(**export)
@@ -129,6 +135,7 @@ async def delete_session(request: Request, session_id: str) -> Any:
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
+    await authorize_session(mgr.store, session_id, request)
     deleted = await mgr.delete_session(session_id)
     return SessionDeleteResponse(session_id=session_id, deleted=deleted)
 
@@ -161,6 +168,7 @@ async def resolve_session_refs(
     from ..session import SessionManager
 
     mgr = SessionManager(redis_url=_get_redis_url(request))
+    await authorize_session(mgr.store, session_id, request)
     session = await mgr.get_session(session_id)
     if session is None:
         raise NotFoundError(
