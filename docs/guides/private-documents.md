@@ -41,6 +41,8 @@ upload-declared media type (`media_type_source: upload-header`), uploaded-byte `
 `extraction` metadata and actual extraction `anchors`. Character spans use Unicode
 string offsets (start inclusive, end exclusive); reads return an exact `quote_digest`.
 The retained text is the parser's complete Markdown, without a leading-prefix cap.
+This does not certify that every page, image or table in the original binary was
+extracted; parser provenance and missing anchors remain explicit.
 PDF page count alone does not establish page-to-passage mapping: those PDF outputs
 have no page anchor unless the extracted text actually contains a page marker.
 DOCX headings become exact section spans when present in the Markdown.

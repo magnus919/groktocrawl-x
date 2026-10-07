@@ -1134,14 +1134,15 @@ class GroktocrawlClient:
         if ref_ids is not None:
             params["ref_ids"] = ref_ids
         return await self._post(
-            f"/v2/session/{session_id}/step", {"action": "query", "params": params}
+            f"/v2/session/{quote(session_id, safe='')}/step",
+            {"action": "query", "params": params},
         )
 
     async def session_export(self, session_id: str) -> dict:
-        return await self._post(f"/v2/session/{session_id}/export")
+        return await self._post(f"/v2/session/{quote(session_id, safe='')}/export")
 
     async def session_delete(self, session_id: str) -> dict:
-        return await self._delete(f"/v2/session/{session_id}")
+        return await self._delete(f"/v2/session/{quote(session_id, safe='')}")
 
     async def document_attach(
         self,
@@ -1157,7 +1158,8 @@ class GroktocrawlClient:
         client = await self._client_ctx()
         if upload_id is not None:
             response = await client.post(
-                f"/v2/session/{session_id}/documents", data={"upload_id": upload_id}
+                f"/v2/session/{quote(session_id, safe='')}/documents",
+                data={"upload_id": upload_id},
             )
         else:
             if content_base64 is None or len(content_base64) > 4 * (
@@ -1168,7 +1170,7 @@ class GroktocrawlClient:
             if len(content) > 10 * 1024 * 1024:
                 raise ValueError("Document exceeds 10 MiB admission limit")
             response = await client.post(
-                f"/v2/session/{session_id}/documents",
+                f"/v2/session/{quote(session_id, safe='')}/documents",
                 files={"file": (filename, content, media_type)},
                 timeout=120,
             )
@@ -1180,7 +1182,7 @@ class GroktocrawlClient:
         return response.json()
 
     async def document_list(self, session_id: str) -> dict:
-        return await self._get(f"/v2/session/{session_id}/documents")
+        return await self._get(f"/v2/session/{quote(session_id, safe='')}/documents")
 
     async def document_read(
         self,
@@ -1195,10 +1197,14 @@ class GroktocrawlClient:
             if value is not None
         }
         suffix = "?" + urlencode(params) if params else ""
-        return await self._get(f"/v2/session/{session_id}/documents/{ref_id}{suffix}")
+        return await self._get(
+            f"/v2/session/{quote(session_id, safe='')}/documents/{quote(ref_id, safe='')}{suffix}"
+        )
 
     async def document_detach(self, session_id: str, ref_id: str) -> dict:
-        return await self._delete(f"/v2/session/{session_id}/documents/{ref_id}")
+        return await self._delete(
+            f"/v2/session/{quote(session_id, safe='')}/documents/{quote(ref_id, safe='')}"
+        )
 
     async def browser_create(self, ttl: int = 300) -> dict:
         """Create a browser session."""

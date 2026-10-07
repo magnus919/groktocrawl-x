@@ -303,3 +303,171 @@ async def test_owned_session_routes_do_not_expose_documents_to_foreign_callers(
         ).status_code == 200
         assert (await client.delete(f"/v2/session/{session_id}")).status_code == 200
         assert await store.aget_ref(session_id, "doc") is None
+
+
+@pytest.mark.asyncio
+async def test_mixed_local_document_and_web_question_resolves_exact_citation_spans(
+    storage, monkeypatch
+):
+    import hashlib
+    from pathlib import Path
+
+    import httpx
+    from agent.exceptions import GroktoCrawlError
+    from agent.routes import documents, session
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    from parse_svc.app import _parse_anydoc, _parse_pdf, _parse_text
+
+    store, _redis, sessions, _uploads = storage
+    monkeypatch.setattr("agent.session.SessionStore", lambda **_kwargs: store)
+    monkeypatch.setattr(documents, "SessionStore", lambda **_kwargs: store)
+    references = []
+    generations = []
+
+    async def parse_local(content, filename, _media_type):
+        parser = (
+            _parse_pdf
+            if filename.endswith(".pdf")
+            else _parse_text
+            if filename.endswith(".txt")
+            else _parse_anydoc
+        )
+        return {
+            "success": True,
+            "data": await asyncio.to_thread(parser, content, filename),
+        }
+
+    monkeypatch.setattr(documents, "_parse_document", parse_local)
+
+    class FixtureLLM:
+        def __init__(self, *_args):
+            pass
+
+        async def generate(self, *, system_prompt, user_prompt, context):
+            assert "untrusted data" in system_prompt
+            assert "Research | 12000 | 11000" in context
+            assert "fourteen days" in context
+            assert "Official public budget is twelve thousand" in context
+            assert "Zirconium calibration requires forty-two samples" in context
+            assert "do not select this private ref" not in context
+            generations.append(context)
+            return f"The budget agrees with public evidence [{references[0]}] [ref_web]. Retention is fourteen days [{references[1]}]. Zirconium requires forty-two samples [{references[2]}]."
+
+        async def close(self):
+            pass
+
+    monkeypatch.setattr("agent.session.LLMClient", FixtureLLM)
+    app = FastAPI()
+    app.state.searxng_url = "http://fixture.invalid/search"
+    app.state.scraper_url = "http://fixture.invalid/scraper"
+    app.state.llm_base_url = "http://fixture.invalid/llm"
+    app.state.llm_api_key = ""
+    app.state.llm_model = "fixture"
+    app.include_router(session.router)
+    app.include_router(documents.router)
+
+    @app.exception_handler(GroktoCrawlError)
+    async def handle(_request, exc):
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+    fixtures = Path(__file__).parents[1] / "fixtures" / "documents"
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://fixture"
+    ) as client:
+        session_id = (await client.post("/v2/session/create", json={})).json()[
+            "sessionId"
+        ]
+        sessions.append(session_id)
+        admitted = []
+        long_manual = (
+            "Routine background information. " * 2000
+            + "\nZirconium calibration requires forty-two samples."
+        ).encode()
+        for filename in ("budget-table.pdf", "policy-heading.docx", "long-manual.txt"):
+            response = await client.post(
+                f"/v2/session/{session_id}/documents",
+                files={
+                    "file": (
+                        filename,
+                        long_manual
+                        if filename == "long-manual.txt"
+                        else (fixtures / filename).read_bytes(),
+                    )
+                },
+            )
+            assert response.status_code == 200
+            admitted.append(response.json())
+            references.append(response.json()["ref_id"])
+        assert await store.aadd_refs(
+            session_id,
+            {
+                "ref_web": {
+                    "source": "web",
+                    "url": "https://example.test/budget",
+                    "title": "Published budget",
+                    "markdown": "Official public budget is twelve thousand.",
+                },
+                "ref_unselected": {
+                    "source": "web",
+                    "markdown": "do not select this private ref",
+                },
+            },
+        )
+        query = await client.post(
+            f"/v2/session/{session_id}/step",
+            json={
+                "action": "query",
+                "params": {
+                    "question": "Compare research budget and retention with public evidence and zirconium calibration samples",
+                    "ref_ids": [*references, "ref_web"],
+                    "evidence_budget_chars": 32000,
+                },
+            },
+        )
+        assert query.status_code == 200
+        result = query.json()["result"]
+        assert result["ref_count"] == 4
+        assert {item["ref_id"] for item in result["citations"]} == {
+            *references,
+            "ref_web",
+        }
+        doc_citations = {
+            item["ref_id"]: item
+            for item in result["citations"]
+            if item["ref_id"] in references
+        }
+        assert doc_citations[references[1]]["anchors"] == admitted[1]["anchors"]
+        assert any(
+            span["start"] > 8000 for span in doc_citations[references[2]]["spans"]
+        )
+        assert (
+            len((await store.aget_ref(session_id, references[2]))["markdown"]) > 32000
+        )
+        for metadata in admitted:
+            citation = doc_citations[metadata["ref_id"]]
+            assert citation["content_digest"] == metadata["content_digest"]
+            assert citation["snapshot_id"] == metadata["snapshot_id"]
+            for span in citation["spans"]:
+                resolved = await client.get(
+                    citation["url"], params={"start": span["start"], "end": span["end"]}
+                )
+                assert resolved.status_code == 200
+                quote = resolved.json()["markdown"]
+                assert (
+                    hashlib.sha256(quote.encode()).hexdigest() == span["quote_digest"]
+                )
+        assert (await client.delete(admitted[0]["url"])).status_code == 200
+        rejected = await client.post(
+            f"/v2/session/{session_id}/step",
+            json={
+                "action": "query",
+                "params": {
+                    "question": "Use deleted source",
+                    "ref_ids": [references[0]],
+                },
+            },
+        )
+        assert rejected.status_code == 404
+        assert len(generations) == 1
+        assert (await client.get(admitted[0]["url"])).status_code == 404

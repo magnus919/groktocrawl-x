@@ -56,6 +56,7 @@ import textwrap
 import time
 import warnings
 from typing import Any
+from urllib.parse import quote
 
 warnings.simplefilter("ignore")
 
@@ -1353,7 +1354,7 @@ class Client:
         import mimetypes
         import requests
 
-        url = self._url(f"/session/{session_id}/documents")
+        url = self._url(f"/session/{quote(session_id, safe='')}/documents")
         if self.dry_run:
             return {"dry_run": True, "method": "POST", "url": url, "file": filepath, "upload_id": upload_id}
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
@@ -2892,9 +2893,9 @@ def cmd_document(client: Client, args: argparse.Namespace) -> None:
                 die("Provide exactly one file or --upload-id")
             result = client.document_attach(args.session_id, args.file, args.upload_id)
         elif action == "export-session":
-            result = client._request("POST", f"/session/{args.session_id}/export")
+            result = client._request("POST", f"/session/{quote(args.session_id, safe='')}/export")
         elif action == "delete-session":
-            result = client._request("DELETE", f"/session/{args.session_id}")
+            result = client._request("DELETE", f"/session/{quote(args.session_id, safe='')}")
         elif action == "query":
             params: dict[str, Any] = {"question": args.question}
             if args.model is not None:
@@ -2903,11 +2904,11 @@ def cmd_document(client: Client, args: argparse.Namespace) -> None:
                 params["evidence_budget_chars"] = args.evidence_budget_chars
             if args.ref:
                 params["ref_ids"] = args.ref
-            result = client._request("POST", f"/session/{args.session_id}/step", json_data={"action": "query", "params": params})
+            result = client._request("POST", f"/session/{quote(args.session_id, safe='')}/step", json_data={"action": "query", "params": params})
         else:
-            path = f"/session/{args.session_id}/documents"
+            path = f"/session/{quote(args.session_id, safe='')}/documents"
             if action in {"show", "detach"}:
-                path += f"/{args.ref_id}"
+                path += f"/{quote(args.ref_id, safe='')}"
             query = {key: value for key, value in {"start": getattr(args, "start", None), "end": getattr(args, "end", None)}.items() if value is not None}
             result = client._request("DELETE" if action == "detach" else "GET", path, params=query or None)
         emit("Session document evidence", result)
@@ -3362,7 +3363,7 @@ def make_parser() -> argparse.ArgumentParser:
         if action == "query":
             command.add_argument("question")
             command.add_argument("--model")
-            command.add_argument("--evidence-budget-chars", type=int)
+            command.add_argument("--evidence-budget-chars", type=_evidence_budget_arg)
             command.add_argument("--ref", action="append", help="Select an attached document or web ref (repeatable)")
 
     p_download = subparsers.add_parser(
