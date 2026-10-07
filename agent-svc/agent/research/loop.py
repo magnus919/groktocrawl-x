@@ -36,6 +36,7 @@ from .evidence import (
     DEFAULT_EVIDENCE_CHARS,
     build_evidence,
     build_evidence_async,
+    run_evidence_builder_async,
     validate_evidence_budget,
 )
 from .gaps import _detect_gaps
@@ -885,7 +886,7 @@ async def run_answer_stream(
         )
 
         # Step 3: Build context + citation source map from artifacts
-        built = await asyncio.to_thread(
+        built = await run_evidence_builder_async(
             _build_answer_context,
             search_results,
             artifacts,

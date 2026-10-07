@@ -295,3 +295,13 @@ def evidence_page(
         "spans": spans,
         "next_offset": end if end < len(text) else None,
     }
+
+
+async def run_evidence_builder_async(builder, *args):
+    """Run a context formatter whose full-text selector accepts cancellation."""
+    cancelled = threading.Event()
+    try:
+        return await asyncio.to_thread(builder, *args, cancelled=cancelled)
+    except asyncio.CancelledError:
+        cancelled.set()
+        raise

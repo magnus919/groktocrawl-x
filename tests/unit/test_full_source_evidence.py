@@ -224,6 +224,16 @@ async def test_session_query_reads_full_refs_instead_of_artifact_previews(monkey
     assert result["citations"][0]["ref_id"] == "1_1"
     assert result["citations"][0]["content_digest"] == text_digest(text)
     assert refs["1_1"]["markdown"] == text
+    refs["empty"] = {"description": "", "markdown": ""}
+    with pytest.raises(ValueError, match="no retained text"):
+        await manager._step_query(
+            "session",
+            {"question": "quantum", "ref_ids": ["empty"]},
+            "fixture",
+            "",
+            "fixture",
+        )
+    assert llm.generate.await_count == 1
     with pytest.raises(ValueError, match="not found"):
         await manager._step_query(
             "session",

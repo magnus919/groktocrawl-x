@@ -765,6 +765,10 @@ class SessionManager:
             ):
                 raise ValueError("Selected evidence reference not found in session")
             refs = {ref: refs[ref] for ref in dict.fromkeys(selected_ids)}
+            if any(not ref.get("markdown") for ref in refs.values()):
+                raise ValueError(
+                    "Selected evidence has no retained text; scrape or attach it first"
+                )
         evidence_sources = [
             {"id": ref_id, **ref_data}
             for ref_id, ref_data in refs.items()
