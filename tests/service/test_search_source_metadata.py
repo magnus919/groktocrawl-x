@@ -330,3 +330,26 @@ async def test_image_contract_uses_reported_original_and_provenance(monkeypatch)
     assert row["url"] == SOURCE["url"]
     assert row["media"] == SOURCE["media"]
     assert row["engines"] == ["brave", "semanticscholar"]
+
+
+def test_partial_alias_metadata_keeps_existing_scholarly_provenance():
+    from agent.research.sources import SourceArtifact, SourceRegistry
+
+    registry = SourceRegistry()
+    registry.register(
+        SourceArtifact(
+            url=SOURCE["url"],
+            markdown="Page",
+            discovery_metadata=search_metadata(SOURCE),
+        )
+    )
+    replacement = SourceArtifact(
+        url=SOURCE["url"],
+        markdown="Updated page",
+        discovery_metadata={"media": {"media_type": "image", "width": 800}},
+    )
+    registry.register(replacement)
+    row = replacement.to_source_detail()
+    assert row["doi"] == SOURCE["doi"]
+    assert row["engines"] == ["brave", "semanticscholar"]
+    assert row["media"]["width"] == 800

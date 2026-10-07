@@ -169,8 +169,10 @@ class SourceRegistry:
         previous = self._entries.get(key)
         if previous is not None:
             old = previous.artifact
-            if not artifact.discovery_metadata:
-                artifact.discovery_metadata = dict(old.discovery_metadata)
+            artifact.discovery_metadata = {
+                **search_metadata(old.discovery_metadata),
+                **search_metadata(artifact.discovery_metadata),
+            }
             if not artifact.title:
                 artifact.title = old.title
             if not artifact.relevance:
