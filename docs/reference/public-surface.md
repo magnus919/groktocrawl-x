@@ -32,6 +32,7 @@ GET /v2/crawl/{job_id}/stream
 POST /v2/enrich
 POST /v2/extract
 GET /v2/extract/{job_id}
+POST /v2/followup/preview
 POST /v2/find-similar
 POST /v2/generate-llmstxt
 GET /v2/generate-llmstxt/{job_id}
@@ -83,6 +84,7 @@ POST /experimental/research/v1/sessions/{session_id}/attachments
 <!-- cli-inventory:start -->
 - active
 - agent
+- followup
 - answer
 - batch-scrape
 - browser

@@ -367,6 +367,10 @@ class GroktocrawlClient:
         path = f"/v2/session/{quote(session_id, safe='')}/evidence/{quote(ref_id, safe='')}"
         return await self._get(path + "?" + urlencode(params))
 
+    async def followup_preview(self, body: dict) -> dict:
+        """Read-only preview; proposed actions are never executed."""
+        return await self._post("/v2/followup/preview", body)
+
     # ── API methods ─────────────────────────────────────────────
 
     async def scrape(
