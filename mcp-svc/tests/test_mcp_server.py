@@ -135,15 +135,15 @@ class TestTransportSecurity:
 
 
 class TestToolDiscovery:
-    """VAL-MCP-B01: tools/list returns exactly 54 tools."""
+    """VAL-MCP-B01: tools/list returns exactly 56 tools."""
 
     async def test_tool_count(self):
-        """tools/list returns exactly 54 tools."""
+        """tools/list returns exactly 56 tools."""
         tools = await mcp.list_tools()
-        assert len(tools) == 54, f"Expected 54 tools, got {len(tools)}"
+        assert len(tools) == 56, f"Expected 56 tools, got {len(tools)}"
 
     async def test_all_tool_names(self):
-        """All 54 expected tool names are present."""
+        """All 56 expected tool names are present."""
         tools = await mcp.list_tools()
         names = {t.name for t in tools}
         expected = {
@@ -155,6 +155,8 @@ class TestToolDiscovery:
             "get_crawl_errors",
             "get_active_crawls",
             "map",
+            "research_workspace",
+            "research_resume",
             "research_capabilities",
             "followup_preview",
             "research_create",

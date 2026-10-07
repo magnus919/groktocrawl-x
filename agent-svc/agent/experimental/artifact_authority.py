@@ -149,6 +149,24 @@ class ArtifactAuthority(SourceStore):
         manifest_digest, retained, set_digest, total = self._validate(
             manifest, artifacts
         )
+        evidence = evidence or {}
+        if knowledge is not None and len(knowledge) > MAX_MANIFEST_BYTES:
+            raise ValueError("knowledge byte limit exceeded")
+        evidence_total = len(knowledge or b"")
+        for snapshot, (body, media_type) in evidence.items():
+            if (
+                not isinstance(snapshot, str)
+                or not isinstance(body, bytes)
+                or not 0 < len(snapshot) <= 200
+                or len(body) > MAX_ARTIFACT_BYTES
+                or media_type not in {"text/plain", "text/markdown"}
+            ):
+                raise ValueError("invalid retained evidence")
+            body.decode("utf-8", errors="strict")
+            evidence_total += len(body)
+        if len(evidence) > 1000 or total + evidence_total > MAX_SET_BYTES:
+            raise ValueError("artifact and evidence byte limit exceeded")
+        total += evidence_total
         async with self._transaction() as conn:
             version = await (
                 await conn.execute(
@@ -157,22 +175,6 @@ class ArtifactAuthority(SourceStore):
             ).fetchall()
             if version not in ([{"version": 14}], [{"version": 15}], [{"version": 16}]):
                 raise StorageConflictError("artifact authority schema unavailable")
-            evidence = evidence or {}
-            if knowledge is not None and len(knowledge) > 1_048_576:
-                raise ValueError("knowledge byte limit exceeded")
-            evidence_total = len(knowledge or b"")
-            for snapshot, (body, media_type) in evidence.items():
-                if (
-                    not 0 < len(snapshot) <= 200
-                    or len(body) > 10_485_760
-                    or media_type not in {"text/plain", "text/markdown"}
-                ):
-                    raise ValueError("invalid retained evidence")
-                body.decode("utf-8", errors="strict")
-                evidence_total += len(body)
-            if len(evidence) > 1000 or total + evidence_total > 33_554_432:
-                raise ValueError("artifact and evidence byte limit exceeded")
-            total += evidence_total
             if (evidence or knowledge is not None) and version != [{"version": 16}]:
                 raise StorageConflictError("evidence authority migration required")
             prior = await (

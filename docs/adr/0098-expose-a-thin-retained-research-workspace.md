@@ -5,12 +5,14 @@
 - Scope: experimental fork only
 - Extends: ADR-0078 durable artifact authority and ADR-0084 independent roots
 
-## Context and Decision
+## Context and Problem Statement
 
 Returning clients need to discover and inspect permitted retained roots, resolve
 citations after process loss, and invoke named operations. Existing reports were
 retained, but exact cited source bytes were process-local. A browser history is not
 an artifact authority.
+
+## Decision
 
 Expose scoped list/select and revision-guarded named operations over the existing
 experimental run ledger and artifact authority. Retain audited knowledge and exact

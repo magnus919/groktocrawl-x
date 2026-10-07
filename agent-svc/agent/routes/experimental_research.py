@@ -18,7 +18,7 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from common.features import is_enabled
 
@@ -1401,6 +1401,8 @@ async def inspect_research_workspace(
 class WorkspaceActionRequest(BaseModel):
     """An explicit operation on one selected immutable retained revision."""
 
+    model_config = ConfigDict(extra="forbid")
+
     action: Literal[
         "render",
         "export",
@@ -1452,12 +1454,15 @@ async def resume_workspace_action(
 
         if payload.wording is None:
             raise HTTPException(status_code=422, detail="Explicit wording is required")
-        return await preview_followup(
-            request,
-            FollowupRequest.model_validate(
+        try:
+            body = FollowupRequest.model_validate(
                 {"wording": payload.wording, "selected": payload.selected}
-            ),
-        )
+            )
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=422, detail="Invalid explicit follow-up selection"
+            ) from exc
+        return await preview_followup(request, body)
     if payload.action in {"documents", "document_evidence", "attach"}:
         if importlib.util.find_spec("agent.session_scope") is None or (
             payload.action != "attach"
