@@ -151,7 +151,7 @@ async def test_owned_route_digest_paging_foreign_deletion_and_no_acquisition(
         assert (
             await client.get(path, headers={"X-API-Key": "foreign"})
         ).status_code == 404
-        headers = {"X-API-Key": "owner"}
+        headers = {"Authorization": "Bearer owner"}
         response = await client.get(
             path, headers=headers, params={"query": "quantum", "budget_chars": 256}
         )
@@ -286,3 +286,32 @@ def test_selected_construction_keeps_utf8_byte_ceiling():
     )
     assert sum(len(p.quote.encode("utf-8")) for p in passages) <= 120000
     assert coverage["omitted_chars"] > 0
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_scope_normalizes_accepted_auth_header_aliases(monkeypatch, enabled):
+    from agent import auth
+
+    monkeypatch.setattr(auth, "AUTH_ENABLED", enabled)
+    monkeypatch.setattr(auth, "API_KEY", "owner")
+
+    def scope(headers):
+        return request_scope(
+            Request(
+                {
+                    "type": "http",
+                    "headers": [
+                        (k.lower().encode(), v.encode()) for k, v in headers.items()
+                    ],
+                }
+            )
+        )
+
+    expected = scope({"X-API-Key": "owner"})
+    assert scope({"Authorization": "Bearer owner"}) == expected
+    assert scope({"Authorization": "invalid", "X-API-Key": "owner"}) == expected
+    if enabled:
+        assert (
+            scope({"Authorization": "Bearer wrong", "X-API-Key": "owner"}) == expected
+        )
+    assert "owner" not in expected
