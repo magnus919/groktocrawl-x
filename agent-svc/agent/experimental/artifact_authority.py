@@ -6,6 +6,7 @@ import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from .source_store import SourceStore, StorageConflictError
@@ -142,6 +143,8 @@ class ArtifactAuthority(SourceStore):
         artifact_set: UUID,
         manifest: bytes,
         artifacts: Mapping[str, tuple[str, bytes]],
+        evidence: Mapping[str, tuple[bytes, str]] | None = None,
+        knowledge: bytes | None = None,
     ) -> RetainedArtifactSet:
         manifest_digest, retained, set_digest, total = self._validate(
             manifest, artifacts
@@ -152,8 +155,26 @@ class ArtifactAuthority(SourceStore):
                     "SELECT version FROM research_staging.schema_version"
                 )
             ).fetchall()
-            if version not in ([{"version": 14}], [{"version": 15}]):
+            if version not in ([{"version": 14}], [{"version": 15}], [{"version": 16}]):
                 raise StorageConflictError("artifact authority schema unavailable")
+            evidence = evidence or {}
+            if knowledge is not None and len(knowledge) > 1_048_576:
+                raise ValueError("knowledge byte limit exceeded")
+            evidence_total = len(knowledge or b"")
+            for snapshot, (body, media_type) in evidence.items():
+                if (
+                    not 0 < len(snapshot) <= 200
+                    or len(body) > 10_485_760
+                    or media_type not in {"text/plain", "text/markdown"}
+                ):
+                    raise ValueError("invalid retained evidence")
+                body.decode("utf-8", errors="strict")
+                evidence_total += len(body)
+            if len(evidence) > 1000 or total + evidence_total > 33_554_432:
+                raise ValueError("artifact and evidence byte limit exceeded")
+            total += evidence_total
+            if (evidence or knowledge is not None) and version != [{"version": 16}]:
+                raise StorageConflictError("evidence authority migration required")
             prior = await (
                 await conn.execute(
                     "SELECT research_id,artifact_set_id,set_digest,deleted FROM research_staging.research_artifact_sets WHERE scope_id=%s AND (research_id=%s OR run_id=%s) FOR UPDATE",
@@ -167,6 +188,32 @@ class ArtifactAuthority(SourceStore):
                     prior["set_digest"],
                 ) != (research, artifact_set, set_digest):
                     raise StorageConflictError("artifact set replay changed")
+                if evidence:
+                    stored = await (
+                        await conn.execute(
+                            "SELECT snapshot_id,body,media_type FROM research_staging.research_artifact_evidence WHERE scope_id=%s AND research_id=%s",
+                            (scope, research),
+                        )
+                    ).fetchall()
+                    if {
+                        row["snapshot_id"]: (bytes(row["body"]), row["media_type"])
+                        for row in stored
+                    } != dict(evidence):
+                        raise StorageConflictError("evidence replay changed")
+                if knowledge is not None:
+                    existing = await (
+                        await conn.execute(
+                            "SELECT knowledge,knowledge_digest FROM research_staging.research_artifact_sets WHERE scope_id=%s AND research_id=%s",
+                            (scope, research),
+                        )
+                    ).fetchone()
+                    if (
+                        existing is None
+                        or existing["knowledge"] is None
+                        or bytes(existing["knowledge"]) != knowledge
+                        or existing["knowledge_digest"] != _sha256(knowledge)
+                    ):
+                        raise StorageConflictError("knowledge replay changed")
                 return await self._read(conn, scope, research)
             await conn.execute(
                 "INSERT INTO research_staging.research_artifact_sets(scope_id,research_id,run_id,artifact_set_id,manifest,manifest_digest,set_digest,total_bytes) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -192,6 +239,16 @@ class ArtifactAuthority(SourceStore):
                         item.body,
                         item.content_digest,
                     ),
+                )
+            if knowledge is not None:
+                await conn.execute(
+                    "UPDATE research_staging.research_artifact_sets SET knowledge=%s,knowledge_digest=%s WHERE scope_id=%s AND research_id=%s",
+                    (knowledge, _sha256(knowledge), scope, research),
+                )
+            for snapshot, (body, media_type) in evidence.items():
+                await conn.execute(
+                    "INSERT INTO research_staging.research_artifact_evidence(scope_id,research_id,snapshot_id,body,content_digest,media_type) VALUES (%s,%s,%s,%s,%s,%s)",
+                    (scope, research, snapshot, body, _sha256(body), media_type),
                 )
             return RetainedArtifactSet(
                 scope,
@@ -297,7 +354,113 @@ class ArtifactAuthority(SourceStore):
                 "UPDATE research_staging.research_artifact_sets SET deleted=true,manifest=NULL WHERE scope_id=%s AND research_id=%s",
                 (scope, research),
             )
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version == [{"version": 16}]:
+                await conn.execute(
+                    "UPDATE research_staging.research_artifact_sets SET knowledge=NULL,knowledge_digest=NULL WHERE scope_id=%s AND research_id=%s",
+                    (scope, research),
+                )
+                await conn.execute(
+                    "DELETE FROM research_staging.research_artifact_evidence WHERE scope_id=%s AND research_id=%s",
+                    (scope, research),
+                )
             await conn.execute(
                 "DELETE FROM research_staging.research_artifacts WHERE scope_id=%s AND research_id=%s",
                 (scope, research),
             )
+
+    async def read_evidence(
+        self, scope: UUID, research: UUID, snapshot: str
+    ) -> tuple[bytes, str]:
+        """Read exact bytes within the artifact set's scope and retention fence."""
+        async with self._transaction() as conn:
+            await self._read(conn, scope, research)
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 16}]:
+                raise StorageConflictError("evidence authority migration required")
+            row = await (
+                await conn.execute(
+                    "SELECT e.body,e.content_digest,e.media_type FROM research_staging.research_artifact_evidence e JOIN research_staging.research_artifact_sets s USING(scope_id,research_id) WHERE e.scope_id=%s AND e.research_id=%s AND e.snapshot_id=%s AND NOT s.deleted AND s.expires_at>now()",
+                    (scope, research, snapshot),
+                )
+            ).fetchone()
+            if row is None or _sha256(bytes(row["body"])) != row["content_digest"]:
+                raise StorageConflictError("evidence unavailable")
+            return bytes(row["body"]), row["media_type"]
+
+    async def migrate_evidence_authority(self) -> None:
+        async with self._transaction(bootstrap=True) as conn:
+            await conn.execute(
+                "LOCK TABLE research_staging.schema_version IN ACCESS EXCLUSIVE MODE"
+            )
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 15}]:
+                raise StorageConflictError("evidence migration requires schema 15")
+            await conn.execute(
+                (
+                    Path(__file__).with_name("migrations") / "016_artifact_evidence.sql"
+                ).read_text(),
+                prepare=False,
+            )
+
+    async def read_knowledge(self, scope: UUID, research: UUID) -> bytes:
+        async with self._transaction() as conn:
+            await self._read(conn, scope, research)
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 16}]:
+                raise StorageConflictError("evidence authority migration required")
+            row = await (
+                await conn.execute(
+                    "SELECT knowledge,knowledge_digest FROM research_staging.research_artifact_sets WHERE scope_id=%s AND research_id=%s",
+                    (scope, research),
+                )
+            ).fetchone()
+            if (
+                row is None
+                or row["knowledge"] is None
+                or _sha256(bytes(row["knowledge"])) != row["knowledge_digest"]
+            ):
+                raise StorageConflictError("retained knowledge unavailable")
+            return bytes(row["knowledge"])
+
+    async def retention(self, scope: UUID, research: UUID) -> dict[str, Any]:
+        async with self._transaction(read=True) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT deleted,expires_at,expires_at>now() AS live FROM research_staging.research_artifact_sets WHERE scope_id=%s AND research_id=%s",
+                    (scope, research),
+                )
+            ).fetchone()
+            if row is None:
+                raise StorageConflictError("artifact set unavailable")
+            return {
+                "deleted": row["deleted"],
+                "live": row["live"],
+                "expires_at": row["expires_at"].isoformat(),
+            }
+
+    async def ensure_evidence_schema(self) -> None:
+        async with self._transaction(read=True) as conn:
+            version = await (
+                await conn.execute(
+                    "SELECT version FROM research_staging.schema_version"
+                )
+            ).fetchall()
+            if version != [{"version": 16}]:
+                raise StorageConflictError("evidence authority migration required")

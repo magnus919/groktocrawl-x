@@ -118,6 +118,7 @@ class SourceStore:
                         [{"version": 13}],
                         [{"version": 14}],
                         [{"version": 15}],
+                        [{"version": 16}],
                     ):
                         raise StorageConflictError("unsupported storage schema")
                 yield conn

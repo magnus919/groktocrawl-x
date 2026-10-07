@@ -5,6 +5,7 @@ import unittest
 from uuid import uuid4
 
 from agent.experimental.artifact_authority import ArtifactAuthority
+from agent.experimental.slopsearx_provenance_store import SlopSearXProvenanceStore
 from agent.experimental.source_store import StorageConflictError
 
 
@@ -118,9 +119,67 @@ class ArtifactAuthorityTests(unittest.IsolatedAsyncioTestCase):
                 self.artifacts,
             )
 
+    async def test_exact_evidence_replay_scope_expiry_and_delete(self):
+        evidence = {
+            "source-1": ("Complete Unicode evidence: 🐙".encode(), "text/plain")
+        }
+        await self.store.commit(
+            self.scope,
+            self.research,
+            self.run,
+            self.artifact_set,
+            self.manifest,
+            self.artifacts,
+            evidence=evidence,
+            knowledge=b'{"context":{}}',
+        )
+        assert (
+            await self.store.read_evidence(self.scope, self.research, "source-1")
+            == evidence["source-1"]
+        )
+        assert (
+            await self.store.read_knowledge(self.scope, self.research)
+            == b'{"context":{}}'
+        )
+        with self.assertRaises(StorageConflictError):
+            await self.store.read_evidence(uuid4(), self.research, "source-1")
+        with self.assertRaises(StorageConflictError):
+            await self.store.commit(
+                self.scope,
+                self.research,
+                self.run,
+                self.artifact_set,
+                self.manifest,
+                self.artifacts,
+                evidence={"source-1": (b"tampered", "text/plain")},
+            )
+        await self.store.delete(self.scope, self.research)
+        with self.assertRaises(StorageConflictError):
+            await self.store.read_evidence(self.scope, self.research, "source-1")
+
+    async def test_expired_evidence_fails_closed(self):
+        await self.store.commit(
+            self.scope,
+            self.research,
+            self.run,
+            self.artifact_set,
+            self.manifest,
+            self.artifacts,
+            evidence={"source-1": (b"exact", "text/plain")},
+        )
+        async with self.store._transaction() as conn:
+            await conn.execute(
+                "UPDATE research_staging.research_artifact_sets SET expires_at=now()-interval '1 second' WHERE scope_id=%s AND research_id=%s",
+                (self.scope, self.research),
+            )
+        with self.assertRaises(StorageConflictError):
+            await self.store.read_evidence(self.scope, self.research, "source-1")
+
 
 if __name__ == "__main__":
     store = ArtifactAuthority()
     asyncio.run(store.migrate_artifact_authority())
     asyncio.run(store.migrate_deletion_fence())
+    asyncio.run(SlopSearXProvenanceStore().migrate())
+    asyncio.run(store.migrate_evidence_authority())
     unittest.main(verbosity=2)

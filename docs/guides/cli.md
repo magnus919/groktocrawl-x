@@ -55,3 +55,8 @@ Commands that start asynchronous work print a job identifier unless polling is e
 Use `groktocrawl document create-session|attach|list|show|query|detach` for scoped
 parsed-file evidence. See [Private Document Evidence](private-documents.md) for
 byte/span bounds, selected document/web refs, ownership and session lifetimes.
+
+The experimental `research workspace [RUN_ID]` lists or selects retained roots;
+`research resume RUN_ID OPERATION --expected-revision DIGEST` performs a named
+revision-guarded operation. See [research workspace](research-workspace.md) for
+render/export/evidence, explicit session document context and follow-up preview.

@@ -30,8 +30,30 @@ class FakeAuthority:
     def __init__(self) -> None:
         self.values: dict[tuple[UUID, UUID], RetainedArtifactSet] = {}
         self.deleted: set[tuple[UUID, UUID]] = set()
+        self.knowledge = {}
+        self.evidence = {}
         self.commits = 0
         self.deletions = 0
+
+    async def retention(self, scope, research):
+        return {
+            "deleted": (scope, research) in self.deleted,
+            "live": True,
+            "expires_at": "2026-11-01T00:00:00+00:00",
+        }
+
+    async def read_knowledge(self, scope, research):
+        return self.knowledge[(scope, research)]
+
+    async def read_evidence(self, scope, research, snapshot):
+        if (scope, research) in self.deleted or snapshot not in self.evidence.get(
+            (scope, research), {}
+        ):
+            raise StorageConflictError("evidence unavailable")
+        return self.evidence[(scope, research)][snapshot]
+
+    async def ensure_evidence_schema(self):
+        return None
 
     async def ensure_scope(self, scope: UUID) -> None:
         return None
@@ -44,7 +66,11 @@ class FakeAuthority:
         artifact_set: UUID,
         manifest: bytes,
         artifacts: dict[str, tuple[str, bytes]],
+        evidence=None,
+        knowledge=None,
     ) -> RetainedArtifactSet:
+        self.knowledge[(scope, research)] = knowledge
+        self.evidence[(scope, research)] = evidence or {}
         self.commits += 1
         manifest_digest, retained, set_digest, _ = ArtifactAuthority._validate(
             manifest, artifacts
@@ -302,3 +328,36 @@ async def test_recovered_bytes_match_http_sse_cli_and_mcp(
         experimental._RUNS.clear()
         assert (await client.get(summary_url)).status_code == 410
         assert (await client.get(created.json()["events_url"])).status_code == 410
+
+
+@pytest.mark.asyncio
+async def test_workspace_recovers_cited_evidence_without_process_memory(authority_app):
+    app, _, _ = authority_app
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        created = (
+            await client.post(
+                "/experimental/research/v1/runs",
+                headers={"Idempotency-Key": "workspace-restart"},
+                json={"objective": "Retain citations"},
+            )
+        ).json()
+        status = await _wait(client, created["status_url"])
+        selected_url = "/experimental/research/v1/workspace/" + status["run_id"]
+        before = (await client.get(selected_url)).json()
+        assert before["evidence"]
+        cite = before["evidence"][0]
+        original = (await client.get(cite["url"])).json()
+        experimental._RUNS.clear()
+        after = (await client.get(selected_url)).json()
+        assert after["revision"] == before["revision"]
+        assert after["evidence"] == before["evidence"]
+        assert after["evidence_recovery"] == "postgres_artifact_authority"
+        recovered = (await client.get(cite["url"])).json()
+        assert recovered == original
+        await client.delete(
+            "/experimental/research/v1/research/" + status["research_id"]
+        )
+        experimental._RUNS.clear()
+        assert (await client.get(cite["url"])).status_code == 410
