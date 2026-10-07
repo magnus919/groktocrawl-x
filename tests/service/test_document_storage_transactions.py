@@ -315,9 +315,13 @@ async def test_owned_session_routes_do_not_expose_documents_to_foreign_callers(
                 headers=foreign,
             )
         ).status_code == 404
-        assert (
-            await client.delete(f"/v2/session/{session_id}", headers=foreign)
-        ).status_code == 404
+        foreign_delete = await client.delete(
+            f"/v2/session/{session_id}", headers=foreign
+        )
+        assert foreign_delete.status_code == 200
+        assert foreign_delete.json()["deleted"] is False
+        assert await store.aget(session_id) is not None
+        assert await store.aget_ref(session_id, "doc") is not None
         assert (await client.get(f"/v2/session/{session_id}")).status_code == 200
         resolved = await client.post(
             f"/v2/session/{session_id}/resolve", json={"ref_ids": ["doc"]}
@@ -327,8 +331,16 @@ async def test_owned_session_routes_do_not_expose_documents_to_foreign_callers(
         assert (
             await client.post(f"/v2/session/{session_id}/export")
         ).status_code == 200
-        assert (await client.delete(f"/v2/session/{session_id}")).status_code == 200
+        owner_delete = await client.delete(f"/v2/session/{session_id}")
+        assert owner_delete.status_code == 200
+        assert owner_delete.json()["deleted"] is True
         assert await store.aget_ref(session_id, "doc") is None
+        repeated_delete = await client.delete(f"/v2/session/{session_id}")
+        unknown_delete = await client.delete("/v2/session/unknown-document-session")
+        for response in [repeated_delete, unknown_delete]:
+            assert response.status_code == 200
+            assert response.json()["deleted"] is False
+        assert repeated_delete.json() == foreign_delete.json()
 
 
 @pytest.mark.asyncio
