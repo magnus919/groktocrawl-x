@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+from collections.abc import MutableMapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -21,6 +22,24 @@ from ._helpers import _get_redis_url
 from .parse import PARSE_SVC_URL, _consume_upload, _parse_upstream_response
 
 router = APIRouter()
+MAX_MULTIPART_OVERHEAD_BYTES = 64 * 1024
+
+
+def _bounded_form_request(request: Request) -> Request:
+    """Bound transfer before multipart spooling, including chunked requests."""
+    received = 0
+
+    async def receive() -> MutableMapping[str, Any]:
+        nonlocal received
+        message = await request.receive()
+        received += len(message.get("body", b""))
+        if received > MAX_DOCUMENT_BYTES + MAX_MULTIPART_OVERHEAD_BYTES:
+            raise InvalidRequestError(
+                detail="Document multipart transfer limit exceeded"
+            )
+        return message
+
+    return Request(request.scope, receive=receive)
 
 
 @asynccontextmanager
@@ -90,7 +109,7 @@ async def attach_session_document(session_id: str, request: Request) -> dict[str
         raise InvalidRequestError(
             detail="Create an owned session before attaching private documents"
         )
-    async with request.form(
+    async with _bounded_form_request(request).form(
         max_files=1, max_fields=2, max_part_size=MAX_DOCUMENT_BYTES
     ) as form:
         upload_id = form.get("upload_id")
@@ -98,6 +117,8 @@ async def attach_session_document(session_id: str, request: Request) -> dict[str
         if upload_id and upload:
             raise InvalidRequestError(detail="Provide file or upload_id, not both")
         if isinstance(upload_id, str):
+            if not 0 < len(upload_id) <= 200:
+                raise InvalidRequestError(detail="Invalid upload ID")
             from redis import Redis
 
             redis = Redis.from_url(_get_redis_url(request), decode_responses=False)

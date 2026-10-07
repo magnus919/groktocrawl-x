@@ -398,3 +398,29 @@ async def test_document_lock_conflict_is_explicit_without_commit(
             await attach(client, "report.txt", b"Private evidence")
         ).status_code == 409
     assert not store.refs
+
+
+@pytest.mark.asyncio
+async def test_chunked_document_transfer_is_bounded_before_file_spooling(
+    document_app, monkeypatch
+):
+    app, store = document_app
+    monkeypatch.setattr(documents, "MAX_DOCUMENT_BYTES", 10)
+    monkeypatch.setattr(documents, "MAX_MULTIPART_OVERHEAD_BYTES", 100)
+
+    async def chunks():
+        yield b'--fixture\r\nContent-Disposition: form-data; name="file"; filename="a.txt"\r\n\r\n'
+        yield b"x" * 100
+        yield b"\r\n--fixture--\r\n"
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://fixture"
+    ) as client:
+        response = await client.post(
+            "/v2/session/session-a/documents",
+            content=chunks(),
+            headers={"Content-Type": "multipart/form-data; boundary=fixture"},
+        )
+    assert response.status_code == 400
+    assert "transfer limit" in response.json()["error"]
+    assert not store.refs
