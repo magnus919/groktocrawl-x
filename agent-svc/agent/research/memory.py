@@ -22,6 +22,7 @@ async def admit_research_memory(
     latency_ms: int = 0,
     user_id: str | None = None,
     fingerprint: str | None = None,
+    evidence_coverage: dict[str, Any] | None = None,
 ) -> str | None:
     """Store a valid final artifact, treating unavailable memory as non-fatal."""
     if (
@@ -39,6 +40,7 @@ async def admit_research_memory(
         "model": model,
         "citation_style": citation_style,
         "latency_ms": latency_ms,
+        "evidence_coverage": evidence_coverage or {},
     }
     if requested_model and requested_model != "default":
         metadata["requested_model"] = requested_model
@@ -105,6 +107,7 @@ async def finalize_and_admit(
         latency_ms=result.get("latency_ms", 0),
         user_id=user_id,
         fingerprint=fingerprint,
+        evidence_coverage=result.get("evidence_coverage", {}),
     )
     if artifact_id:
         result["research_memory_id"] = artifact_id
@@ -130,6 +133,7 @@ async def refresh_research_memory(
     search_type: str,
     user_id: str | None,
     fingerprint: str | None,
+    evidence_budget_chars: int = 32_000,
 ) -> dict[str, Any]:
     """Re-run the research pipeline and re-admit a fresh result to memory.
 
@@ -153,6 +157,7 @@ async def refresh_research_memory(
         include_images=include_images,
         citation_style=citation_style,
         search_type=search_type,
+        evidence_budget_chars=evidence_budget_chars,
     )
     return await finalize_and_admit(
         research_memory,

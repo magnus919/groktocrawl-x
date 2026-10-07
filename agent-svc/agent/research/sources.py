@@ -18,10 +18,6 @@ from common.url import extract_domain
 
 from ..search_metadata import search_metadata
 
-# Legacy default for keyless callers; Jev-enabled research explicitly sends
-# the complete retained page so the assessed contribution reaches synthesis.
-DOCUMENT_MAX_CHARS = 8000
-
 
 @dataclass
 class SourceArtifact:
@@ -50,12 +46,19 @@ class SourceArtifact:
     extras: dict[str, Any] | None = None
     discovery_metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_document(self, max_chars: int | None = DOCUMENT_MAX_CHARS) -> str:
+    def to_document(self, max_chars: int | None = None) -> str:
         """Render the source into a ``Source: url (domain: ...)`` context block."""
         domain = extract_domain(self.url)
         markdown = self.markdown or ""
         if max_chars is not None:
-            markdown = markdown[:max_chars]
+            from .evidence import build_evidence
+
+            selection = build_evidence(
+                [{"id": self.url, "url": self.url, "markdown": markdown}],
+                self.relevance,
+                max_chars,
+            )
+            return selection["context"]
         header = f"Source: {self.url} (domain: {domain})"
         if self.material_contribution_score is not None:
             header += (

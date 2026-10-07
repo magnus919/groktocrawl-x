@@ -419,6 +419,11 @@ async def search(request: Request, body: SearchRequest) -> SearchResponse:
         if image_results:
             result_data["images"] = [r.model_dump() for r in image_results]
 
-        return SearchResponse(data=result_data, output=output, warning=warning_msg)
+        return SearchResponse(
+            data=result_data,
+            output=output,
+            warning=warning_msg,
+            evidence_coverage=output.get("evidence_coverage") if output else None,
+        )
     finally:
         await searxng.close()

@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
 from ..exceptions import ConflictError, InvalidRequestError, NotFoundError
 from ..models import (
@@ -23,6 +23,98 @@ from ._helpers import _get_redis_url
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/v2/session/{session_id}/evidence/{ref_id}")
+async def select_session_evidence(
+    request: Request,
+    session_id: str,
+    ref_id: str,
+    query: str = Query(default="", max_length=10_000),
+    budget_chars: int = Query(default=32_000, ge=256, le=128_000),
+    offset: int = Query(default=0, ge=0),
+    expected_digest: str | None = Query(default=None, pattern=r"^[0-9a-f]{64}$"),
+) -> dict[str, Any]:
+    """Inspect exact retained evidence without acquisition or model calls."""
+    import asyncio
+
+    from ..experimental.knowledge import text_digest
+    from ..research.evidence import build_evidence_async, evidence_page
+    from ..session import SessionManager
+    from ..session_scope import authorize_session
+
+    mgr = SessionManager(redis_url=_get_redis_url(request))
+    await authorize_session(mgr.store, session_id, request)
+    source = await mgr.store.aget_ref(session_id, ref_id)
+    if source is None or not source.get("markdown"):
+        raise NotFoundError(detail="Retained evidence not found")
+    digest = text_digest(source["markdown"])
+    if expected_digest is not None and digest != expected_digest:
+        raise ConflictError(
+            detail="Retained evidence content changed",
+            details={"classification": "CONTENT_CHANGED"},
+        )
+    if query:
+        if offset:
+            raise InvalidRequestError(
+                detail="Use either a query selection or an offset page"
+            )
+        selection = await build_evidence_async(
+            [{"id": ref_id, **source}], query, budget_chars
+        )
+        selected = selection["coverage"]["sources"][0]
+        spans = [
+            {**span, "quote": source["markdown"][span["start"] : span["end"]]}
+            for span in selected["spans"]
+        ]
+        result = {
+            **selected,
+            "content_digest": digest,
+            "spans": spans,
+            "coverage_complete": False,
+            "next_offset": 0 if selected["omitted_chars"] else None,
+        }
+    else:
+        try:
+            result = await asyncio.to_thread(
+                evidence_page, {"id": ref_id, **source}, budget_chars, offset
+            )
+        except ValueError as exc:
+            raise InvalidRequestError(detail=str(exc)) from exc
+    # Session/ref liveness may have changed while scanning; fail closed.
+    await authorize_session(mgr.store, session_id, request)
+    current = await mgr.store.aget_ref(session_id, ref_id)
+    if current is None or text_digest(current.get("markdown") or "") != digest:
+        raise NotFoundError(detail="Retained evidence no longer available")
+    return {
+        "success": True,
+        "session_id": session_id,
+        "ref_id": ref_id,
+        **result,
+        "source": {
+            key: source[key]
+            for key in (
+                "url",
+                "title",
+                "filename",
+                "media_type",
+                "extraction",
+                "anchors",
+            )
+            if key in source
+        },
+        "continuation": {
+            "method": "GET",
+            "path": f"/v2/session/{session_id}/evidence/{ref_id}",
+            "params": {
+                "offset": result["next_offset"],
+                "expected_digest": digest,
+                "budget_chars": budget_chars,
+            },
+        }
+        if result["next_offset"] is not None
+        else None,
+    }
 
 
 @router.post("/v2/session/create", response_model=SessionCreateResponse)

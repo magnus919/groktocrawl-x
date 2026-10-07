@@ -118,6 +118,8 @@ def extract_cli_commands() -> set[str]:
 
 def path_to_command(path: str) -> str | None:
     """Map an API path to its expected CLI command name."""
+    if path == "/v2/session/{session_id}/evidence/{ref_id}":
+        return "evidence"
     # Strip leading /v2/ and take the first segment
     if not path.startswith("/v2/"):
         return None

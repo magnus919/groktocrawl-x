@@ -120,6 +120,7 @@ def compute_fingerprint(
     citation_style: str = "inline",
     strict_constrain_to_urls: bool = False,
     force_fresh: bool = False,
+    evidence_budget_chars: int = 32_000,
 ) -> str:
     """Return a canonical SHA-256 fingerprint of response-affecting fields.
 
@@ -132,6 +133,8 @@ def compute_fingerprint(
     canonical_schema = _canonical_json(schema) if schema else None
     canonical_model = "" if model in (None, "", "default") else model
     canonical = {
+        "evidence_selection_version": "exact-lexical-passages/2",
+        "evidence_budget_chars": evidence_budget_chars,
         "prompt": normalized_prompt,
         "urls": sorted_urls,
         "schema": canonical_schema,

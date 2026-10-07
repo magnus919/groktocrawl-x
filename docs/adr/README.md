@@ -130,6 +130,7 @@ An Architecture Decision Record captures an important architectural decision mad
 | 0091 | [Bound Research Acquisition by the Per-Query Search Maximum](0091-bound-research-acquisition-by-search-maximum.md) | superseded by ADR-0092 |
 | 0092 | [Retire the Per-Query Search Maximum and Acquire Every Distinct Result](0092-retire-per-query-search-maximum-and-acquire-all-distinct-results.md) | accepted and implemented in experimental fork |
 | 0093 | [Retain Source Search Provenance](0093-retain-source-search-provenance.md) | proposed; implementation prepared for review |
+| 0094 | [Exact full-source evidence selection and scoped recovery](0094-exact-full-source-evidence-selection.md) | Proposed |
 
 | 0095 | [Retain Bounded Source Media Metadata](0095-retain-bounded-source-media-metadata.md) | proposed; implementation prepared for review |
 

@@ -81,7 +81,8 @@ class TestTransportSecurity:
         import mcp_server as mod
 
         monkeypatch.setenv(
-            "MCP_ALLOWED_HOSTS", "localhost:*,127.0.0.1:*,[::1]:*,incumbent.example.internal:*"
+            "MCP_ALLOWED_HOSTS",
+            "localhost:*,127.0.0.1:*,[::1]:*,incumbent.example.internal:*",
         )
         ts = mod._build_transport_security()
         assert ts.enable_dns_rebinding_protection is True
@@ -96,7 +97,9 @@ class TestTransportSecurity:
         """Trailing/empty comma entries are dropped, not kept as empty hosts."""
         import mcp_server as mod
 
-        monkeypatch.setenv("MCP_ALLOWED_HOSTS", "incumbent.example.internal:*, ,localhost:*,")
+        monkeypatch.setenv(
+            "MCP_ALLOWED_HOSTS", "incumbent.example.internal:*, ,localhost:*,"
+        )
         ts = mod._build_transport_security()
         assert ts.enable_dns_rebinding_protection is True
         assert ts.allowed_hosts == ["incumbent.example.internal:*", "localhost:*"]
@@ -108,7 +111,10 @@ class TestTransportSecurity:
         monkeypatch.setenv("MCP_ALLOWED_HOSTS", "incumbent.example.internal:*")
         monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
         ts = mod._build_transport_security()
-        assert ts.allowed_origins == ["http://incumbent.example.internal:*", "https://incumbent.example.internal:*"]
+        assert ts.allowed_origins == [
+            "http://incumbent.example.internal:*",
+            "https://incumbent.example.internal:*",
+        ]
 
     def test_build_transport_security_origins_override(self, monkeypatch):
         """MCP_ALLOWED_ORIGINS overrides the host-derived origin default."""
@@ -129,15 +135,15 @@ class TestTransportSecurity:
 
 
 class TestToolDiscovery:
-    """VAL-MCP-B01: tools/list returns exactly 44 tools."""
+    """VAL-MCP-B01: tools/list returns exactly 45 tools."""
 
     async def test_tool_count(self):
-        """tools/list returns exactly 44 tools."""
+        """tools/list returns exactly 45 tools."""
         tools = await mcp.list_tools()
-        assert len(tools) == 44, f"Expected 44 tools, got {len(tools)}"
+        assert len(tools) == 45, f"Expected 45 tools, got {len(tools)}"
 
     async def test_all_tool_names(self):
-        """All 44 expected tool names are present."""
+        """All 45 expected tool names are present."""
         tools = await mcp.list_tools()
         names = {t.name for t in tools}
         expected = {
@@ -162,6 +168,7 @@ class TestToolDiscovery:
             "get_agent_status",
             "cancel_agent",
             "answer",
+            "select_session_evidence",
             "extract",
             "get_extract_status",
             "enrich",
@@ -514,6 +521,7 @@ class TestToolCallRouting:
 
     async def test_research_capabilities_routes_to_client(self, monkeypatch):
         """Experimental capability discovery is exposed as a read-only tool."""
+
         async def _fake_capabilities() -> dict[str, Any]:
             return {
                 "protocol_version": "research/1",

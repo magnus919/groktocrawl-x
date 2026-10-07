@@ -199,12 +199,14 @@ class ConsolidatedJourney:
             verifier.model_dump_json()
         )
         supplied_registrations = verification_registrations or ((verifier, verify),)
-        self._verification_registrations = tuple(
-            (
-                TypeAdapter(Reviewer).validate_json(reviewer.model_dump_json()),
-                executor,
+        self._verification_registrations: tuple[tuple[Reviewer, CheckExecutor], ...] = (
+            tuple(
+                (
+                    TypeAdapter(Reviewer).validate_json(reviewer.model_dump_json()),
+                    executor,
+                )
+                for reviewer, executor in supplied_registrations
             )
-            for reviewer, executor in supplied_registrations
         )
         self._reviewers = tuple(
             reviewer for reviewer, _ in self._verification_registrations
