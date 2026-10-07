@@ -52,6 +52,7 @@ EXEMPT = frozenset(
 # Value: the dispatch dict key in groktocrawl
 PATH_TO_CLI_COMMAND: dict[str, str] = {
     "agent": "agent",
+    "followup": "followup",
     "answer": "answer",
     "batch": "batch-scrape",
     "browser": "browser",

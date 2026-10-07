@@ -134,5 +134,6 @@ An Architecture Decision Record captures an important architectural decision mad
 
 | 0095 | [Retain Bounded Source Media Metadata](0095-retain-bounded-source-media-metadata.md) | proposed; implementation prepared for review |
 | 0096 | [Admit Private Documents as Session Evidence](0096-admit-private-documents-as-session-evidence.md) | proposed; implementation prepared for review |
+| 0097 | [Preview Explicit Contextual Follow-ups](0097-preview-explicit-contextual-followups.md) | proposed; bounded explicit preview implemented for review |
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
