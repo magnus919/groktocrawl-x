@@ -225,3 +225,81 @@ async def test_actual_upload_reservation_transfer_and_document_admission(
             await client.put(f"/v2/parse/upload/{next_upload}", content=b"123")
         ).status_code == 400
         assert _consume_upload(_redis, next_upload, "anonymous") is None
+
+
+@pytest.mark.asyncio
+async def test_owned_session_routes_do_not_expose_documents_to_foreign_callers(
+    storage, monkeypatch
+):
+    import httpx
+    from agent.exceptions import GroktoCrawlError
+    from agent.routes import session
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+
+    store, _redis, sessions, _uploads = storage
+    monkeypatch.setattr("agent.session.SessionStore", lambda **_kwargs: store)
+    app = FastAPI()
+    app.include_router(session.router)
+
+    @app.exception_handler(GroktoCrawlError)
+    async def handle(_request, exc):
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://fixture",
+        headers={"Authorization": "Bearer owner-fixture"},
+    ) as client:
+        creation = await client.post("/v2/session/create", json={"ttl": 3600})
+        assert creation.status_code == 200
+        session_id = creation.json()["sessionId"]
+        sessions.append(session_id)
+        assert await store.aadd_ref(
+            session_id,
+            "doc",
+            {
+                "source": "document",
+                "markdown": "Private report",
+                "url": "retained",
+                "char_count": 14,
+            },
+        )
+        foreign = {"Authorization": "Bearer foreign-fixture"}
+        assert (
+            await client.get(f"/v2/session/{session_id}", headers=foreign)
+        ).status_code == 404
+        assert (
+            await client.post(f"/v2/session/{session_id}/export", headers=foreign)
+        ).status_code == 404
+        assert (
+            await client.post(
+                f"/v2/session/{session_id}/resolve",
+                json={"ref_ids": ["doc"]},
+                headers=foreign,
+            )
+        ).status_code == 404
+        assert (
+            await client.post(
+                f"/v2/session/{session_id}/step",
+                json={
+                    "action": "query",
+                    "params": {"question": "Reveal private source"},
+                },
+                headers=foreign,
+            )
+        ).status_code == 404
+        assert (
+            await client.delete(f"/v2/session/{session_id}", headers=foreign)
+        ).status_code == 404
+        assert (await client.get(f"/v2/session/{session_id}")).status_code == 200
+        resolved = await client.post(
+            f"/v2/session/{session_id}/resolve", json={"ref_ids": ["doc"]}
+        )
+        assert resolved.status_code == 200
+        assert resolved.json()["refs"]["doc"]["markdown"] == "Private report"
+        assert (
+            await client.post(f"/v2/session/{session_id}/export")
+        ).status_code == 200
+        assert (await client.delete(f"/v2/session/{session_id}")).status_code == 200
+        assert await store.aget_ref(session_id, "doc") is None

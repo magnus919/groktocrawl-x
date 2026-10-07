@@ -65,3 +65,22 @@ def test_file_instructions_and_urls_remain_unexecuted_source_data():
     assert ref["markdown"] == text
     assert ref["url"].startswith("/v2/session/")
     assert ref["url"] != text
+
+
+def test_anchor_and_extraction_metadata_budgets_reject_instead_of_truncate(monkeypatch):
+    monkeypatch.setattr("agent.session_documents.MAX_EXTRACTION_ANCHORS", 1)
+    with pytest.raises(InvalidRequestError, match="extraction-anchor"):
+        extraction_anchors("# First\n\nText\n# Second\nText")
+    monkeypatch.setattr("agent.session_documents.MAX_EXTRACTION_METADATA_BYTES", 32)
+    with pytest.raises(UpstreamError, match="metadata exceeds"):
+        document_ref(
+            "session",
+            b"bytes",
+            "report.txt",
+            "text/plain",
+            parsed("Text", {"extraction": "x" * 40}),
+        )
+    with pytest.raises(InvalidRequestError, match="anchor metadata"):
+        document_ref(
+            "session", b"bytes", "report.txt", "text/plain", parsed("# " + "x" * 40)
+        )
