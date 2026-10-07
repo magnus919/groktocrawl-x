@@ -1740,3 +1740,88 @@ def test_search_json_keeps_media_and_engine_attribution(monkeypatch):
     monkeypatch.setitem(_cli_ns, "emit", lambda _text, data: output.append(data))
     _cli_ns["cmd_search"](client, args)
     assert output[0]["results"][0] == row
+class TestDocumentWorkflowCLI:
+    def test_query_passes_explicit_refs_model_and_evidence_budget(self, client, capsys):
+        parser = _cli_ns["make_parser"]()
+        args = parser.parse_args(
+            [
+                "document",
+                "query",
+                "session",
+                "Compare sources",
+                "--ref",
+                "doc_fixture",
+                "--ref",
+                "ref_1_2",
+                "--model",
+                "fixture",
+                "--evidence-budget-chars",
+                "32000",
+            ]
+        )
+        with patch.object(
+            client, "_request", return_value={"answer": "fixture"}
+        ) as request:
+            _cli_ns["cmd_document"](client, args)
+        assert request.call_args.args == ("POST", "/session/session/step")
+        assert request.call_args.kwargs["json_data"]["params"] == {
+            "question": "Compare sources",
+            "ref_ids": ["doc_fixture", "ref_1_2"],
+            "model": "fixture",
+            "evidence_budget_chars": 32000,
+        }
+
+    def test_local_document_bytes_use_api_auth_and_display_basename(
+        self, client, tmp_path
+    ):
+        filepath = tmp_path / "private-report.txt"
+        filepath.write_bytes(b"Private local bytes")
+        response = MagicMock(status_code=200)
+        response.json.return_value = {"ref_id": "doc_fixture"}
+        client.api_key = "fixture-key"
+        with patch("requests.post", return_value=response) as post:
+            assert (
+                client.document_attach("session", str(filepath))["ref_id"]
+                == "doc_fixture"
+            )
+        assert post.call_args.kwargs["files"]["file"] == (
+            "private-report.txt",
+            b"Private local bytes",
+            "text/plain",
+        )
+        assert post.call_args.kwargs["headers"] == {
+            "Authorization": "Bearer fixture-key"
+        }
+        assert post.call_args.args[0].endswith("/v2/session/session/documents")
+
+    def test_document_dry_run_never_opens_local_file(self):
+        client_cls = _cli_ns["Client"]
+        result = client_cls(server="http://fixture", dry_run=True).document_attach(
+            "session", "/nonexistent/private.pdf"
+        )
+        assert result["dry_run"] is True
+        assert result["url"] == "http://fixture/v2/session/session/documents"
+
+    def test_document_exact_span_and_lifecycle_actions(self, client):
+        parser = _cli_ns["make_parser"]()
+        for action, expected_method, suffix in (
+            ("show", "GET", "/documents/doc_fixture"),
+            ("detach", "DELETE", "/documents/doc_fixture"),
+            ("export-session", "POST", "/export"),
+            ("delete-session", "DELETE", ""),
+        ):
+            arguments = ["document", action, "session"]
+            if action in {"show", "detach"}:
+                arguments.append("doc_fixture")
+            if action == "show":
+                arguments += ["--start", "1", "--end", "4"]
+            with patch.object(
+                client, "_request", return_value={"success": True}
+            ) as request:
+                _cli_ns["cmd_document"](client, parser.parse_args(arguments))
+            assert request.call_args.args == (
+                expected_method,
+                "/session/session" + suffix,
+            )
+            if action == "show":
+                assert request.call_args.kwargs["params"] == {"start": 1, "end": 4}

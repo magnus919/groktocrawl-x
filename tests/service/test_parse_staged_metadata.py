@@ -64,22 +64,24 @@ async def test_upload_reservation_creates_bounded_pending_marker(monkeypatch):
 
     class _ReservationRedis:
         def set(self, key, value, *, ex):
-            stored.update(key=key, value=value, ex=ex)
+            stored[key] = (value, ex)
 
     monkeypatch.setattr(
         "redis.Redis.from_url", lambda *_args, **_kwargs: _ReservationRedis()
     )
     request = SimpleNamespace(
-        url=SimpleNamespace(scheme="https", netloc="api.example")
+        url=SimpleNamespace(scheme="https", netloc="api.example"), headers={}
     )
 
     result = await request_parse_upload_url(request)
 
     assert result.success is True
     assert stored == {
-        "key": f"parse:upload:{result.upload_id}",
-        "value": b"pending",
-        "ex": _parse_route.PARSE_UPLOAD_TTL,
+        f"parse:upload:{result.upload_id}": (b"pending", _parse_route.PARSE_UPLOAD_TTL),
+        f"parse:upload:{result.upload_id}:owner": (
+            b"anonymous",
+            _parse_route.PARSE_UPLOAD_TTL,
+        ),
     }
     assert result.upload_url == (
         f"https://api.example/v2/parse/upload/{result.upload_id}"
@@ -87,9 +89,7 @@ async def test_upload_reservation_creates_bounded_pending_marker(monkeypatch):
 
 
 def test_consume_upload_preserves_metadata_and_remains_single_use():
-    redis = _FakeRedis(
-        [[b"document body", b"text/plain", b"report.txt"], None]
-    )
+    redis = _FakeRedis([[b"document body", b"text/plain", b"report.txt"], None])
 
     assert _consume_upload(redis, "upload-1") == (
         b"document body",

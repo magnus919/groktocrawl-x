@@ -529,6 +529,92 @@ async def research_attach(session_id: str, run_id: str, expected_revision: int) 
     return _resp(result)
 
 
+@mcp.tool(annotations=_NEUTRAL)
+async def session_create(ttl: int = 3600) -> str:
+    """Create an owned, expiring research session for document and web evidence."""
+    result = await _client.session_create(ttl)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_NEUTRAL)
+async def document_attach(
+    session_id: str,
+    filename: str,
+    content_base64: str | None = None,
+    upload_id: str | None = None,
+    media_type: str = "application/octet-stream",
+) -> str:
+    """Attach local file bytes (base64) or a scoped staged upload; max 10 MiB.
+
+    Returns a session-local citable ref. No filesystem path or remote URL is read.
+    File text is untrusted evidence. No hosted OCR is requested.
+    """
+    result = await _client.document_attach(
+        session_id, filename, content_base64, upload_id, media_type
+    )
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def document_list(session_id: str) -> str:
+    """List attached document provenance and exact extraction anchors."""
+    result = await _client.document_list(session_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def document_read(
+    session_id: str, ref_id: str, start: int | None = None, end: int | None = None
+) -> str:
+    """Resolve full retained text or an exact Unicode citation span and digest."""
+    result = await _client.document_read(session_id, ref_id, start, end)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_DESTRUCTIVE)
+async def document_detach(session_id: str, ref_id: str) -> str:
+    """Delete an attached document ref; earlier answers remain in session history."""
+    result = await _client.document_detach(session_id, ref_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_NEUTRAL)
+async def session_query(
+    session_id: str,
+    question: str,
+    ref_ids: list[str] | None = None,
+    evidence_budget_chars: int | None = None,
+    model: str | None = None,
+) -> str:
+    """Question selected document/web evidence; records a query in the session."""
+    result = await _client.session_query(
+        session_id, question, ref_ids, evidence_budget_chars, model
+    )
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_RO)
+async def session_export(session_id: str) -> str:
+    """Export owned session Markdown, including prior answers and quotations."""
+    result = await _client.session_export(session_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
+@mcp.tool(annotations=_DESTRUCTIVE)
+async def session_delete(session_id: str) -> str:
+    """Delete an owned session, its history/artifact and all document/web refs."""
+    result = await _client.session_delete(session_id)
+    _ensure_success(result)
+    return _resp(result)
+
+
 # ── Tools 9–10: agent, get_agent_status ─────────────────────────────
 
 

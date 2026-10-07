@@ -13,6 +13,7 @@ Commands:
   agent            Start an autonomous research agent
   evidence         Inspect exact retained session evidence
   research         Inspect the experimental research protocol
+  document         Attach and question private session documents
   download         Download binary content (PDF, EPUB, image, etc.) to disk
   extract          Extract structured data from URLs
   browser          Manage browser sessions
@@ -1346,6 +1347,30 @@ class Client:
                 f"Parse error ({resp.status_code}): {body.get('detail', body.get('error', str(body)))}"
             )
         return resp.json()
+
+    def document_attach(self, session_id: str, filepath: str | None = None, upload_id: str | None = None) -> dict[str, Any]:
+        """Attach a bounded local file or scoped staged upload to a session."""
+        import mimetypes
+        import requests
+
+        url = self._url(f"/session/{session_id}/documents")
+        if self.dry_run:
+            return {"dry_run": True, "method": "POST", "url": url, "file": filepath, "upload_id": upload_id}
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        if upload_id:
+            response = requests.post(url, data={"upload_id": upload_id}, headers=headers, timeout=120)
+        elif filepath:
+            with open(filepath, "rb") as handle:
+                body = handle.read(10 * 1024 * 1024 + 1)
+            if len(body) > 10 * 1024 * 1024:
+                raise ApiError("Document exceeds 10 MiB admission limit")
+            media_type = mimetypes.guess_type(filepath)[0] or "application/octet-stream"
+            response = requests.post(url, files={"file": (os.path.basename(filepath), body, media_type)}, headers=headers, timeout=120)
+        else:
+            raise ApiError("Provide a file or --upload-id")
+        if response.status_code >= 400:
+            raise ApiError(f"Document attachment error ({response.status_code}): {response.json().get('error', response.json().get('detail', 'request failed'))}")
+        return response.json()
 
     def parse_upload_file(self, upload_id: str, filepath: str) -> dict[str, Any]:
         """Upload a file for two-step parsing via PUT /v2/parse/upload/{upload_id}."""
@@ -2856,6 +2881,40 @@ def cmd_monitor(client: Client, args: argparse.Namespace) -> None:
             log(f"Monitor {args.id} deleted")
 
 
+def cmd_document(client: Client, args: argparse.Namespace) -> None:
+    """Create, attach, resolve, detach, and question session document evidence."""
+    try:
+        action = args.document_action
+        if action == "create-session":
+            result = client._request("POST", "/session/create", json_data={"ttl": args.ttl})
+        elif action == "attach":
+            if bool(args.file) == bool(args.upload_id):
+                die("Provide exactly one file or --upload-id")
+            result = client.document_attach(args.session_id, args.file, args.upload_id)
+        elif action == "export-session":
+            result = client._request("POST", f"/session/{args.session_id}/export")
+        elif action == "delete-session":
+            result = client._request("DELETE", f"/session/{args.session_id}")
+        elif action == "query":
+            params: dict[str, Any] = {"question": args.question}
+            if args.model is not None:
+                params["model"] = args.model
+            if args.evidence_budget_chars is not None:
+                params["evidence_budget_chars"] = args.evidence_budget_chars
+            if args.ref:
+                params["ref_ids"] = args.ref
+            result = client._request("POST", f"/session/{args.session_id}/step", json_data={"action": "query", "params": params})
+        else:
+            path = f"/session/{args.session_id}/documents"
+            if action in {"show", "detach"}:
+                path += f"/{args.ref_id}"
+            query = {key: value for key, value in {"start": getattr(args, "start", None), "end": getattr(args, "end", None)}.items() if value is not None}
+            result = client._request("DELETE" if action == "detach" else "GET", path, params=query or None)
+        emit("Session document evidence", result)
+    except (ApiError, OSError) as error:
+        die(error)
+
+
 def cmd_parse(client: Client, args: argparse.Namespace) -> None:
     """Parse a document file to markdown via the server."""
     if args.upload_id:
@@ -3284,6 +3343,28 @@ def make_parser() -> argparse.ArgumentParser:
         "--expected-revision", type=int, required=True, help="Expected session revision"
     )
 
+    p_document = subparsers.add_parser("document", help="Attach and question private session document evidence")
+    p_document_sub = p_document.add_subparsers(dest="document_action", required=True)
+    p_document_create = p_document_sub.add_parser("create-session", help="Create an owned research session")
+    p_document_create.add_argument("--ttl", type=int, default=3600)
+    p_document_attach = p_document_sub.add_parser("attach", help="Attach a local file or staged upload")
+    p_document_attach.add_argument("session_id")
+    p_document_attach.add_argument("file", nargs="?")
+    p_document_attach.add_argument("--upload-id")
+    for action in ("list", "show", "detach", "query", "export-session", "delete-session"):
+        command = p_document_sub.add_parser(action)
+        command.add_argument("session_id")
+        if action in {"show", "detach"}:
+            command.add_argument("ref_id")
+        if action == "show":
+            command.add_argument("--start", type=int)
+            command.add_argument("--end", type=int)
+        if action == "query":
+            command.add_argument("question")
+            command.add_argument("--model")
+            command.add_argument("--evidence-budget-chars", type=int)
+            command.add_argument("--ref", action="append", help="Select an attached document or web ref (repeatable)")
+
     p_download = subparsers.add_parser(
         "download", help="Download binary content (PDF, EPUB, image, etc.) to disk"
     )
@@ -3570,6 +3651,7 @@ def main() -> None:
         "crawl": cmd_crawl,
         "agent": cmd_agent,
         "research": cmd_research,
+        "document": cmd_document,
         "download": cmd_download,
         "extract": cmd_extract,
         "browser": cmd_browser,
