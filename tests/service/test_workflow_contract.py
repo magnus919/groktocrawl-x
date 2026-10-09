@@ -1,5 +1,6 @@
 """Contract checks for sanitized LLM fixture CI evidence."""
 
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -99,6 +100,31 @@ def test_workflows_have_structured_trusted_and_hosted_contracts():
         and "uv sync --locked --no-dev --group fast-tests" in twin_run
     )
     assert "twin-out" in twin_run and "junitxml" in twin_run
+
+
+def test_runtime_container_tests_use_hash_locked_fast_test_requirements():
+    root = Path(__file__).parents[2]
+    workflow = yaml.safe_load((root / ".github/workflows/runtime.yml").read_text())
+    runtime = workflow["jobs"]["integration-tests"]
+    steps = {step.get("name"): step.get("run", "") for step in runtime["steps"]}
+    export_command = (
+        "uv export --locked --only-group fast-tests --no-dev --no-emit-project "
+        "--no-emit-workspace --no-header --format requirements.txt "
+        "--output-file runtime-test-requirements.txt"
+    )
+    for name in ("Install critical test dependencies", "Run integration tests"):
+        command = steps[name]
+        assert export_command in command
+        assert 'docker cp runtime-test-requirements.txt "$svc:/tmp/runtime-test-requirements.txt"' in command
+        assert "pip install --require-hashes -r /tmp/runtime-test-requirements.txt" in command
+        assert "pip install pytest " not in command
+
+    groups = tomllib.loads((root / "pyproject.toml").read_text())["dependency-groups"]
+    fast_tests = groups["fast-tests"]
+    assert any(item.startswith("curl_cffi") for item in fast_tests)
+    assert any(item.startswith("pytest-timeout>=2") for item in fast_tests)
+    lock = (root / "uv.lock").read_text()
+    assert 'name = "pytest-timeout"' in lock
 
 
 def test_answer_evals_workflow_is_advisory_and_not_pr_gated():
