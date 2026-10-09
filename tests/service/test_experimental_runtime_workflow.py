@@ -24,6 +24,7 @@ def test_runtime_workflow_has_no_publishing_or_privileged_execution():
         "twin-contracts",
         "integration-tests",
         "research-storage",
+        "protected-browser-profile",
         "runtime-gate",
     }
     for job in WORKFLOW["jobs"].values():
@@ -58,6 +59,37 @@ def test_stack_is_built_locally_with_fixture_search_and_owned_volumes():
     assert "down --volumes --remove-orphans" in commands
 
 
+def test_protected_browser_profile_is_required_by_runtime_gate():
+    profile = WORKFLOW["jobs"]["protected-browser-profile"]
+    gate = WORKFLOW["jobs"]["runtime-gate"]
+    assert profile["needs"] == "changes"
+    assert "needs.changes.outputs.requires_full_runtime == 'true'" in profile["if"]
+    assert "protected-browser-profile" in gate["needs"]
+    assert "BROWSER_PROFILE_RESULT" in gate["steps"][0]["env"]
+    assert 'test "$BROWSER_PROFILE_RESULT" = success' in gate["steps"][0]["run"]
+
+
+def test_protected_browser_failure_logs_are_bounded_and_precede_teardown():
+    steps = WORKFLOW["jobs"]["protected-browser-profile"]["steps"]
+    diagnostics = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Collect bounded protected-profile startup diagnostics"
+    )
+    teardown = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Tear down protected browser profile"
+    )
+    step = steps[diagnostics]
+    assert step["if"] == "failure()"
+    assert diagnostics < teardown
+    assert "docker compose ps -a" in step["run"]
+    assert "docker compose logs --no-color --tail=100" in step["run"]
+    assert "env" not in step["run"]
+    assert "inspect" not in step["run"]
+
+
 @pytest.mark.parametrize(
     ("classification", "runtime_required", "twin_required", "runtime", "twin"),
     list(
@@ -80,6 +112,7 @@ def test_runtime_gate_fails_closed(
         "twin-contracts",
         "integration-tests",
         "research-storage",
+        "protected-browser-profile",
     }
     step = gate["steps"][0]
     result = subprocess.run(
@@ -90,6 +123,7 @@ def test_runtime_gate_fails_closed(
             "RUNTIME_REQUIRED": runtime_required,
             "TWIN_REQUIRED": twin_required,
             "RUNTIME_RESULT": runtime,
+            "BROWSER_PROFILE_RESULT": "success",
             "TWIN_RESULT": twin,
             "STORAGE_RESULT": "success",
         },
@@ -105,6 +139,51 @@ def test_runtime_gate_fails_closed(
         and (twin_required == "false" or twin == "success")
     )
     assert (result.returncode == 0) is expected
+
+
+@pytest.mark.parametrize("profile_result", ["failure", "cancelled", "skipped"])
+def test_required_browser_profile_failure_or_skip_fails_runtime_gate(profile_result):
+    gate = WORKFLOW["jobs"]["runtime-gate"]
+    step = gate["steps"][0]
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env={
+            **os.environ,
+            "CLASSIFICATION": "success",
+            "RUNTIME_REQUIRED": "true",
+            "TWIN_REQUIRED": "false",
+            "RUNTIME_RESULT": "success",
+            "BROWSER_PROFILE_RESULT": profile_result,
+            "TWIN_RESULT": "skipped",
+            "STORAGE_RESULT": "success",
+        },
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode != 0
+
+
+def test_documentation_only_change_allows_skipped_browser_profile():
+    gate = WORKFLOW["jobs"]["runtime-gate"]
+    step = gate["steps"][0]
+    result = subprocess.run(
+        ["bash", "-c", step["run"]],
+        env={
+            **os.environ,
+            "CLASSIFICATION": "success",
+            "RUNTIME_REQUIRED": "false",
+            "TWIN_REQUIRED": "false",
+            "RUNTIME_RESULT": "skipped",
+            "BROWSER_PROFILE_RESULT": "skipped",
+            "TWIN_RESULT": "skipped",
+            "STORAGE_RESULT": "skipped",
+        },
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode == 0
 
 
 @pytest.mark.parametrize(

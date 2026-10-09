@@ -1,5 +1,6 @@
 """Fail-closed comparison preflight validator tests."""
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -17,9 +18,24 @@ def draft() -> dict:
     )
 
 
-def test_authorized_frozen_candidate_preflight_is_valid():
-    errors = MODULE.validate_manifest(draft(), Path(__file__).parents[2])
+def test_synthetic_current_pin_fixture_is_valid(tmp_path):
+    target = tmp_path / "current-input.json"
+    payload = b'{"fixture":"synthetic current pin"}\n'
+    target.write_bytes(payload)
+    manifest = draft()
+    manifest["file_pins"] = [
+        {
+            "path": "current-input.json",
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+    ]
+    errors = MODULE.validate_manifest(manifest, tmp_path)
     assert errors == []
+
+
+def test_historical_frozen_preflight_rejects_changed_uv_lock_pin():
+    errors = MODULE.validate_manifest(draft(), Path(__file__).parents[2])
+    assert errors == ["file_pins[2] digest does not match target"]
 
 
 def test_missing_file_pin_is_rejected_without_reading_arbitrary_paths():
