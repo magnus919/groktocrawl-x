@@ -5,3 +5,5 @@ This experimental component accepts HTTP CONNECT and absolute-form HTTP requests
 It is not wired into Compose, source clients, browser workers, or FlareSolverr. It does not qualify the protected capture profile or authorize a live study. Complete integration and negative network/browser qualification remain tracked in issue #429 and proposed ADR-0099.
 
 Component validation uses local loopback fixtures and fake stalled writers; no external search or provider requests are required. The current gateway suite has 26 passing tests, including opaque tunnels, HTTP bodies, destination denial, request framing, byte/concurrency limits, cancellation and bounded cleanup. These tests prove their declared component scenarios, not production isolation.
+
+Runtime CI also builds this Dockerfile and starts the image with `--network none`. Its probe checks the real entrypoint's loopback liveness endpoint and private-origin refusals. This image smoke test makes no origin requests and does not establish the future protected capture network's isolation.

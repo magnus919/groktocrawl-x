@@ -190,6 +190,17 @@ jobs:
         run: docker compose --profile indexing --profile fixture build
         timeout-minutes: 25
 
+      - name: Build and probe the capture gateway image
+        if: contains(needs.changes.outputs.changed_paths_json, 'capture-egress')
+        timeout-minutes: 10
+        run: |
+          image="capture-egress-ci:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          container="capture-egress-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker build -f capture-egress-svc/Dockerfile -t "$image" .
+          docker run -d --network none --name "$container" "$image"
+          docker exec -i "$container" python - < tests/integration/capture_egress_image_probe.py
+
       - name: Start the Docker stack
         run: docker compose --profile indexing --profile fixture up -d --no-build --pull never
         timeout-minutes: 10
