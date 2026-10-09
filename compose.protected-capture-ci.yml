@@ -1,0 +1,120 @@
+name: groktocrawl-x-protected-capture-ci
+
+services:
+  candidate-llm:
+    build:
+      context: .
+      dockerfile: llm-svc/Dockerfile
+    image: groktocrawl-x-llm-fixture:${CANDIDATE_IMAGE_TAG:-dev}
+    networks:
+      candidate_egress:
+        aliases: [candidate-llm]
+      candidate_model_upstream:
+        aliases: [candidate-llm]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8011/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+
+  candidate-model-egress:
+    environment:
+      LLM_GATEWAY_PRIVATE_HOSTS: candidate-llm
+
+  candidate-capture-egress:
+    networks:
+      candidate_flare_fixture:
+        ipv4_address: 93.184.216.33
+    extra_hosts:
+      - "flare-origin.test:93.184.216.34"
+
+  candidate-private-sentinel:
+    image: python:3.13-slim@sha256:ffb752e139c0a19692a43af8d8523b274222dd68eebad5d583b45c2201c6e30
+    profiles: [protected-capture]
+    command: [python, /probe/private_network_sentinel.py]
+    volumes:
+      - ./tests/integration/private_network_sentinel.py:/probe/private_network_sentinel.py:ro
+      - ./tests/integration/scraper_ingress_boundary_probe.py:/probe/scraper_ingress_boundary_probe.py:ro
+      - candidate_capture_probe_state:/state
+    networks:
+      candidate_private:
+        ipv4_address: 172.31.253.250
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19001/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 32
+
+  candidate-capture-peer-sentinel:
+    image: python:3.13-slim@sha256:ffb752e139c0a19692a43af8d8523b274222dd68eebad5d583b45c2201c6e30
+    profiles: [protected-capture]
+    command: [python, /probe/private_network_sentinel.py]
+    environment:
+      SENTINEL_EVENTS: /state/events.jsonl
+    volumes:
+      - ./tests/integration/private_network_sentinel.py:/probe/private_network_sentinel.py:ro
+      - candidate_capture_probe_state:/state
+    networks:
+      candidate_capture:
+        ipv4_address: 172.31.254.6
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19001/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 32
+
+  candidate-host-bridge-sentinel:
+    image: python:3.13-slim@sha256:ffb752e139c0a19692a43af8d8523b274222dd68eebad5d583b45c2201c6e30
+    profiles: [protected-capture]
+    command: [python, /probe/private_network_sentinel.py]
+    environment:
+      SENTINEL_EVENTS: /state/events.jsonl
+    volumes:
+      - ./tests/integration/private_network_sentinel.py:/probe/private_network_sentinel.py:ro
+      - candidate_capture_probe_state:/state
+    network_mode: host
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19001/health', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    mem_limit: 64m
+    cpus: 0.25
+    pids_limit: 32
+
+volumes:
+  candidate_capture_probe_state:
+
+networks:
+  candidate_egress:
+    internal: true
+  candidate_model_upstream:
+    internal: true
+  candidate_flare_fixture:
+    internal: true
+    ipam:
+      config:
+        - subnet: 93.184.216.32/29

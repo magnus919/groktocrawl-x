@@ -328,7 +328,7 @@ async def _fetch_via_browser(url: str, ctx: AdapterContext) -> tuple[str, dict] 
     )
     session_id = None
     try:
-        async with trusted_control_httpx_client(timeout=30) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=30) as client:
             # Create session
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
@@ -393,7 +393,7 @@ async def _fetch_via_browser(url: str, ctx: AdapterContext) -> tuple[str, dict] 
     finally:
         if session_id:
             try:
-                async with trusted_control_httpx_client(timeout=5) as c:
+                async with trusted_control_httpx_client(service="browser", timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception:
                 pass

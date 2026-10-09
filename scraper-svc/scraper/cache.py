@@ -7,6 +7,7 @@ revalidation system.
 import hashlib
 import json
 import logging
+import os
 import time
 from urllib.parse import urlparse
 
@@ -136,6 +137,15 @@ async def _get_cache_client():
     )
 
     try:
+        rpc_socket = os.environ.get("VALKEY_RPC_SOCKET")
+        if rpc_socket:
+            from .valkey_control import ValkeyControlClient
+
+            _cache_client = ValkeyControlClient(rpc_socket)
+            await _cache_client.ping()
+            logger.info("Connected to restricted Valkey control socket")
+            return _cache_client
+
         import redis.asyncio as aioredis
 
         _cache_client = aioredis.from_url(

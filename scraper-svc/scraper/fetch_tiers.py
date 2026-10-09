@@ -658,7 +658,7 @@ async def fetch_via_flaresolverr(url: str) -> dict | None:
     """
     try:
         flare_url = trusted_control_base_url(FLARE_SOLVERR_URL, "flare")
-        async with trusted_control_httpx_client(timeout=60) as client:
+        async with trusted_control_httpx_client(service="flare", timeout=60) as client:
             resp = await client.post(
                 flare_url,
                 json={
@@ -722,7 +722,7 @@ async def _fetch_via_browser_svc(url: str) -> dict | None:
     session_id = None
     try:
         # Create a browser session
-        async with trusted_control_httpx_client(timeout=30) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=30) as client:
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
                 json={"ttl": 60},  # Short TTL, we only need one page load
@@ -850,7 +850,7 @@ async def _fetch_via_browser_svc(url: str) -> dict | None:
         # Clean up the browser session
         if session_id:
             try:
-                async with trusted_control_httpx_client(timeout=5) as c:
+                async with trusted_control_httpx_client(service="browser", timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception:
                 pass
@@ -863,7 +863,7 @@ async def _get_browser_page_content(
 ) -> str | None:
     """Get the full page HTML from a browser-svc session via executeScript."""
     try:
-        async with trusted_control_httpx_client(timeout=15) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=15) as client:
             resp = await client.post(
                 f"{browser_svc_url}/browsers/{session_id}/execute",
                 json={

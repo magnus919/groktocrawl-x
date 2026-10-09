@@ -17,6 +17,19 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
+        if self.path == "/scrape-fixture":
+            body = b"""<!doctype html>
+<html><head><title>Protected Ingress Fixture</title>
+<meta name="description" content="Metadata returned through the scraper ingress pipeline.">
+<meta property="og:description" content="A bounded local capture fixture.">
+</head><body><main><h1>Protected ingress capture fixture</h1>
+<p>INGRESS_SCRAPE_PIPELINE_OK proves the HTTP bridge reached the real scraper.</p>
+<p>This local page provides enough stable text for lightweight HTML extraction.</p>
+<p>The fixture contains no external resources and performs no script or redirect.</p>
+<p>Its metadata also verifies the separate metadata endpoint through the same socket.</p>
+</main></body></html>"""
+            self._send(200, "text/html; charset=utf-8", body)
+            return
         if self.path not in {"/", "/get"}:
             self.send_error(404)
             return
@@ -24,10 +37,16 @@ class FixtureHandler(BaseHTTPRequestHandler):
         body = f"""<!doctype html>
 <html><head><title>Protected Flare Fixture</title></head><body>
 <p>FLARE_GET_OK</p><p>COOKIE:{cookie}</p><p id="api-check">pending</p>
+<p id="private-check">pending</p>
 <script>
 fetch('http://127.0.0.1:8191/health', {{mode:'no-cors'}})
   .then(() => document.getElementById('api-check').textContent='CONTROL_API_REACHABLE')
   .catch(() => document.getElementById('api-check').textContent='CONTROL_API_BLOCKED');
+const privateProbe = new AbortController();
+setTimeout(() => privateProbe.abort(), 1500);
+fetch('http://172.31.253.250:19001/probe', {{mode:'no-cors', signal:privateProbe.signal}})
+  .then(() => document.getElementById('private-check').textContent='PRIVATE_TARGET_REACHABLE')
+  .catch(() => document.getElementById('private-check').textContent='PRIVATE_TARGET_BLOCKED');
 </script>
 </body></html>""".encode()
         self._send(200, "text/html; charset=utf-8", body)

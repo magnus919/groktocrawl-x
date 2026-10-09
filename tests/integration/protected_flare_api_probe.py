@@ -3,22 +3,29 @@
 from __future__ import annotations
 
 import json
-import urllib.request
 import uuid
 
-BASE_URL = "http://127.0.0.1:18191"
+import httpx
+
+BASE_URL = "http://candidate-flare-control:8191"
+CONTROL_SOCKET = "/run/flare-control/control.sock"
 FIXTURE_URL = "http://flare-origin.test/get"
+_client = httpx.Client(
+    transport=httpx.HTTPTransport(uds=CONTROL_SOCKET, retries=0),
+    base_url=BASE_URL,
+    trust_env=False,
+    timeout=90.0,
+)
 
 
 def call(body: dict) -> dict:
-    request = urllib.request.Request(
-        f"{BASE_URL}/v1",
-        data=json.dumps(body).encode("utf-8"),
+    response = _client.post(
+        "/v1",
+        content=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
-        method="POST",
     )
-    with urllib.request.urlopen(request, timeout=90) as response:
-        return json.loads(response.read())
+    response.raise_for_status()
+    return response.json()
 
 
 session = f"protected-flare-ci-{uuid.uuid4()}"
@@ -54,6 +61,7 @@ try:
     assert "FLARE_GET_OK" in page, got
     assert "COOKIE:probe=cookie-ok" in page, got
     assert "CONTROL_API_BLOCKED" in page, got
+    assert "PRIVATE_TARGET_BLOCKED" in page, got
     assert get_solution.get("screenshot"), "screenshot capture was not preserved"
 
     redirected = call(
@@ -85,3 +93,4 @@ try:
 finally:
     destroyed = call({"cmd": "sessions.destroy", "session": session})
     assert destroyed.get("status") == "ok", destroyed
+    _client.close()

@@ -75,7 +75,7 @@ req = V1RequestBase(data)
 serve(handler, host=self.host, port=self.port, asyncore_use_poll=True)
 """
     patched = PATCHER.patch(source)
-    assert 'data["proxy"] = {"url": "http://172.31.254.2:8080"}' in patched
+    assert 'data["proxy"] = {"url": "http://172.31.254.18:8080"}' in patched
     assert 'command in {"request.get", "request.post"}' in patched
     assert 'parsed_target.scheme not in {"http", "https"}' in patched
     assert "unix_socket=socket_path" in patched

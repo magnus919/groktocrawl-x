@@ -11,6 +11,7 @@ from common.capture_destination import (
     DestinationResolutionError,
     DestinationTimeoutError,
     resolve_and_connect,
+    resolve_and_connect_model_target,
 )
 
 
@@ -118,7 +119,9 @@ async def test_any_restricted_answer_denies_before_dial(answers: list[str]) -> N
 
     async def dialer(address: object, port: int) -> FakeSocket:
         dials.append(str(address))
-        return FakeSocket(str(address))
+        sock = FakeSocket(str(address))
+        sock.getpeername = lambda: (str(address), port)  # type: ignore[method-assign]
+        return sock
 
     with pytest.raises(DestinationDeniedError):
         await resolve_and_connect("example.com:443", resolver=resolver, dialer=dialer)
@@ -424,3 +427,78 @@ async def test_default_resolver_rejects_non_internet_or_malformed_records(
     monkeypatch.setattr(loop, "getaddrinfo", malformed_getaddrinfo)
     with pytest.raises(DestinationResolutionError):
         await capture_destination._system_resolver("example.com", 443)
+
+
+@pytest.mark.asyncio
+async def test_model_target_private_address_requires_exact_host_grant() -> None:
+    calls: list[tuple[str, int]] = []
+    dials: list[str] = []
+
+    async def resolver(host: str, port: int) -> list[str]:
+        calls.append((host, port))
+        return ["172.31.253.20"]
+
+    async def dialer(address: object, port: int) -> FakeSocket:
+        dials.append(str(address))
+        sock = FakeSocket(str(address))
+        sock.getpeername = lambda: (str(address), port)  # type: ignore[method-assign]
+        return sock
+
+    with pytest.raises(DestinationDeniedError):
+        await resolve_and_connect_model_target(
+            "llm-svc:4001", resolver=resolver, dialer=dialer
+        )
+    assert dials == []
+
+    bound = await resolve_and_connect_model_target(
+        "llm-svc:4001",
+        private_host_grants=frozenset({"llm-svc"}),
+        resolver=resolver,
+        dialer=dialer,
+    )
+    assert bound.address == ipaddress.ip_address("172.31.253.20")
+    assert dials == ["172.31.253.20"]
+    assert calls == [("llm-svc", 4001), ("llm-svc", 4001)]
+
+
+@pytest.mark.asyncio
+async def test_model_target_rejects_mixed_private_public_dns_answers() -> None:
+    dials: list[str] = []
+
+    async def resolver(host: str, port: int) -> list[str]:
+        return ["172.31.253.20", "93.184.216.34"]
+
+    async def dialer(address: object, port: int) -> FakeSocket:
+        dials.append(str(address))
+        sock = FakeSocket(str(address))
+        sock.getpeername = lambda: (str(address), port)  # type: ignore[method-assign]
+        return sock
+
+    with pytest.raises(DestinationDeniedError):
+        await resolve_and_connect_model_target(
+            "llm-svc:4001",
+            private_host_grants=frozenset({"llm-svc"}),
+            resolver=resolver,
+            dialer=dialer,
+        )
+    assert dials == []
+
+
+@pytest.mark.asyncio
+async def test_model_target_closes_connection_when_numeric_peer_does_not_match() -> None:
+    socket = FakeSocket("172.31.253.21")
+
+    async def resolver(host: str, port: int) -> list[str]:
+        return ["172.31.253.20"]
+
+    async def dialer(address: object, port: int) -> FakeSocket:
+        return socket
+
+    with pytest.raises(DestinationConnectionError):
+        await resolve_and_connect_model_target(
+            "llm-svc:443",
+            private_host_grants=frozenset({"llm-svc"}),
+            resolver=resolver,
+            dialer=dialer,
+        )
+    assert socket.closed

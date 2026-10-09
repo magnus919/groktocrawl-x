@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import socket
+import stat
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import BoundedSemaphore
 from urllib.parse import urlsplit
@@ -206,7 +207,38 @@ class ControlHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    server = BoundedThreadingHTTPServer(("0.0.0.0", 8191), ControlHandler)
+    unix_path = os.environ.get("FLARE_CONTROL_UNIX_SOCKET")
+    if unix_path:
+        class UnixControlServer(BoundedThreadingHTTPServer):
+            address_family = socket.AF_UNIX
+
+            def server_bind(self):
+                path = self.server_address
+                if os.path.islink(path):
+                    raise RuntimeError("Flare control socket may not be a symlink")
+                try:
+                    if stat.S_ISSOCK(os.stat(path).st_mode):
+                        os.unlink(path)
+                except FileNotFoundError:
+                    pass
+                super().server_bind()
+                os.chmod(path, 0o660)
+                try:
+                    os.chown(path, -1, 20000)
+                except PermissionError:
+                    pass
+
+            def server_close(self):
+                super().server_close()
+                try:
+                    if stat.S_ISSOCK(os.stat(unix_path).st_mode):
+                        os.unlink(unix_path)
+                except FileNotFoundError:
+                    pass
+
+        server = UnixControlServer(unix_path, ControlHandler)
+    else:
+        server = BoundedThreadingHTTPServer(("0.0.0.0", 8191), ControlHandler)
     server.serve_forever()
 
 

@@ -36,7 +36,7 @@ def patch(source: str) -> str:
             or parsed_target.password is not None
         ):
             raise ValueError("request URL is not an allowed HTTP destination")
-    data["proxy"] = {"url": "http://172.31.254.2:8080"}
+    data["proxy"] = {"url": "http://172.31.254.18:8080"}
     req = V1RequestBase(data)""",
         label="force-fixed-proxy-and-http-url",
     )

@@ -43,7 +43,7 @@ async def _fetch_via_browser(url: str, ctx: AdapterContext) -> str | None:
     )
     session_id = None
     try:
-        async with trusted_control_httpx_client(timeout=45) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=45) as client:
             # Create a short-lived browser session
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
@@ -96,7 +96,7 @@ async def _fetch_via_browser(url: str, ctx: AdapterContext) -> str | None:
     finally:
         if session_id:
             try:
-                async with trusted_control_httpx_client(timeout=5) as c:
+                async with trusted_control_httpx_client(service="browser", timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception as e:
                 logger.debug("Shopify browser session cleanup failed: %s", e)

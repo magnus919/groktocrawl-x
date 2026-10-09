@@ -26,6 +26,7 @@ def test_runtime_workflow_has_no_publishing_or_privileged_execution():
         "research-storage",
         "protected-browser-profile",
         "protected-flare-profile",
+        "protected-capture-composition",
         "runtime-gate",
     }
     for job in WORKFLOW["jobs"].values():
@@ -68,6 +69,13 @@ def test_protected_browser_profile_is_required_by_runtime_gate():
     assert "protected-browser-profile" in gate["needs"]
     assert "BROWSER_PROFILE_RESULT" in gate["steps"][0]["env"]
     assert 'test "$BROWSER_PROFILE_RESULT" = success' in gate["steps"][0]["run"]
+    steps = profile["steps"]
+    controller_probe = next(step for step in steps if step.get("name") == "Verify renderer network boundary from the controller API")
+    renderer_probe = next(step for step in steps if step.get("name") == "Verify renderer firewall and privilege drop in its namespace")
+    assert "docker compose exec -T --user 10002:20000 candidate-browser-controller" in controller_probe["run"]
+    assert "browser_capture_boundary_probe.py" in controller_probe["run"]
+    assert "docker compose exec -T candidate-browser-renderer" in renderer_probe["run"]
+    assert "browser_renderer_isolation_probe.py" in renderer_probe["run"]
 
 
 def test_protected_flare_profile_is_required_by_runtime_gate():
@@ -78,10 +86,41 @@ def test_protected_flare_profile_is_required_by_runtime_gate():
     assert "protected-flare-profile" in gate["needs"]
     assert "PROTECTED_FLARE_RESULT" in gate["steps"][0]["env"]
     assert 'test "$PROTECTED_FLARE_RESULT" = success' in gate["steps"][0]["run"]
+    assert "protected-capture-composition" in gate["needs"]
+    assert "PROTECTED_CAPTURE_RESULT" in gate["steps"][0]["env"]
+    assert 'test "$PROTECTED_CAPTURE_RESULT" = success' in gate["steps"][0]["run"]
     steps = profile["steps"]
     probe = next(step for step in steps if step.get("name", "").startswith("Exercise upstream Flare"))
     assert "tests/integration/protected_flare_api_probe.py" in probe["run"]
+    assert "docker compose --profile protected-flare exec -T --user 10001:20000 candidate-scraper" in probe["run"]
     assert any("candidate-flare-test-origin" in step.get("run", "") for step in steps)
+
+
+def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
+    job = WORKFLOW["jobs"]["protected-capture-composition"]
+    assert job["needs"] == "changes"
+    assert "requires_full_runtime == 'true'" in job["if"]
+    steps = job["steps"]
+    start = next(step for step in steps if step.get("name") == "Build and start the isolated service composition")
+    assert "candidate-capture-peer-sentinel" in start["run"]
+    assert "candidate-host-bridge-sentinel" in start["run"]
+    ingress = next(step for step in steps if step.get("name") == "Verify the fixed agent-to-scraper HTTP ingress bridge")
+    assert "docker compose exec -T candidate-private-sentinel" in ingress["run"]
+    assert "scraper_ingress_boundary_probe.py" in ingress["run"]
+    egress = next(step for step in steps if step.get("name") == "Verify direct scraper network denial and fixed model/source brokers")
+    assert "docker compose exec -T --user 10001:20000 candidate-scraper" in egress["run"]
+    assert "scraper_egress_boundary_probe.py" in egress["run"]
+    ingress_source = (ROOT / "tests/integration/scraper_ingress_boundary_probe.py").read_text()
+    assert '"/scrape"' in ingress_source and '"/scrape/meta"' in ingress_source
+    assert "force_browser" in ingress_source
+    egress_source = (ROOT / "tests/integration/scraper_egress_boundary_probe.py").read_text()
+    for capability in ("cache", "robots", "rate", "clearance"):
+        assert f'"{capability}"' in egress_source
+    assert "RESERVE_SLOT_SCRIPT" in egress_source
+    compose = yaml.safe_load((ROOT / "compose.protected-capture-ci.yml").read_text())
+    assert compose["services"]["candidate-capture-peer-sentinel"]["networks"]["candidate_capture"]["ipv4_address"] == "172.31.254.6"
+    assert compose["services"]["candidate-host-bridge-sentinel"]["network_mode"] == "host"
+    assert '"degraded"' not in ingress_source
 
 
 def test_protected_browser_failure_logs_are_bounded_and_precede_teardown():
@@ -129,6 +168,7 @@ def test_runtime_gate_fails_closed(
         "research-storage",
         "protected-browser-profile",
         "protected-flare-profile",
+        "protected-capture-composition",
     }
     step = gate["steps"][0]
     result = subprocess.run(
@@ -141,6 +181,7 @@ def test_runtime_gate_fails_closed(
             "RUNTIME_RESULT": runtime,
             "BROWSER_PROFILE_RESULT": "success",
             "PROTECTED_FLARE_RESULT": "success",
+            "PROTECTED_CAPTURE_RESULT": "success",
             "TWIN_RESULT": twin,
             "STORAGE_RESULT": "success",
         },
@@ -194,6 +235,7 @@ def test_required_flare_profile_failure_or_skip_fails_runtime_gate(profile_resul
             "RUNTIME_RESULT": "success",
             "BROWSER_PROFILE_RESULT": "success",
             "PROTECTED_FLARE_RESULT": profile_result,
+            "PROTECTED_CAPTURE_RESULT": "success",
             "TWIN_RESULT": "skipped",
             "STORAGE_RESULT": "success",
         },
@@ -217,6 +259,7 @@ def test_documentation_only_change_allows_skipped_browser_profile():
             "RUNTIME_RESULT": "skipped",
             "BROWSER_PROFILE_RESULT": "skipped",
             "PROTECTED_FLARE_RESULT": "skipped",
+            "PROTECTED_CAPTURE_RESULT": "skipped",
             "TWIN_RESULT": "skipped",
             "STORAGE_RESULT": "skipped",
         },
@@ -225,6 +268,30 @@ def test_documentation_only_change_allows_skipped_browser_profile():
         check=False,
     )
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize("profile_result", ["failure", "cancelled", "skipped"])
+def test_required_capture_profile_failure_or_skip_fails_runtime_gate(profile_result):
+    gate = WORKFLOW["jobs"]["runtime-gate"]
+    result = subprocess.run(
+        ["bash", "-c", gate["steps"][0]["run"]],
+        env={
+            **os.environ,
+            "CLASSIFICATION": "success",
+            "RUNTIME_REQUIRED": "true",
+            "TWIN_REQUIRED": "false",
+            "RUNTIME_RESULT": "success",
+            "BROWSER_PROFILE_RESULT": "success",
+            "PROTECTED_FLARE_RESULT": "success",
+            "PROTECTED_CAPTURE_RESULT": profile_result,
+            "TWIN_RESULT": "skipped",
+            "STORAGE_RESULT": "success",
+        },
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode != 0
 
 
 @pytest.mark.parametrize(

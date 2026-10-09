@@ -89,11 +89,13 @@ an init process so orphaned browser descendants are reaped.
   overrides the per-job proxy for source requests, and disables environment
   proxy discovery. Invalid configuration and proxy failure do not retry source
   traffic directly. The experimental candidate Compose profile sets this route
-  and delegates protected browser rendering to its isolated renderer; browser
-  and Flare control requests remain separate. This profile is not qualified:
-  the scraper still shares a private network with control services, so a raw
-  same-process client can bypass the fixed wrappers. See the experimental
-  composition status before treating it as a deployment security boundary.
+  and delegates protected browser rendering to its isolated renderer. In that
+  candidate profile, browser/Flare/model/Valkey control operations and the
+  agent-facing scraper API use fixed Unix-socket bridges, while source requests
+  use the capture gateway. The composition remains unqualified until its
+  combined Docker Runtime Gate and negative-boundary probes pass; see the
+  experimental composition status before treating it as a deployment security
+  boundary.
 - Private and internal destinations are blocked before every fetch tier. Keep `SCRAPER_PRIVATE_URL_ALLOWLIST` empty unless an exact, trusted internal hostname must be reachable; CI uses it only for fixture services.
 - Enable `SCRAPER_POLITENESS_ENABLED` for per-domain rate limiting and robots.txt enforcement when required by your deployment policy.
 

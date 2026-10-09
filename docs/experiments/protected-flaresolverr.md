@@ -72,6 +72,13 @@ The CI-only fixture overlay is intentionally omitted from these operator
 commands. Do not publish or expose the Flare API or controller bridge outside
 the candidate private network.
 
+For a private OpenAI-compatible endpoint, `LLM_GATEWAY_PRIVATE_HOSTS` must
+list its exact DNS hostname. A separate model-only egress gateway accepts only
+the configured model authorities and pins a numeric peer. The model broker
+has no direct network egress; it sends requests through that gateway, while
+the scraper receives a fixed UDS route. Source capture still uses a separate
+global-address-only gateway.
+
 ## Scraper composition status
 
 The candidate scraper now selects the capture gateway for HTTPX, curl-cffi,
@@ -80,19 +87,37 @@ the isolated browser renderer rather than launching page JavaScript inside the
 scraper. FlareSolverr and browser-service calls remain separate trusted
 control requests. The scraper is no longer attached to `candidate_egress`.
 
-This composition is still **unqualified**. The scraper remains attached to
-`candidate_private` for Valkey, browser-controller, Flare-control, and other
-service calls. A raw or newly added same-process client could connect to those
-private authorities directly; proxy wrappers and fixed control URL checks do
-not establish a process-level distinction between source and control traffic.
-Before protected capture can be enabled, move the scraper to the internal
-capture network only and provide the required Valkey and fixed control calls
-over permissioned Unix sockets (or another separately qualified capability
-boundary). Also preserve the agent-to-scraper API through a fixed ingress
-bridge, not a scraper private-network attachment. Add Docker runtime probes for
-direct public and private TCP/UDP attempts, gateway success, required control
-operations, and hostile page scripts before claiming this composition is
-qualified.
+The candidate composition now places the scraper only on the internal capture
+link. A namespace firewall defaults IPv4 and IPv6 input/output/forwarding to
+deny before the process drops to UID 10001/GID 20000 and clears its bootstrap
+capabilities. Only DNS to Docker's local resolver and TCP to the fixed
+capture-gateway peer are allowed. A capability-free Tini process then runs as
+PID 1, forwards shutdown signals, and reaps renderer children. The profile
+checks both PID 1 and the scraper process identity/capabilities, plus the
+group-20000 socket mode. It probes the host bridge, a second
+peer on the same capture network, another private bridge, and the public
+network from inside the unprivileged scraper process.
+
+Its agent-facing HTTP ingress, Valkey operations, browser and Flare
+controls, and model calls use separate fixed Unix-socket capabilities. The
+model broker owns configured credentials and fixed destinations. It has no
+direct egress: a separate model-only gateway accepts only the exact configured
+model authorities, resolves once, and dials the pinned numeric peer. Private
+addresses are allowed only for an exact hostname named in the operator's
+`LLM_GATEWAY_PRIVATE_HOSTS` grant. The source-capture gateway policy remains
+global-address-only. The CI composition adds a
+private, same-capture, and host-bridge sentinels; exercises successful
+`/scrape`, forced-browser `/scrape`, and `/scrape/meta` through the ingress;
+checks typed Valkey cache/robots/cookie/rate operations and reservation Lua;
+and tests that hostile browser JavaScript cannot reach the private sentinel.
+The Valkey capability accepts at most two active frames, limits stored values
+to 8 MiB, and bounds serialized frames to the sixfold JSON-escaping maximum.
+
+This composition remains **unqualified** until the combined Docker Runtime
+Gate passes. Unit tests and rendered Compose configuration do not prove the
+container network, socket permissions, or runtime request paths. Do not enable
+it as a production security boundary before that job succeeds and its boundary
+probes are reviewed.
 
 The Flare profile itself remains an opt-in integration candidate, not a
 deployment or full capture-stack qualification. The tests do not exercise real

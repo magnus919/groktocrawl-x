@@ -24,7 +24,7 @@ for tool in iptables ip6tables; do
 done
 
 # The capture network assigns this fixed address to the guarded gateway.
-iptables -w -A OUTPUT -p tcp -d 172.31.254.2/32 --dport 8080 -j ACCEPT || fail_closed
+iptables -w -A OUTPUT -p tcp -d 172.31.254.18/32 --dport 8080 -j ACCEPT || fail_closed
 
 flare_uid=$(id -u flaresolverr) || fail_closed
 flare_gid=$(id -g flaresolverr) || fail_closed

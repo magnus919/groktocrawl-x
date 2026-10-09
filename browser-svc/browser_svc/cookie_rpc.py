@@ -116,7 +116,6 @@ class CookieRPCServer:
         self.server = await asyncio.start_unix_server(
             self._handle, path=self.socket_path, limit=MAX_RPC_LINE_BYTES
         )
-        os.chown(path, 0, 10001)
         os.chmod(path, 0o660)
 
     async def close(self) -> None:

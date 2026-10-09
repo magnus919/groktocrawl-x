@@ -16,12 +16,17 @@ if str(_SCRAPER_SVC) not in sys.path:
 
 from scraper.source_http import (
     CAPTURE_EGRESS_PROXY_ENV,
+    MODEL_EGRESS_PROXY_ENV,
     SourceTransportConfigurationError,
     source_curl_options,
     source_httpx_client,
     source_httpx_sync_client,
     trusted_control_base_url,
     trusted_control_httpx_client,
+    trusted_llm_endpoint,
+    trusted_llm_headers,
+    trusted_llm_httpx_client,
+    trusted_llm_upstream_client,
 )
 
 
@@ -46,6 +51,42 @@ def test_protected_source_httpx_forces_gateway_and_disables_environment(monkeypa
         proxy="http://egress-gateway.example:8080",
         trust_env=False,
     )
+
+
+def test_private_model_upstream_requires_isolated_gateway(monkeypatch):
+    monkeypatch.setenv(MODEL_EGRESS_PROXY_ENV, "http://model-egress:8080")
+    constructor = Mock(return_value="model")
+    monkeypatch.setattr(httpx, "AsyncClient", constructor)
+
+    assert trusted_llm_upstream_client(
+        "http://llm-svc:4001/v1/chat/completions", timeout=10
+    ) == "model"
+    constructor.assert_called_once_with(
+        timeout=10,
+        follow_redirects=False,
+        proxy="http://model-egress:8080",
+        trust_env=False,
+    )
+
+
+def test_private_model_upstream_fails_closed_without_gateway(monkeypatch):
+    monkeypatch.setenv(CAPTURE_EGRESS_PROXY_ENV, "http://source-egress:8080")
+    monkeypatch.delenv(MODEL_EGRESS_PROXY_ENV, raising=False)
+    constructor = Mock()
+    monkeypatch.setattr(httpx, "AsyncClient", constructor)
+    with pytest.raises(SourceTransportConfigurationError, match="model-egress-gateway"):
+        trusted_llm_upstream_client("http://llm-svc:4001/v1/chat/completions")
+    constructor.assert_not_called()
+
+
+def test_model_gateway_cannot_fall_back_to_source_gateway(monkeypatch):
+    monkeypatch.setenv(CAPTURE_EGRESS_PROXY_ENV, "http://source-egress:8080")
+    monkeypatch.setenv(MODEL_EGRESS_PROXY_ENV, "http://user:secret@source-egress:8080")
+    constructor = Mock()
+    monkeypatch.setattr(httpx, "AsyncClient", constructor)
+    with pytest.raises(SourceTransportConfigurationError, match="model-egress-proxy-invalid"):
+        trusted_llm_upstream_client("https://model.example/v1/chat/completions")
+    constructor.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -116,8 +157,33 @@ def test_fixed_control_client_does_not_inherit_source_proxy(monkeypatch):
     constructor = Mock(return_value="control")
     monkeypatch.setattr(httpx, "AsyncClient", constructor)
 
-    assert trusted_control_httpx_client(timeout=7) == "control"
-    constructor.assert_called_once_with(timeout=7, trust_env=False)
+    assert trusted_control_httpx_client(service="browser", timeout=7) == "control"
+    assert constructor.call_args.kwargs["timeout"] == 7
+    assert constructor.call_args.kwargs["trust_env"] is False
+    assert isinstance(constructor.call_args.kwargs["transport"], httpx.AsyncHTTPTransport)
+
+
+def test_protected_llm_is_a_fixed_keyless_socket_capability(monkeypatch):
+    monkeypatch.setenv(CAPTURE_EGRESS_PROXY_ENV, "http://egress-gateway.example:8080")
+    monkeypatch.setenv("LLM_CONTROL_SOCKET", "/run/scraper-llm/control.sock")
+    transport = Mock(return_value="fixed-uds-transport")
+    monkeypatch.setattr(httpx, "AsyncHTTPTransport", transport)
+    constructor = Mock(return_value="model")
+    monkeypatch.setattr(httpx, "AsyncClient", constructor)
+
+    assert trusted_llm_httpx_client("recovery", timeout=11) == "model"
+    kwargs = constructor.call_args.kwargs
+    assert kwargs["trust_env"] is False
+    assert kwargs["base_url"] == "http://llm-control"
+    assert kwargs["timeout"] == 11
+    assert kwargs["transport"] == "fixed-uds-transport"
+    transport.assert_called_once_with(uds="/run/scraper-llm/control.sock", retries=0)
+    assert trusted_llm_endpoint("recovery", "http://ignored.invalid/v1") == (
+        "/recovery/chat/completions"
+    )
+    assert trusted_llm_headers("recovery", "must-not-leak") == {
+        "Content-Type": "application/json"
+    }
 
 
 @pytest.mark.parametrize(
@@ -207,7 +273,7 @@ def test_protected_flaresolverr_uses_separate_control_client(monkeypatch):
     result = asyncio.run(fetch_tiers.fetch_via_flaresolverr("https://source.example"))
 
     assert result["source"] == "flare-solverr"
-    constructor.assert_called_once_with(timeout=60)
+    assert constructor.call_args.kwargs == {"service": "flare", "timeout": 60}
     client.post.assert_awaited_once()
 
 
@@ -216,6 +282,11 @@ def test_candidate_scraper_is_not_attached_to_direct_egress_network():
 
     compose_path = Path(__file__).parents[2] / "compose.experimental-candidate.yml"
     compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
+    ci_overlay = yaml.safe_load(
+        (compose_path.parent / "compose.protected-flare-ci.yml").read_text(
+            encoding="utf-8"
+        )
+    )
     scraper = compose["services"]["candidate-scraper"]
     networks = scraper["networks"]
     if isinstance(networks, dict):
@@ -224,8 +295,54 @@ def test_candidate_scraper_is_not_attached_to_direct_egress_network():
         network_names = set(networks)
 
     assert "candidate_egress" not in network_names
-    assert {"candidate_capture", "candidate_private"} <= network_names
+    assert network_names == {"candidate_capture"}
     assert compose["networks"]["candidate_capture"]["internal"] is True
+    assert "candidate_private" not in network_names
+    assert "candidate_browser_capture" not in network_names
+    assert "candidate_flare_capture" not in network_names
+    assert "candidate_model_capture" not in network_names
+    assert "candidate_model_gateway" not in network_names
+    services = compose["services"]
+    assert set(services["candidate-capture-egress"]["networks"]) == {
+        "candidate_egress",
+        "candidate_capture",
+        "candidate_browser_capture",
+        "candidate_flare_capture",
+    }
+    assert services["candidate-scraper-ingress"]["networks"] == ["candidate_private"]
+    assert services["candidate-agent"]["environment"]["SCRAPER_URL"] == (
+        "http://candidate-scraper-ingress:8010"
+    )
+    assert "candidate_browser_renderer_socket:/run/browser:ro" not in scraper["volumes"]
+    assert "candidate_flare_socket:/run/flaresolverr:ro" not in scraper["volumes"]
+    assert "candidate_scraper_state_socket:/run/scraper-state:ro" in scraper["volumes"]
+    assert "candidate_flare_control_socket:/run/flare-control:ro" in scraper["volumes"]
+    assert services["candidate-flare-control"]["network_mode"] == "none"
+    model_control = services["candidate-scraper-model-control"]
+    assert set(model_control["networks"]) == {"candidate_model_gateway"}
+    model_gateway = services["candidate-model-egress"]
+    assert set(model_gateway["networks"]) == {
+        "candidate_model_gateway",
+        "candidate_model_upstream",
+    }
+    assert "candidate_egress" not in model_gateway["networks"]
+    assert "LLM_API_KEY" not in model_gateway["environment"]
+    assert "LLM_GATEWAY_PRIVATE_HOSTS" in model_gateway["environment"]
+    assert compose["networks"]["candidate_model_gateway"]["internal"] is True
+    assert compose["networks"]["candidate_model_upstream"].get("internal") is not True
+    assert ci_overlay["services"]["candidate-scraper"]["extra_hosts"] == [
+        "flare-origin.test:93.184.216.34"
+    ]
+    assert model_control["environment"]["MODEL_EGRESS_PROXY_URL"] == (
+        "http://172.31.254.34:8080"
+    )
+    assert "LLM_BASE_URL" not in scraper["environment"]
+    assert "LLM_API_KEY" not in scraper["environment"]
+    assert "CAPTCHA_VISION_API_KEY" not in scraper["environment"]
+    assert scraper["environment"]["LLM_CONTROL_SOCKET"] == (
+        "/run/scraper-llm/control.sock"
+    )
+    assert "LLM_API_KEY" in model_control["environment"]
     assert (
         scraper["environment"]["SCRAPER_CAPTURE_EGRESS_PROXY_URL"]
         == "http://172.31.254.2:8080"

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import httpx
 
-API = "http://127.0.0.1:8012"
+API = "http://candidate-browser-controller:8012"
+CONTROLLER_SOCKET = "/run/browser-control/controller.sock"
 BLOCKED_TARGETS = (
     "http://127.0.0.1:8012/health",
     "http://candidate-browser-controller:8012/health",
@@ -17,7 +18,10 @@ BLOCKED_TARGETS = (
 
 
 def main() -> None:
-    with httpx.Client(base_url=API, trust_env=False, timeout=45.0) as client:
+    transport = httpx.HTTPTransport(uds=CONTROLLER_SOCKET, retries=0)
+    with httpx.Client(
+        transport=transport, base_url=API, trust_env=False, timeout=45.0
+    ) as client:
         created = client.post("/browsers", json={"ttl": 60})
         created.raise_for_status()
         session_id = created.json()["id"]

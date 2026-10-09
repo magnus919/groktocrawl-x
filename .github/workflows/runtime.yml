@@ -819,7 +819,7 @@ jobs:
           candidate-browser-controller
       - name: Verify renderer network boundary from the controller API
         run: >-
-          docker compose exec -T candidate-browser-controller python -
+          docker compose exec -T --user 10002:20000 candidate-browser-controller python -
           < tests/integration/browser_capture_boundary_probe.py
       - name: Verify renderer firewall and privilege drop in its namespace
         run: >-
@@ -834,7 +834,8 @@ jobs:
             candidate-browser-controller candidate-valkey
       - name: Tear down protected browser profile
         if: always()
-        run: docker compose down --volumes --remove-orphans --timeout 10
+        run: |
+          docker compose down --volumes --remove-orphans --timeout 10
 
   protected-flare-profile:
     name: Protected FlareSolverr Egress Profile
@@ -865,9 +866,11 @@ jobs:
       - name: Build and start protected Flare and local-origin fixture
         run: >-
           docker compose --profile protected-flare up --build --detach --wait
-          candidate-flare-control candidate-flare-test-origin
+          candidate-scraper candidate-flare-control candidate-flare-test-origin
       - name: Exercise upstream Flare GET, POST, session, cookie, redirect and page boundary
-        run: python tests/integration/protected_flare_api_probe.py
+        run: >-
+          docker compose --profile protected-flare exec -T --user 10001:20000 candidate-scraper python -
+          < tests/integration/protected_flare_api_probe.py
       - name: Verify the Flare network namespace has no TCP API listener
         run: >-
           docker compose --profile protected-flare exec -T
@@ -882,7 +885,74 @@ jobs:
             candidate-flare-test-origin
       - name: Tear down protected Flare profile
         if: always()
-        run: docker compose --profile protected-flare down --volumes --remove-orphans --timeout 10
+        run: |
+          docker compose --profile protected-flare down --volumes --remove-orphans --timeout 10
+
+  protected-capture-composition:
+    name: Protected Capture Boundary Composition
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      COMPOSE_FILE: compose.experimental-candidate.yml:compose.protected-flare-ci.yml:compose.protected-capture-ci.yml
+      COMPOSE_PROFILES: protected-flare,protected-capture
+      COMPOSE_PROJECT_NAME: protected-capture-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_POSTGRES_PASSWORD_FILE: /tmp/protected-capture-password-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_API_KEY: ci-only-api-key
+      LLM_BASE_URL: http://candidate-llm:8011/v1
+      LLM_API_KEY: ci-only-llm-key
+      CANDIDATE_IMAGE_TAG: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Create isolated Compose secret placeholder and validate topology
+        run: |
+          umask 077
+          printf 'ci-only-password\n' > "$CANDIDATE_POSTGRES_PASSWORD_FILE"
+          docker compose config --quiet
+      - name: Build and start the isolated service composition
+        run: >-
+          docker compose up --build --detach --wait
+          candidate-scraper candidate-private-sentinel candidate-capture-peer-sentinel
+          candidate-host-bridge-sentinel candidate-llm
+          candidate-scraper-ingress candidate-flare-test-origin candidate-flare-control
+      - name: Verify the fixed agent-to-scraper HTTP ingress bridge
+        run: >-
+          docker compose exec -T candidate-private-sentinel
+          python /probe/scraper_ingress_boundary_probe.py
+      - name: Verify unrelated egress services cannot reach the model gateway
+        run: >-
+          docker compose exec -T candidate-capture-egress python -c
+          "import socket; s=socket.socket(); s.settimeout(1); r=s.connect_ex(('172.31.254.34',8080)); s.close(); assert r != 0, 'unexpected model gateway reachability'"
+      - name: Verify direct scraper network denial and fixed model/source brokers
+        run: >-
+          docker compose exec -T --user 10001:20000 candidate-scraper python -
+          < tests/integration/scraper_egress_boundary_probe.py
+      - name: Verify the Flare control API through its permissioned socket
+        run: >-
+          docker compose exec -T --user 10001:20000 candidate-scraper python -
+          < tests/integration/protected_flare_api_probe.py
+      - name: Verify hostile JavaScript did not reach the private sentinel
+        run: >-
+          docker compose exec -T candidate-private-sentinel
+          python -c "from pathlib import Path; p=Path('/state/events.jsonl'); assert not p.exists() or p.stat().st_size == 0"
+      - name: Collect bounded composition diagnostics
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=100 candidate-capture-egress \
+            candidate-scraper candidate-scraper-ingress candidate-scraper-state-control \
+            candidate-scraper-model-control candidate-browser-renderer \
+            candidate-browser-controller candidate-flare-renderer candidate-flare-control \
+            candidate-private-sentinel candidate-llm
+      - name: Tear down protected capture composition
+        if: always()
+        run: |
+          docker compose down --volumes --remove-orphans --timeout 15
 
   research-storage:
     name: PostgreSQL Storage Probes
@@ -1232,6 +1302,7 @@ jobs:
       - research-storage
       - protected-browser-profile
       - protected-flare-profile
+      - protected-capture-composition
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -1244,6 +1315,7 @@ jobs:
           RUNTIME_RESULT: ${{ needs.integration-tests.result }}
           BROWSER_PROFILE_RESULT: ${{ needs.protected-browser-profile.result }}
           PROTECTED_FLARE_RESULT: ${{ needs.protected-flare-profile.result }}
+          PROTECTED_CAPTURE_RESULT: ${{ needs.protected-capture-composition.result }}
           TWIN_RESULT: ${{ needs.twin-contracts.result }}
           STORAGE_RESULT: ${{ needs.research-storage.result }}
         run: |
@@ -1257,6 +1329,7 @@ jobs:
             test "$STORAGE_RESULT" = success
             test "$BROWSER_PROFILE_RESULT" = success
             test "$PROTECTED_FLARE_RESULT" = success
+            test "$PROTECTED_CAPTURE_RESULT" = success
           else
             echo "Runtime integration not required for this documentation-only change."
           fi

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 from collections.abc import AsyncIterator
 from contextlib import suppress
 from pathlib import Path
@@ -55,6 +56,13 @@ def create_app(socket_path: str | None = None) -> FastAPI:
 
     @app.on_event("startup")
     async def start_cookie_rpc() -> None:
+        controller_socket = os.environ.get("BROWSER_CONTROLLER_SOCKET")
+        if controller_socket and os.path.exists(controller_socket):
+            socket_stat = os.lstat(controller_socket)
+            if not stat.S_ISSOCK(socket_stat.st_mode):
+                raise RuntimeError("browser controller endpoint is not a Unix socket")
+            os.chown(controller_socket, -1, 20000)
+            os.chmod(controller_socket, 0o660)
         settings = load_settings()
         redis_client = None
         try:
