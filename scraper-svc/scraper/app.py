@@ -24,9 +24,10 @@ from .exceptions import (
     BrowserError,
     CaptchaError,
     GroktoCrawlError,
+    InvalidRequestError,
     UpstreamError,
 )
-from .fetch import smart_scrape
+from .fetch import _private_destination_error, smart_scrape
 from .meta import fetch_meta_tags
 
 setup_logging()
@@ -469,6 +470,12 @@ async def scrape_meta(request: ScrapeRequest):
     Returns <title>, <meta name="description">, and
     <meta property="og:description"> without full page rendering.
     """
+    blocked = _private_destination_error(request.url)
+    if blocked:
+        raise InvalidRequestError(
+            detail=blocked["error"],
+            details={"error_code": blocked["error_code"]},
+        )
     try:
         result = await fetch_meta_tags(request.url)
         return MetaResponse(

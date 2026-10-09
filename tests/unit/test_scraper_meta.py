@@ -104,3 +104,54 @@ class TestFetchMetaTags:
 
         assert result["title"] == "Spaced Title"
         assert result["description"] == "Spaced description"
+
+
+class TestScrapeMetaDestinationGuard:
+    @pytest.mark.asyncio
+    async def test_private_destination_is_denied_before_http_fetch(self, monkeypatch):
+        from types import SimpleNamespace
+
+        import scraper.app as app
+        import scraper.fetch as fetch
+        from scraper.exceptions import InvalidRequestError
+
+        monkeypatch.setattr(fetch._settings, "scraper_private_url_allowlist", "")
+        monkeypatch.setattr(fetch, "_is_private_url", lambda _url: (True, "private target"))
+        fetches = []
+
+        async def unexpected_fetch(url):
+            fetches.append(url)
+            raise AssertionError("private target must not reach the HTTP client")
+
+        monkeypatch.setattr(app, "fetch_meta_tags", unexpected_fetch)
+        with pytest.raises(InvalidRequestError) as exc_info:
+            await app.scrape_meta(SimpleNamespace(url="http://127.0.0.1/metadata"))
+
+        assert exc_info.value.details == {"error_code": "PRIVATE_URL_BLOCKED"}
+        assert fetches == []
+
+    @pytest.mark.asyncio
+    async def test_explicit_private_allowlist_still_allows_meta_fetch(self, monkeypatch):
+        from types import SimpleNamespace
+
+        import scraper.app as app
+        import scraper.fetch as fetch
+
+        monkeypatch.setattr(fetch._settings, "scraper_private_url_allowlist", "private.test")
+        monkeypatch.setattr(
+            fetch,
+            "_is_private_url",
+            lambda _url: (_ for _ in ()).throw(AssertionError("allowlist should bypass private check")),
+        )
+        fetched = []
+
+        async def fake_fetch(url):
+            fetched.append(url)
+            return {"title": "Allowed", "description": None, "og_description": None}
+
+        monkeypatch.setattr(app, "fetch_meta_tags", fake_fetch)
+        result = await app.scrape_meta(SimpleNamespace(url="http://private.test/metadata"))
+
+        assert result.success is True
+        assert result.title == "Allowed"
+        assert fetched == ["http://private.test/metadata"]

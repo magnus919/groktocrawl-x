@@ -760,7 +760,7 @@ async def test_adapter_identifier_dispatches_before_url_guard(monkeypatch):
 
         @staticmethod
         async def dispatch(url, _ctx):
-            assert url == "cve:CVE-1"
+            assert url == "cve:CVE-2024-1234"
             return AdapterResult()
 
     def unexpected_guard(_url):
@@ -769,7 +769,7 @@ async def test_adapter_identifier_dispatches_before_url_guard(monkeypatch):
     monkeypatch.setattr(fetch, "get_registry", lambda: Registry())
     monkeypatch.setattr(fetch, "_is_private_url", unexpected_guard)
 
-    result = await fetch.smart_scrape("cve:CVE-1")
+    result = await fetch.smart_scrape("cve:CVE-2024-1234")
 
     assert result["source"] == "nvd"
     assert result["markdown"] == "CVE content"
@@ -790,6 +790,93 @@ async def test_smart_scrape_blocks_private_url_before_any_fetch_tier(monkeypatch
 
     assert result["error_code"] == "PRIVATE_URL_BLOCKED"
     assert result["markdown"] == ""
+
+
+@pytest.mark.asyncio
+async def test_smart_scrape_blocks_private_url_before_adapter_dispatch(monkeypatch):
+    import scraper.fetch as fetch
+
+    dispatches = []
+
+    class Registry:
+        _entries = [object()]
+
+        async def dispatch(self, url, _ctx):
+            dispatches.append(url)
+            raise AssertionError("private destination must be denied before adapters")
+
+    monkeypatch.setattr(fetch, "get_registry", lambda: Registry())
+    monkeypatch.setattr(fetch._settings, "scraper_private_url_allowlist", "")
+    monkeypatch.setattr(fetch, "_is_private_url", lambda _url: (True, "blocked"))
+
+    result = await fetch.smart_scrape("http://127.0.0.1/private")
+
+    assert result["error_code"] == "PRIVATE_URL_BLOCKED"
+    assert dispatches == []
+
+
+@pytest.mark.asyncio
+async def test_explicit_private_allowlist_still_allows_adapter_dispatch(monkeypatch):
+    import scraper.fetch as fetch
+
+    seen = []
+
+    class AdapterResult:
+        source = "fixture-adapter"
+
+        @staticmethod
+        def to_dict():
+            return {"markdown": "allowed", "source": "fixture-adapter"}
+
+    class Registry:
+        _entries = [object()]
+
+        async def dispatch(self, url, _ctx):
+            seen.append(url)
+            return AdapterResult()
+
+    monkeypatch.setattr(fetch, "get_registry", lambda: Registry())
+    monkeypatch.setattr(fetch._settings, "scraper_private_url_allowlist", "private.test")
+    monkeypatch.setattr(
+        fetch,
+        "_is_private_url",
+        lambda _url: (_ for _ in ()).throw(AssertionError("allowlist should bypass private check")),
+    )
+
+    result = await fetch.smart_scrape("http://private.test/article")
+
+    assert result["markdown"] == "allowed"
+    assert seen == ["http://private.test/article"]
+
+
+@pytest.mark.asyncio
+async def test_public_adapter_dispatch_is_unchanged_after_destination_check(monkeypatch):
+    import scraper.fetch as fetch
+
+    seen = []
+
+    class AdapterResult:
+        source = "fixture-adapter"
+
+        @staticmethod
+        def to_dict():
+            return {"markdown": "public adapter", "source": "fixture-adapter"}
+
+    class Registry:
+        _entries = [object()]
+
+        async def dispatch(self, url, _ctx):
+            seen.append(url)
+            return AdapterResult()
+
+    monkeypatch.setattr(fetch, "get_registry", lambda: Registry())
+    monkeypatch.setattr(fetch._settings, "scraper_private_url_allowlist", "")
+    monkeypatch.setattr(fetch, "_is_private_url", lambda _url: (False, ""))
+
+    result = await fetch.smart_scrape("https://public.example/article")
+
+    assert result["markdown"] == "public adapter"
+    assert seen == ["https://public.example/article"]
 
 
 def test_private_url_allowlist_matches_exact_hostname_only(monkeypatch):
