@@ -99,6 +99,7 @@ services:
     image: groktocrawl-x-protected-flare:${CANDIDATE_IMAGE_TAG:-dev}
     restart: unless-stopped
     profiles: [protected-flare]
+    group_add: ["20000"]
     networks:
       candidate_capture:
         ipv4_address: 172.31.254.4
