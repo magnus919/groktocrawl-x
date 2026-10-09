@@ -10,12 +10,11 @@ import logging
 import time
 from urllib.parse import urlparse
 
-import httpx
-
 from common.stage_metrics import inc_counter, observe_elapsed
 from common.url import normalize_url
 
 from .settings import load_settings
+from .source_http import source_httpx_client
 
 logger = logging.getLogger(__name__)
 
@@ -470,7 +469,7 @@ async def _conditional_revalidate(
         headers["If-Modified-Since"] = last_modified
 
     try:
-        async with httpx.AsyncClient(
+        async with source_httpx_client(
             follow_redirects=True,
             timeout=15,
             headers=headers,

@@ -13,6 +13,123 @@ from scraper.adapters.base import AdapterContext
 from tests.fixtures.youtube_transcript_twin import YouTubeTranscriptTwin
 
 
+def test_transcript_api_uses_gateway_pinned_requests_session(monkeypatch):
+    import requests
+    import youtube_transcript_api
+
+    monkeypatch.setenv("SCRAPER_CAPTURE_EGRESS_PROXY_URL", "http://egress.example:8080")
+    sessions = []
+    api_calls = []
+
+    class Session:
+        def __init__(self):
+            self.trust_env = True
+            self.proxies = {}
+            self.closed = False
+            sessions.append(self)
+
+        def close(self):
+            self.closed = True
+
+    class Transcript:
+        language_code = "en"
+        is_translatable = False
+
+        def fetch(self):
+            return [SimpleNamespace(text="captions through the gateway")]
+
+    class TranscriptApi:
+        def __init__(self, **kwargs):
+            api_calls.append(kwargs)
+            self.http_client = kwargs["http_client"]
+
+        def list(self, video_id):
+            assert video_id == "abcdefghijk"
+            return [Transcript()]
+
+    monkeypatch.setattr(requests, "Session", Session)
+    monkeypatch.setattr(youtube_transcript_api, "YouTubeTranscriptApi", TranscriptApi)
+    monkeypatch.setattr(youtube._YOUTUBE_GATE, "wait", lambda *_args, **_kwargs: None)
+
+    result = asyncio.run(youtube._fetch_transcript("abcdefghijk"))
+
+    assert result is not None and result.text == "captions through the gateway"
+    assert len(sessions) == 1
+    assert sessions[0].trust_env is False
+    assert sessions[0].proxies == {
+        "http": "http://egress.example:8080",
+        "https": "http://egress.example:8080",
+    }
+    assert sessions[0].closed is True
+    assert api_calls == [{"http_client": sessions[0]}]
+
+
+def test_transcript_api_keeps_default_constructor_in_compatibility_mode(monkeypatch):
+    import youtube_transcript_api
+
+    monkeypatch.delenv("SCRAPER_CAPTURE_EGRESS_PROXY_URL", raising=False)
+    api_calls = []
+
+    class Transcript:
+        language_code = "en"
+        is_translatable = False
+
+        def fetch(self):
+            return [SimpleNamespace(text="default transcript behavior")]
+
+    class TranscriptApi:
+        def __init__(self, **kwargs):
+            api_calls.append(kwargs)
+
+        def list(self, _video_id):
+            return [Transcript()]
+
+    monkeypatch.setattr(youtube_transcript_api, "YouTubeTranscriptApi", TranscriptApi)
+    monkeypatch.setattr(youtube._YOUTUBE_GATE, "wait", lambda *_args, **_kwargs: None)
+
+    result = asyncio.run(youtube._fetch_transcript("abcdefghijk"))
+
+    assert result is not None and result.text == "default transcript behavior"
+    assert api_calls == [{}]
+
+
+def test_ytdlp_source_requests_use_explicit_gateway_proxy(monkeypatch):
+    import yt_dlp
+
+    monkeypatch.setenv("SCRAPER_CAPTURE_EGRESS_PROXY_URL", "http://egress.example:8080")
+    captured = []
+
+    class YoutubeDL:
+        def __init__(self, options):
+            self.options = options
+            captured.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def extract_info(self, url, *, download):
+            assert url == "https://www.youtube.com/watch?v=abcdefghijk"
+            assert download is True
+            output = self.options["outtmpl"].replace("%(ext)s", "en.vtt")
+            with open(output, "w", encoding="utf-8") as output_file:
+                output_file.write(
+                    "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\n\n"
+                    "caption fetched through yt-dlp\n"
+                )
+            return {"automatic_captions": {}}
+
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", YoutubeDL)
+    monkeypatch.setattr(youtube._YOUTUBE_GATE, "wait", lambda *_args, **_kwargs: None)
+
+    result = asyncio.run(youtube._fetch_transcript_via_ytdlp("abcdefghijk"))
+
+    assert result is not None and result.text == "caption fetched through yt-dlp"
+    assert captured[0]["proxy"] == "http://egress.example:8080"
+
+
 class _Fetched:
     def __init__(self, *texts):
         self.items = [SimpleNamespace(text=text) for text in texts]
@@ -173,3 +290,38 @@ def test_gate_enforces_cooldown_without_retrying_or_falling_back():
         assert type(exc).__name__ == "_YouTubeCooldownError"
     else:
         raise AssertionError("cooldown must block new acquisition attempts")
+
+
+def test_ytdlp_keeps_default_proxy_behavior_in_compatibility_mode(monkeypatch):
+    import yt_dlp
+
+    monkeypatch.delenv("SCRAPER_CAPTURE_EGRESS_PROXY_URL", raising=False)
+    captured = []
+
+    class YoutubeDL:
+        def __init__(self, options):
+            captured.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def extract_info(self, _url, *, download):
+            assert download is True
+            output = captured[-1]["outtmpl"].replace("%(ext)s", "en.vtt")
+            with open(output, "w", encoding="utf-8") as output_file:
+                output_file.write(
+                    "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\n\n"
+                    "default yt-dlp behavior\n"
+                )
+            return {"automatic_captions": {}}
+
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", YoutubeDL)
+    monkeypatch.setattr(youtube._YOUTUBE_GATE, "wait", lambda *_args, **_kwargs: None)
+
+    result = asyncio.run(youtube._fetch_transcript_via_ytdlp("abcdefghijk"))
+
+    assert result is not None and result.text == "default yt-dlp behavior"
+    assert "proxy" not in captured[0]

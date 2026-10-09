@@ -11,6 +11,7 @@ from common.metrics import METRICS
 
 from .barrier import BarrierInfo, _classify_barrier
 from .settings import load_settings
+from .source_http import trusted_control_httpx_client
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_GRID_ROUNDS = 2
@@ -97,7 +98,7 @@ async def _vision_request(
         '{"tiles":[...],"submit":true} only.'
     )
     try:
-        async with httpx.AsyncClient(
+        async with trusted_control_httpx_client(
             timeout=_settings.captcha_vision_timeout
         ) as client:
             response = await client.post(
