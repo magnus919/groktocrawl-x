@@ -41,5 +41,11 @@ exec setpriv \
     --no-new-privs \
     /bin/sh -c '
         chmod 2770 /run/flaresolverr || exit 1
+        HOME=/tmp/groktocrawl-flare-home
+        XDG_CACHE_HOME=/tmp/groktocrawl-flare-home/.cache
+        export HOME XDG_CACHE_HOME
+        umask 077
+        mkdir -p "$HOME" "$XDG_CACHE_HOME" || exit 1
+        chmod 0700 "$HOME" "$XDG_CACHE_HOME" || exit 1
         exec "$@"
     ' protected-flare "$@"
