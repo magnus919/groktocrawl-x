@@ -53,7 +53,10 @@ def test_stack_is_built_locally_with_fixture_search_and_owned_volumes():
     commands = "\n".join(step.get("run", "") for step in job["steps"])
     assert "--profile indexing --profile fixture build" in commands
     assert "up -d --no-build --pull never" in commands
-    assert "pull --ignore-buildable" in commands
+    assert "scripts/ci_public_image_prefetch.py" in commands
+    assert "--group runtime" in commands
+    assert "--profile indexing" in commands
+    assert "--profile fixture" in commands
     assert "LLM_BASE_URL=http://llm-svc:8011/v1?run_id=" in commands
     assert "docker rm -f" not in commands
     assert "down --volumes --remove-orphans" in commands
