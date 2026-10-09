@@ -18,13 +18,13 @@ _client = httpx.Client(
 )
 
 
-def call(body: dict) -> dict:
+def call(body: dict, *, expected_http_status: int = 200) -> dict:
     response = _client.post(
         "/v1",
         content=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
-    response.raise_for_status()
+    assert response.status_code == expected_http_status, response.status_code
     return response.json()
 
 
@@ -87,7 +87,7 @@ try:
     assert posted.get("status") == "ok", posted
     assert "FLARE_POST_OK:capture=posted" in (posted.get("solution") or {}).get("response", "")
 
-    rejected = call({"cmd": "request.get", "url": "file:///etc/passwd"})
+    rejected = call({"cmd": "request.get", "url": "file:///etc/passwd"}, expected_http_status=500)
     assert rejected.get("status") == "error", rejected
     assert "allowed HTTP destination" in rejected.get("message", ""), rejected
 finally:
