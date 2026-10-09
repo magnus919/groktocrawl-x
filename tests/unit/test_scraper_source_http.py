@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import errno
 import os
 import socket
 import stat
@@ -34,6 +35,20 @@ from scraper.source_http import (
     trusted_llm_upstream_client,
 )
 
+from tests.outcome_governance import governed_skip
+
+
+def _skip_if_socket_binding_is_restricted(error: OSError) -> None:
+    if error.errno not in {errno.EACCES, errno.EPERM}:
+        raise error
+    governed_skip(
+        "sandbox does not permit local Unix socket binding",
+        owner="repository-maintainer",
+        issue="#436",
+        classification="retained",
+        environment="restricted test sandbox denies AF_UNIX bind",
+    )
+
 
 def test_source_httpx_client_preserves_default_constructor(monkeypatch):
     monkeypatch.delenv(CAPTURE_EGRESS_PROXY_ENV, raising=False)
@@ -48,6 +63,7 @@ def test_model_control_listener_is_prebound_private_and_inheritable():
     with tempfile.TemporaryDirectory(prefix="mc-", dir="/tmp") as raw_directory:
         directory = Path(raw_directory)
         directory.chmod(0o700)
+        os.chown(directory, -1, os.getgid())
         path = directory / "control.sock"
         directory_info = directory.lstat()
 
@@ -58,8 +74,8 @@ def test_model_control_listener_is_prebound_private_and_inheritable():
                 expected_directory_gid=directory_info.st_gid,
                 expected_directory_mode=0o700,
             )
-        except PermissionError as exc:
-            pytest.skip(f"host sandbox forbids Unix socket creation: {exc}")
+        except OSError as exc:
+            _skip_if_socket_binding_is_restricted(exc)
         try:
             info = path.lstat()
             assert stat.S_ISSOCK(info.st_mode)
@@ -69,6 +85,8 @@ def test_model_control_listener_is_prebound_private_and_inheritable():
             try:
                 probe.settimeout(1)
                 probe.connect(str(path))
+            except OSError as exc:
+                _skip_if_socket_binding_is_restricted(exc)
             finally:
                 probe.close()
         finally:
@@ -79,14 +97,15 @@ def test_model_control_listener_replaces_only_owned_stale_socket():
     with tempfile.TemporaryDirectory(prefix="mc-", dir="/tmp") as raw_directory:
         directory = Path(raw_directory)
         directory.chmod(0o700)
+        os.chown(directory, -1, os.getgid())
         path = directory / "control.sock"
         directory_info = directory.lstat()
         stale = socket.socket(socket.AF_UNIX)
         try:
             stale.bind(str(path))
-        except PermissionError as exc:
+        except OSError as exc:
             stale.close()
-            pytest.skip(f"host sandbox forbids Unix socket creation: {exc}")
+            _skip_if_socket_binding_is_restricted(exc)
         stale.close()
 
         listener = bind_control_listener(
