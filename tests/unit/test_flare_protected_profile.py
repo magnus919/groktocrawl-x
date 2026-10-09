@@ -34,6 +34,7 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
     compose = yaml.safe_load((ROOT / "compose.experimental-candidate.yml").read_text())
     renderer = compose["services"]["candidate-flare-renderer"]
     control = compose["services"]["candidate-flare-control"]
+    assert "20000" in {str(group) for group in renderer["group_add"]}
     assert renderer["cap_drop"] == ["ALL"]
     assert set(renderer["cap_add"]) == {
         "CHOWN",

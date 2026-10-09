@@ -103,6 +103,7 @@ services:
     image: groktocrawl-x-protected-flare:${CANDIDATE_IMAGE_TAG:-dev}
     restart: unless-stopped
     profiles: [protected-flare]
+    group_add: ["20000"]
     networks:
       candidate_flare_capture:
         ipv4_address: 172.31.254.19
@@ -366,12 +367,7 @@ services:
       context: .
       dockerfile: scraper-svc/Dockerfile
     image: groktocrawl-x-candidate-scraper:${CANDIDATE_IMAGE_TAG:-dev}
-    command:
-      - /bin/sh
-      - -c
-      - >-
-        umask 0117;
-        exec uvicorn scraper.llm_control:app --uds /run/scraper-llm/control.sock
+    command: [python, -m, scraper.llm_control_entrypoint]
     restart: unless-stopped
     user: "10002:20000"
     environment:

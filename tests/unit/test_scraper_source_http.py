@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import os
+import socket
+import stat
 import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -14,6 +18,7 @@ _SCRAPER_SVC = Path(__file__).parents[2] / "scraper-svc"
 if str(_SCRAPER_SVC) not in sys.path:
     sys.path.insert(0, str(_SCRAPER_SVC))
 
+from scraper.llm_control_entrypoint import bind_control_listener
 from scraper.source_http import (
     CAPTURE_EGRESS_PROXY_ENV,
     MODEL_EGRESS_PROXY_ENV,
@@ -37,6 +42,99 @@ def test_source_httpx_client_preserves_default_constructor(monkeypatch):
 
     assert source_httpx_client(timeout=12) == "client"
     constructor.assert_called_once_with(timeout=12)
+
+
+def test_model_control_listener_is_prebound_private_and_inheritable():
+    with tempfile.TemporaryDirectory(prefix="mc-", dir="/tmp") as raw_directory:
+        directory = Path(raw_directory)
+        directory.chmod(0o700)
+        path = directory / "control.sock"
+        directory_info = directory.lstat()
+
+        try:
+            listener = bind_control_listener(
+                path,
+                expected_directory_uid=directory_info.st_uid,
+                expected_directory_gid=directory_info.st_gid,
+                expected_directory_mode=0o700,
+            )
+        except PermissionError as exc:
+            pytest.skip(f"host sandbox forbids Unix socket creation: {exc}")
+        try:
+            info = path.lstat()
+            assert stat.S_ISSOCK(info.st_mode)
+            assert stat.S_IMODE(info.st_mode) == 0o660
+            assert listener.get_inheritable()
+            probe = socket.socket(socket.AF_UNIX)
+            try:
+                probe.settimeout(1)
+                probe.connect(str(path))
+            finally:
+                probe.close()
+        finally:
+            listener.close()
+
+
+def test_model_control_listener_replaces_only_owned_stale_socket():
+    with tempfile.TemporaryDirectory(prefix="mc-", dir="/tmp") as raw_directory:
+        directory = Path(raw_directory)
+        directory.chmod(0o700)
+        path = directory / "control.sock"
+        directory_info = directory.lstat()
+        stale = socket.socket(socket.AF_UNIX)
+        try:
+            stale.bind(str(path))
+        except PermissionError as exc:
+            stale.close()
+            pytest.skip(f"host sandbox forbids Unix socket creation: {exc}")
+        stale.close()
+
+        listener = bind_control_listener(
+            path,
+            expected_directory_uid=directory_info.st_uid,
+            expected_directory_gid=directory_info.st_gid,
+            expected_directory_mode=0o700,
+        )
+        try:
+            assert stat.S_ISSOCK(path.lstat().st_mode)
+            assert stat.S_IMODE(path.lstat().st_mode) == 0o660
+        finally:
+            listener.close()
+
+
+@pytest.mark.parametrize("occupied_kind", ["symlink", "regular"])
+def test_model_control_listener_rejects_unsafe_occupied_path(tmp_path, occupied_kind):
+    directory = tmp_path / "model-control"
+    directory.mkdir(mode=0o700)
+    directory.chmod(0o700)
+    path = directory / "control.sock"
+    if occupied_kind == "symlink":
+        target = directory / "target"
+        target.write_text("fixture")
+        path.symlink_to(target)
+    else:
+        path.write_text("fixture")
+
+    with pytest.raises(RuntimeError, match="path is occupied"):
+        bind_control_listener(
+            path,
+            expected_directory_uid=os.getuid(),
+            expected_directory_gid=os.getgid(),
+            expected_directory_mode=0o700,
+        )
+
+
+def test_model_control_listener_rejects_wrong_parent_mode(tmp_path):
+    directory = tmp_path / "model-control"
+    directory.mkdir(mode=0o700)
+    directory.chmod(0o700)
+    with pytest.raises(RuntimeError, match="directory is invalid"):
+        bind_control_listener(
+            directory / "control.sock",
+            expected_directory_uid=os.getuid(),
+            expected_directory_gid=os.getgid(),
+            expected_directory_mode=0o2770,
+        )
 
 
 def test_protected_source_httpx_forces_gateway_and_disables_environment(monkeypatch):
@@ -319,6 +417,7 @@ def test_candidate_scraper_is_not_attached_to_direct_egress_network():
     assert "candidate_flare_control_socket:/run/flare-control:ro" in scraper["volumes"]
     assert services["candidate-flare-control"]["network_mode"] == "none"
     model_control = services["candidate-scraper-model-control"]
+    assert model_control["command"] == ["python", "-m", "scraper.llm_control_entrypoint"]
     assert set(model_control["networks"]) == {"candidate_model_gateway"}
     model_gateway = services["candidate-model-egress"]
     assert set(model_gateway["networks"]) == {
