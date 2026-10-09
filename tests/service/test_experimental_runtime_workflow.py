@@ -25,6 +25,7 @@ def test_runtime_workflow_has_no_publishing_or_privileged_execution():
         "integration-tests",
         "research-storage",
         "protected-browser-profile",
+        "protected-flare-profile",
         "runtime-gate",
     }
     for job in WORKFLOW["jobs"].values():
@@ -67,6 +68,20 @@ def test_protected_browser_profile_is_required_by_runtime_gate():
     assert "protected-browser-profile" in gate["needs"]
     assert "BROWSER_PROFILE_RESULT" in gate["steps"][0]["env"]
     assert 'test "$BROWSER_PROFILE_RESULT" = success' in gate["steps"][0]["run"]
+
+
+def test_protected_flare_profile_is_required_by_runtime_gate():
+    profile = WORKFLOW["jobs"]["protected-flare-profile"]
+    gate = WORKFLOW["jobs"]["runtime-gate"]
+    assert profile["needs"] == "changes"
+    assert "needs.changes.outputs.requires_full_runtime == 'true'" in profile["if"]
+    assert "protected-flare-profile" in gate["needs"]
+    assert "PROTECTED_FLARE_RESULT" in gate["steps"][0]["env"]
+    assert 'test "$PROTECTED_FLARE_RESULT" = success' in gate["steps"][0]["run"]
+    steps = profile["steps"]
+    probe = next(step for step in steps if step.get("name", "").startswith("Exercise upstream Flare"))
+    assert "tests/integration/protected_flare_api_probe.py" in probe["run"]
+    assert any("candidate-flare-test-origin" in step.get("run", "") for step in steps)
 
 
 def test_protected_browser_failure_logs_are_bounded_and_precede_teardown():
@@ -113,6 +128,7 @@ def test_runtime_gate_fails_closed(
         "integration-tests",
         "research-storage",
         "protected-browser-profile",
+        "protected-flare-profile",
     }
     step = gate["steps"][0]
     result = subprocess.run(
@@ -124,6 +140,7 @@ def test_runtime_gate_fails_closed(
             "TWIN_REQUIRED": twin_required,
             "RUNTIME_RESULT": runtime,
             "BROWSER_PROFILE_RESULT": "success",
+            "PROTECTED_FLARE_RESULT": "success",
             "TWIN_RESULT": twin,
             "STORAGE_RESULT": "success",
         },
@@ -164,6 +181,29 @@ def test_required_browser_profile_failure_or_skip_fails_runtime_gate(profile_res
     assert result.returncode != 0
 
 
+@pytest.mark.parametrize("profile_result", ["failure", "cancelled", "skipped"])
+def test_required_flare_profile_failure_or_skip_fails_runtime_gate(profile_result):
+    gate = WORKFLOW["jobs"]["runtime-gate"]
+    result = subprocess.run(
+        ["bash", "-c", gate["steps"][0]["run"]],
+        env={
+            **os.environ,
+            "CLASSIFICATION": "success",
+            "RUNTIME_REQUIRED": "true",
+            "TWIN_REQUIRED": "false",
+            "RUNTIME_RESULT": "success",
+            "BROWSER_PROFILE_RESULT": "success",
+            "PROTECTED_FLARE_RESULT": profile_result,
+            "TWIN_RESULT": "skipped",
+            "STORAGE_RESULT": "success",
+        },
+        capture_output=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode != 0
+
+
 def test_documentation_only_change_allows_skipped_browser_profile():
     gate = WORKFLOW["jobs"]["runtime-gate"]
     step = gate["steps"][0]
@@ -176,6 +216,7 @@ def test_documentation_only_change_allows_skipped_browser_profile():
             "TWIN_REQUIRED": "false",
             "RUNTIME_RESULT": "skipped",
             "BROWSER_PROFILE_RESULT": "skipped",
+            "PROTECTED_FLARE_RESULT": "skipped",
             "TWIN_RESULT": "skipped",
             "STORAGE_RESULT": "skipped",
         },

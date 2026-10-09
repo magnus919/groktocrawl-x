@@ -92,6 +92,75 @@ services:
     cpus: 1.0
     pids_limit: 128
 
+  candidate-flare-renderer:
+    build:
+      context: .
+      dockerfile: flare-protected/Dockerfile
+    image: groktocrawl-x-protected-flare:${CANDIDATE_IMAGE_TAG:-dev}
+    restart: unless-stopped
+    profiles: [protected-flare]
+    networks:
+      candidate_capture:
+        ipv4_address: 172.31.254.4
+    environment:
+      FLARE_API_UNIX_SOCKET: /run/flaresolverr/api.sock
+      LOG_LEVEL: ${FLARE_SOLVERR_LOG_LEVEL:-info}
+      LOG_HTML: "false"
+      CAPTCHA_SOLVER: ${FLARE_SOLVERR_CAPTCHA_SOLVER:-none}
+    volumes:
+      - candidate_flare_socket:/run/flaresolverr
+    cap_drop: [ALL]
+    cap_add: [CHOWN, NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      candidate-capture-egress:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import socket; s=socket.socket(socket.AF_UNIX); s.settimeout(2);
+          s.connect('/run/flaresolverr/api.sock');
+          s.sendall(b'GET /health HTTP/1.1\r\nHost: flaresolverr.local\r\nConnection: close\r\n\r\n');
+          assert b'200 OK' in s.recv(2048)
+      interval: 10s
+      timeout: 5s
+      start_period: 45s
+      retries: 20
+    mem_limit: 1500m
+    cpus: 1.0
+    pids_limit: 256
+
+  candidate-flare-control:
+    build:
+      context: .
+      dockerfile: flare-control/Dockerfile
+    image: groktocrawl-x-flare-control:${CANDIDATE_IMAGE_TAG:-dev}
+    restart: unless-stopped
+    profiles: [protected-flare]
+    networks: [candidate_private]
+    group_add: ["20000"]
+    volumes:
+      - candidate_flare_socket:/run/flaresolverr:ro
+    depends_on:
+      candidate-flare-renderer:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8191/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 20
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 64
+
   candidate-browser-renderer:
     build:
       context: .
@@ -175,6 +244,7 @@ services:
       VALKEY_PORT: "6379"
       VALKEY_DB: "0"
       BROWSER_SVC_URL: http://candidate-browser-controller:8012
+      FLARE_SOLVERR_URL: http://candidate-flare-control:8191/v1
       SCRAPER_MAX_BROWSER_CONCURRENCY: ${SCRAPER_MAX_BROWSER_CONCURRENCY:-4}
       SCRAPER_BROWSER_POOL_ENABLED: ${SCRAPER_BROWSER_POOL_ENABLED:-false}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
@@ -185,6 +255,9 @@ services:
         condition: service_healthy
       candidate-browser-controller:
         condition: service_healthy
+      candidate-flare-control:
+        condition: service_healthy
+        required: false
     volumes:
       - candidate_cloakbrowser_cache:/root/.cloakbrowser
     networks: [candidate_egress, candidate_private]
@@ -413,6 +486,7 @@ volumes:
   candidate_hf_cache:
   candidate_cloakbrowser_cache:
   candidate_browser_renderer_socket:
+  candidate_flare_socket:
 
 networks:
   candidate_egress:

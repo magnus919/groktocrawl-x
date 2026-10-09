@@ -836,6 +836,52 @@ jobs:
         if: always()
         run: docker compose down --volumes --remove-orphans --timeout 10
 
+  protected-flare-profile:
+    name: Protected FlareSolverr Egress Profile
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COMPOSE_FILE: compose.experimental-candidate.yml:compose.protected-flare-ci.yml
+      COMPOSE_PROFILES: protected-flare
+      COMPOSE_PROJECT_NAME: protected-flare-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_POSTGRES_PASSWORD_FILE: /tmp/protected-flare-password-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_API_KEY: ci-only-api-key
+      CANDIDATE_IMAGE_TAG: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Create isolated Compose secret placeholder
+        run: |
+          umask 077
+          printf 'ci-only-password\n' > "$CANDIDATE_POSTGRES_PASSWORD_FILE"
+          docker compose --profile protected-flare config --quiet
+      - name: Build and start protected Flare and local-origin fixture
+        run: >-
+          docker compose --profile protected-flare up --build --detach --wait
+          candidate-flare-control candidate-flare-test-origin
+      - name: Exercise upstream Flare GET, POST, session, cookie, redirect and page boundary
+        run: python tests/integration/protected_flare_api_probe.py
+      - name: Verify the Flare network namespace has no TCP API listener
+        run: >-
+          docker compose --profile protected-flare exec -T
+          candidate-flare-renderer python -
+          < tests/integration/protected_flare_renderer_probe.py
+      - name: Collect bounded protected Flare startup diagnostics
+        if: failure()
+        run: |
+          docker compose --profile protected-flare ps -a
+          docker compose --profile protected-flare logs --no-color --tail=100 \
+            candidate-capture-egress candidate-flare-renderer candidate-flare-control \
+            candidate-flare-test-origin
+      - name: Tear down protected Flare profile
+        if: always()
+        run: docker compose --profile protected-flare down --volumes --remove-orphans --timeout 10
+
   research-storage:
     name: PostgreSQL Storage Probes
     needs: changes
@@ -1183,6 +1229,7 @@ jobs:
       - integration-tests
       - research-storage
       - protected-browser-profile
+      - protected-flare-profile
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -1194,6 +1241,7 @@ jobs:
           TWIN_REQUIRED: ${{ needs.changes.outputs.requires_twin_contracts }}
           RUNTIME_RESULT: ${{ needs.integration-tests.result }}
           BROWSER_PROFILE_RESULT: ${{ needs.protected-browser-profile.result }}
+          PROTECTED_FLARE_RESULT: ${{ needs.protected-flare-profile.result }}
           TWIN_RESULT: ${{ needs.twin-contracts.result }}
           STORAGE_RESULT: ${{ needs.research-storage.result }}
         run: |
@@ -1206,6 +1254,7 @@ jobs:
             test "$RUNTIME_RESULT" = success
             test "$STORAGE_RESULT" = success
             test "$BROWSER_PROFILE_RESULT" = success
+            test "$PROTECTED_FLARE_RESULT" = success
           else
             echo "Runtime integration not required for this documentation-only change."
           fi
