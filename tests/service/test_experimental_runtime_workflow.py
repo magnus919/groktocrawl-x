@@ -2,6 +2,7 @@
 
 import itertools
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -124,6 +125,21 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
     assert compose["services"]["candidate-capture-peer-sentinel"]["networks"]["candidate_capture"]["ipv4_address"] == "172.31.254.6"
     assert compose["services"]["candidate-host-bridge-sentinel"]["network_mode"] == "host"
     assert '"degraded"' not in ingress_source
+
+
+def test_compose_image_digests_are_full_sha256_values():
+    compose_files = [*ROOT.glob("compose*.yml"), *ROOT.glob("docker-compose*.yml")]
+    assert compose_files
+    for path in compose_files:
+        for line_number, line in enumerate(path.read_text().splitlines(), start=1):
+            if not re.match(r"\s*image:\s*", line):
+                continue
+            image = line.split("image:", 1)[1].strip().strip("\"'")
+            if "@sha256:" in image:
+                digest = image.rsplit("@sha256:", 1)[1]
+                assert re.fullmatch(r"[0-9a-f]{64}", digest), (
+                    f"{path.name}:{line_number} has malformed SHA-256 image pin"
+                )
 
 
 def test_protected_browser_failure_logs_are_bounded_and_precede_teardown():
