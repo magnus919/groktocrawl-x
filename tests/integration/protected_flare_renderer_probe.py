@@ -14,22 +14,38 @@ def validate_process_status(status: dict[str, str]) -> None:
         raise RuntimeError("Flare process permits privilege escalation")
 
 
+def is_flare_python_argv(command: bytes) -> bool:
+    argv = [argument for argument in command.split(b"\0") if argument]
+    if len(argv) < 2 or argv[-1] != b"/app/flaresolverr.py":
+        return False
+    executable = argv[0].rsplit(b"/", 1)[-1]
+    return executable in {b"python", b"python3"}
+
+
+def _status_for_pid(pid: Path) -> dict[str, str]:
+    rows = (pid / "status").read_text(encoding="ascii").splitlines()
+    return {key: value.strip() for row in rows if ":" in row for key, value in [row.split(":", 1)]}
+
+
 def _status_for_flare_process() -> dict[str, str]:
+    matches = []
     for entry in Path("/proc").iterdir():
         if not entry.name.isdecimal():
             continue
         try:
             command = (entry / "cmdline").read_bytes()
-            if b"/app/flaresolverr.py" not in command:
+            if not is_flare_python_argv(command):
                 continue
-            rows = (entry / "status").read_text(encoding="ascii").splitlines()
+            matches.append(_status_for_pid(entry))
         except (OSError, UnicodeError):
             continue
-        return {key: value.strip() for row in rows if ":" in row for key, value in [row.split(":", 1)]}
-    raise RuntimeError("Flare process status was not found")
+    if len(matches) != 1:
+        raise RuntimeError("unique Flare Python process was not found")
+    return matches[0]
 
 
 def main() -> None:
+    validate_process_status(_status_for_pid(Path("/proc/1")))
     validate_process_status(_status_for_flare_process())
 
     for table in ("/proc/net/tcp", "/proc/net/tcp6"):

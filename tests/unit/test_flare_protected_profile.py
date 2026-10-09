@@ -54,6 +54,21 @@ def test_flare_process_probe_requires_zero_process_capabilities(field):
         RENDERER_PROBE.validate_process_status(status)
 
 
+def test_flare_probe_matches_python_process_not_dumb_init_ancestor():
+    assert RENDERER_PROBE.is_flare_python_argv(
+        b"/usr/local/bin/python\0-u\0/app/flaresolverr.py\0"
+    )
+    assert not RENDERER_PROBE.is_flare_python_argv(
+        b"/usr/bin/dumb-init\0--\0/usr/local/bin/python\0-u\0/app/flaresolverr.py\0"
+    )
+
+
+def test_flare_dumb_init_is_started_inside_the_privilege_drop():
+    dockerfile = (ROOT / "flare-protected/Dockerfile").read_text()
+    assert 'ENTRYPOINT ["/usr/local/bin/protected-flare-entrypoint"]' in dockerfile
+    assert 'CMD ["/usr/bin/dumb-init", "--", "/usr/local/bin/python"' in dockerfile
+
+
 def test_upstream_patch_forces_proxy_validates_scheme_and_moves_api_to_uds():
     source = """import os
 req = V1RequestBase(data)

@@ -850,6 +850,8 @@ jobs:
       COMPOSE_PROJECT_NAME: protected-flare-${{ github.run_id }}-${{ github.run_attempt }}
       CANDIDATE_POSTGRES_PASSWORD_FILE: /tmp/protected-flare-password-${{ github.run_id }}-${{ github.run_attempt }}
       CANDIDATE_API_KEY: ci-only-api-key
+      LLM_BASE_URL: http://llm.invalid/v1
+      LLM_API_KEY: ci-only-llm-key
       CANDIDATE_IMAGE_TAG: ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7

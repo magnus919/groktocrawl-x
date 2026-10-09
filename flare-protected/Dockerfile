@@ -12,5 +12,5 @@ RUN python /tmp/patch_upstream.py && rm /tmp/patch_upstream.py
 COPY flare-protected/entrypoint.sh /usr/local/bin/protected-flare-entrypoint
 RUN chmod 0755 /usr/local/bin/protected-flare-entrypoint
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/protected-flare-entrypoint"]
-CMD ["/usr/local/bin/python", "-u", "/app/flaresolverr.py"]
+ENTRYPOINT ["/usr/local/bin/protected-flare-entrypoint"]
+CMD ["/usr/bin/dumb-init", "--", "/usr/local/bin/python", "-u", "/app/flaresolverr.py"]
