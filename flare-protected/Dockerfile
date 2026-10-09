@@ -1,7 +1,9 @@
 FROM ghcr.io/flaresolverr/flaresolverr:v3.5.2@sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767
 
 ENV HOME=/tmp/groktocrawl-flare-home \
-    XDG_CACHE_HOME=/tmp/groktocrawl-flare-home/.cache
+    XDG_CACHE_HOME=/tmp/groktocrawl-flare-home/.cache \
+    XDG_DATA_HOME=/tmp/groktocrawl-flare-home/.local/share \
+    XDG_CONFIG_HOME=/tmp/groktocrawl-flare-home/.config
 
 USER root
 RUN apt-get update \
