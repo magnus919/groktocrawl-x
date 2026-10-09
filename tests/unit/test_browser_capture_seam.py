@@ -335,9 +335,9 @@ def test_renderer_sets_directory_mode_as_unprivileged_owner(monkeypatch):
         renderer_entrypoint,
         "os",
         SimpleNamespace(
-            chown=lambda path, uid, gid: calls.append("chown"),
-            setgroups=lambda groups: calls.append("setgroups"),
-            setgid=lambda gid: calls.append("setgid"),
+            chown=lambda path, uid, gid: calls.append(("chown", uid, gid)),
+            setgroups=lambda groups: calls.append(("setgroups", tuple(groups))),
+            setgid=lambda gid: calls.append(("setgid", gid)),
             setuid=setuid,
             chmod=chmod,
         ),
@@ -350,10 +350,10 @@ def test_renderer_sets_directory_mode_as_unprivileged_owner(monkeypatch):
     renderer_entrypoint._prepare_unprivileged_renderer()
     assert calls == [
         "mkdir",
-        "chown",
+        ("chown", 10001, 10001),
         "drop-caps",
-        "setgroups",
-        "setgid",
+        ("setgroups", ()),
+        ("setgid", 10001),
         "setuid",
         "chmod",
     ]
