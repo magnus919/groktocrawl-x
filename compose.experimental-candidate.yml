@@ -186,12 +186,16 @@ services:
     command:
       - /bin/sh
       - -c
-      - chown 10001:20000 /run/flare-control && chmod 2770 /run/flare-control
+      - >-
+        mkdir -p /run/flare-control || { echo 'failed to create Flare control socket directory' >&2; exit 1; };
+        chown 10001:20000 /run/flare-control || { echo 'failed to set Flare control socket ownership' >&2; exit 1; };
+        chmod 2770 /run/flare-control || { echo 'failed to set Flare control socket mode' >&2; exit 1; };
+        test "$$(stat -c '%u:%g:%a' /run/flare-control)" = '10001:20000:2770' || { echo 'Flare control socket directory ownership or mode mismatch' >&2; exit 1; }
     volumes:
       - candidate_flare_control_socket:/run/flare-control
     network_mode: none
     cap_drop: [ALL]
-    cap_add: [CHOWN]
+    cap_add: [CHOWN, FOWNER, FSETID]
     security_opt: [no-new-privileges:true]
     restart: "no"
 
@@ -483,7 +487,10 @@ services:
       - -c
       - >-
         for d in /run/scraper /run/scraper-state /run/scraper-llm; do
-          mkdir -p "$$d" && chown 10001:20000 "$$d" && chmod 2770 "$$d" || exit 1;
+          mkdir -p "$$d" || { echo "failed to create socket directory: $$d" >&2; exit 1; };
+          chown 10001:20000 "$$d" || { echo "failed to set socket directory ownership: $$d" >&2; exit 1; };
+          chmod 2770 "$$d" || { echo "failed to set socket directory mode: $$d" >&2; exit 1; };
+          test "$$(stat -c '%u:%g:%a' "$$d")" = '10001:20000:2770' || { echo "socket directory ownership or mode mismatch: $$d" >&2; exit 1; };
         done
     volumes:
       - candidate_scraper_api_socket:/run/scraper
@@ -491,7 +498,7 @@ services:
       - candidate_scraper_llm_socket:/run/scraper-llm
     network_mode: none
     cap_drop: [ALL]
-    cap_add: [CHOWN]
+    cap_add: [CHOWN, FOWNER, FSETID]
     security_opt: [no-new-privileges:true]
     restart: "no"
 

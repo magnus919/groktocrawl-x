@@ -1,5 +1,6 @@
 """Validate the experimental CI execution boundary and required-check outcomes."""
 
+import ipaddress
 import itertools
 import os
 import re
@@ -98,6 +99,16 @@ def test_protected_flare_profile_is_required_by_runtime_gate():
     assert "tests/integration/protected_flare_api_probe.py" in probe["run"]
     assert "docker compose --profile protected-flare exec -T --user 10001:20000 candidate-scraper" in probe["run"]
     assert any("candidate-flare-test-origin" in step.get("run", "") for step in steps)
+    init = yaml.safe_load((ROOT / "compose.experimental-candidate.yml").read_text())["services"]
+    for service_name in ("candidate-scraper-socket-init", "candidate-flare-control-socket-init"):
+        socket_init = init[service_name]
+        assert socket_init["user"] == "0:0"
+        assert socket_init["cap_drop"] == ["ALL"]
+        assert set(socket_init["cap_add"]) == {"CHOWN", "FOWNER", "FSETID"}
+        assert "stat -c '%u:%g:%a'" in " ".join(socket_init["command"])
+    diagnostic = next(step for step in steps if step.get("name") == "Collect bounded protected Flare startup diagnostics")
+    assert "candidate-scraper-socket-init" in diagnostic["run"]
+    assert "candidate-flare-control-socket-init" in diagnostic["run"]
 
 
 def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
@@ -108,6 +119,9 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
     start = next(step for step in steps if step.get("name") == "Build and start the isolated service composition")
     assert "candidate-capture-peer-sentinel" in start["run"]
     assert "candidate-host-bridge-sentinel" in start["run"]
+    diagnostics = next(step for step in steps if step.get("name") == "Collect bounded composition diagnostics")
+    assert "candidate-scraper-socket-init" in diagnostics["run"]
+    assert "candidate-flare-control-socket-init" in diagnostics["run"]
     ingress = next(step for step in steps if step.get("name") == "Verify the fixed agent-to-scraper HTTP ingress bridge")
     assert "docker compose exec -T candidate-private-sentinel" in ingress["run"]
     assert "scraper_ingress_boundary_probe.py" in ingress["run"]
@@ -125,6 +139,41 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
     assert compose["services"]["candidate-capture-peer-sentinel"]["networks"]["candidate_capture"]["ipv4_address"] == "172.31.254.6"
     assert compose["services"]["candidate-host-bridge-sentinel"]["network_mode"] == "host"
     assert '"degraded"' not in ingress_source
+
+
+def test_fixture_subnet_static_addresses_avoid_gateway_and_collisions():
+    assignments: dict[tuple[str, str], str] = {}
+    network_subnets: dict[str, ipaddress.IPv4Network] = {}
+    for filename in ("compose.protected-flare-ci.yml", "compose.protected-capture-ci.yml"):
+        document = yaml.safe_load((ROOT / filename).read_text())
+        for network_name, network in document.get("networks", {}).items():
+            for config in network.get("ipam", {}).get("config", []):
+                if "subnet" in config:
+                    subnet = ipaddress.ip_network(config["subnet"])
+                    previous = network_subnets.setdefault(network_name, subnet)
+                    assert previous == subnet
+        for service_name, service in document.get("services", {}).items():
+            for network_name, config in service.get("networks", {}).items():
+                if isinstance(config, dict) and "ipv4_address" in config:
+                    key = (service_name, network_name)
+                    address = config["ipv4_address"]
+                    previous = assignments.setdefault(key, address)
+                    assert previous == address
+
+    fixture_network = "candidate_flare_fixture"
+    subnet = network_subnets[fixture_network]
+    gateway = next(subnet.hosts())
+    used = {
+        key: ipaddress.ip_address(address)
+        for key, address in assignments.items()
+        if key[1] == fixture_network
+    }
+    assert len(used) >= 2
+    assert len(set(used.values())) == len(used), "fixture services share a static IP"
+    for service, address in used.items():
+        assert address in subnet, f"{service[0]} address is outside fixture subnet"
+        assert address != gateway, f"{service[0]} collides with Docker's subnet gateway"
+        assert address != subnet.broadcast_address
 
 
 def test_compose_image_digests_are_full_sha256_values():

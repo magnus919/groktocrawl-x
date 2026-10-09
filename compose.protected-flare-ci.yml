@@ -8,7 +8,7 @@ services:
   candidate-capture-egress:
     networks:
       candidate_flare_fixture:
-        ipv4_address: 93.184.216.33
+        ipv4_address: 93.184.216.38
     extra_hosts:
       - "flare-origin.test:93.184.216.34"
 

@@ -144,14 +144,15 @@ class ValkeyControlClient:
     async def _call(self, request: dict[str, Any]) -> dict[str, Any]:
         writer: asyncio.StreamWriter | None = None
         try:
-            reader, writer = await asyncio.wait_for(
+            reader, connected_writer = await asyncio.wait_for(
                 asyncio.open_unix_connection(self.socket_path), timeout=2
             )
+            writer = connected_writer
             body = json.dumps(request, separators=(",", ":")).encode()
             if len(body) >= MAX_LINE_BYTES:
                 raise ValueError("Valkey RPC request too large")
-            writer.write(body + b"\n")
-            await asyncio.wait_for(writer.drain(), timeout=2)
+            connected_writer.write(body + b"\n")
+            await asyncio.wait_for(connected_writer.drain(), timeout=2)
             line = await asyncio.wait_for(reader.readline(), timeout=10)
             if not line or len(line) > MAX_LINE_BYTES or not line.endswith(b"\n"):
                 raise RuntimeError("invalid Valkey RPC response")

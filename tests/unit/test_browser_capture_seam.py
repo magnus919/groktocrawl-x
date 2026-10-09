@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import sys
 import uuid
 from pathlib import Path
@@ -19,12 +20,26 @@ from browser_svc.app import startup as browser_app_startup
 from browser_svc.controller import create_app
 from browser_svc.cookie_rpc import CookieRPCClient, CookieRPCServer
 
+from tests.outcome_governance import governed_skip
+
+
+def _skip_if_socket_binding_is_restricted(error: OSError) -> None:
+    if error.errno not in {errno.EACCES, errno.EPERM}:
+        raise error
+    governed_skip(
+        "sandbox does not permit local Unix socket binding",
+        owner="repository-maintainer",
+        issue="#436",
+        classification="retained",
+        environment="restricted test sandbox denies AF_UNIX bind",
+    )
+
 
 async def _start_unix_server(handler, *, path):
     try:
         return await asyncio.start_unix_server(handler, path=path)
-    except PermissionError:
-        pytest.skip("sandbox does not permit local Unix socket binding")
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
 
 
 @pytest.mark.asyncio
@@ -226,8 +241,8 @@ async def test_cookie_rpc_preserves_domain_keys_ttls_and_concurrent_sessions(
     server = CookieRPCServer(socket_path, redis)
     try:
         await server.start()
-    except PermissionError:
-        pytest.skip("sandbox does not permit local Unix socket binding")
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
     first = CookieRPCClient(socket_path)
     second = CookieRPCClient(socket_path)
     try:
@@ -252,8 +267,8 @@ async def test_cookie_rpc_rejects_unscoped_keys(monkeypatch: pytest.MonkeyPatch)
     server = CookieRPCServer(socket_path, None)
     try:
         await server.start()
-    except PermissionError:
-        pytest.skip("sandbox does not permit local Unix socket binding")
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
     client = CookieRPCClient(socket_path)
     try:
         with pytest.raises(ValueError, match="invalid cookie key"):

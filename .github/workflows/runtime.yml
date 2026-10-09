@@ -898,7 +898,8 @@ jobs:
           docker compose --profile protected-flare ps -a
           docker compose --profile protected-flare logs --no-color --tail=100 \
             candidate-capture-egress candidate-flare-renderer candidate-flare-control \
-            candidate-flare-test-origin
+            candidate-flare-test-origin candidate-scraper-socket-init \
+            candidate-flare-control-socket-init
       - name: Tear down protected Flare profile
         if: always()
         run: |
@@ -964,6 +965,7 @@ jobs:
             candidate-scraper candidate-scraper-ingress candidate-scraper-state-control \
             candidate-scraper-model-control candidate-browser-renderer \
             candidate-browser-controller candidate-flare-renderer candidate-flare-control \
+            candidate-scraper-socket-init candidate-flare-control-socket-init \
             candidate-private-sentinel candidate-llm
       - name: Tear down protected capture composition
         if: always()

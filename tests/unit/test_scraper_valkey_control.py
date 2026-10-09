@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import hashlib
 import uuid
 
@@ -15,6 +16,20 @@ from scraper.valkey_control import (
     ValkeyControlClient,
     ValkeyControlServer,
 )
+
+from tests.outcome_governance import governed_skip
+
+
+def _skip_if_socket_binding_is_restricted(error: OSError) -> None:
+    if error.errno not in {errno.EACCES, errno.EPERM}:
+        raise error
+    governed_skip(
+        "sandbox does not permit local Unix socket binding",
+        owner="repository-maintainer",
+        issue="#436",
+        classification="retained",
+        environment="restricted test sandbox denies AF_UNIX bind",
+    )
 
 
 class FakeRedis:
@@ -76,8 +91,8 @@ async def test_typed_socket_preserves_cache_robots_cookie_and_rate_operations():
     server = ValkeyControlServer(socket_path, redis)
     try:
         await server.start()
-    except OSError:
-        pytest.skip("sandbox does not permit local Unix socket binding")
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
     client = ValkeyControlClient(socket_path)
     try:
         assert await client.ping() is True
@@ -114,8 +129,8 @@ async def test_third_held_connection_is_rejected_without_waiting_for_a_frame():
     server = ValkeyControlServer(socket_path, FakeRedis())
     try:
         await server.start()
-    except OSError:
-        pytest.skip("sandbox does not permit local Unix socket binding")
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
     connections = []
     try:
         for _ in range(MAX_ACTIVE_CONNECTIONS):
