@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import os
 import socket
+import subprocess
 from email.message import Message
 from pathlib import Path
 from threading import BoundedSemaphore
@@ -33,11 +35,19 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
     renderer = compose["services"]["candidate-flare-renderer"]
     control = compose["services"]["candidate-flare-control"]
     assert renderer["cap_drop"] == ["ALL"]
-    assert set(renderer["cap_add"]) == {"CHOWN", "NET_ADMIN", "SETUID", "SETGID", "SETPCAP"}
+    assert set(renderer["cap_add"]) == {
+        "CHOWN",
+        "NET_ADMIN",
+        "SETUID",
+        "SETGID",
+        "SETPCAP",
+    }
     entrypoint = (ROOT / "flare-protected/entrypoint.sh").read_text()
-    assert entrypoint.index('chown "$flare_uid:$control_gid"') < entrypoint.index("exec setpriv")
+    assert entrypoint.index('chown "$flare_uid:$control_gid"') < entrypoint.index(
+        "exec setpriv"
+    )
     setpriv_section = entrypoint[entrypoint.index("exec setpriv") :]
-    assert 'chmod 2770 /run/flaresolverr' in setpriv_section
+    assert "chmod 2770 /run/flaresolverr" in setpriv_section
     assert entrypoint.count("chmod 2770") == 1
     assert "FOWNER" not in renderer["cap_add"]
     assert control["mem_limit"] == "256m"
@@ -47,7 +57,13 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
 
 @pytest.mark.parametrize("field", ["CapEff", "CapPrm", "CapBnd", "CapAmb"])
 def test_flare_process_probe_requires_zero_process_capabilities(field):
-    status = {"CapEff": "0", "CapPrm": "0", "CapBnd": "0", "CapAmb": "0", "NoNewPrivs": "1"}
+    status = {
+        "CapEff": "0",
+        "CapPrm": "0",
+        "CapBnd": "0",
+        "CapAmb": "0",
+        "NoNewPrivs": "1",
+    }
     RENDERER_PROBE.validate_process_status(status)
     status[field] = "1"
     with pytest.raises(RuntimeError, match="retained capability"):
@@ -67,6 +83,42 @@ def test_flare_dumb_init_is_started_inside_the_privilege_drop():
     dockerfile = (ROOT / "flare-protected/Dockerfile").read_text()
     assert 'ENTRYPOINT ["/usr/local/bin/protected-flare-entrypoint"]' in dockerfile
     assert 'CMD ["/usr/bin/dumb-init", "--", "/usr/local/bin/python"' in dockerfile
+    assert "ENV HOME=/tmp/groktocrawl-flare-home" in dockerfile
+    assert "XDG_CACHE_HOME=/tmp/groktocrawl-flare-home/.cache" in dockerfile
+
+
+def test_flare_home_is_fixed_private_and_overrides_caller_environment(tmp_path):
+    entrypoint = (ROOT / "flare-protected/entrypoint.sh").read_text()
+    start = entrypoint.index("        HOME=/tmp/groktocrawl-flare-home")
+    end = entrypoint.index('        exec "$@"', start)
+    setup = entrypoint[start:end]
+    home = tmp_path / "flare-home"
+    cache = home / ".cache"
+    setup = setup.replace("/tmp/groktocrawl-flare-home/.cache", str(cache))
+    setup = setup.replace("/tmp/groktocrawl-flare-home", str(home))
+    child = 'printf "%s\\n%s\\n" "$HOME" "$XDG_CACHE_HOME"'
+    completed = subprocess.run(
+        [
+            "/bin/sh",
+            "-c",
+            setup + '\nexec "$@"\n',
+            "protected-flare",
+            "/bin/sh",
+            "-c",
+            child,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "HOME": "/tmp/caller-home",
+            "XDG_CACHE_HOME": "/tmp/caller-cache",
+        },
+    )
+    assert completed.stdout.splitlines() == [str(home), str(cache)]
+    assert home.stat().st_mode & 0o777 == 0o700
+    assert cache.stat().st_mode & 0o777 == 0o700
 
 
 def test_upstream_patch_forces_proxy_validates_scheme_and_moves_api_to_uds():
@@ -228,11 +280,16 @@ def test_control_proxy_rejects_outside_api_paths():
 def test_control_bridge_bounds_archived_response_and_closes_socket(monkeypatch):
     closed: list[bool] = []
     body = b"x" * (PROXY.MAX_RESPONSE_BYTES + 1)
-    response = b"HTTP/1.1 200 OK\r\nContent-Length: " + str(len(body)).encode() + b"\r\n\r\n" + body
+    response = (
+        b"HTTP/1.1 200 OK\r\nContent-Length: "
+        + str(len(body)).encode()
+        + b"\r\n\r\n"
+        + body
+    )
 
     class FakeSocket:
         def __init__(self, *_args):
-            self.blocks = [response[:64 * 1024], response[64 * 1024 :]]
+            self.blocks = [response[: 64 * 1024], response[64 * 1024 :]]
 
         def settimeout(self, timeout):
             assert timeout == PROXY.UPSTREAM_TIMEOUT_SECONDS
@@ -304,7 +361,9 @@ def test_control_server_bounds_concurrency_and_releases_slots(monkeypatch):
     assert b"503 Service Unavailable" in requests[2].responses[0]
     assert closed == [requests[2]]
 
-    monkeypatch.setattr(PROXY.ThreadingHTTPServer, "process_request_thread", lambda *_args: None)
+    monkeypatch.setattr(
+        PROXY.ThreadingHTTPServer, "process_request_thread", lambda *_args: None
+    )
     server.process_request_thread(requests[0], ("local", 1))
     server.process_request(requests[3], ("local", 1))
     assert accepted == [requests[0], requests[1], requests[3]]
