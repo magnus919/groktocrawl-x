@@ -67,7 +67,7 @@ Planned change-triggered unit tests cover mixed DNS answers, numeric dial bindin
 peer mismatch, cancellation, timeouts, malformed authorities, and IPv4/IPv6 policy.
 These confirm the connection primitive only.
 
-The first implementation increment adds `common.capture_destination` and 45
+The first implementation increment adds `common.capture_destination` and 47
 synthetic tests, including the default resolver and numeric dialer paths. Those
 tests pass, as do 67 existing URL tests, Ruff and the primitive's mypy check.
 Independent review found no remaining P1/P2 defect in that primitive scope.
