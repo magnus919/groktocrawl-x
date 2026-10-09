@@ -25,6 +25,7 @@ def test_required_storage_result_controls_runtime_gate(storage_result):
             "RUNTIME_REQUIRED": "true",
             "TWIN_REQUIRED": "true",
             "RUNTIME_RESULT": "success",
+            "BROWSER_PROFILE_RESULT": "success",
             "TWIN_RESULT": "success",
             "STORAGE_RESULT": storage_result,
         },

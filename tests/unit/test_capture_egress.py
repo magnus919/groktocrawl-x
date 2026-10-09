@@ -14,11 +14,26 @@ sys.path.insert(0, str(_service_root))
 from capture_egress_svc.proxy import (
     CaptureEgressProxy,
     ProxyConfig,
+    _proxy_bind_host,
     health_handler,
 )
 
 from common import capture_destination
 from common.capture_destination import BoundConnection, parse_authority
+
+
+def test_proxy_bind_host_keeps_default_compatible_and_accepts_numeric_interface(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("CAPTURE_PROXY_BIND_HOST", raising=False)
+    assert _proxy_bind_host() == "0.0.0.0"
+    assert _proxy_bind_host("172.31.254.2") == "172.31.254.2"
+
+
+@pytest.mark.parametrize("value", ["gateway", "", " 172.31.254.2"])
+def test_proxy_bind_host_rejects_non_numeric_configuration(value: str):
+    with pytest.raises(ValueError, match="numeric IP address"):
+        _proxy_bind_host(value)
 
 
 async def start_proxy(
