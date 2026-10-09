@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.request
 import uuid
 
@@ -10,14 +11,21 @@ BASE_URL = "http://127.0.0.1:8191"
 FIXTURE_URL = "http://flare-origin.test/get"
 
 
-def call(body: dict) -> dict:
+def call(body: dict, *, expected_http_status: int = 200) -> dict:
     request = urllib.request.Request(
         f"{BASE_URL}/v1",
         data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=90) as response:
+    try:
+        response = urllib.request.urlopen(request, timeout=90)
+    except urllib.error.HTTPError as error:
+        if error.code != expected_http_status:
+            raise
+        response = error
+    with response:
+        assert response.status == expected_http_status, response.status
         return json.loads(response.read())
 
 
@@ -79,7 +87,7 @@ try:
     assert posted.get("status") == "ok", posted
     assert "FLARE_POST_OK:capture=posted" in (posted.get("solution") or {}).get("response", "")
 
-    rejected = call({"cmd": "request.get", "url": "file:///etc/passwd"})
+    rejected = call({"cmd": "request.get", "url": "file:///etc/passwd"}, expected_http_status=500)
     assert rejected.get("status") == "error", rejected
     assert "allowed HTTP destination" in rejected.get("message", ""), rejected
 finally:
