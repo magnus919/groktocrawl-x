@@ -17,11 +17,32 @@ BLOCKED_TARGETS = (
 )
 
 
+def _is_gateway_denial(response: object, target: str) -> bool:
+    if not isinstance(response, dict) or response.get("success") is not True:
+        return False
+    result = response.get("result")
+    return (
+        isinstance(result, dict)
+        and result.get("url") == target
+        and result.get("http_status") == 403
+        and result.get("content_type") == "text/plain"
+        and not any(
+            key in result for key in ("status", "active_sessions", "process_capacity")
+        )
+    )
+
+
 def main() -> None:
     transport = httpx.HTTPTransport(uds=CONTROLLER_SOCKET, retries=0)
     with httpx.Client(
         transport=transport, base_url=API, trust_env=False, timeout=45.0
     ) as client:
+        # Establish that the target is a real, healthy API endpoint from the
+        # controller's trusted side before proving the renderer cannot reach it.
+        health = client.get("/health")
+        health.raise_for_status()
+        if health.json().get("status") != "ok":
+            raise RuntimeError("controller health fixture is not healthy")
         created = client.post("/browsers", json={"ttl": 60})
         created.raise_for_status()
         session_id = created.json()["id"]
@@ -46,7 +67,7 @@ def main() -> None:
                     json={"action": "navigate", "url": target},
                 )
                 attempted.raise_for_status()
-                if attempted.json().get("success") is not False:
+                if not _is_gateway_denial(attempted.json(), target):
                     raise RuntimeError("renderer reached its controller API")
         finally:
             client.delete(f"/browsers/{session_id}")

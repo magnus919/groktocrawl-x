@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import errno
+import runpy
 import sys
 import uuid
 from pathlib import Path
@@ -15,7 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "browser-svc"))
 
 from browser_svc import controller as controller_module
 from browser_svc import renderer_entrypoint
-from browser_svc.app import _chromium_launch_options, _protected_navigation_allowed
+from browser_svc.app import (
+    _chromium_launch_options,
+    _navigation_response_fields,
+    _protected_navigation_allowed,
+)
 from browser_svc.app import startup as browser_app_startup
 from browser_svc.controller import create_app
 from browser_svc.cookie_rpc import CookieRPCClient, CookieRPCServer
@@ -33,6 +38,65 @@ def _skip_if_socket_binding_is_restricted(error: OSError) -> None:
         classification="retained",
         environment="restricted test sandbox denies AF_UNIX bind",
     )
+
+
+def test_hostile_navigation_probe_requires_gateway_denial_not_successful_health():
+    probe = (
+        Path(__file__).resolve().parents[1]
+        / "integration"
+        / "browser_capture_boundary_probe.py"
+    )
+    verify = runpy.run_path(str(probe))["_is_gateway_denial"]
+    target = "http://127.0.0.1:8012/health"
+    assert verify(
+        {
+            "success": True,
+            "result": {
+                "url": target,
+                "http_status": 403,
+                "content_type": "text/plain",
+            },
+        },
+        target,
+    )
+    assert not verify(
+        {
+            "success": True,
+            "result": {
+                "url": target,
+                "http_status": 200,
+                "content_type": "application/json",
+                "status": "ok",
+                "active_sessions": 0,
+            },
+        },
+        target,
+    )
+    assert not verify({"success": False, "error": "navigation failed"}, target)
+
+
+def test_navigation_exposes_only_status_and_media_type():
+    class Response:
+        status = 403
+        headers = {"content-type": "text/plain; charset=ascii", "x-secret": "hidden"}
+
+    assert _navigation_response_fields(Response()) == {
+        "http_status": 403,
+        "content_type": "text/plain",
+    }
+    assert _navigation_response_fields(None) == {}
+
+    class InvalidMetadataResponse:
+        status = True
+        headers = {"content-type": "text/plain\r\nX-Leak: value"}
+
+    assert _navigation_response_fields(InvalidMetadataResponse()) == {}
+
+    class OversizedMetadataResponse:
+        status = 700
+        headers = {"content-type": "a" * 130}
+
+    assert _navigation_response_fields(OversizedMetadataResponse()) == {}
 
 
 async def _start_unix_server(handler, *, path):

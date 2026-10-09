@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 import uuid
 from collections.abc import Mapping
@@ -265,6 +266,24 @@ class BrowserExecuteResponse(BaseModel):
     error: str | None = None
 
 
+def _navigation_response_fields(response: Any | None) -> dict[str, Any]:
+    """Return bounded, non-body metadata for a completed browser navigation."""
+    if response is None:
+        return {}
+    fields: dict[str, Any] = {}
+    status = getattr(response, "status", None)
+    if type(status) is int and 100 <= status <= 599:
+        fields["http_status"] = status
+    raw_content_type = getattr(response, "headers", {}).get("content-type", "")
+    if not isinstance(raw_content_type, str):
+        return fields
+    media_type = raw_content_type.split(";", 1)[0].strip().lower()
+    token = r"[a-z0-9!#$%&'*+.^_`|~-]{1,64}"
+    if len(media_type) <= 129 and re.fullmatch(rf"{token}/{token}", media_type):
+        fields["content_type"] = media_type
+    return fields
+
+
 class BrowserListResponse(BaseModel):
     success: bool = True
     sessions: list[dict] = []
@@ -492,7 +511,9 @@ async def execute_action(session_id: str, req: BrowserExecuteRequest):
             redis_client = getattr(app.state, "redis", None)
             await _inject_cookies(req.url, session.context, redis_client)
 
-            await page.goto(req.url, wait_until="networkidle", timeout=req.timeout)
+            navigation_response = await page.goto(
+                req.url, wait_until="networkidle", timeout=req.timeout
+            )
             # Bot challenge detection (Cloudflare / DDoS-Guard) — wait for JS challenge to resolve
             title = await page.title()
             current_url = page.url
@@ -510,7 +531,13 @@ async def execute_action(session_id: str, req: BrowserExecuteRequest):
             # Store Cloudflare cookies after successful navigation
             await _store_cookies(req.url, session.context, redis_client)
 
-            return BrowserExecuteResponse(result={"url": current_url, "title": title})
+            result = {"url": current_url, "title": title}
+            # Keep navigation success semantics unchanged while exposing only
+            # bounded response metadata. Protected-boundary probes use this to
+            # distinguish a gateway denial from a successful navigation to a
+            # private controller endpoint; response bodies and headers stay private.
+            result.update(_navigation_response_fields(navigation_response))
+            return BrowserExecuteResponse(result=result)
 
         elif req.action == "click":
             if not req.selector:
