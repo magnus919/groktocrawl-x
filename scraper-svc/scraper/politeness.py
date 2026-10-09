@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from common.url import extract_domain
 
 from .settings import load_settings
+from .source_http import source_httpx_client
 
 logger = logging.getLogger(__name__)
 
@@ -182,9 +183,7 @@ class PolitenessManager:
         robots_url = f"https://{domain}/robots.txt"
 
         try:
-            import httpx
-
-            async with httpx.AsyncClient(
+            async with source_httpx_client(
                 timeout=ROBOTS_TIMEOUT, follow_redirects=True
             ) as client:
                 resp = await client.get(robots_url, headers={"User-Agent": ua})

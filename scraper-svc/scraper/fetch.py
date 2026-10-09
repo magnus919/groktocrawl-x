@@ -45,6 +45,7 @@ from .fetch_tiers import (
 )
 from .proxy import _get_httpx_proxies, _redact_proxy_url
 from .settings import load_settings
+from .source_http import capture_egress_proxy_url, source_curl_options
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +54,10 @@ FLARE_SOLVERR_URL = _settings.flare_solverr_url
 _CVE_IDENTIFIER = re.compile(r"cve:CVE-\d{4}-\d{4,}\Z", re.IGNORECASE)
 
 # ── Proxy configuration ─────────────────────────────────────────
-# SCRAPER_PROXY_URL is an opt-in env var for residential/mobile IP rotation.
-# When set, httpx requests (Tiers 1-2) and Playwright browser contexts (Tier 3)
-# route through the proxy. Playwright uses context-level proxy assignment
-# (browser.new_context(proxy=...)) for job isolation.
-# If the proxy is unreachable, the scrape retries without proxy and logs a WARN.
-# Format: **************************
-# Unset or empty = no proxy (default).
+# SCRAPER_PROXY_URL preserves the compatibility-mode curl and browser proxy.
+# SCRAPER_CAPTURE_EGRESS_PROXY_URL instead forces source HTTPX and curl traffic
+# through the guarded gateway; source_http.py disables environment proxy lookup
+# and refuses nested browser/FlareSolverr source fetches in that mode.
 SCRAPER_PROXY_URL = _settings.scraper_proxy_url
 
 
@@ -556,7 +554,7 @@ async def smart_scrape(
         )
 
     # Log proxy status for debugging (per-scrape proxy identity logging)
-    proxy_url = SCRAPER_PROXY_URL
+    proxy_url = capture_egress_proxy_url() or SCRAPER_PROXY_URL
     if proxy_url:
         logger.info("Proxy configured: %s", _redact_proxy_url(proxy_url))
     else:
@@ -572,7 +570,7 @@ async def smart_scrape(
                 "Chrome/131.0.0.0 Safari/537.36"
             ),
         },
-        proxy=_get_httpx_proxies(),
+        **source_curl_options(compatibility_proxy=_get_httpx_proxies()),
     ) as client:
         # Politeness check: robots.txt + rate limit (before any HTTP)
         _proceed, blocked = await _politeness_check_and_delay(

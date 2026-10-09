@@ -83,7 +83,17 @@ an init process so orphaned browser descendants are reaped.
 - Set a strong `API_KEY` and route public access through TLS/reverse-proxy controls.
 - Keep internal service ports private where possible; the API emits a warning header if authentication is disabled.
 - Use `WEBHOOK_SECRET` to authenticate outbound asynchronous notifications.
-- Configure `SCRAPER_PROXY_URL` only for an operator-managed outbound proxy; credentials are redacted in logs and requests fail open if that proxy is unavailable.
+- `SCRAPER_PROXY_URL` retains the existing operator-managed per-job proxy behavior.
+  For source HTTPX and curl traffic, `SCRAPER_CAPTURE_EGRESS_PROXY_URL` opts into
+  the guarded forward proxy: it must be an absolute `http://host[:port]` URL,
+  overrides the per-job proxy for source requests, and disables environment
+  proxy discovery. Invalid configuration and proxy failure do not retry source
+  traffic directly. The experimental candidate Compose profile sets this route
+  and delegates protected browser rendering to its isolated renderer; browser
+  and Flare control requests remain separate. This profile is not qualified:
+  the scraper still shares a private network with control services, so a raw
+  same-process client can bypass the fixed wrappers. See the experimental
+  composition status before treating it as a deployment security boundary.
 - Private and internal destinations are blocked before every fetch tier. Keep `SCRAPER_PRIVATE_URL_ALLOWLIST` empty unless an exact, trusted internal hostname must be reachable; CI uses it only for fixture services.
 - Enable `SCRAPER_POLITENESS_ENABLED` for per-domain rate limiting and robots.txt enforcement when required by your deployment policy.
 

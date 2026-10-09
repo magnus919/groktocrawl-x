@@ -72,12 +72,35 @@ The CI-only fixture overlay is intentionally omitted from these operator
 commands. Do not publish or expose the Flare API or controller bridge outside
 the candidate private network.
 
-This is an opt-in integration candidate, not deployment or full capture-stack
-qualification. The tests do not exercise real Cloudflare/DDoS-GUARD challenges,
-external targets, every browser side channel, or production workloads. Keep
-the protected profile unavailable if any component or negative boundary check
-fails. The public FlareSolverr version and image identity can change upstream;
-review and freeze a new source/image pair before updating the base pin.
+## Scraper composition status
+
+The candidate scraper now selects the capture gateway for HTTPX, curl-cffi,
+and the migrated adapter clients, and its protected Tier 3 path delegates to
+the isolated browser renderer rather than launching page JavaScript inside the
+scraper. FlareSolverr and browser-service calls remain separate trusted
+control requests. The scraper is no longer attached to `candidate_egress`.
+
+This composition is still **unqualified**. The scraper remains attached to
+`candidate_private` for Valkey, browser-controller, Flare-control, and other
+service calls. A raw or newly added same-process client could connect to those
+private authorities directly; proxy wrappers and fixed control URL checks do
+not establish a process-level distinction between source and control traffic.
+Before protected capture can be enabled, move the scraper to the internal
+capture network only and provide the required Valkey and fixed control calls
+over permissioned Unix sockets (or another separately qualified capability
+boundary). Also preserve the agent-to-scraper API through a fixed ingress
+bridge, not a scraper private-network attachment. Add Docker runtime probes for
+direct public and private TCP/UDP attempts, gateway success, required control
+operations, and hostile page scripts before claiming this composition is
+qualified.
+
+The Flare profile itself remains an opt-in integration candidate, not a
+deployment or full capture-stack qualification. The tests do not exercise real
+Cloudflare/DDoS-GUARD challenges, external targets, every browser side channel,
+or production workloads. Keep protected operation unavailable until every
+component and negative boundary check passes. The public FlareSolverr version
+and image identity can change upstream; review and freeze a new source/image
+pair before updating the base pin.
 
 ## Primary sources
 
