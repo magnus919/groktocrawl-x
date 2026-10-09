@@ -206,6 +206,7 @@ services:
     image: groktocrawl-x-candidate-browser:${CANDIDATE_IMAGE_TAG:-dev}
     command: [python, -m, browser_svc.renderer_entrypoint]
     restart: unless-stopped
+    group_add: ["20000"]
     networks:
       candidate_browser_capture:
         ipv4_address: 172.31.254.11

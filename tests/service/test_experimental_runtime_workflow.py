@@ -208,8 +208,10 @@ def test_protected_browser_failure_logs_are_bounded_and_precede_teardown():
     assert diagnostics < teardown
     assert "docker compose ps -a" in step["run"]
     assert "docker compose logs --no-color --tail=100" in step["run"]
+    assert "docker inspect --format" in step["run"]
+    assert ".State.Health" in step["run"]
     assert "env" not in step["run"]
-    assert "inspect" not in step["run"]
+    assert ".Config.Env" not in step["run"]
 
 
 @pytest.mark.parametrize(

@@ -30,6 +30,10 @@ def test_candidate_renderer_has_only_internal_gateway_network_and_uds_api():
         "http://172.31.254.10:8080"
     )
     assert renderer["cap_drop"] == ["ALL"]
+    assert renderer["group_add"] == ["20000"]
+    healthcheck = " ".join(renderer["healthcheck"]["test"])
+    assert "'/run/browser/renderer.sock'" in healthcheck
+    assert "GET /health" in healthcheck and "200 OK" in healthcheck
     assert "20000" in controller["group_add"]
     assert set(renderer["cap_add"]) == {
         "CHOWN",

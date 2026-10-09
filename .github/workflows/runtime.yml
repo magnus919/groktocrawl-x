@@ -848,6 +848,10 @@ jobs:
           docker compose logs --no-color --tail=100 \
             candidate-capture-egress candidate-browser-renderer \
             candidate-browser-controller candidate-valkey
+          renderer_id="$(docker compose ps -q candidate-browser-renderer)"
+          if [ -n "$renderer_id" ]; then
+            docker inspect --format '{{.Name}} health={{json .State.Health}}' "$renderer_id"
+          fi
       - name: Tear down protected browser profile
         if: always()
         run: |
