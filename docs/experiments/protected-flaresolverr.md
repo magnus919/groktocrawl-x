@@ -22,7 +22,9 @@ Upstream accepts proxy configuration per request and session. The protected
 patch overwrites that field at API ingress with the fixed candidate gateway,
 validates request URLs to HTTP or HTTPS, and binds Waitress to a Unix socket.
 The matching controller bridge on the candidate private network forwards only
-the existing API paths to that socket. The Flare/Chromium container is not on
+the existing API paths to that socket. It allows two active requests, rejects
+excess clients with HTTP 503, applies a 15-second client socket timeout, and
+caps responses at 8 MiB with a 256 MiB container memory limit. The Flare/Chromium container is not on
 the controller network and has no TCP Flare API listener. The page fixture
 attempts to fetch the API over loopback; the profile smoke test expects that
 attempt to fail.
