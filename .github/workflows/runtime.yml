@@ -191,7 +191,6 @@ jobs:
         timeout-minutes: 25
 
       - name: Build and probe the capture gateway image
-        if: contains(needs.changes.outputs.changed_paths_json, 'capture-egress')
         timeout-minutes: 10
         run: |
           image="capture-egress-ci:${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
