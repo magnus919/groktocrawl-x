@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Iterator
 from uuid import uuid4
 
 import pytest
@@ -16,19 +17,34 @@ from redis import Redis
 
 
 @pytest.fixture
-def ledger() -> DurableResearchLedger:
+def ledger() -> Iterator[DurableResearchLedger]:
     url = os.environ.get("DURABLE_RESEARCH_REDIS_URL")
     if url is None:
         raise RuntimeError("DURABLE_RESEARCH_REDIS_URL is required")
     redis = Redis.from_url(url, decode_responses=True)
-    redis.flushdb()
-    return DurableResearchLedger(
+    namespace = f"groktocrawl:test:{uuid4()}"
+    value = DurableResearchLedger(
         url,
-        namespace=f"groktocrawl:test:{uuid4()}",
+        namespace=namespace,
         lease_ms=100,
         retention_ms=10_000,
         retry_window_ms=5_000,
     )
+    try:
+        yield value
+    finally:
+        _delete_namespace(redis, namespace)
+        value.redis.close()
+        redis.close()
+
+
+def _delete_namespace(redis: Redis, namespace: str) -> None:
+    prefix = f"{namespace}:"
+    for key in redis.scan_iter(match=f"{prefix}*"):
+        if isinstance(key, bytes):
+            key = key.decode("utf-8")
+        if key.startswith(prefix):
+            redis.delete(key)
 
 
 def test_admission_is_idempotent_and_conflicts_are_explicit(
@@ -123,7 +139,7 @@ def test_new_ledger_instance_can_recover_after_process_loss(
 
 
 def test_snapshot_restore_preserves_receipts_and_makes_live_work_reclaimable(
-    ledger: DurableResearchLedger,
+    ledger: DurableResearchLedger, request: pytest.FixtureRequest
 ) -> None:
     active = ledger.admit("scope-a", "request-a", "digest-a")
     ledger.claim(active.run_id, "active-owner")
@@ -146,7 +162,11 @@ def test_snapshot_restore_preserves_receipts_and_makes_live_work_reclaimable(
     assert snapshot["schema_version"] == "durable-research-backup/1"
     assert all(":lease:" not in item["key"] for item in snapshot["keys"])
 
-    ledger.redis.flushdb()
+    neighbor_key = f"groktocrawl:test:neighbor:{uuid4()}"
+    ledger.redis.set(neighbor_key, "sentinel")
+    request.addfinalizer(lambda: ledger.redis.delete(neighbor_key))
+    _delete_namespace(ledger.redis, ledger.namespace)
+    assert ledger.redis.get(neighbor_key) == "sentinel"
     restored = DurableResearchLedger(
         os.environ["DURABLE_RESEARCH_REDIS_URL"],
         namespace=ledger.namespace,
@@ -161,6 +181,7 @@ def test_snapshot_restore_preserves_receipts_and_makes_live_work_reclaimable(
     }
     assert restored.get(deleted.run_id).state == "deleted"
     assert [item.run_id for item in restored.reclaimable()] == [active.run_id]
+    ledger.redis.delete(neighbor_key)
 
 
 def test_snapshot_restore_rejects_tampering_and_nonempty_targets(

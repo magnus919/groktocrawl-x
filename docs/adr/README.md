@@ -139,3 +139,4 @@ An Architecture Decision Record captures an important architectural decision mad
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full ADR workflow: when to write an ADR, how to number it, and how to get it reviewed in a PR.
 
 | [ADR 0098](0098-expose-a-thin-retained-research-workspace.md) | Expose a thin retained research workspace | proposed |
+| [ADR 0099](0099-enforce-source-capture-egress.md) | Enforce source capture egress | proposed |

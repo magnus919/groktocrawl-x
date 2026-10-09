@@ -845,3 +845,15 @@ current upstream snapshots; this closeout does not authorize another call batch.
 ### Frozen cardiac Jev replay
 
 The completed bounded [cardiac replay](cardiac-jev-replay-2026-10-04.md), tracked by [#416](https://github.com/magnus919/groktocrawl-x/issues/416) in [milestone 15](https://github.com/magnus919/groktocrawl-x/milestone/15), reuses the existing 44-card corpus. It made 28 authorized Jev calls and no new searches/page fetches. Separating visible evidence from retrieval priority improved ordering stability on this exposed corpus; fetch judgments need further qualification and tail benefit remains unproven. The original validation rejection and rounding-assumption amendment are retained. No deployment, ADR adoption, or completed-roadmap status changed.
+
+### Protected source capture qualification
+
+Fresh research-usefulness evaluation depends on complete transport qualification,
+tracked by [#429](https://github.com/magnus919/groktocrawl-x/issues/429) in
+[milestone 16](https://github.com/magnus919/groktocrawl-x/milestone/16).
+[ADR-0099](../adr/0099-enforce-source-capture-egress.md) proposes a protected
+capture profile preserving every applicable adapter, browser and recovery tool.
+The initial destination checks are addressed in [#428](https://github.com/magnus919/groktocrawl-x/pull/428).
+The next increment implements and tests DNS-to-socket binding only. Gateway,
+client, renderer and network integration remain required; no live capture,
+deployment change or research-quality credit follows from these preparation checks.
