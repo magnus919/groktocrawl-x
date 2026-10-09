@@ -115,6 +115,7 @@ version = "0.3.0"
 source = { virtual = "browser-svc" }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "playwright" },
     { name = "pydantic" },
     { name = "redis" },
@@ -124,6 +125,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "playwright", specifier = ">=1.51.0" },
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "redis", specifier = ">=5.0.0" },

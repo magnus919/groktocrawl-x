@@ -812,6 +812,53 @@ jobs:
         if: always()
         run: docker compose --profile indexing --profile fixture down --volumes --remove-orphans --timeout 30
 
+  protected-browser-profile:
+    name: Protected Browser Egress Profile
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: compose.experimental-candidate.yml
+      COMPOSE_PROJECT_NAME: protected-browser-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_POSTGRES_PASSWORD_FILE: /tmp/protected-browser-password-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_API_KEY: ci-only-api-key
+      LLM_BASE_URL: http://llm.invalid/v1
+      LLM_API_KEY: ci-only-llm-key
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Create isolated Compose secret placeholder
+        run: |
+          umask 077
+          printf 'ci-only-password\n' > "$CANDIDATE_POSTGRES_PASSWORD_FILE"
+          docker compose config --quiet
+      - name: Build and start only the protected browser dependency graph
+        run: >-
+          docker compose up --build --detach --wait
+          candidate-browser-controller
+      - name: Verify renderer network boundary from the controller API
+        run: >-
+          docker compose exec -T candidate-browser-controller python -
+          < tests/integration/browser_capture_boundary_probe.py
+      - name: Verify renderer firewall and privilege drop in its namespace
+        run: >-
+          docker compose exec -T candidate-browser-renderer python -
+          < tests/integration/browser_renderer_isolation_probe.py
+      - name: Collect bounded protected-profile startup diagnostics
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=100 \
+            candidate-capture-egress candidate-browser-renderer \
+            candidate-browser-controller candidate-valkey
+      - name: Tear down protected browser profile
+        if: always()
+        run: docker compose down --volumes --remove-orphans --timeout 10
+
   research-storage:
     name: PostgreSQL Storage Probes
     needs: changes
@@ -1163,7 +1210,12 @@ jobs:
 
   runtime-gate:
     name: Runtime Gate
-    needs: [changes, twin-contracts, integration-tests, research-storage]
+    needs:
+      - changes
+      - twin-contracts
+      - integration-tests
+      - research-storage
+      - protected-browser-profile
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -1174,6 +1226,7 @@ jobs:
           RUNTIME_REQUIRED: ${{ needs.changes.outputs.requires_full_runtime }}
           TWIN_REQUIRED: ${{ needs.changes.outputs.requires_twin_contracts }}
           RUNTIME_RESULT: ${{ needs.integration-tests.result }}
+          BROWSER_PROFILE_RESULT: ${{ needs.protected-browser-profile.result }}
           TWIN_RESULT: ${{ needs.twin-contracts.result }}
           STORAGE_RESULT: ${{ needs.research-storage.result }}
         run: |
@@ -1185,6 +1238,7 @@ jobs:
           if [ "$RUNTIME_REQUIRED" = true ]; then
             test "$RUNTIME_RESULT" = success
             test "$STORAGE_RESULT" = success
+            test "$BROWSER_PROFILE_RESULT" = success
           else
             echo "Runtime integration not required for this documentation-only change."
           fi
