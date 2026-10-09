@@ -883,7 +883,10 @@ jobs:
           docker compose --profile protected-flare up --build --detach --wait
           candidate-flare-control candidate-flare-test-origin
       - name: Exercise upstream Flare GET, POST, session, cookie, redirect and page boundary
-        run: python tests/integration/protected_flare_api_probe.py
+        run: >-
+          docker compose --profile protected-flare exec -T
+          candidate-flare-control python -
+          < tests/integration/protected_flare_api_probe.py
       - name: Verify the Flare network namespace has no TCP API listener
         run: >-
           docker compose --profile protected-flare exec -T

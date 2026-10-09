@@ -8,10 +8,6 @@ services:
     extra_hosts:
       - "flare-origin.test:93.184.216.34"
 
-  candidate-flare-control:
-    ports:
-      - "127.0.0.1:18191:8191"
-
   candidate-flare-test-origin:
     build:
       context: .

@@ -86,6 +86,8 @@ def test_protected_flare_profile_is_required_by_runtime_gate():
     steps = profile["steps"]
     probe = next(step for step in steps if step.get("name", "").startswith("Exercise upstream Flare"))
     assert "tests/integration/protected_flare_api_probe.py" in probe["run"]
+    assert "candidate-flare-control python -" in probe["run"]
+    assert "exec -T" in probe["run"]
     assert any("candidate-flare-test-origin" in step.get("run", "") for step in steps)
     env = profile["env"]
     compose = (ROOT / "compose.experimental-candidate.yml").read_text()

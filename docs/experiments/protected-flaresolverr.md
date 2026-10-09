@@ -72,6 +72,10 @@ The CI-only fixture overlay is intentionally omitted from these operator
 commands. Do not publish or expose the Flare API or controller bridge outside
 the candidate private network.
 
+The fixture API probe executes inside the fixed controller container against
+its loopback listener. It does not require a published host port; the renderer
+still has only the permissioned Unix socket and gateway-bound source egress.
+
 This is an opt-in integration candidate, not deployment or full capture-stack
 qualification. The tests do not exercise real Cloudflare/DDoS-GUARD challenges,
 external targets, every browser side channel, or production workloads. Keep

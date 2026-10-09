@@ -6,7 +6,7 @@ import json
 import urllib.request
 import uuid
 
-BASE_URL = "http://127.0.0.1:18191"
+BASE_URL = "http://127.0.0.1:8191"
 FIXTURE_URL = "http://flare-origin.test/get"
 
 
