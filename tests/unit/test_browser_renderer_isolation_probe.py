@@ -59,3 +59,27 @@ def test_probe_preserves_ipv6_established_only_policy():
     rules.append("-A OUTPUT -d 2001:db8::1/128 -j ACCEPT")
     with pytest.raises(RuntimeError, match="IPv6 firewall allow rules are unexpected"):
         validate_firewall_rules(rules, ipv6=True)
+
+
+def test_probe_accepts_iptables_save_tcp_rule_order_and_implicit_module():
+    rules = _ipv4_rules()
+    rules[-1] = (
+        f"-A OUTPUT -d {GATEWAY}/32 -p tcp -m tcp --dport {GATEWAY_PORT} -j ACCEPT"
+    )
+    validate_firewall_rules(rules, ipv6=False)
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        f"-A OUTPUT -d 203.0.113.7/32 -p tcp -m tcp --dport {GATEWAY_PORT} -j ACCEPT",
+        f"-A OUTPUT -d {GATEWAY}/32 -p tcp -m tcp --dport 8081 -j ACCEPT",
+        f"-A OUTPUT -d {GATEWAY}/32 -p tcp -p tcp -m tcp --dport {GATEWAY_PORT} -j ACCEPT",
+        f"-A OUTPUT -d {GATEWAY}/32 -p tcp -m udp --dport {GATEWAY_PORT} -j ACCEPT",
+    ],
+)
+def test_probe_rejects_changed_target_port_duplicate_or_changed_module(rule):
+    rules = _ipv4_rules()
+    rules[-1] = rule
+    with pytest.raises(RuntimeError, match="IPv4 firewall allow rules are unexpected"):
+        validate_firewall_rules(rules, ipv6=False)

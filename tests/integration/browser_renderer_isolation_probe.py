@@ -26,13 +26,55 @@ def _rules(command: str) -> list[str]:
 
 
 def _normalized_rule(row: str) -> tuple[str, ...]:
-    tokens = shlex.split(row)
+    """Normalize only iptables' equivalent option ordering and TCP shorthand."""
     try:
-        state_index = tokens.index("--ctstate")
+        tokens = shlex.split(row)
     except ValueError:
+        return ("<invalid-rule>", row)
+    if len(tokens) < 2 or tokens[0] != "-A" or (len(tokens) - 2) % 2:
         return tuple(tokens)
-    states = tokens[state_index + 1].split(",")
-    tokens[state_index + 1] = ",".join(sorted(states))
+    chain = tokens[1]
+    options = tokens[2:]
+    pairs = list(zip(options[::2], options[1::2], strict=True))
+    names = [name for name, _ in pairs]
+    if len(set(names)) != len(names):
+        return tuple(tokens)
+    values = dict(pairs)
+    if values.get("-j") != "ACCEPT":
+        return tuple(tokens)
+
+    if set(values) == {"-m", "--ctstate", "-j"} and values["-m"] == "conntrack":
+        states = values["--ctstate"].split(",")
+        if (
+            len(states) == 2
+            and set(states) == {"ESTABLISHED", "RELATED"}
+            and chain in {"INPUT", "OUTPUT"}
+        ):
+            values["--ctstate"] = ",".join(sorted(states))
+            return (
+                "-A",
+                chain,
+                *(token for pair in sorted(values.items()) for token in pair),
+            )
+
+    allowed_gateway_keys = {"-p", "-d", "--dport", "-j"}
+    if set(values) == allowed_gateway_keys or set(values) == allowed_gateway_keys | {
+        "-m"
+    }:
+        if (
+            chain == "OUTPUT"
+            and values.get("-p") == "tcp"
+            and values.get("-d") == f"{GATEWAY}/32"
+            and values.get("--dport") == GATEWAY_PORT
+            and values.get("-j") == "ACCEPT"
+            and values.get("-m", "tcp") == "tcp"
+        ):
+            values.pop("-m", None)
+            return (
+                "-A",
+                chain,
+                *(token for pair in sorted(values.items()) for token in pair),
+            )
     return tuple(tokens)
 
 
@@ -48,7 +90,14 @@ def validate_firewall_rules(rules: list[str], *, ipv6: bool) -> None:
         version = "IPv6" if ipv6 else "IPv4"
         raise RuntimeError(f"renderer {version} chain policies are incomplete")
 
-    established = ("-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT")
+    established = (
+        "-m",
+        "conntrack",
+        "--ctstate",
+        "ESTABLISHED,RELATED",
+        "-j",
+        "ACCEPT",
+    )
     expected_rules = [
         ("-A", "INPUT", *established),
         ("-A", "OUTPUT", *established),
@@ -68,9 +117,7 @@ def validate_firewall_rules(rules: list[str], *, ipv6: bool) -> None:
                 "ACCEPT",
             )
         )
-    observed_rules = [
-        _normalized_rule(row) for row in rules if row.startswith("-A ")
-    ]
+    observed_rules = [_normalized_rule(row) for row in rules if row.startswith("-A ")]
     expected = Counter(_normalized_rule(" ".join(rule)) for rule in expected_rules)
     if Counter(observed_rules) != expected:
         version = "IPv6" if ipv6 else "IPv4"
@@ -99,8 +146,7 @@ def main() -> None:
         rows = Path(table).read_text(encoding="ascii").splitlines()[1:]
         api_port = f":{8012:04X}"
         if any(
-            row.split()[3] == "0A" and row.split()[1].endswith(api_port)
-            for row in rows
+            row.split()[3] == "0A" and row.split()[1].endswith(api_port) for row in rows
         ):
             raise RuntimeError("renderer unexpectedly listens on the browser API port")
     print("protected_renderer_isolation=pass")
