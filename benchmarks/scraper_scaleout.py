@@ -114,7 +114,15 @@ def main():
             assert scraper_env["SCRAPER_MAX_BROWSER_CONCURRENCY"] == "16"
             assert scraper_env["SCRAPER_BROWSER_POOL_ENABLED"] == "true"
             assert agent_env["ADMISSION_BROWSER_LIMIT"] == str(count * 16 * 8)
-            compose("up", "-d", "--scale", f"scraper-svc={count}", "scraper-gateway")
+            compose(
+                "up",
+                "-d",
+                "--pull",
+                "missing",
+                "--scale",
+                f"scraper-svc={count}",
+                "scraper-gateway",
+            )
             deadline = time.monotonic() + 60
             seen = set()
             while time.monotonic() < deadline:
