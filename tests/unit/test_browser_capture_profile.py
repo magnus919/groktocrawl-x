@@ -28,7 +28,7 @@ def test_candidate_renderer_has_only_internal_gateway_network_and_uds_api():
         "http://172.31.254.2:8080"
     )
     assert renderer["cap_drop"] == ["ALL"]
-    assert set(renderer["cap_add"]) == {"NET_ADMIN", "SETUID", "SETGID", "SETPCAP"}
+    assert set(renderer["cap_add"]) == {"CHOWN", "NET_ADMIN", "SETUID", "SETGID", "SETPCAP"}
     assert "ports" not in renderer
     assert "candidate_capture" not in controller["networks"]
     assert "candidate_egress" not in controller["networks"]

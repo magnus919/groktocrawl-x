@@ -297,4 +297,4 @@ def test_renderer_drops_network_capabilities_from_bounding_set(
         lambda option, capability: dropped.append((option, capability)) or 0,
     )
     renderer_entrypoint._drop_bounding_capabilities()
-    assert dropped == [(24, 12), (24, 7), (24, 6), (24, 8)]
+    assert dropped == [(24, 0), (24, 12), (24, 7), (24, 6), (24, 8)]

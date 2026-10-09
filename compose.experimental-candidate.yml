@@ -111,7 +111,7 @@ services:
     volumes:
       - candidate_browser_renderer_socket:/run/browser
     cap_drop: [ALL]
-    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    cap_add: [CHOWN, NET_ADMIN, SETUID, SETGID, SETPCAP]
     security_opt: [no-new-privileges:true]
     depends_on:
       candidate-capture-egress:

@@ -161,10 +161,11 @@ def _prctl(option: int, arg2: int) -> int:
 
 def _drop_bounding_capabilities() -> None:
     # CAP_NET_ADMIN is the only network capability granted to the container.
-    # SETUID/SETGID are needed only to drop to the unprivileged renderer user;
+    # CHOWN prepares the shared socket directory; SETUID/SETGID are needed
+    # only to drop to the unprivileged renderer user;
     # SETPCAP is dropped last after removing the other entries.
     pr_capbset_drop = 24
-    for capability in (12, 7, 6, 8):
+    for capability in (0, 12, 7, 6, 8):
         if _prctl(pr_capbset_drop, capability) != 0:
             raise RuntimeError("protected renderer could not drop capabilities")
 
