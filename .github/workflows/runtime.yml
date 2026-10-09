@@ -151,6 +151,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Configure hosted-runner Docker Hub cache
+        run: python3 scripts/configure_ci_dockerhub_mirror.py
+
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -182,9 +185,22 @@ jobs:
           # slopsearx-mcp is an opt-in profile-gated companion; it is not run in
           # the integration lane, so no token is needed here.
 
-      - name: Pull third-party dependency images
-        run: docker compose --profile indexing --profile fixture pull --ignore-buildable
+      - name: Prefetch verified public image fixtures
+        run: >-
+          python3 scripts/ci_public_image_prefetch.py
+          --group runtime
+          --profile indexing
+          --profile fixture
+          --receipt runtime-public-image-prefetch.json
         timeout-minutes: 10
+
+      - name: Upload runtime public-image prefetch receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-public-image-prefetch
+          path: runtime-public-image-prefetch.json
+          if-no-files-found: warn
 
       - name: Build all application and fixture images from checkout
         run: docker compose --profile indexing --profile fixture build
@@ -971,6 +987,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Configure hosted-runner Docker Hub cache
+        run: python3 scripts/configure_ci_dockerhub_mirror.py
       - name: Validate isolated replacement candidate definition
         run: |
           umask 077
@@ -987,16 +1005,24 @@ jobs:
           echo "RESEARCH_PROBE_UID=$(id -u)" >> "$GITHUB_ENV"
       - name: Resolve and start isolated database
         run: |
+          python3 scripts/ci_public_image_prefetch.py --group storage --profile storage --receipt storage-public-image-prefetch.json
           docker compose config --quiet
           docker compose config --services
-          docker compose up -d --wait research-postgres
+          docker compose up -d --wait --pull never research-postgres
+      - name: Upload storage public-image prefetch receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: storage-public-image-prefetch
+          path: storage-public-image-prefetch.json
+          if-no-files-found: warn
       - name: Probe commits and independent connections
         run: |
           docker compose run --rm storage-probe write
           docker compose run --rm storage-probe read
       - name: Recreate database container and verify retained bytes
         run: |
-          docker compose up -d --force-recreate --wait research-postgres
+          docker compose up -d --force-recreate --wait --pull never research-postgres
           docker compose run --rm storage-probe read
           docker compose images
           docker compose run --rm storage-probe cleanup
@@ -1004,7 +1030,7 @@ jobs:
         run: docker compose run --build --rm storage-adapter
       - name: Exercise durable human-guidance ownership
         run: |
-          docker compose up -d --wait research-valkey
+          docker compose up -d --wait --pull never research-valkey
           docker compose run --rm -T storage-adapter guidance-owner > guidance-owner-result.json
           cat guidance-owner-result.json >> "$GITHUB_STEP_SUMMARY"
       - name: Upload durable guidance ownership evidence

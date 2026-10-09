@@ -37,6 +37,23 @@ access; the Docker lane is not claimed to be fully network-isolated. Search and 
 traffic uses fixtures and no paid-provider secrets are supplied. The separate
 hosted twin job enforces its existing loopback-only test restrictions.
 
+Runtime and storage jobs prefetch a finite set of public Docker Hub fixture images
+by exact digest from `mirror.gcr.io`, verify the pulled RepoDigest and image ID,
+then apply the Compose reference already declared in the checkout. Other active,
+non-buildable Compose images still use ordinary pulls. Compose startup uses its
+local image cache so a mutable `latest` tag is not fetched again in that run. The
+scale-out job seeds only its Python and HAProxy fixture images; it does not restart
+Docker or touch the Actions-provisioned Valkey service. Each prefetch receipt is
+uploaded as a CI artifact.
+
+These fixture digests were checked against matching anonymous Docker Hub and cache
+manifest identities on 2026-10-09 (receipt SHA-256
+`a4c12eb54885cda82b99adde0415a49d9042159ca57fd69909be48bc7d5bf5d3`). In
+particular, `mcuadros/ofelia:latest` is pinned to the observed digest only for this
+CI fixture. The pin does not assert what `latest` will mean later or what any
+operator deployment runs. Refreshing a pin requires a new identity check; ordinary
+Compose references and deployment configuration remain unchanged.
+
 Inspect build/startup failures, runner disk/RAM, model readiness, test outcomes and
 coverage before accepting the lane as operational. Downloaded model capacity and
 cold-start time may exceed the hosted runner's bounds; that is a failing CI setup
