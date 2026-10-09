@@ -1,0 +1,508 @@
+import asyncio
+import ipaddress
+import socket
+import sys
+from collections.abc import Awaitable, Callable
+from pathlib import Path
+from typing import NoReturn
+
+import pytest
+
+_service_root = Path(__file__).resolve().parents[2] / "capture-egress-svc"
+sys.path.insert(0, str(_service_root))
+
+from capture_egress_svc.proxy import (
+    CaptureEgressProxy,
+    ProxyConfig,
+    health_handler,
+)
+
+from common import capture_destination
+from common.capture_destination import BoundConnection, parse_authority
+
+
+async def start_proxy(
+    proxy: CaptureEgressProxy,
+) -> tuple[asyncio.AbstractServer, str, int]:
+    server = await asyncio.start_server(
+        proxy.handle_client,
+        host="127.0.0.1",
+        port=0,
+        limit=proxy.config.max_header_bytes,
+    )
+    address = server.sockets[0].getsockname()
+    return server, address[0], address[1]
+
+
+async def connect_local(address: tuple[str, int]) -> socket.socket:
+    loop = asyncio.get_running_loop()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setblocking(False)
+    await loop.sock_connect(sock, address)
+    return sock
+
+
+def local_connector(
+    address: tuple[str, int], seen: list[str] | None = None
+) -> Callable[[str], Awaitable[BoundConnection]]:
+    async def connector(authority: str) -> BoundConnection:
+        if seen is not None:
+            seen.append(authority)
+        sock = await connect_local(address)
+        return BoundConnection(
+            parse_authority(authority), ipaddress.ip_address("93.184.216.34"), sock
+        )
+
+    return connector
+
+
+async def stop_server(server: asyncio.AbstractServer) -> None:
+    server.close()
+    await server.wait_closed()
+
+
+async def read_to_eof(reader: asyncio.StreamReader) -> bytes:
+    chunks: list[bytes] = []
+    while chunk := await reader.read(4096):
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+class FakeTransport:
+    def __init__(self) -> None:
+        self.aborted = False
+
+    def abort(self) -> None:
+        self.aborted = True
+
+
+class FakeWriter:
+    def __init__(self, *, block_drain: bool = False, block_close: bool = False) -> None:
+        self.transport = FakeTransport()
+        self.block_drain = block_drain
+        self.block_close = block_close
+        self.closed = False
+        self.drain_started = asyncio.Event()
+        self.unblock = asyncio.Event()
+        self.output = bytearray()
+
+    def write(self, data: bytes) -> None:
+        self.output.extend(data)
+
+    async def drain(self) -> None:
+        if self.block_drain:
+            self.drain_started.set()
+            await self.unblock.wait()
+
+    def close(self) -> None:
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        if self.block_close:
+            await self.unblock.wait()
+
+
+def malformed_reader() -> asyncio.StreamReader:
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"malformed\r\n\r\n")
+    return reader
+
+
+@pytest.mark.asyncio
+async def test_connect_tunnel_is_opaque_and_forwards_bytes() -> None:
+    async def echo(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        data = await reader.read(4096)
+        writer.write(data)
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    origin = await asyncio.start_server(echo, "127.0.0.1", 0)
+    origin_address = origin.sockets[0].getsockname()
+    calls: list[str] = []
+    proxy = CaptureEgressProxy(
+        destination_connector=local_connector(origin_address, calls)
+    )
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(
+            b"CONNECT origin.example:443 HTTP/1.1\r\nHost: origin.example:443\r\n\r\n"
+        )
+        await writer.drain()
+        assert await reader.readuntil(b"\r\n\r\n") == (
+            b"HTTP/1.1 200 Connection Established\r\n\r\n"
+        )
+        writer.write(b"opaque TLS-like payload")
+        await writer.drain()
+        writer.write_eof()
+        assert await reader.read() == b"opaque TLS-like payload"
+        assert calls == ["origin.example:443"]
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+        await stop_server(origin)
+
+
+@pytest.mark.asyncio
+async def test_absolute_form_http_post_streams_body_and_strips_hop_headers() -> None:
+    observed: list[bytes] = []
+
+    async def origin_handler(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        header = await reader.readuntil(b"\r\n\r\n")
+        observed.append(header)
+        body = await reader.readexactly(4)
+        observed.append(body)
+        response = (
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+        )
+        writer.write(response)
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    origin = await asyncio.start_server(origin_handler, "127.0.0.1", 0)
+    origin_address = origin.sockets[0].getsockname()
+    proxy = CaptureEgressProxy(destination_connector=local_connector(origin_address))
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(
+            b"POST http://origin.example/upload?q=1 HTTP/1.1\r\n"
+            b"Host: origin.example\r\n"
+            b"Content-Length: 4\r\n"
+            b"Connection: keep-alive, x-remove\r\n"
+            b"X-Remove: secret-hop-value\r\n"
+            b"Proxy-Connection: keep-alive\r\n\r\n"
+            b"DATA"
+        )
+        await writer.drain()
+        response = await read_to_eof(reader)
+        assert response.startswith(b"HTTP/1.1 200 OK")
+        assert observed[0].startswith(b"POST /upload?q=1 HTTP/1.1\r\n")
+        assert b"host: origin.example:80\r\n" in observed[0]
+        assert b"connection: close\r\n" in observed[0]
+        assert b"x-remove" not in observed[0]
+        assert b"proxy-connection" not in observed[0]
+        assert observed[1] == b"DATA"
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+        await stop_server(origin)
+
+
+@pytest.mark.asyncio
+async def test_mixed_dns_answers_are_denied_before_dial() -> None:
+    dials: list[str] = []
+
+    async def resolver(host: str, port: int) -> list[str]:
+        return ["93.184.216.34", "10.0.0.2"]
+
+    async def dialer(address: object, port: int) -> NoReturn:
+        dials.append(str(address))
+        raise AssertionError("mixed public/private DNS must deny before dial")
+
+    async def guarded_connector(authority: str) -> BoundConnection:
+        return await capture_destination.resolve_and_connect(
+            authority, resolver=resolver, dialer=dialer
+        )
+
+    proxy = CaptureEgressProxy(destination_connector=guarded_connector)
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(
+            b"CONNECT origin.example:443 HTTP/1.1\r\nHost: origin.example:443\r\n\r\n"
+        )
+        await writer.drain()
+        response = await read_to_eof(reader)
+        assert response.startswith(b"HTTP/1.1 403 Forbidden")
+        assert b"origin.example" not in response
+        assert dials == []
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "raw_request",
+    [
+        b"GET http://origin.example/ HTTP/1.1\r\nHost: origin.example\r\nHost: evil.example\r\n\r\n",
+        b"GET http://origin.example/ HTTP/1.1\r\nHost: other.example\r\n\r\n",
+        b"POST http://origin.example/ HTTP/1.1\r\nHost: origin.example\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n",
+        b"POST http://origin.example/ HTTP/1.1\r\nHost: origin.example\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n",
+        b"POST http://origin.example/ HTTP/1.1\r\nHost: origin.example\r\nContent-Length: 0\r\nConnection: content-length\r\n\r\n",
+        b"GET http://user@origin.example/ HTTP/1.1\r\nHost: origin.example\r\n\r\n",
+        b"GET http://origin.example:0/ HTTP/1.1\r\nHost: origin.example\r\n\r\n",
+        b"GET http://origin.example:/ HTTP/1.1\r\nHost: origin.example\r\n\r\n",
+        b"GET http://origin.example/# HTTP/1.1\r\nHost: origin.example\r\n\r\n",
+        b"CONNECT origin.example:444 HTTP/1.1\r\nHost: origin.example:444\r\n\r\n",
+    ],
+)
+async def test_malformed_smuggling_or_disallowed_port_denied_before_connect(
+    raw_request: bytes,
+) -> None:
+    connects: list[str] = []
+
+    async def connector(authority: str) -> BoundConnection:
+        connects.append(authority)
+        raise AssertionError("invalid request must not connect")
+
+    proxy = CaptureEgressProxy(destination_connector=connector)
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(raw_request)
+        await writer.drain()
+        response = await read_to_eof(reader)
+        assert response.startswith(b"HTTP/1.1 400 ") or response.startswith(
+            b"HTTP/1.1 403 "
+        )
+        assert connects == []
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+
+
+@pytest.mark.asyncio
+async def test_http_declared_body_cap_fails_before_connect() -> None:
+    connects: list[str] = []
+
+    async def connector(authority: str) -> BoundConnection:
+        connects.append(authority)
+        raise AssertionError("oversize declared body must not connect")
+
+    proxy = CaptureEgressProxy(
+        ProxyConfig(max_body_bytes=4, max_transfer_bytes=16),
+        destination_connector=connector,
+    )
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(
+            b"POST http://origin.example/ HTTP/1.1\r\n"
+            b"Host: origin.example\r\nContent-Length: 5\r\n\r\n"
+        )
+        await writer.drain()
+        response = await read_to_eof(reader)
+        assert response.startswith(b"HTTP/1.1 413 Payload Too Large")
+        assert connects == []
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+
+
+@pytest.mark.asyncio
+async def test_connect_transfer_cap_closes_tunnel_without_http_error_injection() -> (
+    None
+):
+    async def hold(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.read(4096)
+        await asyncio.sleep(1)
+        writer.close()
+        await writer.wait_closed()
+
+    origin = await asyncio.start_server(hold, "127.0.0.1", 0)
+    origin_address = origin.sockets[0].getsockname()
+    proxy = CaptureEgressProxy(
+        ProxyConfig(max_transfer_bytes=3),
+        destination_connector=local_connector(origin_address),
+    )
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(
+            b"CONNECT origin.example:443 HTTP/1.1\r\nHost: origin.example:443\r\n\r\n"
+        )
+        await writer.drain()
+        assert await reader.readuntil(b"\r\n\r\n") == (
+            b"HTTP/1.1 200 Connection Established\r\n\r\n"
+        )
+        writer.write(b"four")
+        await writer.drain()
+        assert await read_to_eof(reader) == b""
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+        await stop_server(origin)
+
+
+@pytest.mark.asyncio
+async def test_active_connection_cap_rejects_excess_client() -> None:
+    async def hold(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.read()
+        writer.close()
+        await writer.wait_closed()
+
+    origin = await asyncio.start_server(hold, "127.0.0.1", 0)
+    origin_address = origin.sockets[0].getsockname()
+    connector_started = asyncio.Event()
+    release_connector = asyncio.Event()
+    local = local_connector(origin_address)
+
+    async def held_connector(authority: str) -> BoundConnection:
+        connector_started.set()
+        await release_connector.wait()
+        return await local(authority)
+
+    proxy = CaptureEgressProxy(
+        ProxyConfig(max_connections=1), destination_connector=held_connector
+    )
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        first_reader, first_writer = await asyncio.open_connection(host, port)
+        first_writer.write(
+            b"CONNECT origin.example:443 HTTP/1.1\r\nHost: origin.example:443\r\n\r\n"
+        )
+        await first_writer.drain()
+        await connector_started.wait()
+
+        second_reader, second_writer = await asyncio.open_connection(host, port)
+        second_writer.write(
+            b"CONNECT other.example:443 HTTP/1.1\r\nHost: other.example:443\r\n\r\n"
+        )
+        await second_writer.drain()
+        second_response = await read_to_eof(second_reader)
+        assert second_response.startswith(b"HTTP/1.1 503 Service Unavailable")
+
+        release_connector.set()
+        assert await first_reader.readuntil(b"\r\n\r\n") == (
+            b"HTTP/1.1 200 Connection Established\r\n\r\n"
+        )
+        first_writer.close()
+        second_writer.close()
+        await first_writer.wait_closed()
+        await second_writer.wait_closed()
+    finally:
+        release_connector.set()
+        await stop_server(gateway)
+        await stop_server(origin)
+
+
+@pytest.mark.asyncio
+async def test_cancelling_tunnel_closes_bound_upstream_socket() -> None:
+    origin_eof = asyncio.Event()
+
+    async def hold(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.read()
+        origin_eof.set()
+        writer.close()
+        await writer.wait_closed()
+
+    origin = await asyncio.start_server(hold, "127.0.0.1", 0)
+    origin_address = origin.sockets[0].getsockname()
+    tunnel_started = asyncio.Event()
+    handler_task: asyncio.Task[None] | None = None
+    proxy = CaptureEgressProxy(destination_connector=local_connector(origin_address))
+    original_tunnel = proxy._tunnel
+
+    async def tracked_tunnel(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        bound: BoundConnection,
+    ) -> None:
+        nonlocal handler_task
+        handler_task = asyncio.current_task()
+        tunnel_started.set()
+        await original_tunnel(reader, writer, bound)
+
+    proxy._tunnel = tracked_tunnel  # type: ignore[assignment]
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        reader, writer = await asyncio.open_connection(host, port)
+        writer.write(
+            b"CONNECT origin.example:443 HTTP/1.1\r\nHost: origin.example:443\r\n\r\n"
+        )
+        await writer.drain()
+        assert await reader.readuntil(b"\r\n\r\n") == (
+            b"HTTP/1.1 200 Connection Established\r\n\r\n"
+        )
+        await tunnel_started.wait()
+        assert handler_task is not None
+        handler_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await handler_task
+        await asyncio.wait_for(origin_eof.wait(), timeout=1)
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+        await stop_server(origin)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("blocked_stage", ["drain", "close"])
+async def test_lifecycle_deadline_bounds_blocked_writer_and_releases_slot(
+    blocked_stage: str,
+) -> None:
+    writer = FakeWriter(
+        block_drain=blocked_stage == "drain",
+        block_close=blocked_stage == "close",
+    )
+    proxy = CaptureEgressProxy(ProxyConfig(max_connection_seconds=0.04))
+    started = asyncio.get_running_loop().time()
+
+    await proxy.handle_client(malformed_reader(), writer)  # type: ignore[arg-type]
+
+    elapsed = asyncio.get_running_loop().time() - started
+    assert elapsed < 0.6
+    assert proxy._active == 0
+    assert writer.closed
+    assert writer.transport.aborted is (blocked_stage == "close")
+
+
+@pytest.mark.asyncio
+async def test_cancellation_aborts_blocked_writer_and_releases_slot() -> None:
+    writer = FakeWriter(block_drain=True, block_close=True)
+    proxy = CaptureEgressProxy(ProxyConfig(max_connection_seconds=10))
+    task = asyncio.create_task(
+        proxy.handle_client(malformed_reader(), writer)  # type: ignore[arg-type]
+    )
+    await writer.drain_started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert proxy._active == 0
+    assert writer.closed
+    assert writer.transport.aborted
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"connect_timeout": 31},
+        {"connect_timeout": "2"},
+        {"max_connections": 1.5},
+        {"max_header_bytes": True},
+        {"allowed_ports": frozenset({80, True})},
+    ],
+)
+def test_proxy_config_rejects_invalid_numeric_limits(kwargs: dict[str, object]) -> None:
+    with pytest.raises(ValueError):
+        ProxyConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_health_endpoint_is_separate_and_does_not_echo_input() -> None:
+    server = await asyncio.start_server(health_handler, "127.0.0.1", 0)
+    address = server.sockets[0].getsockname()
+    try:
+        reader, writer = await asyncio.open_connection(*address[:2])
+        writer.write(b"GET /healthz?source=https://secret.example HTTP/1.1\r\n\r\n")
+        await writer.drain()
+        response = await read_to_eof(reader)
+        assert response.startswith(b"HTTP/1.1 404 Not Found")
+        assert b"secret.example" not in response
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        await stop_server(server)
