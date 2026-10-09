@@ -26,10 +26,14 @@ def test_hosted_linux_only_and_config_preservation(tmp_path: Path) -> None:
 
     path = tmp_path / "docker" / "daemon.json"
     path.parent.mkdir()
-    path.write_text(json.dumps({"debug": True, "insecure-registries": ["registry.example:5000"]}))
+    path.write_text(
+        json.dumps({"debug": True, "insecure-registries": ["registry.example:5000"]})
+    )
     restarts: list[bool] = []
     assert mirror.configure_daemon(
-        path, restart=lambda: restarts.append(True), has_running_containers=lambda: False
+        path,
+        restart=lambda: restarts.append(True),
+        has_running_containers=lambda: False,
     )
     config = json.loads(path.read_text())
     assert config["debug"] is True
@@ -37,7 +41,9 @@ def test_hosted_linux_only_and_config_preservation(tmp_path: Path) -> None:
     assert config["registry-mirrors"] == [mirror.MIRROR]
     assert restarts == [True]
     assert not mirror.configure_daemon(
-        path, restart=lambda: restarts.append(True), has_running_containers=lambda: False
+        path,
+        restart=lambda: restarts.append(True),
+        has_running_containers=lambda: False,
     )
     assert restarts == [True]
 
@@ -48,7 +54,11 @@ def test_non_hosted_runner_does_not_touch_daemon_or_restart(tmp_path: Path) -> N
     original = path.read_bytes()
     restarts: list[bool] = []
     assert not mirror.configure_for_runner(
-        {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "self-hosted", "RUNNER_OS": "Linux"},
+        {
+            "GITHUB_ACTIONS": "true",
+            "RUNNER_ENVIRONMENT": "self-hosted",
+            "RUNNER_OS": "Linux",
+        },
         path,
         restart=lambda: restarts.append(True),
         has_running_containers=lambda: False,
@@ -58,26 +68,34 @@ def test_non_hosted_runner_does_not_touch_daemon_or_restart(tmp_path: Path) -> N
 
 
 @pytest.mark.parametrize("raw", [b"[]", b'{"registry-mirrors":"bad"}', b"{"])
-def test_invalid_daemon_config_fails_without_restart(tmp_path: Path, raw: bytes) -> None:
+def test_invalid_daemon_config_fails_without_restart(
+    tmp_path: Path, raw: bytes
+) -> None:
     path = tmp_path / "daemon.json"
     path.write_bytes(raw)
     restarts: list[bool] = []
     with pytest.raises((ValueError, json.JSONDecodeError)):
         mirror.configure_daemon(
-            path, restart=lambda: restarts.append(True), has_running_containers=lambda: False
+            path,
+            restart=lambda: restarts.append(True),
+            has_running_containers=lambda: False,
         )
     assert path.read_bytes() == raw
     assert restarts == []
 
 
-def test_running_container_refuses_change_before_write_or_restart(tmp_path: Path) -> None:
+def test_running_container_refuses_change_before_write_or_restart(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "daemon.json"
     original = b'{"debug":true}\n'
     path.write_bytes(original)
     restarts: list[bool] = []
     with pytest.raises(RuntimeError, match="containers are running"):
         mirror.configure_daemon(
-            path, restart=lambda: restarts.append(True), has_running_containers=lambda: True
+            path,
+            restart=lambda: restarts.append(True),
+            has_running_containers=lambda: True,
         )
     assert path.read_bytes() == original
     assert restarts == []
@@ -107,7 +125,10 @@ def test_docker_runtime_diagnostics_are_bounded_and_allowlisted() -> None:
     }
     assert all("--format" in command for command in commands)
     assert all(command[-1] in outputs for command in commands)
-    assert all(option == {"check": True, "capture_output": True, "text": True, "timeout": 5} for option in options)
+    assert all(
+        option == {"check": True, "capture_output": True, "text": True, "timeout": 5}
+        for option in options
+    )
     assert "secret" not in json.dumps(observed)
     assert "token" not in json.dumps(observed)
     assert set(observed) == {
@@ -150,13 +171,17 @@ def test_runtime_workflow_mirror_precedes_compose_and_keeps_scope() -> None:
     )
     assert integration_match is not None
     integration = integration_match.group(1)
-    assert integration.index("name: Configure hosted-runner Docker Hub cache") < integration.index(
-        "docker compose --profile indexing --profile fixture pull"
+    assert integration.index(
+        "name: Configure hosted-runner Docker Hub cache"
+    ) < integration.index("name: Prefetch verified public image fixtures")
+    storage_match = re.search(
+        r"(?ms)^  research-storage:\n(.*?)(?=^  [A-Za-z0-9_-]+:|\Z)", runtime
     )
-    storage_match = re.search(r"(?ms)^  research-storage:\n(.*?)(?=^  [A-Za-z0-9_-]+:|\Z)", runtime)
     assert storage_match is not None
     storage = storage_match.group(1)
-    assert storage.index("name: Configure hosted-runner Docker Hub cache") < storage.index("docker compose")
+    assert storage.index(
+        "name: Configure hosted-runner Docker Hub cache"
+    ) < storage.index("docker compose")
 
 
 def test_topology_precreated_service_does_not_restart_docker() -> None:

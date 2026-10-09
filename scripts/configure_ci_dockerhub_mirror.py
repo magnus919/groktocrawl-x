@@ -33,7 +33,9 @@ def merge_daemon_config(raw: bytes | None) -> bytes:
     if type(settings) is not dict:
         raise ValueError("Docker daemon config must be a JSON object")
     mirrors = settings.get("registry-mirrors", [])
-    if type(mirrors) is not list or any(type(item) is not str or not item for item in mirrors):
+    if type(mirrors) is not list or any(
+        type(item) is not str or not item for item in mirrors
+    ):
         raise ValueError("Docker registry-mirrors must be a list of nonempty strings")
     merged = dict(settings)
     if MIRROR not in mirrors:
@@ -106,7 +108,9 @@ def _restart_docker() -> None:
 
 
 def _has_running_containers() -> bool:
-    result = subprocess.run(["docker", "ps", "-q"], check=True, capture_output=True, text=True)
+    result = subprocess.run(
+        ["docker", "ps", "-q"], check=True, capture_output=True, text=True
+    )
     return bool(result.stdout.strip())
 
 
@@ -114,10 +118,16 @@ def docker_runtime_info(
     run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, object]:
     """Return bounded nonsecret runtime labels and one expected-mirror flag."""
+
     def read_label(command: list[str]) -> str:
-        value = run(command, check=True, capture_output=True, text=True, timeout=5).stdout.strip()
-        if type(value) is not str or not value or len(value) > 64 or not re.fullmatch(
-            r"[A-Za-z0-9._+-]+", value
+        value = run(
+            command, check=True, capture_output=True, text=True, timeout=5
+        ).stdout.strip()
+        if (
+            type(value) is not str
+            or not value
+            or len(value) > 64
+            or not re.fullmatch(r"[A-Za-z0-9._+-]+", value)
         ):
             raise RuntimeError("Docker runtime diagnostics were incomplete")
         return value
@@ -204,7 +214,11 @@ def main() -> int:
         restart=_restart_docker,
         has_running_containers=_has_running_containers,
     )
-    print("Docker Hub mirror configured." if changed else "Docker Hub mirror already configured.")
+    print(
+        "Docker Hub mirror configured."
+        if changed
+        else "Docker Hub mirror already configured."
+    )
     print(json.dumps({"docker_runtime": docker_runtime_info()}, sort_keys=True))
     return 0
 
