@@ -911,6 +911,10 @@ jobs:
             candidate-capture-egress candidate-flare-renderer candidate-flare-control \
             candidate-flare-test-origin candidate-scraper-socket-init \
             candidate-flare-control-socket-init
+          scraper_id=$(docker compose ps -q candidate-scraper)
+          if [ -n "$scraper_id" ]; then
+            docker inspect --format '{{.Name}} health={{json .State.Health}}' "$scraper_id"
+          fi
       - name: Tear down protected Flare profile
         if: always()
         run: |
@@ -978,6 +982,10 @@ jobs:
             candidate-browser-controller candidate-flare-renderer candidate-flare-control \
             candidate-scraper-socket-init candidate-flare-control-socket-init \
             candidate-private-sentinel candidate-llm
+          scraper_id=$(docker compose ps -q candidate-scraper)
+          if [ -n "$scraper_id" ]; then
+            docker inspect --format '{{.Name}} health={{json .State.Health}}' "$scraper_id"
+          fi
       - name: Tear down protected capture composition
         if: always()
         run: |

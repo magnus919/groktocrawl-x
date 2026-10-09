@@ -405,6 +405,7 @@ def test_candidate_scraper_is_not_attached_to_direct_egress_network():
         )
     )
     scraper = compose["services"]["candidate-scraper"]
+    assert scraper["group_add"] == ["20000"]
     networks = scraper["networks"]
     if isinstance(networks, dict):
         network_names = set(networks)

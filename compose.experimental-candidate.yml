@@ -409,6 +409,8 @@ services:
       dockerfile: scraper-svc/Dockerfile
     image: groktocrawl-x-candidate-scraper:${CANDIDATE_IMAGE_TAG:-dev}
     restart: unless-stopped
+    # OCI healthchecks need the same private socket group as the dropped worker.
+    group_add: ["20000"]
     environment:
       VALKEY_RPC_SOCKET: /run/scraper-state/control.sock
       LLM_CONTROL_SOCKET: /run/scraper-llm/control.sock
