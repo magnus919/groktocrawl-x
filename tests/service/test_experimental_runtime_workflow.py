@@ -1,7 +1,9 @@
 """Validate the experimental CI execution boundary and required-check outcomes."""
 
+import ipaddress
 import itertools
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -85,6 +87,32 @@ def test_protected_flare_profile_is_required_by_runtime_gate():
     probe = next(step for step in steps if step.get("name", "").startswith("Exercise upstream Flare"))
     assert "tests/integration/protected_flare_api_probe.py" in probe["run"]
     assert any("candidate-flare-test-origin" in step.get("run", "") for step in steps)
+    env = profile["env"]
+    compose = (ROOT / "compose.experimental-candidate.yml").read_text()
+    required_variables = set(re.findall(r"\$\{([A-Z0-9_]+):\?", compose))
+    assert required_variables <= set(env)
+    assert env["LLM_BASE_URL"] == "http://llm.invalid/v1"
+    assert env["LLM_API_KEY"] == "ci-only-llm-key"
+
+
+def test_flare_fixture_addresses_are_unique_and_avoid_docker_gateway():
+    compose = yaml.safe_load((ROOT / "compose.protected-flare-ci.yml").read_text())
+    network = compose["networks"]["candidate_flare_fixture"]
+    subnet = ipaddress.ip_network(network["ipam"]["config"][0]["subnet"])
+    gateway = next(subnet.hosts())
+    addresses = {
+        name: ipaddress.ip_address(
+            service["networks"]["candidate_flare_fixture"]["ipv4_address"]
+        )
+        for name, service in compose["services"].items()
+        if "candidate_flare_fixture" in service.get("networks", {})
+    }
+    assert set(addresses) == {"candidate-capture-egress", "candidate-flare-test-origin"}
+    assert len(set(addresses.values())) == len(addresses)
+    for name, address in addresses.items():
+        assert address in subnet, f"{name} address is outside fixture subnet"
+        assert address != gateway, f"{name} address collides with Docker gateway"
+        assert address != subnet.broadcast_address
 
 
 def test_protected_browser_failure_logs_are_bounded_and_precede_teardown():
