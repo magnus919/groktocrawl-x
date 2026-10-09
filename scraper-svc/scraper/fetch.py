@@ -11,6 +11,7 @@ lives in ``fetch_quality.py``. Cache functions live in ``cache.py``.
 import asyncio
 import logging
 import os
+import re
 from urllib.parse import urlparse
 
 import httpx
@@ -49,6 +50,7 @@ logger = logging.getLogger(__name__)
 
 _settings = load_settings()
 FLARE_SOLVERR_URL = _settings.flare_solverr_url
+_CVE_IDENTIFIER = re.compile(r"cve:CVE-\d{4}-\d{4,}\Z", re.IGNORECASE)
 
 # ── Proxy configuration ─────────────────────────────────────────
 # SCRAPER_PROXY_URL is an opt-in env var for residential/mobile IP rotation.
@@ -70,6 +72,31 @@ def _private_url_allowlisted(url: str) -> bool:
         if host.strip()
     }
     return hostname in allowed
+
+
+def _private_destination_error(
+    url: str, *, allow_adapter_identifier: bool = False
+) -> dict | None:
+    """Return the standard denial envelope for an unapproved private target.
+
+    CVE identifiers are adapter inputs rather than network destinations. Their
+    adapter patterns are intentionally allowed through; every URL-like target
+    is checked before adapter dispatch or any fetch tier.
+    """
+    if allow_adapter_identifier and _CVE_IDENTIFIER.fullmatch(url):
+        return None
+    if _private_url_allowlisted(url):
+        return None
+    is_private, reason = _is_private_url(url)
+    if not is_private:
+        return None
+    return {
+        "markdown": "",
+        "source": "blocked",
+        "url": url,
+        "error": reason,
+        "error_code": "PRIVATE_URL_BLOCKED",
+    }
 
 
 async def _maybe_degrade(
@@ -417,8 +444,16 @@ async def smart_scrape(
 
     Returns a dict with keys: markdown, source, url, quality, error (optional).
     """
-    # Non-network identifiers (for example, cve:CVE-...) are handled by
-    # registered adapters before URL-level SSRF validation.
+    # Validate source destinations before adapters, which may perform their
+    # own HTTP requests and otherwise bypass the generic fetch guard. Opaque
+    # adapter identifiers (for example cve:CVE-...) are not network targets.
+    destination_error = _private_destination_error(
+        url, allow_adapter_identifier=not force_browser
+    )
+    if destination_error:
+        logger.warning("Blocked private or internal scrape destination")
+        return destination_error
+
     if not force_browser:
         registry = get_registry()
         if registry._entries:
@@ -430,16 +465,14 @@ async def smart_scrape(
             if adapter_result:
                 logger.info("Adapter hit: %s for %s", adapter_result.source, url)
                 return adapter_result.to_dict()
-
-    if not _private_url_allowlisted(url):
-        is_private, reason = _is_private_url(url)
-        if is_private:
-            logger.warning("Blocked private or internal scrape destination")
-            return {
+        if _CVE_IDENTIFIER.fullmatch(url):
+            # Preserve the prior terminal behavior when no CVE adapter accepts
+            # an identifier; it must never fall through to an HTTP fetch tier.
+            return _private_destination_error(url) or {
                 "markdown": "",
                 "source": "blocked",
                 "url": url,
-                "error": reason,
+                "error": "Unsupported non-network scrape identifier",
                 "error_code": "PRIVATE_URL_BLOCKED",
             }
 
