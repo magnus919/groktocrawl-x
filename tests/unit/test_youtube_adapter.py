@@ -94,8 +94,6 @@ def test_transcript_api_keeps_default_constructor_in_compatibility_mode(monkeypa
 
 
 def test_ytdlp_source_requests_use_explicit_gateway_proxy(monkeypatch):
-    import yt_dlp
-
     monkeypatch.setenv("SCRAPER_CAPTURE_EGRESS_PROXY_URL", "http://egress.example:8080")
     captured = []
 
@@ -121,7 +119,7 @@ def test_ytdlp_source_requests_use_explicit_gateway_proxy(monkeypatch):
                 )
             return {"automatic_captions": {}}
 
-    monkeypatch.setattr(yt_dlp, "YoutubeDL", YoutubeDL)
+    monkeypatch.setitem(sys.modules, "yt_dlp", SimpleNamespace(YoutubeDL=YoutubeDL))
     monkeypatch.setattr(youtube._YOUTUBE_GATE, "wait", lambda *_args, **_kwargs: None)
 
     result = asyncio.run(youtube._fetch_transcript_via_ytdlp("abcdefghijk"))
@@ -293,8 +291,6 @@ def test_gate_enforces_cooldown_without_retrying_or_falling_back():
 
 
 def test_ytdlp_keeps_default_proxy_behavior_in_compatibility_mode(monkeypatch):
-    import yt_dlp
-
     monkeypatch.delenv("SCRAPER_CAPTURE_EGRESS_PROXY_URL", raising=False)
     captured = []
 
@@ -318,7 +314,7 @@ def test_ytdlp_keeps_default_proxy_behavior_in_compatibility_mode(monkeypatch):
                 )
             return {"automatic_captions": {}}
 
-    monkeypatch.setattr(yt_dlp, "YoutubeDL", YoutubeDL)
+    monkeypatch.setitem(sys.modules, "yt_dlp", SimpleNamespace(YoutubeDL=YoutubeDL))
     monkeypatch.setattr(youtube._YOUTUBE_GATE, "wait", lambda *_args, **_kwargs: None)
 
     result = asyncio.run(youtube._fetch_transcript_via_ytdlp("abcdefghijk"))
