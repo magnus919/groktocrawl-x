@@ -8,6 +8,8 @@ not terminate TLS or inspect tunnel contents.
 from __future__ import annotations
 
 import asyncio
+import ipaddress
+import os
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -600,12 +602,25 @@ async def health_handler(
 
 async def serve() -> None:
     proxy = CaptureEgressProxy()
+    bind_host = _proxy_bind_host()
     server = await asyncio.start_server(
         proxy.handle_client,
-        host="0.0.0.0",
+        host=bind_host,
         port=8080,
         limit=proxy.config.max_header_bytes,
     )
     health = await asyncio.start_server(health_handler, host="127.0.0.1", port=8081)
     async with server, health:
         await asyncio.gather(server.serve_forever(), health.serve_forever())
+
+
+def _proxy_bind_host(value: str | None = None) -> str:
+    """Use an explicit numeric interface address; retain the default behavior."""
+    host = value if value is not None else os.environ.get(
+        "CAPTURE_PROXY_BIND_HOST", "0.0.0.0"
+    )
+    try:
+        ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise ValueError("capture proxy bind host must be a numeric IP address") from exc
+    return host

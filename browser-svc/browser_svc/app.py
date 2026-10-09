@@ -7,10 +7,13 @@ Each session is an isolated Chromium instance with its own context.
 import asyncio
 import json
 import logging
+import os
 import random
 import time
 import uuid
+from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -23,6 +26,7 @@ from common.middleware import add_request_id_middleware
 from common.stage_metrics import inc_counter, set_gauge
 from common.url import extract_domain, is_private_host
 
+from .cookie_rpc import DEFAULT_COOKIE_RPC_SOCKET, CookieRPCClient
 from .process_health import process_capacity
 from .settings import load_settings
 
@@ -131,6 +135,64 @@ def _is_bot_challenge(title: str, url: str) -> bool:
     return False
 
 
+def _protected_renderer_enabled(env: Mapping[str, str] | None = None) -> bool:
+    settings = os.environ if env is None else env
+    value = settings.get("BROWSER_PROTECTED_RENDERER", "").lower()
+    if value not in {"", "0", "1", "false", "true"}:
+        raise RuntimeError("protected renderer setting is invalid")
+    return value in {"1", "true"}
+
+
+def _protected_navigation_allowed(url: str) -> bool:
+    parsed = urlsplit(url)
+    return parsed.scheme.lower() in {"http", "https", "data"} or (
+        parsed.scheme.lower() == "about" and parsed.path == "blank"
+    )
+
+
+def _chromium_launch_options(env: dict[str, str] | None = None) -> dict[str, Any]:
+    """Return launch options, requiring an explicit proxy in protected mode.
+
+    This configures Chromium's proxy only. Network-namespace isolation and
+    qualification of browser side channels remain deployment responsibilities.
+    """
+    settings = os.environ if env is None else env
+    protected = _protected_renderer_enabled(settings)
+    proxy_url = settings.get("BROWSER_CAPTURE_PROXY_URL", "").strip()
+    if protected and not proxy_url:
+        raise RuntimeError("protected renderer requires capture proxy")
+
+    options: dict[str, Any] = {
+        "headless": True,
+        "args": [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+        ],
+    }
+    if proxy_url:
+        parsed = urlsplit(proxy_url)
+        try:
+            port = parsed.port
+        except ValueError as exc:
+            raise RuntimeError("capture proxy URL is invalid") from exc
+        if (
+            parsed.scheme != "http"
+            or not parsed.hostname
+            or port is None
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in ("", "/")
+            or parsed.query
+            or parsed.fragment
+            or not 1 <= port <= 65535
+            or "%" in parsed.netloc
+        ):
+            raise RuntimeError("capture proxy URL is invalid")
+        options["proxy"] = {"server": f"http://{parsed.netloc}"}
+    return options
+
+
 app = FastAPI(title="GroktoCrawl Browser Service", version="0.1.0")
 
 # ── Instrumentation ──────────────────────────────────────────
@@ -210,6 +272,17 @@ class BrowserListResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup():
+    if _protected_renderer_enabled():
+        if os.environ.get("BROWSER_CAPTURE_FIREWALL_READY") != "1":
+            raise RuntimeError("protected renderer firewall is not active")
+        cookie_socket = os.environ.get(
+            "BROWSER_COOKIE_RPC_SOCKET", DEFAULT_COOKIE_RPC_SOCKET
+        )
+        app.state.redis = CookieRPCClient(cookie_socket)
+        logger.info("Protected renderer started with private cookie RPC")
+        asyncio.create_task(_cleanup_loop())
+        return
+
     # Connect to Valkey/Redis for cookie persistence
     _br_settings = load_settings()
     valkey_host = _br_settings.valkey_host
@@ -312,14 +385,7 @@ async def create_browser(req: BrowserCreateRequest):
 
     try:
         p = await async_playwright().start()
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-            ],
-        )
+        browser = await p.chromium.launch(**_chromium_launch_options())
         context = await browser.new_context(
             viewport={
                 "width": 1920 + random.randint(-5, 5),
@@ -411,7 +477,13 @@ async def execute_action(session_id: str, req: BrowserExecuteRequest):
                     status_code=400, detail="url required for navigate action"
                 )
             # Security: reject private/internal destination URLs
-            if is_private_host(req.url):
+            protected_renderer = _protected_renderer_enabled()
+            if protected_renderer and not _protected_navigation_allowed(req.url):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Navigation scheme is not allowed in protected renderer",
+                )
+            if not protected_renderer and is_private_host(req.url):
                 raise HTTPException(
                     status_code=400,
                     detail="Navigation to private or internal destination blocked",

@@ -66,19 +66,62 @@ services:
     cpus: 1.0
     pids_limit: 256
 
-  candidate-browser:
-    init: true
+  candidate-capture-egress:
+    build:
+      context: .
+      dockerfile: capture-egress-svc/Dockerfile
+    image: groktocrawl-x-capture-egress:${CANDIDATE_IMAGE_TAG:-dev}
+    restart: unless-stopped
+    networks:
+      candidate_egress:
+        gw_priority: 1
+      candidate_capture:
+        ipv4_address: 172.31.254.2
+    environment:
+      CAPTURE_PROXY_BIND_HOST: 172.31.254.2
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+
+  candidate-browser-renderer:
     build:
       context: .
       dockerfile: browser-svc/Dockerfile
     image: groktocrawl-x-candidate-browser:${CANDIDATE_IMAGE_TAG:-dev}
+    command: [python, -m, browser_svc.renderer_entrypoint]
     restart: unless-stopped
     networks:
-      candidate_egress:
-      candidate_private:
-        aliases: [browser-svc]
+      candidate_capture:
+        ipv4_address: 172.31.254.3
+    environment:
+      BROWSER_PROTECTED_RENDERER: "1"
+      BROWSER_CAPTURE_PROXY_URL: http://172.31.254.2:8080
+      BROWSER_RENDERER_SOCKET: /run/browser/renderer.sock
+      BROWSER_COOKIE_RPC_SOCKET: /run/browser/cookies.sock
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - candidate_browser_renderer_socket:/run/browser
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID, SETPCAP]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      candidate-capture-egress:
+        condition: service_healthy
     healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/health', timeout=5)"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; s=socket.socket(socket.AF_UNIX); s.settimeout(2); s.connect('/run/browser/renderer.sock'); s.sendall(b'GET /health HTTP/1.1\\r\\nHost: renderer.local\\r\\nConnection: close\\r\\n\\r\\n'); assert b'200 OK' in s.recv(1024)"
       interval: 10s
       timeout: 5s
       start_period: 20s
@@ -86,6 +129,39 @@ services:
     mem_limit: 1500m
     cpus: 1.0
     pids_limit: 256
+
+  candidate-browser-controller:
+    init: true
+    build:
+      context: .
+      dockerfile: browser-svc/Dockerfile
+    image: groktocrawl-x-candidate-browser:${CANDIDATE_IMAGE_TAG:-dev}
+    command: [uvicorn, browser_svc.controller:app, --host, 0.0.0.0, --port, "8012"]
+    restart: unless-stopped
+    networks:
+      candidate_private:
+        aliases: [browser-svc]
+    environment:
+      BROWSER_RENDERER_SOCKET: /run/browser/renderer.sock
+      BROWSER_COOKIE_RPC_SOCKET: /run/browser/cookies.sock
+      VALKEY_HOST: candidate-valkey
+      VALKEY_PORT: "6379"
+    volumes:
+      - candidate_browser_renderer_socket:/run/browser
+    depends_on:
+      candidate-browser-renderer:
+        condition: service_healthy
+      candidate-valkey:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 20
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
 
   candidate-scraper:
     init: true
@@ -98,7 +174,7 @@ services:
       VALKEY_HOST: candidate-valkey
       VALKEY_PORT: "6379"
       VALKEY_DB: "0"
-      BROWSER_SVC_URL: http://candidate-browser:8012
+      BROWSER_SVC_URL: http://candidate-browser-controller:8012
       SCRAPER_MAX_BROWSER_CONCURRENCY: ${SCRAPER_MAX_BROWSER_CONCURRENCY:-4}
       SCRAPER_BROWSER_POOL_ENABLED: ${SCRAPER_BROWSER_POOL_ENABLED:-false}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
@@ -107,7 +183,7 @@ services:
     depends_on:
       candidate-valkey:
         condition: service_healthy
-      candidate-browser:
+      candidate-browser-controller:
         condition: service_healthy
     volumes:
       - candidate_cloakbrowser_cache:/root/.cloakbrowser
@@ -336,8 +412,14 @@ volumes:
   candidate_qdrant_rollback_data:
   candidate_hf_cache:
   candidate_cloakbrowser_cache:
+  candidate_browser_renderer_socket:
 
 networks:
   candidate_egress:
   candidate_private:
     internal: true
+  candidate_capture:
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.254.0/29
