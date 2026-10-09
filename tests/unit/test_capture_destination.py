@@ -405,3 +405,22 @@ async def test_resolution_exception_is_sanitized() -> None:
         await resolve_and_connect("example.com:443", resolver=resolver)
     assert str(raised.value) == "destination-resolution-failed"
     assert "private resolver detail" not in str(raised.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "family,sockaddr", [(socket.AF_UNIX, "local"), (socket.AF_INET, (7, 443))]
+)
+async def test_default_resolver_rejects_non_internet_or_malformed_records(
+    monkeypatch: pytest.MonkeyPatch, family: int, sockaddr: str | tuple[int, int]
+) -> None:
+    loop = asyncio.get_running_loop()
+
+    async def malformed_getaddrinfo(
+        host: str, port: int, *, type: int
+    ) -> list[tuple[int, int, int, str, str | tuple[int, int]]]:
+        return [(family, socket.SOCK_STREAM, 0, "", sockaddr)]
+
+    monkeypatch.setattr(loop, "getaddrinfo", malformed_getaddrinfo)
+    with pytest.raises(DestinationResolutionError):
+        await capture_destination._system_resolver("example.com", 443)

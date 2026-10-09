@@ -193,7 +193,18 @@ async def _system_resolver(host: str, port: int) -> Sequence[str]:
         records = await loop.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except (OSError, UnicodeError) as exc:
         raise DestinationResolutionError() from exc
-    return [record[4][0] for record in records]
+    addresses: list[str] = []
+    for record in records:
+        sockaddr = record[4]
+        if (
+            record[0] not in (socket.AF_INET, socket.AF_INET6)
+            or not isinstance(sockaddr, tuple)
+            or not sockaddr
+            or not isinstance(sockaddr[0], str)
+        ):
+            raise DestinationResolutionError()
+        addresses.append(sockaddr[0])
+    return addresses
 
 
 async def _numeric_dialer(address: IPAddress, port: int) -> socket.socket:
