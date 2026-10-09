@@ -85,6 +85,8 @@ def test_flare_dumb_init_is_started_inside_the_privilege_drop():
     assert 'CMD ["/usr/bin/dumb-init", "--", "/usr/local/bin/python"' in dockerfile
     assert "ENV HOME=/tmp/groktocrawl-flare-home" in dockerfile
     assert "XDG_CACHE_HOME=/tmp/groktocrawl-flare-home/.cache" in dockerfile
+    assert "XDG_DATA_HOME=/tmp/groktocrawl-flare-home/.local/share" in dockerfile
+    assert "XDG_CONFIG_HOME=/tmp/groktocrawl-flare-home/.config" in dockerfile
 
 
 def test_flare_home_is_fixed_private_and_overrides_caller_environment(tmp_path):
@@ -94,9 +96,13 @@ def test_flare_home_is_fixed_private_and_overrides_caller_environment(tmp_path):
     setup = entrypoint[start:end]
     home = tmp_path / "flare-home"
     cache = home / ".cache"
+    data = home / ".local" / "share"
+    config = home / ".config"
+    setup = setup.replace("/tmp/groktocrawl-flare-home/.local/share", str(data))
+    setup = setup.replace("/tmp/groktocrawl-flare-home/.config", str(config))
     setup = setup.replace("/tmp/groktocrawl-flare-home/.cache", str(cache))
     setup = setup.replace("/tmp/groktocrawl-flare-home", str(home))
-    child = 'printf "%s\\n%s\\n" "$HOME" "$XDG_CACHE_HOME"'
+    child = 'printf "%s\\n%s\\n%s\\n%s\\n" "$HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME"'
     completed = subprocess.run(
         [
             "/bin/sh",
@@ -114,11 +120,18 @@ def test_flare_home_is_fixed_private_and_overrides_caller_environment(tmp_path):
             **os.environ,
             "HOME": "/tmp/caller-home",
             "XDG_CACHE_HOME": "/tmp/caller-cache",
+            "XDG_DATA_HOME": "/tmp/caller-data",
+            "XDG_CONFIG_HOME": "/tmp/caller-config",
         },
     )
-    assert completed.stdout.splitlines() == [str(home), str(cache)]
-    assert home.stat().st_mode & 0o777 == 0o700
-    assert cache.stat().st_mode & 0o777 == 0o700
+    assert completed.stdout.splitlines() == [
+        str(home),
+        str(cache),
+        str(data),
+        str(config),
+    ]
+    for path in (home, cache, data, config):
+        assert path.stat().st_mode & 0o777 == 0o700
 
 
 def test_upstream_patch_forces_proxy_validates_scheme_and_moves_api_to_uds():
