@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Iterator
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -15,7 +17,7 @@ from redis import Redis
 
 
 @pytest.fixture
-def app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
+def app(monkeypatch: pytest.MonkeyPatch) -> Iterator[FastAPI]:
     # The dedicated URL is used by the isolated Valkey lanes. The compose
     # integration lane already provides the same durable store as VALKEY_URL.
     url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ.get("VALKEY_URL")
@@ -24,14 +26,39 @@ def app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_RUNS", "true")
     monkeypatch.setenv("FEATURE_EXPERIMENTAL_RESEARCH_DURABLE", "true")
-    Redis.from_url(url, decode_responses=True).flushdb()
+    namespace = f"groktocrawl:test:service:{uuid4()}"
+    redis = Redis.from_url(url, decode_responses=True)
+    original_ledger_factory = experimental.DurableResearchLedger
+    created_ledgers: list[DurableResearchLedger] = []
+
+    def namespaced_ledger_factory(redis_url: str) -> DurableResearchLedger:
+        ledger = original_ledger_factory(redis_url, namespace=namespace)
+        created_ledgers.append(ledger)
+        return ledger
+
     experimental._RUNS.clear()
     experimental._IDEMPOTENCY.clear()
     experimental._DURABLE_LEDGERS.clear()
     value = FastAPI()
     value.state.valkey_url = url
+    value.state.research_durable_namespace = namespace
     value.include_router(experimental.router)
-    return value
+    monkeypatch.setattr(
+        experimental, "DurableResearchLedger", namespaced_ledger_factory
+    )
+    try:
+        yield value
+    finally:
+        prefix = f"{namespace}:"
+        for key in redis.scan_iter(match=f"{prefix}*"):
+            if isinstance(key, bytes):
+                key = key.decode("utf-8")
+            if key.startswith(prefix):
+                redis.delete(key)
+        for ledger in created_ledgers:
+            ledger.redis.close()
+        experimental._DURABLE_LEDGERS.pop(url, None)
+        redis.close()
 
 
 async def _client(app: FastAPI) -> httpx.AsyncClient:
@@ -72,7 +99,9 @@ async def test_status_recovers_from_durable_terminal_projection(app: FastAPI) ->
         assert status["state"] == "completed"
 
         url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
-        ledger = DurableResearchLedger(url)
+        ledger = DurableResearchLedger(
+            url, namespace=app.state.research_durable_namespace
+        )
         durable = ledger.get(admission["run_id"])
         assert durable is not None
         assert durable.checkpoint_name == "terminal_projection"
@@ -128,7 +157,8 @@ async def test_cancel_persists_durable_terminal_state(
         assert cancelled.json()["state"] == "cancelled"
 
         durable = DurableResearchLedger(
-            os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
+            os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"],
+            namespace=app.state.research_durable_namespace,
         ).get(run_id)
         assert durable is not None
         assert durable.state == "cancelled"
@@ -234,7 +264,9 @@ async def test_tampered_durable_artifact_projection_fails_closed(app: FastAPI) -
         assert status["state"] == "completed"
 
         url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
-        ledger = DurableResearchLedger(url)
+        ledger = DurableResearchLedger(
+            url, namespace=app.state.research_durable_namespace
+        )
         raw = ledger.redis.get(ledger._run_key(admission["run_id"]))
         assert raw is not None
         record = json.loads(raw)
@@ -271,7 +303,9 @@ async def test_durable_deletion_tombstone_survives_process_loss(app: FastAPI) ->
         }
 
         url = os.environ.get("DURABLE_RESEARCH_REDIS_URL") or os.environ["VALKEY_URL"]
-        durable = DurableResearchLedger(url).get(admission["run_id"])
+        durable = DurableResearchLedger(
+            url, namespace=app.state.research_durable_namespace
+        ).get(admission["run_id"])
         assert durable is not None
         assert durable.state == "deleted"
         experimental._RUNS.clear()
