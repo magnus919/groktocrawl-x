@@ -151,6 +151,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Configure hosted-runner Docker Hub cache
+        run: python3 scripts/configure_ci_dockerhub_mirror.py
+
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -806,6 +809,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Configure hosted-runner Docker Hub cache
+        run: python3 scripts/configure_ci_dockerhub_mirror.py
       - name: Validate isolated replacement candidate definition
         run: |
           umask 077
