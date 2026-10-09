@@ -81,7 +81,9 @@ async def test_controller_forwards_only_over_fixed_uds_and_preserves_api_respons
 
 
 @pytest.mark.asyncio
-async def test_missing_renderer_is_explicit_unavailable_without_url_echo(tmp_path: Path):
+async def test_missing_renderer_is_explicit_unavailable_without_url_echo(
+    tmp_path: Path,
+):
     app = create_app(str(tmp_path / "absent.sock"))
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://controller.invalid"
@@ -96,7 +98,9 @@ async def test_missing_renderer_is_explicit_unavailable_without_url_echo(tmp_pat
     assert "source.example" not in response.text
 
 
-def test_controller_rejects_unexpected_routes_without_contacting_renderer(tmp_path: Path):
+def test_controller_rejects_unexpected_routes_without_contacting_renderer(
+    tmp_path: Path,
+):
     app = create_app(str(tmp_path / "absent.sock"))
 
     async def request():
@@ -166,7 +170,12 @@ def test_protected_renderer_navigation_keeps_supported_schemes(url: str):
 
 
 @pytest.mark.parametrize(
-    "url", ["file:///var/lib/browser-cookies/secret", "javascript:alert(1)", "ftp://source.example"]
+    "url",
+    [
+        "file:///var/lib/browser-cookies/secret",
+        "javascript:alert(1)",
+        "ftp://source.example",
+    ],
 )
 def test_protected_renderer_blocks_local_or_non_http_navigation(url: str):
     assert not _protected_navigation_allowed(url)
@@ -298,3 +307,53 @@ def test_renderer_drops_network_capabilities_from_bounding_set(
     )
     renderer_entrypoint._drop_bounding_capabilities()
     assert dropped == [(24, 0), (24, 12), (24, 7), (24, 6), (24, 8)]
+
+
+def test_renderer_sets_directory_mode_as_unprivileged_owner(monkeypatch):
+    from types import SimpleNamespace
+
+    calls = []
+    identity = {"uid": 0}
+
+    class Directory:
+        def mkdir(self, **kwargs):
+            calls.append("mkdir")
+
+    directory = Directory()
+    monkeypatch.setattr(renderer_entrypoint, "Path", lambda path: directory)
+
+    def setuid(uid):
+        identity["uid"] = uid
+        calls.append("setuid")
+
+    def chmod(path, mode):
+        assert identity["uid"] == 10001
+        assert path is directory and mode == 0o770
+        calls.append("chmod")
+
+    monkeypatch.setattr(
+        renderer_entrypoint,
+        "os",
+        SimpleNamespace(
+            chown=lambda path, uid, gid: calls.append("chown"),
+            setgroups=lambda groups: calls.append("setgroups"),
+            setgid=lambda gid: calls.append("setgid"),
+            setuid=setuid,
+            chmod=chmod,
+        ),
+    )
+    monkeypatch.setattr(
+        renderer_entrypoint,
+        "_drop_bounding_capabilities",
+        lambda: calls.append("drop-caps"),
+    )
+    renderer_entrypoint._prepare_unprivileged_renderer()
+    assert calls == [
+        "mkdir",
+        "chown",
+        "drop-caps",
+        "setgroups",
+        "setgid",
+        "setuid",
+        "chmod",
+    ]

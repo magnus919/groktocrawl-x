@@ -21,14 +21,22 @@ def test_candidate_renderer_has_only_internal_gateway_network_and_uds_api():
     controller = services["candidate-browser-controller"]
     gateway = services["candidate-capture-egress"]
 
-    assert renderer["networks"] == {"candidate_capture": {"ipv4_address": "172.31.254.3"}}
+    assert renderer["networks"] == {
+        "candidate_capture": {"ipv4_address": "172.31.254.3"}
+    }
     assert compose["networks"]["candidate_capture"]["internal"] is True
     assert renderer["environment"]["BROWSER_PROTECTED_RENDERER"] == "1"
     assert renderer["environment"]["BROWSER_CAPTURE_PROXY_URL"] == (
         "http://172.31.254.2:8080"
     )
     assert renderer["cap_drop"] == ["ALL"]
-    assert set(renderer["cap_add"]) == {"CHOWN", "NET_ADMIN", "SETUID", "SETGID", "SETPCAP"}
+    assert set(renderer["cap_add"]) == {
+        "CHOWN",
+        "NET_ADMIN",
+        "SETUID",
+        "SETGID",
+        "SETPCAP",
+    }
     assert "ports" not in renderer
     assert "candidate_capture" not in controller["networks"]
     assert "candidate_egress" not in controller["networks"]

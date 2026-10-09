@@ -117,10 +117,18 @@ def _install_firewall() -> None:
             "ACCEPT",
         ),
     ]
-    for binary, chain in (("iptables", "INPUT"), ("iptables", "OUTPUT"), ("iptables", "FORWARD")):
+    for binary, chain in (
+        ("iptables", "INPUT"),
+        ("iptables", "OUTPUT"),
+        ("iptables", "FORWARD"),
+    ):
         _run_firewall_command([binary, "-w", "-F", chain])
         _run_firewall_command([binary, "-w", "-P", chain, "DROP"])
-    for binary, chain in (("ip6tables", "INPUT"), ("ip6tables", "OUTPUT"), ("ip6tables", "FORWARD")):
+    for binary, chain in (
+        ("ip6tables", "INPUT"),
+        ("ip6tables", "OUTPUT"),
+        ("ip6tables", "FORWARD"),
+    ):
         _run_firewall_command([binary, "-w", "-F", chain])
         _run_firewall_command([binary, "-w", "-P", chain, "DROP"])
 
@@ -143,9 +151,7 @@ def _net_admin_capability_present() -> bool:
     try:
         status = Path("/proc/self/status").read_text(encoding="ascii")
         masks = {
-            line.split("\t", 1)[0].rstrip(":"): int(
-                line.split("\t", 1)[1], 16
-            )
+            line.split("\t", 1)[0].rstrip(":"): int(line.split("\t", 1)[1], 16)
             for line in status.splitlines()
             if line.startswith(("CapEff:", "CapBnd:"))
         }
@@ -174,11 +180,13 @@ def _prepare_unprivileged_renderer() -> None:
     directory = Path("/run/browser")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chown(directory, 10001, 10001)
-    os.chmod(directory, 0o770)
     _drop_bounding_capabilities()
     os.setgroups([])
     os.setgid(10001)
     os.setuid(10001)
+    # Change permissions as the new owner, after dropping privileges. Root
+    # deliberately has no CAP_FOWNER once CHOWN changes directory ownership.
+    os.chmod(directory, 0o770)
 
 
 def main() -> None:
