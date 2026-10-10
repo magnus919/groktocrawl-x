@@ -969,9 +969,9 @@ jobs:
           docker compose exec -T --user 10001:20000 candidate-scraper python -
           < tests/integration/protected_flare_api_probe.py
       - name: Verify hostile JavaScript did not reach the private sentinel
-        run: >-
-          docker compose exec -T candidate-private-sentinel
-          python -c "from pathlib import Path; p=Path('/state/events.jsonl'); assert not p.exists() or p.stat().st_size == 0"
+        if: always()
+        run: |
+          docker compose exec -T candidate-private-sentinel python -c 'from pathlib import Path; import json; p=Path("/state/events.jsonl"); assert p.is_file() and not p.is_symlink(), "sentinel state unavailable"; f=p.open("rb"); data=f.read(65537); f.close(); assert len(data) <= 65536, "sentinel state exceeds inspection limit"; lines=data.splitlines(); print(f"private_sentinel_hits={len(lines)}", flush=True); [json.loads(line) for line in lines]; assert not lines, "private sentinel received traffic"'
       - name: Collect bounded composition diagnostics
         if: failure()
         run: |

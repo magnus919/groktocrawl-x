@@ -11,6 +11,11 @@ from pathlib import Path
 
 EVENTS = Path(os.environ.get("SENTINEL_EVENTS", "/state/events.jsonl"))
 
+# Ensure an empty event file is distinguishable from an absent/unmounted state
+# volume when the workflow performs its always-run zero-hit check.
+EVENTS.parent.mkdir(parents=True, exist_ok=True)
+EVENTS.touch(exist_ok=True)
+
 
 def record(kind: str, peer: object) -> None:
     EVENTS.parent.mkdir(parents=True, exist_ok=True)

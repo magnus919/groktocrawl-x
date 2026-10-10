@@ -139,6 +139,13 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
     assert compose["services"]["candidate-capture-peer-sentinel"]["networks"]["candidate_capture"]["ipv4_address"] == "172.31.254.6"
     assert compose["services"]["candidate-host-bridge-sentinel"]["network_mode"] == "host"
     assert '"degraded"' not in ingress_source
+    sentinel_check = next(
+        step for step in steps if step.get("name") == "Verify hostile JavaScript did not reach the private sentinel"
+    )
+    assert sentinel_check["if"] == "always()"
+    assert "p.is_file()" in sentinel_check["run"]
+    assert "private_sentinel_hits=" in sentinel_check["run"]
+    assert "assert not lines" in sentinel_check["run"]
 
 
 def test_fixture_subnet_static_addresses_avoid_gateway_and_collisions():
