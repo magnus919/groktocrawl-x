@@ -80,3 +80,16 @@ TLS run exposed a missing Authority Key Identifier in the test CA; the fixture
 was corrected with the required CA and leaf extensions, with certificate
 verification left enabled. This did not exercise Compose frontend startup or
 qualify the complete protected capture profile.
+
+A subsequent isolated startup smoke on 2026-10-09 used the overlay's actual
+digest-pinned HAProxy image and startup command with UID/GID 1000, all
+capabilities dropped, a read-only root filesystem, an identity-owned temporary
+filesystem, and separate read-only certificate, key, and bearer files. With no
+network or host-published port, it verified TLS, bearer enforcement, exact
+route/method/query handling, and rejection of the wrong CA and hostname. The
+authorized health and scrape routes returned 503 because no backend was
+attached; this did not verify agent health or a successful scrape. The first
+setup attempt stopped before generating test material because the image
+prerequisite was not locally available; the pinned image was made available
+before the successful run, without weakening certificate verification. This
+smoke does not verify Compose startup or qualify the protected profile.
