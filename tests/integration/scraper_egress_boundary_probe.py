@@ -68,6 +68,7 @@ def _marker_diagnostics(payload: object) -> tuple[bool, bool, bool, str]:
         "pending",
         "PRIVATE_TARGET_BLOCKED",
         "PRIVATE_TARGET_REACHABLE",
+        "PRIVATE_TARGET_UNEXPECTED_RESPONSE",
         "other",
     }:
         marker_state = "unknown"
@@ -248,9 +249,17 @@ async def main() -> None:
 
     async with source_httpx_client(timeout=15) as client:
         response = await client.get(FIXTURE_URL)
+        private_denial = await client.get(f"http://{PRIVATE_IP}:19001/probe")
     response.raise_for_status()
     if "FLARE_GET_OK" not in response.text:
         raise RuntimeError("source request did not traverse the capture gateway")
+    private_denial_type = private_denial.headers.get("content-type", "").split(";", 1)[0]
+    if private_denial.status_code != 403 or private_denial_type != "text/plain":
+        raise RuntimeError(
+            "capture gateway private-target denial invalid "
+            f"http_status={private_denial.status_code} content_type_text_plain="
+            f"{private_denial_type == 'text/plain'}"
+        )
 
     await _exercise_valkey_capability()
 

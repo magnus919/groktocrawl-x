@@ -77,3 +77,15 @@ def test_head_preserves_redirect_metadata_without_body(origin_url: str) -> None:
         assert response.read() == b""
     finally:
         connection.close()
+
+
+def test_private_fetch_fixture_requires_cors_validated_sentinel_response(origin_url: str) -> None:
+    with urlopen(f"{origin_url}/get", timeout=2) as response:
+        body = response.read().decode("utf-8")
+    assert "crypto.getRandomValues(nonceBytes)" in body
+    private_fetch = body.split("const privateProbe", 1)[1]
+    assert "mode:'cors'" in private_fetch
+    assert "response.status === 200" in private_fetch
+    assert "response.headers.get('content-type') === 'text/plain'" in private_fetch
+    assert "PRIVATE_SENTINEL_RESPONSE_V1:${privateNonce}" in private_fetch
+    assert "mode:'no-cors'" not in private_fetch
