@@ -17,6 +17,7 @@ import logging
 import httpx
 
 from .settings import load_settings
+from .source_http import trusted_control_httpx_client
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ async def classify_cloudflare_block(url: str, page_text: str) -> dict | None:
         return None
 
     try:
-        async with httpx.AsyncClient(timeout=RECOVERY_TIMEOUT) as client:
+        async with trusted_control_httpx_client(timeout=RECOVERY_TIMEOUT) as client:
             body = {
                 "model": LLM_MODEL,
                 "messages": [
@@ -183,7 +184,7 @@ async def attempt_llm_recovery(url: str, page_text: str) -> dict | None:
         return None
 
     try:
-        async with httpx.AsyncClient(timeout=RECOVERY_TIMEOUT) as client:
+        async with trusted_control_httpx_client(timeout=RECOVERY_TIMEOUT) as client:
             body = {
                 "model": LLM_MODEL,
                 "messages": [

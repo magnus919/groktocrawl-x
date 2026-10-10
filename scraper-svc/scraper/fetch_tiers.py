@@ -35,6 +35,11 @@ from .fetch_quality import html_to_markdown
 from .playwright_retry import retry_transient
 from .proxy import _get_playwright_proxy
 from .settings import load_settings
+from .source_http import (
+    ProtectedSourceToolUnavailableError,
+    require_unprotected_source_tool,
+    trusted_control_httpx_client,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -587,6 +592,7 @@ async def fetch_via_playwright(url: str) -> dict | None:
     Falls back gracefully if playwright is not available.
     """
     try:
+        require_unprotected_source_tool("local-browser")
         pw_proxy = _get_playwright_proxy()
 
         # Try with proxy first — wrap in its own try/except so exceptions
@@ -623,6 +629,8 @@ async def fetch_via_playwright(url: str) -> dict | None:
                 return result
     except ImportError:
         logger.warning("Playwright not installed; skipping Tier 3")
+    except ProtectedSourceToolUnavailableError:
+        logger.info("Protected source mode has no qualified local browser route")
     except Exception as e:
         error_str = str(e)
         # Classify known Playwright crash signatures
@@ -646,7 +654,12 @@ async def fetch_via_flaresolverr(url: str) -> dict | None:
     docker-compose.yml). Gracefully falls back if unavailable.
     """
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        require_unprotected_source_tool("flaresolverr")
+    except ProtectedSourceToolUnavailableError:
+        logger.info("Protected source mode has no qualified FlareSolverr route")
+        return None
+    try:
+        async with trusted_control_httpx_client(timeout=60) as client:
             resp = await client.post(
                 f"{FLARE_SOLVERR_URL}",
                 json={
@@ -706,11 +719,16 @@ async def _fetch_via_browser_svc(url: str) -> dict | None:
 
     Browser-svc is available at http://browser-svc:8012.
     """
+    try:
+        require_unprotected_source_tool("browser-service")
+    except ProtectedSourceToolUnavailableError:
+        logger.info("Protected source mode has no qualified browser-service route")
+        return None
     browser_svc_url = _settings.browser_svc_url
     session_id = None
     try:
         # Create a browser session
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with trusted_control_httpx_client(timeout=30) as client:
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
                 json={"ttl": 60},  # Short TTL, we only need one page load
@@ -838,7 +856,7 @@ async def _fetch_via_browser_svc(url: str) -> dict | None:
         # Clean up the browser session
         if session_id:
             try:
-                async with httpx.AsyncClient(timeout=5) as c:
+                async with trusted_control_httpx_client(timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception:
                 pass
@@ -851,7 +869,7 @@ async def _get_browser_page_content(
 ) -> str | None:
     """Get the full page HTML from a browser-svc session via executeScript."""
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with trusted_control_httpx_client(timeout=15) as client:
             resp = await client.post(
                 f"{browser_svc_url}/browsers/{session_id}/execute",
                 json={

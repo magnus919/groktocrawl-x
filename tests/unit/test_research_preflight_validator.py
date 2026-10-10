@@ -14,7 +14,9 @@ SPEC.loader.exec_module(MODULE)
 
 def draft() -> dict:
     return json.loads(
-        (Path(__file__).parents[2] / "docs/experiments/research-preflight.json").read_text()
+        (
+            Path(__file__).parents[2] / "docs/experiments/research-preflight.json"
+        ).read_text()
     )
 
 
