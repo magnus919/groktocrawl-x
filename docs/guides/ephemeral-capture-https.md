@@ -1,0 +1,64 @@
+# Ephemeral HTTPS ingress for research capture
+
+`compose.capture-https.yml` is an opt-in inbound HTTPS edge for the experimental
+candidate API. It is intended for a short, explicitly authorized research
+window. It does not change source-egress policy or qualify the protected capture
+profile.
+
+Compose the overlay after `compose.experimental-candidate.yml`, using the same
+private candidate environment file and exact candidate image revisions as the
+protected-browser and protected-Flare setup. The overlay replaces the
+candidate agent's loopback plaintext host publication with one TLS listener.
+The listener is on the private Compose network and allows only bearer-authenticated
+`GET /health` and `POST /v2/scrape`; all other paths and methods are denied.
+It forwards the bearer header to the agent, which continues to enforce its API
+key for `/v2/scrape`. Health is also authenticated at the edge even though the
+agent's own health endpoint is public on the internal network.
+
+Before an operator starts the stack, configure these private values outside the
+repository:
+
+- `CAPTURE_TLS_CERT_FILE`: absolute path to the server certificate chain.
+- `CAPTURE_TLS_KEY_FILE`: absolute path to its private key.
+- `CAPTURE_BEARER_ACL_FILE`: absolute path to a one-line file containing
+  `Bearer <fresh-api-key>`.
+- `CANDIDATE_API_KEY`: the same fresh key without the `Bearer ` prefix, as
+  required by the existing agent and MCP service configuration.
+- `CAPTURE_HTTPS_BIND_IP` and `CAPTURE_HTTPS_HOST_PORT`: the host interface and
+  port for the TLS listener. The default binds only to loopback. Use a LAN
+  interface only when the lab requires it and the firewall is appropriately
+  scoped.
+
+Keep the certificate hostname or IP address in the certificate SAN equal to
+the URL used by the capture client. An operator-controlled LAN name or IP and
+private CA are supported; public DNS is not required. The client must trust the
+issuing CA and verify the certificate name. The TLS private key is mounted
+read-only and only the frontend can read it; the frontend combines it with the
+certificate chain in a private temporary filesystem at startup. No client
+certificate is required. The bearer key is the application authorization
+layer.
+
+The frontend has no access or request logging configuration, does not rewrite
+the bearer header, retries no requests, and is attached only to
+`candidate_private`. The source capture gateway, isolated scraper worker,
+browser renderer/controller, and Flare recovery path remain as configured by
+the selected protected-profile files. Do not use this ingress overlay by itself
+as evidence that those source paths are protected.
+
+The Compose model and unit contracts can be checked without starting services:
+
+```sh
+docker compose --project-name capture-check \
+  --env-file /path/to/private-candidate.env \
+  -f compose.experimental-candidate.yml \
+  -f compose.capture-https.yml config --quiet
+pytest tests/unit/test_capture_https_ingress.py -q -o addopts=
+```
+
+After bringing up an authorized ephemeral lab, use an HTTPS client configured
+with the operator's CA bundle and verify the certificate hostname. Check that
+the fresh bearer succeeds for both allowed routes, missing/incorrect bearers
+are rejected, and every other path or method is denied. Then run the complete
+ADR-0099 boundary probes against the exact resolved image digests and full
+recovery profile. A rendered Compose file, unit test, healthy endpoint, or this
+frontend alone is not protected-profile qualification or study admission.
