@@ -11,6 +11,7 @@ import socket
 import stat
 import sys
 from contextlib import suppress
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import httpx
@@ -36,6 +37,47 @@ def _direct_tcp_denied(host: str, port: int) -> None:
         raise RuntimeError(f"direct TCP unexpectedly reached {host}:{port}")
     finally:
         sock.close()
+
+
+def _navigation_diagnostics(payload: object) -> tuple[bool, bool, int | None]:
+    if not isinstance(payload, dict):
+        return False, False, None
+    result = payload.get("result")
+    host_matches = (
+        isinstance(result, dict)
+        and isinstance(result.get("url"), str)
+        and urlsplit(result["url"]).hostname == "flare-origin.test"
+    )
+    status = (
+        result.get("http_status")
+        if isinstance(result, dict)
+        and type(result.get("http_status")) is int
+        and 100 <= result["http_status"] <= 599
+        else None
+    )
+    return payload.get("success") is True, host_matches, status
+
+
+def _marker_diagnostics(payload: object) -> tuple[bool, bool, bool, str]:
+    result = payload.get("result") if isinstance(payload, dict) else None
+    script_result = result.get("script_result") if isinstance(result, dict) else None
+    if not isinstance(script_result, dict):
+        return False, False, False, "unknown"
+    marker_state = script_result.get("markerState")
+    if marker_state not in {
+        "pending",
+        "PRIVATE_TARGET_BLOCKED",
+        "PRIVATE_TARGET_REACHABLE",
+        "PRIVATE_TARGET_UNEXPECTED_RESPONSE",
+        "other",
+    }:
+        marker_state = "unknown"
+    return (
+        True,
+        script_result.get("fixtureHostMatches") is True,
+        script_result.get("markerExists") is True,
+        marker_state,
+    )
 
 
 def _assert_process_identity(pid: int, uid: int, gid: int) -> None:
@@ -207,9 +249,17 @@ async def main() -> None:
 
     async with source_httpx_client(timeout=15) as client:
         response = await client.get(FIXTURE_URL)
+        private_denial = await client.get(f"http://{PRIVATE_IP}:19001/probe")
     response.raise_for_status()
     if "FLARE_GET_OK" not in response.text:
         raise RuntimeError("source request did not traverse the capture gateway")
+    private_denial_type = private_denial.headers.get("content-type", "").split(";", 1)[0]
+    if private_denial.status_code != 403 or private_denial_type != "text/plain":
+        raise RuntimeError(
+            "capture gateway private-target denial invalid "
+            f"http_status={private_denial.status_code} content_type_text_plain="
+            f"{private_denial_type == 'text/plain'}"
+        )
 
     await _exercise_valkey_capability()
 
@@ -261,23 +311,49 @@ async def main() -> None:
                 json={"action": "navigate", "url": FIXTURE_URL, "timeout": 30000},
             )
             navigation.raise_for_status()
+            navigation_success, fixture_host_matches, navigation_status = (
+                _navigation_diagnostics(navigation.json())
+            )
+            if (
+                not navigation_success
+                or not fixture_host_matches
+                or navigation_status != 200
+            ):
+                raise RuntimeError(
+                    "browser fixture navigation invalid "
+                    f"success={navigation_success} "
+                    f"fixture_host_matches={fixture_host_matches} "
+                    f"http_status={navigation_status}"
+                )
             script = await browser.post(
                 f"/browsers/{session_id}/execute",
                 json={
                     "action": "executeScript",
                     "script": (
                         "async () => { const end = Date.now() + 5000; "
-                        "while (document.querySelector('#private-check')?.textContent "
+                        "while (document.querySelector('#private-check')?.textContent?.trim() "
                         "=== 'pending' && Date.now() < end) "
                         "await new Promise(resolve => setTimeout(resolve, 50)); "
-                        "return document.body.innerText; }"
+                        "const marker = document.querySelector('#private-check'); "
+                        "const value = marker?.textContent?.trim(); "
+                        "return {fixtureHostMatches: location.hostname === 'flare-origin.test', "
+                        "markerExists: marker !== null, "
+                        "markerState: ['pending', 'PRIVATE_TARGET_BLOCKED', "
+                        "'PRIVATE_TARGET_REACHABLE'].includes(value) ? value : 'other'}; }"
                     ),
                 },
             )
             script.raise_for_status()
-            text = script.json().get("result", {}).get("script_result", "")
-            if "PRIVATE_TARGET_BLOCKED" not in text:
-                raise RuntimeError("browser renderer reached private sentinel")
+            result_valid, script_host_matches, marker_exists, marker_state = (
+                _marker_diagnostics(script.json())
+            )
+            if not (marker_exists and script_host_matches and marker_state == "PRIVATE_TARGET_BLOCKED"):
+                raise RuntimeError(
+                    "browser private-sentinel marker invalid "
+                    f"result_valid={result_valid} "
+                    f"fixture_host_matches={script_host_matches} "
+                    f"marker_exists={marker_exists} marker_state={marker_state}"
+                )
         finally:
             await browser.delete(f"/browsers/{session_id}")
 

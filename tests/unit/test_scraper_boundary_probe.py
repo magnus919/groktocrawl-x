@@ -7,6 +7,7 @@ import io
 import os
 import stat
 import sys
+import types
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,7 +18,18 @@ def _probe():
     path = Path(__file__).resolve().parents[1] / "integration" / "scraper_egress_boundary_probe.py"
     spec = importlib.util.spec_from_file_location("scraper_boundary_probe", path)
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    package = types.ModuleType("scraper")
+    package.__path__ = []
+    source_http = types.ModuleType("scraper.source_http")
+    source_http.source_httpx_client = lambda: None
+    valkey = types.ModuleType("scraper.valkey_control")
+    valkey.RESERVE_SLOT_SCRIPT = ""
+    valkey.ValkeyControlClient = type("ValkeyControlClient", (), {})
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(sys.modules, "scraper", package)
+        patch.setitem(sys.modules, "scraper.source_http", source_http)
+        patch.setitem(sys.modules, "scraper.valkey_control", valkey)
+        spec.loader.exec_module(module)
     return module
 
 
@@ -33,6 +45,40 @@ def test_worker_discovery_excludes_tini_wrapper(monkeypatch):
     tini = b"\0".join([b"/usr/bin/tini", b"-s", b"-g", b"--", interpreter, b"-m", b"scraper.capture_firewall", b""])
     _install_processes(monkeypatch, probe, {1: tini, 7: worker})
     assert probe._protected_worker_pid() == 7
+
+
+def test_browser_failure_diagnostics_are_bounded_and_distinguish_private_hit():
+    probe = _probe()
+    navigation = {
+        "success": True,
+        "result": {
+            "url": "http://flare-origin.test/get",
+            "http_status": 200,
+        },
+    }
+    assert probe._navigation_diagnostics(navigation) == (True, True, 200)
+    assert probe._marker_diagnostics(
+        {
+            "result": {
+                "script_result": {
+                    "fixtureHostMatches": True,
+                    "markerExists": True,
+                    "markerState": "PRIVATE_TARGET_REACHABLE",
+                }
+            }
+        }
+    ) == (True, True, True, "PRIVATE_TARGET_REACHABLE")
+    assert probe._marker_diagnostics({"result": {"script_result": "unstructured"}}) == (
+        False,
+        False,
+        False,
+        "unknown",
+    )
+    # Summaries expose only fixed booleans, enum values, and bounded HTTP status;
+    # neither response URLs nor page text are returned to CI logs.
+    assert probe._navigation_diagnostics(
+        {"success": False, "result": {"url": "http://secret.invalid/path", "http_status": 503}}
+    ) == (False, False, 503)
 
 
 def test_control_socket_probe_requires_nonwritable_owner_directories(monkeypatch):

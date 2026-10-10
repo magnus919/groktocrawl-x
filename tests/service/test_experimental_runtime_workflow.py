@@ -119,6 +119,11 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
     start = next(step for step in steps if step.get("name") == "Build and start the isolated service composition")
     assert "candidate-capture-peer-sentinel" in start["run"]
     assert "candidate-host-bridge-sentinel" in start["run"]
+    positive_control = next(
+        step for step in steps if step.get("name") == "Verify private sentinel response positive control"
+    )
+    assert "positive-control/" in positive_control["run"]
+    assert "Access-Control-Allow-Origin" in positive_control["run"]
     diagnostics = next(step for step in steps if step.get("name") == "Collect bounded composition diagnostics")
     assert "candidate-scraper-socket-init" in diagnostics["run"]
     assert "candidate-flare-control-socket-init" in diagnostics["run"]
@@ -139,6 +144,20 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
     assert compose["services"]["candidate-capture-peer-sentinel"]["networks"]["candidate_capture"]["ipv4_address"] == "172.31.254.6"
     assert compose["services"]["candidate-host-bridge-sentinel"]["network_mode"] == "host"
     assert '"degraded"' not in ingress_source
+    sentinel_check = next(
+        step for step in steps if step.get("name") == "Verify hostile JavaScript did not reach the private sentinel"
+    )
+    assert sentinel_check["if"] == "always()"
+    assert "p.is_file()" in sentinel_check["run"]
+    assert "private_sentinel_hits=" in sentinel_check["run"]
+    assert "assert not lines" in sentinel_check["run"]
+    assert "positive-control.jsonl" in sentinel_check["run"]
+    assert "assert len(positive_lines) == 1" in sentinel_check["run"]
+    assert "private_denial.status_code != 403" in egress_source
+    sentinel_source = (ROOT / "tests/integration/private_network_sentinel.py").read_text()
+    assert "POSITIVE_EVENTS" in sentinel_source
+    assert 'record("http"' in sentinel_source
+    assert 'record("positive-control"' in sentinel_source
 
 
 def test_fixture_subnet_static_addresses_avoid_gateway_and_collisions():

@@ -952,6 +952,9 @@ jobs:
           candidate-scraper candidate-private-sentinel candidate-capture-peer-sentinel
           candidate-host-bridge-sentinel candidate-llm
           candidate-scraper-ingress candidate-flare-test-origin candidate-flare-control
+      - name: Verify private sentinel response positive control
+        run: |
+          docker compose exec -T candidate-private-sentinel python -c 'import uuid; from urllib.request import urlopen; nonce=uuid.uuid4().hex; r=urlopen(f"http://127.0.0.1:19001/positive-control/{nonce}", timeout=2); body=r.read(128); assert r.status == 200 and r.headers.get("Content-Type") == "text/plain" and r.headers.get("Access-Control-Allow-Origin") == "*" and body == f"PRIVATE_SENTINEL_RESPONSE_V1:{nonce}".encode(); print("private_sentinel_positive_control=pass")'
       - name: Verify the fixed agent-to-scraper HTTP ingress bridge
         run: >-
           docker compose exec -T candidate-private-sentinel
@@ -969,9 +972,9 @@ jobs:
           docker compose exec -T --user 10001:20000 candidate-scraper python -
           < tests/integration/protected_flare_api_probe.py
       - name: Verify hostile JavaScript did not reach the private sentinel
-        run: >-
-          docker compose exec -T candidate-private-sentinel
-          python -c "from pathlib import Path; p=Path('/state/events.jsonl'); assert not p.exists() or p.stat().st_size == 0"
+        if: always()
+        run: |
+          docker compose exec -T candidate-private-sentinel python -c 'from pathlib import Path; import json; p=Path("/state/events.jsonl"); assert p.is_file() and not p.is_symlink(), "sentinel state unavailable"; f=p.open("rb"); data=f.read(65537); f.close(); assert len(data) <= 65536, "sentinel state exceeds inspection limit"; lines=data.splitlines(); print(f"private_sentinel_hits={len(lines)}", flush=True); [json.loads(line) for line in lines]; assert not lines, "private sentinel received traffic"; q=Path("/state/positive-control.jsonl"); assert q.is_file() and not q.is_symlink(), "positive-control state unavailable"; f=q.open("rb"); positive=f.read(65537); f.close(); assert len(positive) <= 65536, "positive-control state exceeds inspection limit"; positive_lines=positive.splitlines(); [json.loads(line) for line in positive_lines]; print(f"private_sentinel_positive_control_hits={len(positive_lines)}", flush=True); assert len(positive_lines) == 1, "positive-control evidence changed"'
       - name: Collect bounded composition diagnostics
         if: failure()
         run: |

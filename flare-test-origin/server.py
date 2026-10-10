@@ -44,9 +44,19 @@ fetch('http://127.0.0.1:8191/health', {{mode:'no-cors'}})
   .then(() => document.getElementById('api-check').textContent='CONTROL_API_REACHABLE')
   .catch(() => document.getElementById('api-check').textContent='CONTROL_API_BLOCKED');
 const privateProbe = new AbortController();
+const nonceBytes = new Uint8Array(16);
+crypto.getRandomValues(nonceBytes);
+const privateNonce = Array.from(nonceBytes, value => value.toString(16).padStart(2, '0')).join('');
 setTimeout(() => privateProbe.abort(), 1500);
-fetch('http://172.31.253.250:19001/probe', {{mode:'no-cors', signal:privateProbe.signal}})
-  .then(() => document.getElementById('private-check').textContent='PRIVATE_TARGET_REACHABLE')
+fetch(`http://172.31.253.250:19001/probe/${{privateNonce}}`, {{mode:'cors', signal:privateProbe.signal}})
+  .then(async response => {{
+    const body = await response.text();
+    const verified = response.status === 200
+      && response.headers.get('content-type') === 'text/plain'
+      && body === `PRIVATE_SENTINEL_RESPONSE_V1:${{privateNonce}}`;
+    document.getElementById('private-check').textContent = verified
+      ? 'PRIVATE_TARGET_REACHABLE' : 'PRIVATE_TARGET_UNEXPECTED_RESPONSE';
+  }})
   .catch(() => document.getElementById('private-check').textContent='PRIVATE_TARGET_BLOCKED');
 </script>
 </body></html>""".encode()
