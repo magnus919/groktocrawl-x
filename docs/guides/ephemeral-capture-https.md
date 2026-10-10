@@ -8,7 +8,8 @@ profile.
 Compose the overlay after `compose.experimental-candidate.yml`, using the same
 private candidate environment file and exact candidate image revisions as the
 protected-browser and protected-Flare setup. The overlay replaces the
-candidate agent's loopback plaintext host publication with one TLS listener.
+candidate agent's and MCP service's plaintext host publications with one TLS
+listener. MCP remains available only on the private Compose network.
 The listener is on the private Compose network and allows only bearer-authenticated
 `GET /health` and `POST /v2/scrape`; all other paths and methods are denied.
 It forwards the bearer header to the agent, which continues to enforce its API

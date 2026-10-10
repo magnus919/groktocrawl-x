@@ -59,7 +59,9 @@ def test_https_overlay_is_opt_in_and_replaces_plaintext_host_publication() -> No
     overlay = _load_yaml(ROOT / "compose.capture-https.yml")
 
     assert base["services"]["candidate-agent"]["ports"]
-    assert overlay["services"]["candidate-agent"]["ports"] == []
+    for name in ("candidate-agent", "candidate-mcp"):
+        assert base["services"][name]["ports"]
+        assert overlay["services"][name]["ports"] == []
     frontend = overlay["services"]["candidate-capture-https"]
     assert frontend["image"].endswith("@sha256:56b887da77428b7a6621e59e480cdbd330cc805c22d3cedb66ceea76ffdea2c6")
     assert frontend["networks"] == ["candidate_private"]
@@ -125,7 +127,7 @@ def test_overlay_has_no_bearer_or_certificate_values_in_compose_literals() -> No
     assert "CAPTURE_BEARER_ACL_FILE" in (ROOT / "compose.capture-https.yml").read_text()
 
 
-def test_compose_resolves_overlay_and_resets_plaintext_agent_port() -> None:
+def test_compose_resolves_overlay_and_resets_plaintext_api_ports() -> None:
     compose = _compose_command()
     if compose is None:
         governed_skip(
@@ -179,6 +181,10 @@ def test_compose_resolves_overlay_and_resets_plaintext_agent_port() -> None:
         rendered = json.loads(result.stdout)
         agent = rendered["services"]["candidate-agent"]
         assert not agent.get("ports")
+        assert not rendered["services"]["candidate-mcp"].get("ports")
+        assert {name for name, service in rendered["services"].items() if service.get("ports")} == {
+            "candidate-capture-https"
+        }
         frontend = rendered["services"]["candidate-capture-https"]
         assert frontend["ports"][0]["published"] == "18443"
         assert frontend["ports"][0]["host_ip"] == "127.0.0.1"

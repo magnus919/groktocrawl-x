@@ -9,6 +9,8 @@ services:
   # Compose network.
   candidate-agent:
     ports: !reset []
+  candidate-mcp:
+    ports: !reset []
 
   candidate-capture-https:
     image: haproxy:3.0-alpine@sha256:56b887da77428b7a6621e59e480cdbd330cc805c22d3cedb66ceea76ffdea2c6
