@@ -9,6 +9,7 @@ import json
 import os
 import socket
 import stat
+import sys
 from contextlib import suppress
 from uuid import uuid4
 
@@ -82,7 +83,9 @@ def _protected_worker_pid() -> int:
                 command = stream.read(4096)
         except OSError:
             continue
-        if b"-m\x00scraper.capture_firewall\x00" in command:
+        if command.split(b"\x00") == [
+            os.fsencode(sys.executable), b"-m", b"scraper.capture_firewall", b""
+        ]:
             matches.append(int(entry.name))
     if len(matches) != 1:
         raise RuntimeError("unique protected scraper worker process was not found")
