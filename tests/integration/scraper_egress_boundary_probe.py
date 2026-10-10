@@ -229,7 +229,19 @@ async def main() -> None:
                 "messages": [{"role": "user", "content": "transport probe"}],
             },
         )
-        completion.raise_for_status()
+        if completion.status_code != 200:
+            payload = completion.json() if completion.headers.get("content-type", "").startswith("application/json") else {}
+            error_code = payload.get("error_code") if isinstance(payload, dict) else None
+            if error_code not in {
+                "configuration_unavailable",
+                "client_unavailable",
+                "upstream_transport_unavailable",
+                "upstream_response_unavailable",
+            }:
+                error_code = "unknown"
+            raise RuntimeError(
+                f"private model broker failed status={completion.status_code} error_code={error_code}"
+            )
         if not completion.json().get("choices"):
             raise RuntimeError("private model broker returned no completion")
 
