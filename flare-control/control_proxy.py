@@ -217,7 +217,7 @@ class UnixControlServer(BoundedThreadingHTTPServer):
         path: str,
         handler_class,
         *,
-        directory_uid: int = 10001,
+        directory_uid: int = 10003,
         directory_gid: int = 20000,
         directory_mode: int = 0o2710,
         socket_gid: int = 20000,

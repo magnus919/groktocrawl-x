@@ -98,7 +98,7 @@ def _assert_control_socket_permissions() -> None:
         ("/run/scraper-state/control.sock", 10002),
         ("/run/scraper-llm/control.sock", 10002),
         ("/run/browser-control/controller.sock", 0),
-        ("/run/flare-control/control.sock", 10001),
+        ("/run/flare-control/control.sock", 10003),
     )
     for path, owner_uid in bindings:
         info = os.lstat(path)

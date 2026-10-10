@@ -42,7 +42,7 @@ def test_control_socket_probe_requires_nonwritable_owner_directories(monkeypatch
         ("/run/scraper-state/control.sock", 10002),
         ("/run/scraper-llm/control.sock", 10002),
         ("/run/browser-control/controller.sock", 0),
-        ("/run/flare-control/control.sock", 10001),
+        ("/run/flare-control/control.sock", 10003),
     )
     entries = {}
     for path, uid in bindings:

@@ -38,6 +38,8 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
     renderer = compose["services"]["candidate-flare-renderer"]
     control = compose["services"]["candidate-flare-control"]
     control_socket_init = compose["services"]["candidate-flare-control-socket-init"]
+    assert control["user"] == "10003:10003"
+    assert "20000" in {str(group) for group in control["group_add"]}
     assert "20000" in {str(group) for group in renderer["group_add"]}
     assert renderer["cap_drop"] == ["ALL"]
     assert set(renderer["cap_add"]) == {
@@ -58,7 +60,10 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
     assert control["mem_limit"] == "256m"
     assert PROXY.MAX_ACTIVE_REQUESTS == 2
     assert "chmod 2710 /run/flare-control" in control_socket_init["command"][-1]
-    assert "10001:20000:2710" in control_socket_init["command"][-1]
+    assert "chown 10003:20000 /run/flare-control" in control_socket_init["command"][-1]
+    assert "10003:20000:2710" in control_socket_init["command"][-1]
+    dockerfile = (ROOT / "flare-control/Dockerfile").read_text()
+    assert "USER 10003:10003" in dockerfile
     assert PROXY.MAX_RESPONSE_BYTES == 8 * 1024 * 1024
 
 
