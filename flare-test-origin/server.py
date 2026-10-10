@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
+import json
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
+
+FIXTURE_HOST = os.environ.get("CAPTURE_FIXTURE_HOST", "flare-origin.test")
+PRIVATE_SENTINEL_URL = os.environ.get(
+    "CAPTURE_PRIVATE_SENTINEL_URL", "http://172.31.253.250:19001/probe"
+).rstrip("/")
+if not FIXTURE_HOST.endswith(".test"):
+    raise RuntimeError("capture fixture host must use the reserved .test namespace")
 
 SCRAPE_FIXTURE_HTML = b"""<!doctype html>
 <html><head><title>Protected Ingress Fixture</title>
@@ -24,7 +33,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/redirect":
             self.send_response(302)
-            self.send_header("Location", "http://flare-origin.test/get")
+            self.send_header("Location", f"http://{FIXTURE_HOST}/get")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -48,7 +57,7 @@ const nonceBytes = new Uint8Array(16);
 crypto.getRandomValues(nonceBytes);
 const privateNonce = Array.from(nonceBytes, value => value.toString(16).padStart(2, '0')).join('');
 setTimeout(() => privateProbe.abort(), 1500);
-fetch(`http://172.31.253.250:19001/probe/${{privateNonce}}`, {{mode:'cors', signal:privateProbe.signal}})
+fetch({json.dumps(f'{PRIVATE_SENTINEL_URL}/')} + privateNonce, {{mode:'cors', signal:privateProbe.signal}})
   .then(async response => {{
     const body = await response.text();
     const verified = response.status === 200

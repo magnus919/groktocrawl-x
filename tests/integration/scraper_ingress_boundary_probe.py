@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 from urllib.error import HTTPError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 BASE = "http://candidate-scraper-ingress:8010"
-FIXTURE_URL = "http://flare-origin.test/scrape-fixture"
+FIXTURE_ORIGIN = os.environ.get("CAPTURE_FIXTURE_ORIGIN", "http://flare-origin.test").rstrip("/")
+FIXTURE_URL = f"{FIXTURE_ORIGIN}/scrape-fixture"
 MAX_RESPONSE_BYTES = 256 * 1024
 BROWSER_SOURCES = frozenset({"playwright", "browser-svc"})
 
@@ -32,6 +35,26 @@ def _post_json(path: str, payload: dict, *, timeout: int = 30) -> dict:
         return result
 
 
+def _validate_fixture_origin() -> None:
+    parsed = urlsplit(FIXTURE_ORIGIN)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise RuntimeError("capture fixture origin has an invalid port") from error
+    if (
+        parsed.scheme != "http"
+        or not parsed.hostname
+        or not parsed.hostname.endswith(".test")
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError("capture fixture origin must be a plain HTTP .test origin")
+
+
 def _require_browser_scrape(response: dict) -> None:
     """Require both fixture output and explicit browser-tier provenance."""
     data = response.get("data")
@@ -48,6 +71,7 @@ def _require_browser_scrape(response: dict) -> None:
 
 
 def main() -> None:
+    _validate_fixture_origin()
     with urlopen(f"{BASE}/health", timeout=5) as response:
         raw_health = response.read(4097)
         if len(raw_health) > 4096:
