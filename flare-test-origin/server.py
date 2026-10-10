@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
@@ -56,7 +57,7 @@ const nonceBytes = new Uint8Array(16);
 crypto.getRandomValues(nonceBytes);
 const privateNonce = Array.from(nonceBytes, value => value.toString(16).padStart(2, '0')).join('');
 setTimeout(() => privateProbe.abort(), 1500);
-fetch(`${PRIVATE_SENTINEL_URL}/${{privateNonce}}`, {{mode:'cors', signal:privateProbe.signal}})
+fetch({json.dumps(f'{PRIVATE_SENTINEL_URL}/')} + privateNonce, {{mode:'cors', signal:privateProbe.signal}})
   .then(async response => {{
     const body = await response.text();
     const verified = response.status === 200

@@ -108,7 +108,8 @@ def test_lab_fixture_host_and_private_peer_are_explicitly_configurable(
     fixture.FixtureHandler.do_GET(handler)
     body = handler.wfile.getvalue().decode("utf-8")
     assert statuses == [200]
-    assert "http://172.31.253.250:19001/probe/${privateNonce}" in body
+    assert 'fetch("http://172.31.253.250:19001/probe/" + privateNonce,' in body
+    assert "fetch(`$http://172.31.253.250:19001/probe/" not in body
 
 
 def test_private_fetch_fixture_requires_cors_validated_sentinel_response(origin_url: str) -> None:
