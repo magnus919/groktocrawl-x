@@ -854,6 +854,19 @@ tracked by [#429](https://github.com/magnus919/groktocrawl-x/issues/429) in
 [ADR-0099](../adr/0099-enforce-source-capture-egress.md) proposes a protected
 capture profile preserving every applicable adapter, browser and recovery tool.
 The initial destination checks are addressed in [#428](https://github.com/magnus919/groktocrawl-x/pull/428).
-The next increment implements and tests DNS-to-socket binding only. Gateway,
-client, renderer and network integration remain required; no live capture,
-deployment change or research-quality credit follows from these preparation checks.
+The complete opt-in gateway, client, browser, FlareSolverr and worker-network
+composition is merged in [#436](https://github.com/magnus919/groktocrawl-x/pull/436)
+at `fcaabedd94be152eb74c28764bd74a8e7adc5be3`. Its required CI passed, including
+the protected browser, protected Flare, complete capture-composition, storage,
+and integration jobs. The integration job recorded 2,355 passed, 211 skipped
+and 17 deselected cases; those counts are separate from the passing protected
+boundary probes. This evidence covers the tested CI profile.
+
+The optional HTTPS capture edge is under review in
+[#437](https://github.com/magnus919/groktocrawl-x/pull/437). Its component checks
+do not establish a complete deployed-profile qualification. Before fresh study
+admission, qualify the exact deployed images, network configuration and endpoint,
+then bind that evidence to a newly registered study. Repository delivery does
+not provide research-quality credit or authorize default activation. The fresh
+evaluation and shared ranking implementation remain tracked in
+[SlopSearX #516](https://github.com/magnus919/SlopSearX/issues/516).
