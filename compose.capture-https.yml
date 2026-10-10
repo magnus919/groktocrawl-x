@@ -13,10 +13,14 @@ services:
   candidate-capture-https:
     image: haproxy:3.0-alpine@sha256:56b887da77428b7a6621e59e480cdbd330cc805c22d3cedb66ceea76ffdea2c6
     restart: unless-stopped
-    user: "0:0"
+    user: "${CAPTURE_HTTPS_UID:-1000}:${CAPTURE_HTTPS_GID:-1000}"
     entrypoint: [/bin/sh, -ec]
     command:
       - >-
+        test "$(id -u)" -ne 0;
+        test -r /run/secrets/capture_tls_certificate;
+        test -r /run/secrets/capture_tls_private_key;
+        test -r /run/secrets/capture_bearer_acl;
         umask 077;
         cat /run/secrets/capture_tls_certificate /run/secrets/capture_tls_private_key > /tmp/capture-server.pem;
         exec haproxy -W -db -f /usr/local/etc/haproxy/capture-https.cfg
@@ -29,7 +33,7 @@ services:
       - capture_tls_private_key
       - capture_bearer_acl
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=1m,mode=0700
+      - /tmp:rw,noexec,nosuid,size=1m,mode=0700,uid=${CAPTURE_HTTPS_UID:-1000},gid=${CAPTURE_HTTPS_GID:-1000}
     networks: [candidate_private]
     depends_on:
       candidate-agent:

@@ -22,12 +22,21 @@ repository:
 - `CAPTURE_TLS_KEY_FILE`: absolute path to its private key.
 - `CAPTURE_BEARER_ACL_FILE`: absolute path to a one-line file containing
   `Bearer <fresh-api-key>`.
+- `CAPTURE_HTTPS_UID` and `CAPTURE_HTTPS_GID`: positive numeric identity for
+  the non-root frontend process and its temporary filesystem (defaults to
+  `1000`). Set both to the operator account that owns the mounted secret files.
 - `CANDIDATE_API_KEY`: the same fresh key without the `Bearer ` prefix, as
   required by the existing agent and MCP service configuration.
 - `CAPTURE_HTTPS_BIND_IP` and `CAPTURE_HTTPS_HOST_PORT`: the host interface and
   port for the TLS listener. The default binds only to loopback. Use a LAN
   interface only when the lab requires it and the firewall is appropriately
   scoped.
+
+The frontend rejects startup if it is running as UID 0 or cannot read its
+mounted files. Ensure the certificate chain, private key, and bearer ACL file
+are owned by the selected numeric identity and readable only by that identity
+(for example, mode `0600`). The temporary combined certificate file is created
+in an identity-matched `0700` tmpfs. The mounted source files remain read-only.
 
 Keep the certificate hostname or IP address in the certificate SAN equal to
 the URL used by the capture client. An operator-controlled LAN name or IP and

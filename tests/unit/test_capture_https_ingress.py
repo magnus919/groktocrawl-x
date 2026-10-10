@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import os
 import re
 import shutil
 import socket
@@ -22,6 +23,15 @@ import yaml
 from tests.outcome_governance import governed_skip
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _compose_command() -> list[str] | None:
+    if shutil.which("docker"):
+        return ["docker", "compose"]
+    configured = os.environ.get("GROK_CONFIG_COMPOSE")
+    if configured and Path(configured).is_file():
+        return [configured]
+    return None
 
 
 class _ComposeLoader(yaml.SafeLoader):
@@ -58,6 +68,10 @@ def test_https_overlay_is_opt_in_and_replaces_plaintext_host_publication() -> No
     assert frontend["cap_drop"] == ["ALL"]
     assert frontend["security_opt"] == ["no-new-privileges:true"]
     assert frontend["read_only"] is True
+    assert frontend["user"] == "${CAPTURE_HTTPS_UID:-1000}:${CAPTURE_HTTPS_GID:-1000}"
+    assert "uid=${CAPTURE_HTTPS_UID:-1000}" in frontend["tmpfs"][0]
+    assert "gid=${CAPTURE_HTTPS_GID:-1000}" in frontend["tmpfs"][0]
+    assert "test \"$(id -u)\" -ne 0" in frontend["command"][0]
     assert set(frontend["secrets"]) == {
         "capture_tls_certificate",
         "capture_tls_private_key",
@@ -79,11 +93,16 @@ def test_frontend_config_is_tls_only_authenticated_and_route_allowlisted() -> No
     assert "http-request deny deny_status 400 if duplicate_authorization" in lines
     assert "acl allowed_bearer req.hdr(Authorization) -m str -f /run/secrets/capture_bearer_acl" in lines
     assert "http-request deny deny_status 401 unless allowed_bearer" in lines
-    assert "acl health_get method GET path -m str /health" in lines
-    assert "acl scrape_post method POST path -m str /v2/scrape" in lines
+    assert "acl health_method method GET" in lines
+    assert "acl health_path path -m str /health" in lines
+    assert "acl scrape_method method POST" in lines
+    assert "acl scrape_path path -m str /v2/scrape" in lines
     assert "acl request_has_query query -m found" in lines
     assert "http-request deny deny_status 404 if request_has_query" in lines
-    assert "http-request deny deny_status 404 unless health_get or scrape_post" in lines
+    assert (
+        "http-request deny deny_status 404 unless health_method health_path or scrape_method scrape_path"
+        in lines
+    )
     assert "retries 0" in lines
     assert not any(re.match(r"(?:no\s+)?log(?:\s|$)", line) for line in lines)
     assert "default_backend candidate_agent_api" in lines
@@ -106,11 +125,12 @@ def test_overlay_has_no_bearer_or_certificate_values_in_compose_literals() -> No
 
 
 def test_compose_resolves_overlay_and_resets_plaintext_agent_port() -> None:
-    if shutil.which("docker") is None:
+    compose = _compose_command()
+    if compose is None:
         governed_skip(
             "Docker Compose rendering requires a local Docker installation",
             owner="capture-ingress",
-            issue="#751",
+            issue="#429",
             classification="retained",
             environment="Docker Compose unavailable",
         )
@@ -137,8 +157,7 @@ def test_compose_resolves_overlay_and_resets_plaintext_agent_port() -> None:
         )
         result = subprocess.run(
             [
-                "docker",
-                "compose",
+                *compose,
                 "--project-name",
                 "capture-contract",
                 "--env-file",
@@ -162,7 +181,11 @@ def test_compose_resolves_overlay_and_resets_plaintext_agent_port() -> None:
         frontend = rendered["services"]["candidate-capture-https"]
         assert frontend["ports"][0]["published"] == "18443"
         assert frontend["ports"][0]["host_ip"] == "127.0.0.1"
-        assert "local-only-test-token" not in result.stdout
+        assert frontend["user"] == "1000:1000"
+        assert "uid=1000" in frontend["tmpfs"][0]
+        assert "gid=1000" in frontend["tmpfs"][0]
+        assert "environment" not in frontend
+        assert "local-only-test-token" not in json.dumps(frontend)
 
 
 def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
@@ -170,7 +193,7 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
         governed_skip(
             "Local HAProxy TLS integration requires the HAProxy binary",
             owner="capture-ingress",
-            issue="#751",
+            issue="#429",
             classification="retained",
             environment="HAProxy binary unavailable",
         )
