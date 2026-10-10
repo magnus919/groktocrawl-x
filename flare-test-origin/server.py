@@ -5,6 +5,17 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
+SCRAPE_FIXTURE_HTML = b"""<!doctype html>
+<html><head><title>Protected Ingress Fixture</title>
+<meta name="description" content="Metadata returned through the scraper ingress pipeline.">
+<meta property="og:description" content="A bounded local capture fixture.">
+</head><body><main><h1>Protected ingress capture fixture</h1>
+<p><code>INGRESS_SCRAPE_PIPELINE_OK</code> proves the HTTP bridge reached the real scraper.</p>
+<p>This local page provides enough stable text for lightweight HTML extraction.</p>
+<p>The fixture contains no external resources and performs no script or redirect.</p>
+<p>Its metadata also verifies the separate metadata endpoint through the same socket.</p>
+</main></body></html>"""
+
 
 class FixtureHandler(BaseHTTPRequestHandler):
     def log_message(self, _format: str, *args: object) -> None:
@@ -18,17 +29,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         if self.path == "/scrape-fixture":
-            body = b"""<!doctype html>
-<html><head><title>Protected Ingress Fixture</title>
-<meta name="description" content="Metadata returned through the scraper ingress pipeline.">
-<meta property="og:description" content="A bounded local capture fixture.">
-</head><body><main><h1>Protected ingress capture fixture</h1>
-<p>INGRESS_SCRAPE_PIPELINE_OK proves the HTTP bridge reached the real scraper.</p>
-<p>This local page provides enough stable text for lightweight HTML extraction.</p>
-<p>The fixture contains no external resources and performs no script or redirect.</p>
-<p>Its metadata also verifies the separate metadata endpoint through the same socket.</p>
-</main></body></html>"""
-            self._send(200, "text/html; charset=utf-8", body)
+            self._send(200, "text/html; charset=utf-8", SCRAPE_FIXTURE_HTML)
             return
         if self.path not in {"/", "/get"}:
             self.send_error(404)

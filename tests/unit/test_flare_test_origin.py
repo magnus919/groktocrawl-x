@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.client
 import importlib.util
+import sys
 import threading
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -20,6 +21,17 @@ def _load_fixture_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _markdown_from_fixture(html: bytes) -> str:
+    scraper_root = str(Path(__file__).resolve().parents[2] / "scraper-svc")
+    sys.path.insert(0, scraper_root)
+    try:
+        from scraper.fetch_quality import html_to_markdown
+
+        return html_to_markdown(html.decode("utf-8"))
+    finally:
+        sys.path.remove(scraper_root)
 
 
 @pytest.fixture
@@ -49,6 +61,9 @@ def test_head_returns_get_metadata_without_body(origin_url: str) -> None:
         assert response.headers["Content-Type"] == get_headers["Content-Type"]
         assert response.headers["Content-Length"] == str(len(get_body))
     assert b"INGRESS_SCRAPE_PIPELINE_OK" in get_body
+    assert get_body == _load_fixture_module().SCRAPE_FIXTURE_HTML
+    markdown = _markdown_from_fixture(get_body)
+    assert "INGRESS_SCRAPE_PIPELINE_OK" in markdown
 
 
 def test_head_preserves_redirect_metadata_without_body(origin_url: str) -> None:
