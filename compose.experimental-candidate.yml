@@ -190,8 +190,8 @@ services:
       - >-
         mkdir -p /run/flare-control || { echo 'failed to create Flare control socket directory' >&2; exit 1; };
         chown 10001:20000 /run/flare-control || { echo 'failed to set Flare control socket ownership' >&2; exit 1; };
-        chmod 2770 /run/flare-control || { echo 'failed to set Flare control socket mode' >&2; exit 1; };
-        test "$$(stat -c '%u:%g:%a' /run/flare-control)" = '10001:20000:2770' || { echo 'Flare control socket directory ownership or mode mismatch' >&2; exit 1; }
+        chmod 2710 /run/flare-control || { echo 'failed to set Flare control socket mode' >&2; exit 1; };
+        test "$$(stat -c '%u:%g:%a' /run/flare-control)" = '10001:20000:2710' || { echo 'Flare control socket directory ownership or mode mismatch' >&2; exit 1; }
     volumes:
       - candidate_flare_control_socket:/run/flare-control
     network_mode: none
@@ -249,8 +249,7 @@ services:
       - /bin/sh
       - -c
       - >-
-        umask 0117;
-        exec uvicorn browser_svc.controller:app --uds /run/browser-control/controller.sock
+        exec python -m browser_svc.controller_entrypoint
     restart: unless-stopped
     networks:
       candidate_private:
@@ -271,6 +270,8 @@ services:
     depends_on:
       candidate-browser-renderer:
         condition: service_healthy
+      candidate-scraper-socket-init:
+        condition: service_completed_successfully
       candidate-valkey:
         condition: service_healthy
     healthcheck:
@@ -485,16 +486,22 @@ services:
       - /bin/sh
       - -c
       - >-
-        for d in /run/scraper /run/scraper-state /run/scraper-llm; do
+        setup_socket_dir() {
+          d=$$1; owner=$$2; mode=$$3;
           mkdir -p "$$d" || { echo "failed to create socket directory: $$d" >&2; exit 1; };
-          chown 10001:20000 "$$d" || { echo "failed to set socket directory ownership: $$d" >&2; exit 1; };
-          chmod 2770 "$$d" || { echo "failed to set socket directory mode: $$d" >&2; exit 1; };
-          test "$$(stat -c '%u:%g:%a' "$$d")" = '10001:20000:2770' || { echo "socket directory ownership or mode mismatch: $$d" >&2; exit 1; };
-        done
+          chown "$$owner" "$$d" || { echo "failed to set socket directory ownership: $$d" >&2; exit 1; };
+          chmod "$$mode" "$$d" || { echo "failed to set socket directory mode: $$d" >&2; exit 1; };
+          test "$$(stat -c '%u:%g:%a' "$$d")" = "$${owner}:$${mode}" || { echo "socket directory ownership or mode mismatch: $$d" >&2; exit 1; };
+        };
+        setup_socket_dir /run/scraper 10001:20000 2710;
+        setup_socket_dir /run/scraper-state 10002:20000 2710;
+        setup_socket_dir /run/scraper-llm 10002:20000 2710;
+        setup_socket_dir /run/browser-control 0:20000 2710
     volumes:
       - candidate_scraper_api_socket:/run/scraper
       - candidate_scraper_state_socket:/run/scraper-state
       - candidate_scraper_llm_socket:/run/scraper-llm
+      - candidate_browser_controller_socket:/run/browser-control
     network_mode: none
     cap_drop: [ALL]
     cap_add: [CHOWN, FOWNER, FSETID]

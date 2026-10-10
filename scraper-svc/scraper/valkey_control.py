@@ -181,18 +181,39 @@ def _validate_ttl_value(ttl: Any, value: Any) -> None:
 class ValkeyControlServer:
     """Serve the restricted operation set against one fixed Redis client."""
 
-    def __init__(self, socket_path: str, redis_client: Any):
+    def __init__(
+        self,
+        socket_path: str,
+        redis_client: Any,
+        *,
+        socket_gid: int = 20000,
+        directory_uid: int = 10002,
+        directory_gid: int = 20000,
+        directory_mode: int = 0o2710,
+    ):
         path = Path(socket_path)
         if not path.is_absolute() or "\x00" in socket_path:
             raise ValueError("socket path must be absolute")
         self.socket_path = path
         self.redis = redis_client
+        self.socket_gid = socket_gid
+        self.directory_uid = directory_uid
+        self.directory_gid = directory_gid
+        self.directory_mode = directory_mode
         self.server: asyncio.AbstractServer | None = None
         self.active = 0
         self._active_lock = asyncio.Lock()
 
     async def start(self) -> None:
-        self.socket_path.parent.mkdir(mode=0o770, parents=True, exist_ok=True)
+        parent = self.socket_path.parent.lstat()
+        if (
+            stat.S_ISLNK(parent.st_mode)
+            or not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != self.directory_uid
+            or parent.st_gid != self.directory_gid
+            or stat.S_IMODE(parent.st_mode) != self.directory_mode
+        ):
+            raise RuntimeError("Valkey control socket directory is invalid")
         if self.socket_path.is_symlink():
             raise RuntimeError("Valkey socket path may not be a symlink")
         if self.socket_path.exists():
@@ -206,6 +227,18 @@ class ValkeyControlServer:
             backlog=MAX_ACTIVE_CONNECTIONS,
         )
         os.chmod(self.socket_path, 0o660)
+        socket_stat = self.socket_path.lstat()
+        if (
+            stat.S_ISLNK(socket_stat.st_mode)
+            or not stat.S_ISSOCK(socket_stat.st_mode)
+            or socket_stat.st_uid != os.getuid()
+            or socket_stat.st_gid != self.socket_gid
+            or stat.S_IMODE(socket_stat.st_mode) != 0o660
+        ):
+            self.server.close()
+            await self.server.wait_closed()
+            self.server = None
+            raise RuntimeError("Valkey control socket permissions are invalid")
 
     async def close(self) -> None:
         if self.server:

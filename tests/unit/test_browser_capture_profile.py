@@ -46,8 +46,11 @@ def test_candidate_renderer_has_only_internal_gateway_network_and_uds_api():
     assert "candidate_capture" not in controller["networks"]
     assert "candidate_egress" not in controller["networks"]
     assert "candidate_private" in controller["networks"]
-    assert "browser_svc.controller:app" in controller["command"][-1]
-    assert "--uds /run/browser-control/controller.sock" in controller["command"][-1]
+    assert controller["command"][-1] == "exec python -m browser_svc.controller_entrypoint"
+    assert "candidate-scraper-socket-init" in controller["depends_on"]
+    socket_init = services["candidate-scraper-socket-init"]
+    assert "candidate_browser_controller_socket:/run/browser-control" in socket_init["volumes"]
+    assert "setup_socket_dir /run/browser-control 0:20000 2710" in socket_init["command"][-1]
     assert gateway["environment"]["CAPTURE_PROXY_BIND_HOST"] == "0.0.0.0"
     gateway_healthcheck = " ".join(gateway["healthcheck"]["test"])
     assert "http://127.0.0.1:8081/healthz" in gateway_healthcheck

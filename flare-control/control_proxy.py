@@ -6,6 +6,7 @@ import os
 import socket
 import stat
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from threading import BoundedSemaphore
 from urllib.parse import urlsplit
 
@@ -206,40 +207,107 @@ class ControlHandler(BaseHTTPRequestHandler):
             self.send_error(502, "FlareSolverr control socket unavailable")
 
 
+class UnixControlServer(BoundedThreadingHTTPServer):
+    """Bind the private control socket with fixed consumer permissions."""
+
+    address_family = socket.AF_UNIX
+
+    def __init__(
+        self,
+        path: str,
+        handler_class,
+        *,
+        directory_uid: int = 10001,
+        directory_gid: int = 20000,
+        directory_mode: int = 0o2710,
+        socket_gid: int = 20000,
+    ):
+        self.socket_path = Path(path)
+        self.directory_uid = directory_uid
+        self.directory_gid = directory_gid
+        self.directory_mode = directory_mode
+        self.socket_gid = socket_gid
+        self._socket_identity: tuple[int, int] | None = None
+        super().__init__(path, handler_class)
+
+    def server_bind(self) -> None:
+        path = self.socket_path
+        if not path.is_absolute():
+            raise RuntimeError("Flare control socket path must be absolute")
+        parent = path.parent.lstat()
+        if (
+            stat.S_ISLNK(parent.st_mode)
+            or not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != self.directory_uid
+            or parent.st_gid != self.directory_gid
+            or stat.S_IMODE(parent.st_mode) != self.directory_mode
+        ):
+            raise RuntimeError("Flare control socket directory is invalid")
+        try:
+            existing = path.lstat()
+        except FileNotFoundError:
+            existing = None
+        if existing is not None:
+            if (
+                stat.S_ISLNK(existing.st_mode)
+                or not stat.S_ISSOCK(existing.st_mode)
+                or existing.st_uid != os.getuid()
+                or existing.st_gid != self.socket_gid
+                or stat.S_IMODE(existing.st_mode) != 0o660
+            ):
+                raise RuntimeError("Flare control socket path is occupied")
+            path.unlink()
+
+        super().server_bind()
+        created = path.lstat()
+        self._socket_identity = (created.st_dev, created.st_ino)
+        try:
+            os.chown(path, os.getuid(), self.socket_gid)
+            os.chmod(path, 0o660)
+            final = path.lstat()
+            if (
+                stat.S_ISLNK(final.st_mode)
+                or not stat.S_ISSOCK(final.st_mode)
+                or final.st_uid != os.getuid()
+                or final.st_gid != self.socket_gid
+                or stat.S_IMODE(final.st_mode) != 0o660
+                or (final.st_dev, final.st_ino) != self._socket_identity
+            ):
+                raise RuntimeError("Flare control socket permissions are invalid")
+        except BaseException:
+            self.server_close()
+            raise
+
+    def server_close(self) -> None:
+        super().server_close()
+        if self._socket_identity is None:
+            return
+        path = self.socket_path
+        try:
+            current = path.lstat()
+            if (
+                stat.S_ISSOCK(current.st_mode)
+                and current.st_uid == os.getuid()
+                and (current.st_dev, current.st_ino) == self._socket_identity
+            ):
+                path.unlink()
+        except FileNotFoundError:
+            pass
+        finally:
+            self._socket_identity = None
+
+
 def main() -> None:
     unix_path = os.environ.get("FLARE_CONTROL_UNIX_SOCKET")
+    server: BoundedThreadingHTTPServer
     if unix_path:
-        class UnixControlServer(BoundedThreadingHTTPServer):
-            address_family = socket.AF_UNIX
-
-            def server_bind(self):
-                path = self.server_address
-                if os.path.islink(path):
-                    raise RuntimeError("Flare control socket may not be a symlink")
-                try:
-                    if stat.S_ISSOCK(os.stat(path).st_mode):
-                        os.unlink(path)
-                except FileNotFoundError:
-                    pass
-                super().server_bind()
-                os.chmod(path, 0o660)
-                try:
-                    os.chown(path, -1, 20000)
-                except PermissionError:
-                    pass
-
-            def server_close(self):
-                super().server_close()
-                try:
-                    if stat.S_ISSOCK(os.stat(unix_path).st_mode):
-                        os.unlink(unix_path)
-                except FileNotFoundError:
-                    pass
-
         server = UnixControlServer(unix_path, ControlHandler)
     else:
         server = BoundedThreadingHTTPServer(("0.0.0.0", 8191), ControlHandler)
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

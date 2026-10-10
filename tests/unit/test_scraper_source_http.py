@@ -152,7 +152,7 @@ def test_model_control_listener_rejects_wrong_parent_mode(tmp_path):
             directory / "control.sock",
             expected_directory_uid=os.getuid(),
             expected_directory_gid=os.getgid(),
-            expected_directory_mode=0o2770,
+            expected_directory_mode=0o2710,
         )
 
 

@@ -2,14 +2,98 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
+import shutil
+import stat
 import subprocess
+import tempfile
 from pathlib import Path
 
+import httpx
 import pytest
+import uvicorn
 import yaml
 from scraper import capture_firewall
 
+from common.private_uds import bind_private_listener
+
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_prebound_uds_survives_actual_uvicorn_startup_with_private_mode(tmp_path):
+    async def run_server():
+        socket_dir = Path(tempfile.mkdtemp(prefix="sc-", dir="/tmp"))
+        os.chown(socket_dir, os.getuid(), os.getgid())
+        socket_dir.chmod(0o710)
+        path = socket_dir / "app.sock"
+        listener = bind_private_listener(
+            path,
+            directory_uid=os.getuid(),
+            directory_gid=os.getgid(),
+            directory_mode=0o710,
+            socket_uid=os.getuid(),
+            socket_gid=os.getgid(),
+        )
+
+        async def app(_scope, receive, send):
+            await receive()
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b"ready"})
+
+        server = uvicorn.Server(
+            uvicorn.Config(app, fd=listener.fileno(), lifespan="off", access_log=False)
+        )
+        task = asyncio.create_task(server.serve())
+        try:
+            for _ in range(200):
+                if server.started or task.done():
+                    break
+                await asyncio.sleep(0.01)
+            assert server.started and not task.done()
+            async with httpx.AsyncClient(
+                transport=httpx.AsyncHTTPTransport(uds=str(path), retries=0),
+                base_url="http://private.sock",
+            ) as client:
+                response = await client.get("/health")
+            assert response.status_code == 200
+            assert response.content == b"ready"
+            info = path.lstat()
+            assert stat.S_IMODE(info.st_mode) == 0o660
+            assert info.st_uid == os.getuid()
+            assert info.st_gid == os.getgid()
+        finally:
+            server.should_exit = True
+            await asyncio.wait_for(task, timeout=5)
+            listener.close()
+            shutil.rmtree(socket_dir)
+
+    asyncio.run(run_server())
+
+
+@pytest.mark.parametrize("occupied_kind", ["symlink", "regular"])
+def test_prebound_uds_rejects_unsafe_existing_path(tmp_path, occupied_kind):
+    socket_dir = tmp_path / "socket-dir"
+    socket_dir.mkdir()
+    os.chown(socket_dir, os.getuid(), os.getgid())
+    socket_dir.chmod(0o710)
+    path = socket_dir / "api.sock"
+    if occupied_kind == "symlink":
+        target = socket_dir / "target"
+        target.write_text("fixture")
+        path.symlink_to(target)
+    else:
+        path.write_text("fixture")
+
+    with pytest.raises(RuntimeError, match="path is occupied"):
+        bind_private_listener(
+            path,
+            directory_uid=os.getuid(),
+            directory_gid=os.getgid(),
+            directory_mode=0o710,
+            socket_uid=os.getuid(),
+            socket_gid=os.getgid(),
+        )
 
 
 def test_firewall_is_default_deny_for_ipv4_and_ipv6_and_has_narrow_allowlist(monkeypatch):
@@ -102,8 +186,10 @@ def test_candidate_scraper_is_capability_bootstrapped_on_capture_only_network():
     assert state["user"] == "10002:20000"
     assert state["mem_limit"] == "512m"
     socket_init = compose["services"]["candidate-scraper-socket-init"]
-    assert "chown 10001:20000" in socket_init["command"][-1]
-    assert "chmod 2770" in socket_init["command"][-1]
+    assert "setup_socket_dir /run/scraper 10001:20000 2710" in socket_init["command"][-1]
+    assert "setup_socket_dir /run/scraper-state 10002:20000 2710" in socket_init["command"][-1]
+    assert "setup_socket_dir /run/scraper-llm 10002:20000 2710" in socket_init["command"][-1]
+    assert "setup_socket_dir /run/browser-control 0:20000 2710" in socket_init["command"][-1]
     assert "CHOWN" in socket_init["cap_add"]
 
 

@@ -93,20 +93,36 @@ def _protected_worker_pid() -> int:
 
 
 def _assert_control_socket_permissions() -> None:
-    for path in (
-        "/run/scraper/app.sock",
-        "/run/scraper-state/control.sock",
-        "/run/scraper-llm/control.sock",
-        "/run/browser-control/controller.sock",
-        "/run/flare-control/control.sock",
-    ):
+    bindings = (
+        ("/run/scraper/app.sock", 10001),
+        ("/run/scraper-state/control.sock", 10002),
+        ("/run/scraper-llm/control.sock", 10002),
+        ("/run/browser-control/controller.sock", 0),
+        ("/run/flare-control/control.sock", 10001),
+    )
+    for path, owner_uid in bindings:
         info = os.lstat(path)
+        parent = os.lstat(os.path.dirname(path))
         if (
             not stat.S_ISSOCK(info.st_mode)
+            or info.st_uid != owner_uid
             or info.st_gid != 20000
             or stat.S_IMODE(info.st_mode) != 0o660
+            or not stat.S_ISDIR(parent.st_mode)
+            or parent.st_uid != owner_uid
+            or parent.st_gid != 20000
+            or stat.S_IMODE(parent.st_mode) != 0o2710
         ):
-            raise RuntimeError("a control socket is not group-scoped to the scraper")
+            raise RuntimeError(
+                "control socket permissions invalid: "
+                f"path={path} owner={info.st_uid}:{info.st_gid} "
+                f"mode={stat.S_IMODE(info.st_mode):04o}; "
+                f"parent={os.path.dirname(path)} "
+                f"owner={parent.st_uid}:{parent.st_gid} "
+                f"mode={stat.S_IMODE(parent.st_mode):04o}; "
+                f"expected socket={owner_uid}:20000/0660 "
+                f"directory={owner_uid}:20000/2710"
+            )
 
 
 async def _raw_state_rpc(request: dict) -> dict:

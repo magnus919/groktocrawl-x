@@ -5,10 +5,13 @@ from __future__ import annotations
 import ctypes
 import ipaddress
 import os
+import stat
 import sys
 from pathlib import Path
 
 import uvicorn
+
+from common.private_uds import bind_private_listener
 
 GATEWAY = "172.31.254.2"
 GATEWAY_PORT = 8080
@@ -106,7 +109,34 @@ def main() -> None:
             raise RuntimeError("protected scraper identity is invalid")
         _verify_process(os.getpid())
         _verify_process(1)
-        uvicorn.run("scraper.app:app", uds=os.environ["SCRAPER_API_SOCKET"], access_log=False)
+        socket_path = Path(os.environ["SCRAPER_API_SOCKET"])
+        listener = bind_private_listener(
+            socket_path,
+            directory_uid=WORKER_UID,
+            directory_gid=WORKER_GID,
+            directory_mode=0o2710,
+            socket_uid=WORKER_UID,
+            socket_gid=WORKER_GID,
+        )
+        socket_info = socket_path.lstat()
+        owned_identity = (socket_info.st_dev, socket_info.st_ino)
+        try:
+            uvicorn.run(
+                "scraper.app:app",
+                fd=listener.fileno(),
+                access_log=False,
+            )
+        finally:
+            listener.close()
+            try:
+                current = socket_path.lstat()
+                if (
+                    stat.S_ISSOCK(current.st_mode)
+                    and (current.st_dev, current.st_ino) == owned_identity
+                ):
+                    socket_path.unlink()
+            except FileNotFoundError:
+                pass
         return
     if os.geteuid() != 0:
         raise RuntimeError("protected scraper bootstrap must start as root")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import os
+import stat
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -32,6 +33,35 @@ def test_worker_discovery_excludes_tini_wrapper(monkeypatch):
     tini = b"\0".join([b"/usr/bin/tini", b"-s", b"-g", b"--", interpreter, b"-m", b"scraper.capture_firewall", b""])
     _install_processes(monkeypatch, probe, {1: tini, 7: worker})
     assert probe._protected_worker_pid() == 7
+
+
+def test_control_socket_probe_requires_nonwritable_owner_directories(monkeypatch):
+    probe = _probe()
+    bindings = (
+        ("/run/scraper/app.sock", 10001),
+        ("/run/scraper-state/control.sock", 10002),
+        ("/run/scraper-llm/control.sock", 10002),
+        ("/run/browser-control/controller.sock", 0),
+        ("/run/flare-control/control.sock", 10001),
+    )
+    entries = {}
+    for path, uid in bindings:
+        entries[path] = SimpleNamespace(
+            st_mode=stat.S_IFSOCK | 0o660,
+            st_uid=uid,
+            st_gid=20000,
+        )
+        entries[os.path.dirname(path)] = SimpleNamespace(
+            st_mode=stat.S_IFDIR | 0o2710,
+            st_uid=uid,
+            st_gid=20000,
+        )
+    monkeypatch.setattr(probe.os, "lstat", lambda path: entries[path])
+    probe._assert_control_socket_permissions()
+
+    entries["/run/browser-control"].st_mode = stat.S_IFDIR | 0o2770
+    with pytest.raises(RuntimeError, match=r"browser-control.*2770.*2710"):
+        probe._assert_control_socket_permissions()
 
 
 @pytest.mark.parametrize("duplicate", [False, True])

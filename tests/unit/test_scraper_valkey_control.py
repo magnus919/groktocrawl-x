@@ -5,7 +5,11 @@ from __future__ import annotations
 import asyncio
 import errno
 import hashlib
-import uuid
+import os
+import shutil
+import stat
+import tempfile
+from pathlib import Path
 
 import pytest
 from scraper.politeness import _RESERVE_SLOT
@@ -86,13 +90,26 @@ def test_only_fixed_keyspaces_and_reservation_script_are_client_capabilities():
 
 @pytest.mark.asyncio
 async def test_typed_socket_preserves_cache_robots_cookie_and_rate_operations():
-    socket_path = f"/tmp/vk-{uuid.uuid4().hex[:10]}.sock"
+    socket_dir = Path(tempfile.mkdtemp(prefix="vk-", dir="/tmp"))
+    os.chown(socket_dir, os.getuid(), os.getgid())
+    socket_dir.chmod(0o700)
+    socket_path = str(socket_dir / "control.sock")
     redis = FakeRedis()
-    server = ValkeyControlServer(socket_path, redis)
+    server = ValkeyControlServer(
+        socket_path,
+        redis,
+        socket_gid=os.getgid(),
+        directory_uid=os.getuid(),
+        directory_gid=os.getgid(),
+        directory_mode=0o700,
+    )
     try:
         await server.start()
     except OSError as error:
         _skip_if_socket_binding_is_restricted(error)
+    socket_info = os.lstat(socket_path)
+    assert stat.S_IMODE(socket_info.st_mode) == 0o660
+    assert socket_info.st_gid == os.getgid()
     client = ValkeyControlClient(socket_path)
     try:
         assert await client.ping() is True
@@ -115,6 +132,7 @@ async def test_typed_socket_preserves_cache_robots_cookie_and_rate_operations():
             await client.eval("return redis.call('CONFIG', 'SET')", 0)
     finally:
         await server.close()
+        shutil.rmtree(socket_dir)
 
 
 def test_rpc_memory_limits_are_bounded_before_frame_reading():
@@ -125,8 +143,18 @@ def test_rpc_memory_limits_are_bounded_before_frame_reading():
 
 @pytest.mark.asyncio
 async def test_third_held_connection_is_rejected_without_waiting_for_a_frame():
-    socket_path = f"/tmp/vk-{uuid.uuid4().hex[:10]}.sock"
-    server = ValkeyControlServer(socket_path, FakeRedis())
+    socket_dir = Path(tempfile.mkdtemp(prefix="vk-", dir="/tmp"))
+    os.chown(socket_dir, os.getuid(), os.getgid())
+    socket_dir.chmod(0o700)
+    socket_path = str(socket_dir / "control.sock")
+    server = ValkeyControlServer(
+        socket_path,
+        FakeRedis(),
+        socket_gid=os.getgid(),
+        directory_uid=os.getuid(),
+        directory_gid=os.getgid(),
+        directory_mode=0o700,
+    )
     try:
         await server.start()
     except OSError as error:
@@ -150,3 +178,4 @@ async def test_third_held_connection_is_rejected_without_waiting_for_a_frame():
             writer.close()
             await writer.wait_closed()
         await server.close()
+        shutil.rmtree(socket_dir)

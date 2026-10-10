@@ -3,8 +3,11 @@ from __future__ import annotations
 import importlib.util
 import io
 import os
+import shutil
 import socket
+import stat
 import subprocess
+import tempfile
 from email.message import Message
 from pathlib import Path
 from threading import BoundedSemaphore
@@ -34,6 +37,7 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
     compose = yaml.safe_load((ROOT / "compose.experimental-candidate.yml").read_text())
     renderer = compose["services"]["candidate-flare-renderer"]
     control = compose["services"]["candidate-flare-control"]
+    control_socket_init = compose["services"]["candidate-flare-control-socket-init"]
     assert "20000" in {str(group) for group in renderer["group_add"]}
     assert renderer["cap_drop"] == ["ALL"]
     assert set(renderer["cap_add"]) == {
@@ -53,6 +57,8 @@ def test_flare_bootstrap_has_only_required_setup_caps_and_drops_them_before_chmo
     assert "FOWNER" not in renderer["cap_add"]
     assert control["mem_limit"] == "256m"
     assert PROXY.MAX_ACTIVE_REQUESTS == 2
+    assert "chmod 2710 /run/flare-control" in control_socket_init["command"][-1]
+    assert "10001:20000:2710" in control_socket_init["command"][-1]
     assert PROXY.MAX_RESPONSE_BYTES == 8 * 1024 * 1024
 
 
@@ -199,6 +205,30 @@ def test_control_proxy_forwards_existing_api_over_unix_socket(monkeypatch):
     assert sent == [request]
     assert raw.endswith(b'{"status":"ok","solution":{"status":200}}')
     assert closed == [True]
+
+
+def test_flare_control_uds_binds_exact_mode_and_closes_only_owned_socket():
+    socket_dir = Path(tempfile.mkdtemp(prefix="fc-", dir="/tmp"))
+    os.chown(socket_dir, os.getuid(), os.getgid())
+    socket_dir.chmod(0o710)
+    path = socket_dir / "control.sock"
+    server = PROXY.UnixControlServer(
+        str(path),
+        PROXY.ControlHandler,
+        directory_uid=os.getuid(),
+        directory_gid=os.getgid(),
+        directory_mode=0o710,
+        socket_gid=os.getgid(),
+    )
+    try:
+        info = path.lstat()
+        assert stat.S_ISSOCK(info.st_mode)
+        assert info.st_uid == os.getuid()
+        assert info.st_gid == os.getgid()
+        assert stat.S_IMODE(info.st_mode) == 0o660
+    finally:
+        server.server_close()
+        shutil.rmtree(socket_dir)
 
 
 def test_control_handler_forwards_application_json_to_uds(monkeypatch):
