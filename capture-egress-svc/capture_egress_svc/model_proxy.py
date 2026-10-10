@@ -98,6 +98,7 @@ def make_model_proxy(
             relay_idle_timeout=60,
         ),
         destination_connector=connect,
+        trace_http_events=True,
     )
 
 

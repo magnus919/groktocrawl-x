@@ -22,7 +22,11 @@ ROOT = Path(__file__).resolve().parents[2]
 CAPTURE_EGRESS = ROOT / "capture-egress-svc"
 if str(CAPTURE_EGRESS) not in sys.path:
     sys.path.insert(0, str(CAPTURE_EGRESS))
+LLM_FIXTURE = ROOT / "llm-svc"
+if str(LLM_FIXTURE) not in sys.path:
+    sys.path.insert(0, str(LLM_FIXTURE))
 
+import uvicorn
 from capture_egress_svc.model_proxy import make_model_proxy
 
 from common.capture_destination import BoundConnection, parse_authority
@@ -191,6 +195,107 @@ def test_broker_forwards_through_model_gateway_to_local_http_fixture(monkeypatch
             await fixture.wait_closed()
 
     asyncio.run(run())
+
+
+def test_broker_forwards_real_uvicorn_fixture_response_through_gateway(
+    monkeypatch, caplog
+):
+    async def run():
+        from llm_svc.app import create_app
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as reservation:
+            reservation.bind(("127.0.0.1", 0))
+            fixture_port = reservation.getsockname()[1]
+        fixture = uvicorn.Server(
+            uvicorn.Config(
+                create_app(),
+                host="127.0.0.1",
+                port=fixture_port,
+                log_level="error",
+            )
+        )
+        fixture_task = asyncio.create_task(fixture.serve())
+        fixture_base = f"http://127.0.0.1:{fixture_port}"
+        async with httpx.AsyncClient(timeout=1) as readiness:
+            for _ in range(80):
+                try:
+                    if (await readiness.get(f"{fixture_base}/health")).status_code == 200:
+                        break
+                except httpx.HTTPError:
+                    await asyncio.sleep(0.025)
+            else:
+                fixture.should_exit = True
+                await fixture_task
+                raise AssertionError("local Uvicorn model fixture did not start")
+
+        authority = f"candidate-llm-fixture.test:{fixture_port}"
+
+        async def connector(raw_authority: str, *, private_host_grants):
+            assert raw_authority == authority
+            assert private_host_grants == frozenset()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setblocking(False)
+            await asyncio.get_running_loop().sock_connect(
+                sock, ("127.0.0.1", fixture_port)
+            )
+            return BoundConnection(
+                parse_authority(raw_authority),
+                ipaddress.ip_address("127.0.0.1"),
+                sock,
+            )
+
+        proxy = make_model_proxy(frozenset({authority}), frozenset(), connector=connector)
+        gateway = await asyncio.start_server(proxy.handle_client, "127.0.0.1", 0)
+        gateway_port = gateway.sockets[0].getsockname()[1]
+        monkeypatch.setenv("LLM_BASE_URL", f"http://candidate-llm-fixture.test:{fixture_port}/v1")
+        monkeypatch.setenv("LLM_API_KEY", "local-fixture-key")
+        monkeypatch.setenv("MODEL_EGRESS_PROXY_URL", f"http://127.0.0.1:{gateway_port}")
+
+        class SocketPath:
+            def lstat(self):
+                return SimpleNamespace(
+                    st_mode=stat.S_IFSOCK | 0o660,
+                    st_uid=os.getuid(),
+                    st_gid=20000,
+                )
+
+        monkeypatch.setenv("MODEL_CONTROL_SOCKET", "/synthetic/model-control.sock")
+        monkeypatch.setattr(llm_control, "Path", lambda _path: SocketPath())
+        try:
+            async with llm_control.lifespan(llm_control.app):
+                async with httpx.AsyncClient(
+                    transport=httpx.ASGITransport(app=llm_control.app),
+                    base_url="http://control.sock",
+                ) as client:
+                    response = await client.post(
+                        "/recovery/chat/completions",
+                        json={
+                            "model": "fixture-model",
+                            "messages": [
+                                {"role": "user", "content": "fixture prompt"}
+                            ],
+                        },
+                    )
+            assert response.status_code == 200, response.text
+            assert response.json()["choices"][0]["message"]["content"]
+            async with httpx.AsyncClient(timeout=2) as fixture_client:
+                diagnostics = (
+                    await fixture_client.get(f"{fixture_base}/diagnostics")
+                ).json()
+            assert len(diagnostics["entries"]) == 1
+            assert diagnostics["entries"][0]["model"] == "fixture-model"
+            assert diagnostics["entries"][0]["status"] == 200
+            assert "model proxy event=origin_connected" in caplog.text
+            assert "model proxy event=request_sent" in caplog.text
+            assert "model proxy event=response_eof" in caplog.text
+            assert "candidate-llm-fixture.test" not in caplog.text
+            assert "local-fixture-key" not in caplog.text
+            assert "fixture prompt" not in caplog.text
+        finally:
+            gateway.close()
+            await gateway.wait_closed()
+            fixture.should_exit = True
+            await fixture_task
 
 
 def test_broker_response_decoder_enforces_raw_and_decoded_caps(monkeypatch):
