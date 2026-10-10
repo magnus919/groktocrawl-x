@@ -1,0 +1,64 @@
+"""Local HTTP contract tests for the protected Flare origin fixture."""
+
+from __future__ import annotations
+
+import http.client
+import importlib.util
+import threading
+from http.server import ThreadingHTTPServer
+from pathlib import Path
+from urllib.request import Request, urlopen
+
+import pytest
+
+
+def _load_fixture_module():
+    path = Path(__file__).resolve().parents[2] / "flare-test-origin" / "server.py"
+    spec = importlib.util.spec_from_file_location("flare_test_origin_fixture", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load local origin fixture")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def origin_url():
+    fixture = _load_fixture_module()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), fixture.FixtureHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_head_returns_get_metadata_without_body(origin_url: str) -> None:
+    url = f"{origin_url}/scrape-fixture"
+    with urlopen(url, timeout=2) as response:
+        get_body = response.read()
+        get_headers = response.headers
+
+    request = Request(url, method="HEAD")
+    with urlopen(request, timeout=2) as response:
+        assert response.status == 200
+        assert response.read() == b""
+        assert response.headers["Content-Type"] == get_headers["Content-Type"]
+        assert response.headers["Content-Length"] == str(len(get_body))
+    assert b"INGRESS_SCRAPE_PIPELINE_OK" in get_body
+
+
+def test_head_preserves_redirect_metadata_without_body(origin_url: str) -> None:
+    host, port = origin_url.removeprefix("http://").split(":")
+    connection = http.client.HTTPConnection(host, int(port), timeout=2)
+    try:
+        connection.request("HEAD", "/redirect")
+        response = connection.getresponse()
+        assert response.status == 302
+        assert response.getheader("Location") == "http://flare-origin.test/get"
+        assert response.read() == b""
+    finally:
+        connection.close()

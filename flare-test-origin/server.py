@@ -51,6 +51,10 @@ fetch('http://172.31.253.250:19001/probe', {{mode:'no-cors', signal:privateProbe
 </body></html>""".encode()
         self._send(200, "text/html; charset=utf-8", body)
 
+    def do_HEAD(self) -> None:
+        """Return the same status and metadata as GET without a response body."""
+        self.do_GET()
+
     def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length).decode("utf-8", errors="replace")
@@ -65,7 +69,9 @@ fetch('http://172.31.253.250:19001/probe', {{mode:'no-cors', signal:privateProbe
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Connection", "close")
         self.end_headers()
-        self.wfile.write(body)
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
 
-ThreadingHTTPServer(("0.0.0.0", 80), FixtureHandler).serve_forever()
+if __name__ == "__main__":
+    ThreadingHTTPServer(("0.0.0.0", 80), FixtureHandler).serve_forever()
