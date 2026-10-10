@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import socket
+import ssl
 import subprocess
 import tempfile
 import threading
@@ -239,30 +240,42 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
     ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Capture test CA")])
     now = datetime.now(UTC)
-    ca_cert = (
-        x509.CertificateBuilder()
-        .subject_name(ca_name)
-        .issuer_name(ca_name)
-        .public_key(ca_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now - timedelta(minutes=1))
-        .not_valid_after(now + timedelta(days=1))
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
-        .sign(ca_key, hashes.SHA256())
-    )
+    def issue_test_ca(name, key):
+        return (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now - timedelta(minutes=1))
+            .not_valid_after(now + timedelta(days=1))
+            .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+            .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+            .add_extension(
+                x509.AuthorityKeyIdentifier.from_issuer_public_key(key.public_key()),
+                critical=False,
+            )
+            .add_extension(
+                x509.KeyUsage(
+                    digital_signature=False,
+                    content_commitment=False,
+                    key_encipherment=False,
+                    data_encipherment=False,
+                    key_agreement=False,
+                    key_cert_sign=True,
+                    crl_sign=True,
+                    encipher_only=None,
+                    decipher_only=None,
+                ),
+                critical=True,
+            )
+            .sign(key, hashes.SHA256())
+        )
+
+    ca_cert = issue_test_ca(ca_name, ca_key)
     wrong_ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     wrong_ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Wrong test CA")])
-    wrong_ca_cert = (
-        x509.CertificateBuilder()
-        .subject_name(wrong_ca_name)
-        .issuer_name(wrong_ca_name)
-        .public_key(wrong_ca_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now - timedelta(minutes=1))
-        .not_valid_after(now + timedelta(days=1))
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
-        .sign(wrong_ca_key, hashes.SHA256())
-    )
+    wrong_ca_cert = issue_test_ca(wrong_ca_name, wrong_ca_key)
     server_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     server_cert = (
         x509.CertificateBuilder()
@@ -272,9 +285,36 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
         .serial_number(x509.random_serial_number())
         .not_valid_before(now - timedelta(minutes=1))
         .not_valid_after(now + timedelta(days=1))
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(
             x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]),
             critical=False,
+        )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(server_key.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
+            critical=False,
+        )
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                content_commitment=False,
+                key_encipherment=True,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=False,
+                crl_sign=False,
+                encipher_only=None,
+                decipher_only=None,
+            ),
+            critical=True,
         )
         .sign(ca_key, hashes.SHA256())
     )
@@ -283,8 +323,10 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
         temp_path = Path(temp)
         ca_path = temp_path / "ca.pem"
         ca_path.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
+        trusted_context = ssl.create_default_context(cafile=str(ca_path))
         wrong_ca_path = temp_path / "wrong-ca.pem"
         wrong_ca_path.write_bytes(wrong_ca_cert.public_bytes(serialization.Encoding.PEM))
+        wrong_ca_context = ssl.create_default_context(cafile=str(wrong_ca_path))
         server_path = temp_path / "server.pem"
         server_path.write_bytes(
             server_cert.public_bytes(serialization.Encoding.PEM)
@@ -345,7 +387,7 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
                 raise AssertionError("HAProxy listener did not start")
 
             url = f"https://127.0.0.1:{frontend_port}"
-            with httpx.Client(verify=str(ca_path), trust_env=False, timeout=2) as client:
+            with httpx.Client(verify=trusted_context, trust_env=False, timeout=2) as client:
                 assert client.get(url + "/health").status_code == 401
                 assert client.get(url + "/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
                 assert client.get(
@@ -373,7 +415,7 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
                 httpx.get(
                     url + "/health",
                     headers={"Authorization": f"Bearer {token}"},
-                    verify=str(wrong_ca_path),
+                    verify=wrong_ca_context,
                     trust_env=False,
                     timeout=2,
                 )
@@ -381,7 +423,7 @@ def test_local_haproxy_enforces_verified_tls_bearer_and_exact_routes() -> None:
                 httpx.get(
                     f"https://localhost:{frontend_port}/health",
                     headers={"Authorization": f"Bearer {token}"},
-                    verify=str(ca_path),
+                    verify=trusted_context,
                     trust_env=False,
                     timeout=2,
                 )
