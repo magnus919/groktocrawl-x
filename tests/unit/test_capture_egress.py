@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import NoReturn
 
+import httpx
 import pytest
 
 _service_root = Path(__file__).resolve().parents[2] / "capture-egress-svc"
@@ -205,6 +206,64 @@ async def test_absolute_form_http_post_streams_body_and_strips_hop_headers() -> 
         assert observed[1] == b"DATA"
         writer.close()
         await writer.wait_closed()
+    finally:
+        await stop_server(gateway)
+        await stop_server(origin)
+
+
+@pytest.mark.asyncio
+async def test_absolute_http_preserves_origin_response_after_complete_length_body() -> None:
+    request_body_seen = asyncio.Event()
+
+    async def origin_handler(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        header = await reader.readuntil(b"\r\n\r\n")
+        content_length = next(
+            int(line.split(b":", 1)[1].strip())
+            for line in header.split(b"\r\n")
+            if line.lower().startswith(b"content-length:")
+        )
+        body = await reader.readexactly(content_length)
+        assert body == b"fixture-request"
+        request_body_seen.set()
+        # Some HTTP servers treat client FIN as a disconnected request even
+        # after Content-Length has completed. The proxy should rely on that
+        # framing and leave its write side open for the origin's response.
+        try:
+            await asyncio.wait_for(reader.read(1), timeout=0.05)
+        except TimeoutError:
+            pass
+        else:
+            writer.close()
+            await writer.wait_closed()
+            return
+        payload = b'{"choices":[]}'
+        writer.write(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+            + f"Content-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode()
+            + payload
+        )
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+    origin = await asyncio.start_server(origin_handler, "127.0.0.1", 0)
+    origin_address = origin.sockets[0].getsockname()
+    proxy = CaptureEgressProxy(destination_connector=local_connector(origin_address))
+    gateway, host, port = await start_proxy(proxy)
+    try:
+        async with httpx.AsyncClient(
+            proxy=f"http://{host}:{port}", trust_env=False, timeout=2
+        ) as client:
+            response = await client.post(
+                "http://origin.example/chat/completions",
+                content=b"fixture-request",
+                headers={"content-type": "application/json"},
+            )
+        assert request_body_seen.is_set()
+        assert response.status_code == 200
+        assert response.json() == {"choices": []}
     finally:
         await stop_server(gateway)
         await stop_server(origin)

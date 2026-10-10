@@ -481,7 +481,6 @@ class CaptureEgressProxy:
                         on_chunk=record_request_chunk,
                     )
                     self._trace_http("request_sent", byte_count=request_bytes)
-                    upstream_writer.write_eof()
                     phase = "response_relay"
 
                     def record_response_chunk(amount: int) -> None:
