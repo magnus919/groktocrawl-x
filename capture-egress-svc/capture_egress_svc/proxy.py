@@ -253,6 +253,20 @@ async def _send_error(writer: asyncio.StreamWriter, status: int) -> None:
         pass
 
 
+def configure_model_proxy_logging() -> None:
+    """Emit bounded model-proxy diagnostics without changing root logging."""
+    if not any(
+        getattr(handler, "_model_proxy_handler", False) for handler in logger.handlers
+    ):
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+        handler._model_proxy_handler = True  # type: ignore[attr-defined]
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 class CaptureEgressProxy:
     """One-request-per-connection, bounded HTTP forward proxy."""
 
@@ -285,8 +299,7 @@ class CaptureEgressProxy:
                 event,
                 byte_count,
                 error_type,
-            )
-
+        )
     async def _connect_destination(self, authority: str) -> BoundConnection:
         return await resolve_and_connect(authority, timeout=self.config.connect_timeout)
 

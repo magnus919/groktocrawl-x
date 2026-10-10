@@ -14,7 +14,7 @@ from common.capture_destination import (
     resolve_and_connect_model_target,
 )
 
-from .proxy import CaptureEgressProxy, ProxyConfig
+from .proxy import CaptureEgressProxy, ProxyConfig, configure_model_proxy_logging
 
 
 def _configured_authorities() -> frozenset[str]:
@@ -103,6 +103,7 @@ def make_model_proxy(
 
 
 async def serve() -> None:
+    configure_model_proxy_logging()
     proxy = make_model_proxy(_configured_authorities(), _private_host_grants())
     bind_host = os.environ.get("MODEL_PROXY_BIND_HOST", "0.0.0.0")
     try:
