@@ -1,1 +1,1 @@
-"""Bounded source-capture egress forward proxy."""
+"""Bounded source-capture and fixed-authority model egress proxies."""

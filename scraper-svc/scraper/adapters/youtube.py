@@ -25,11 +25,10 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from ..source_http import (
-    ProtectedSourceToolUnavailableError,
     capture_egress_proxy_url,
-    require_unprotected_source_tool,
     source_httpx_client,
     source_requests_session,
+    trusted_control_base_url,
     trusted_control_httpx_client,
 )
 from .base import AdapterContext, AdapterError, AdapterResult, SiteAdapter, adapter
@@ -500,15 +499,12 @@ async def _fetch_via_browser(
 
     Returns ``(markdown, metadata)`` or ``None``.
     """
-    try:
-        require_unprotected_source_tool("youtube-browser-service")
-    except ProtectedSourceToolUnavailableError:
-        return None
-
-    browser_svc_url = ctx.config.get("BROWSER_SVC_URL", "http://browser-svc:8012")
+    browser_svc_url = trusted_control_base_url(
+        ctx.config.get("BROWSER_SVC_URL", "http://browser-svc:8012"), "browser"
+    )
     session_id = None
     try:
-        async with trusted_control_httpx_client(timeout=30) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=30) as client:
             # Create session
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
@@ -588,7 +584,7 @@ async def _fetch_via_browser(
     finally:
         if session_id:
             try:
-                async with trusted_control_httpx_client(timeout=5) as c:
+                async with trusted_control_httpx_client(service="browser", timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception as e:
                 logger.debug("Session cleanup failed for %s: %s", url, e)

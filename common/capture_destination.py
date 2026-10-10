@@ -297,3 +297,122 @@ async def resolve_and_connect(
                 raise
     except TimeoutError as exc:
         raise DestinationTimeoutError() from exc
+
+
+async def resolve_and_connect_model_target(
+    authority: str,
+    *,
+    private_host_grants: frozenset[str] = frozenset(),
+    resolver: Resolver = _system_resolver,
+    dialer: Dialer = _numeric_dialer,
+    timeout: float = 2.0,
+) -> BoundConnection:
+    """Resolve and numerically dial one model-only authority.
+
+    This is deliberately separate from ``resolve_and_connect``: source
+    destinations remain globally-routable-only. Private answers are accepted
+    only for a hostname explicitly granted by the operator, and only inside
+    RFC1918/ULA ranges. The caller must separately constrain the authority to
+    its fixed model-target inventory.
+    """
+    if (
+        not isinstance(timeout, (int, float))
+        or isinstance(timeout, bool)
+        or not 0 < timeout <= 30
+    ):
+        raise ValueError("timeout must be > 0 and <= 30 seconds")
+    if not isinstance(private_host_grants, (set, frozenset)) or any(
+        not isinstance(host, str) for host in private_host_grants
+    ):
+        raise ValueError("private_host_grants must be a set of hostnames")
+    grants = frozenset(host.lower().rstrip(".") for host in private_host_grants)
+    parsed = parse_authority(authority)
+    private_granted = parsed.host.lower().rstrip(".") in grants
+    try:
+        async with asyncio.timeout(timeout):
+            if parsed.literal is not None:
+                answers: Sequence[str | IPAddress] = [parsed.literal]
+            else:
+                try:
+                    answers = await resolver(parsed.host, parsed.port)
+                except asyncio.CancelledError:
+                    raise
+                except DestinationError:
+                    raise
+                except Exception as exc:
+                    raise DestinationResolutionError() from exc
+            if not answers:
+                raise DestinationResolutionError()
+
+            vetted: list[IPAddress] = []
+            answer_scope: str | None = None
+            private_ranges = (
+                ipaddress.ip_network("10.0.0.0/8"),
+                ipaddress.ip_network("172.16.0.0/12"),
+                ipaddress.ip_network("192.168.0.0/16"),
+                ipaddress.ip_network("fc00::/7"),
+            )
+            for answer in answers:
+                try:
+                    address = (
+                        answer
+                        if isinstance(
+                            answer, (ipaddress.IPv4Address, ipaddress.IPv6Address)
+                        )
+                        else ipaddress.ip_address(answer)
+                    )
+                except (ValueError, TypeError) as exc:
+                    raise DestinationResolutionError() from exc
+                if isinstance(address, ipaddress.IPv6Address):
+                    if address.scope_id is not None:
+                        raise DestinationDeniedError()
+                    if address.ipv4_mapped is not None:
+                        address = address.ipv4_mapped
+                    elif address.sixtofour is not None or address.teredo is not None:
+                        raise DestinationDeniedError()
+                if (
+                    address.is_multicast
+                    or address.is_unspecified
+                    or address.is_loopback
+                    or address.is_link_local
+                    or address.is_reserved
+                ):
+                    raise DestinationDeniedError()
+                if address.is_global:
+                    if answer_scope == "private":
+                        raise DestinationDeniedError()
+                    answer_scope = "global"
+                    vetted.append(address)
+                    continue
+                if private_granted and any(address in network for network in private_ranges):
+                    if answer_scope == "global":
+                        raise DestinationDeniedError()
+                    answer_scope = "private"
+                    vetted.append(address)
+                    continue
+                raise DestinationDeniedError()
+
+            selected = next(iter(dict.fromkeys(vetted)))
+            try:
+                connected = await dialer(selected, parsed.port)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                raise DestinationConnectionError() from exc
+            try:
+                peer = connected.getpeername()
+                peer_ip = ipaddress.ip_address(str(peer[0]))
+                if isinstance(peer_ip, ipaddress.IPv6Address) and peer_ip.ipv4_mapped:
+                    peer_ip = peer_ip.ipv4_mapped
+                if peer_ip != selected or len(peer) < 2 or peer[1] != parsed.port:
+                    raise DestinationConnectionError()
+                return BoundConnection(parsed, selected, connected)
+            except BaseException as exc:
+                connected.close()
+                if isinstance(exc, asyncio.CancelledError):
+                    raise
+                if isinstance(exc, DestinationError):
+                    raise
+                raise DestinationConnectionError() from exc
+    except TimeoutError as exc:
+        raise DestinationTimeoutError() from exc

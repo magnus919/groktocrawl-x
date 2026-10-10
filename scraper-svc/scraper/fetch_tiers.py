@@ -36,8 +36,8 @@ from .playwright_retry import retry_transient
 from .proxy import _get_playwright_proxy
 from .settings import load_settings
 from .source_http import (
-    ProtectedSourceToolUnavailableError,
-    require_unprotected_source_tool,
+    protected_source_mode,
+    trusted_control_base_url,
     trusted_control_httpx_client,
 )
 
@@ -591,8 +591,13 @@ async def fetch_via_playwright(url: str) -> dict | None:
     This requires playwright and chromium to be installed.
     Falls back gracefully if playwright is not available.
     """
+    # In protected capture mode, never run page JavaScript in the scraper
+    # process: it shares application/control connectivity. Delegate the same
+    # navigation through the isolated browser renderer instead.
+    if protected_source_mode():
+        return await _fetch_via_browser_svc(url)
+
     try:
-        require_unprotected_source_tool("local-browser")
         pw_proxy = _get_playwright_proxy()
 
         # Try with proxy first — wrap in its own try/except so exceptions
@@ -629,8 +634,6 @@ async def fetch_via_playwright(url: str) -> dict | None:
                 return result
     except ImportError:
         logger.warning("Playwright not installed; skipping Tier 3")
-    except ProtectedSourceToolUnavailableError:
-        logger.info("Protected source mode has no qualified local browser route")
     except Exception as e:
         error_str = str(e)
         # Classify known Playwright crash signatures
@@ -654,14 +657,10 @@ async def fetch_via_flaresolverr(url: str) -> dict | None:
     docker-compose.yml). Gracefully falls back if unavailable.
     """
     try:
-        require_unprotected_source_tool("flaresolverr")
-    except ProtectedSourceToolUnavailableError:
-        logger.info("Protected source mode has no qualified FlareSolverr route")
-        return None
-    try:
-        async with trusted_control_httpx_client(timeout=60) as client:
+        flare_url = trusted_control_base_url(FLARE_SOLVERR_URL, "flare")
+        async with trusted_control_httpx_client(service="flare", timeout=60) as client:
             resp = await client.post(
-                f"{FLARE_SOLVERR_URL}",
+                flare_url,
                 json={
                     "cmd": "request.get",
                     "url": url,
@@ -719,16 +718,11 @@ async def _fetch_via_browser_svc(url: str) -> dict | None:
 
     Browser-svc is available at http://browser-svc:8012.
     """
-    try:
-        require_unprotected_source_tool("browser-service")
-    except ProtectedSourceToolUnavailableError:
-        logger.info("Protected source mode has no qualified browser-service route")
-        return None
-    browser_svc_url = _settings.browser_svc_url
+    browser_svc_url = trusted_control_base_url(_settings.browser_svc_url, "browser")
     session_id = None
     try:
         # Create a browser session
-        async with trusted_control_httpx_client(timeout=30) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=30) as client:
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
                 json={"ttl": 60},  # Short TTL, we only need one page load
@@ -856,7 +850,7 @@ async def _fetch_via_browser_svc(url: str) -> dict | None:
         # Clean up the browser session
         if session_id:
             try:
-                async with trusted_control_httpx_client(timeout=5) as c:
+                async with trusted_control_httpx_client(service="browser", timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception:
                 pass
@@ -869,7 +863,7 @@ async def _get_browser_page_content(
 ) -> str | None:
     """Get the full page HTML from a browser-svc session via executeScript."""
     try:
-        async with trusted_control_httpx_client(timeout=15) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=15) as client:
             resp = await client.post(
                 f"{browser_svc_url}/browsers/{session_id}/execute",
                 json={

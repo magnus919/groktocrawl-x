@@ -179,10 +179,10 @@ def _drop_bounding_capabilities() -> None:
 def _prepare_unprivileged_renderer() -> None:
     directory = Path("/run/browser")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chown(directory, 10001, 10001)
+    os.chown(directory, 10001, 20000)
     _drop_bounding_capabilities()
-    os.setgroups([])
-    os.setgid(10001)
+    os.setgroups([20000])
+    os.setgid(20000)
     os.setuid(10001)
     # Change permissions as the new owner, after dropping privileges. Root
     # deliberately has no CAP_FOWNER once CHOWN changes directory ownership.

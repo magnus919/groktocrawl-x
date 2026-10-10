@@ -31,7 +31,11 @@ docker compose --project-name candidate-browser \
 ```
 
 The candidate environment file must provide the overlay's required settings
-and secret-file path. Keep it private and do not place credentials in commands,
+and secret-file path. If the configured OpenAI-compatible endpoint resolves to
+a private address, `LLM_GATEWAY_PRIVATE_HOSTS` must grant its exact DNS host.
+The model broker has no direct network egress; a separate model-only gateway
+accepts only configured model authorities, resolves once, and dials a vetted
+numeric peer. Keep the file private and do not place credentials in commands,
 logs, or this document.
 
 This is an opt-in integration and qualification step, not full capture-stack

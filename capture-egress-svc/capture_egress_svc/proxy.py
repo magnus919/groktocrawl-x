@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import logging
 import os
 import re
 from collections.abc import Awaitable, Callable
@@ -28,6 +29,7 @@ from common.capture_destination import (
 )
 
 _HEADER_END = b"\r\n\r\n"
+logger = logging.getLogger(__name__)
 _TOKEN = re.compile(rb"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 _STATUS_TEXT = {
     400: "Bad Request",
@@ -251,6 +253,20 @@ async def _send_error(writer: asyncio.StreamWriter, status: int) -> None:
         pass
 
 
+def configure_model_proxy_logging() -> None:
+    """Emit bounded model-proxy diagnostics without changing root logging."""
+    if not any(
+        getattr(handler, "_model_proxy_handler", False) for handler in logger.handlers
+    ):
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+        handler._model_proxy_handler = True  # type: ignore[attr-defined]
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 class CaptureEgressProxy:
     """One-request-per-connection, bounded HTTP forward proxy."""
 
@@ -259,11 +275,31 @@ class CaptureEgressProxy:
         config: ProxyConfig | None = None,
         *,
         destination_connector: DestinationConnector | None = None,
+        trace_http_events: bool = False,
     ) -> None:
         self.config = config or ProxyConfig()
         self._connector = destination_connector or self._connect_destination
+        self._trace_http_events = trace_http_events
         self._active = 0
 
+    def _trace_http(
+        self,
+        event: str,
+        *,
+        byte_count: int = 0,
+        error_type: str | None = None,
+    ) -> None:
+        if not self._trace_http_events:
+            return
+        if error_type is None:
+            logger.info("model proxy event=%s bytes=%d", event, byte_count)
+        else:
+            logger.warning(
+                "model proxy event=%s bytes=%d error_type=%s",
+                event,
+                byte_count,
+                error_type,
+        )
     async def _connect_destination(self, authority: str) -> BoundConnection:
         return await resolve_and_connect(authority, timeout=self.config.connect_timeout)
 
@@ -399,11 +435,24 @@ class CaptureEgressProxy:
         host_header = _format_authority(authority.host, authority.port)
         safe_headers.append((b"host", host_header.encode("ascii")))
         safe_headers.append((b"connection", b"close"))
-        bound = await self._connector(_format_authority(authority.host, authority.port))
+        phase = "origin_connect"
+        response_bytes = 0
+        request_bytes = 0
+        try:
+            bound = await self._connector(
+                _format_authority(authority.host, authority.port)
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._trace_http(phase, error_type=type(exc).__name__)
+            raise
+        self._trace_http("origin_connected")
         upstream_reader: asyncio.StreamReader | None = None
         upstream_writer: asyncio.StreamWriter | None = None
         budget = _ByteBudget(self.config.max_transfer_bytes)
         try:
+            phase = "origin_socket"
             upstream_reader, upstream_writer = await asyncio.open_connection(
                 sock=bound.socket
             )
@@ -414,26 +463,68 @@ class CaptureEgressProxy:
             request_head += b"\r\n"
             budget.charge(len(request_head))
             upstream_writer.write(request_head)
+            phase = "request_drain"
             await upstream_writer.drain()
             try:
                 async with asyncio.timeout(self.config.max_connection_seconds):
+                    phase = "request_body"
+
+                    def record_request_chunk(amount: int) -> None:
+                        nonlocal request_bytes
+                        request_bytes += amount
+
                     await self._copy_exact(
-                        client_reader, upstream_writer, content_length, budget
+                        client_reader,
+                        upstream_writer,
+                        content_length,
+                        budget,
+                        on_chunk=record_request_chunk,
                     )
-                    upstream_writer.write_eof()
+                    self._trace_http("request_sent", byte_count=request_bytes)
+                    phase = "response_relay"
+
+                    def record_response_chunk(amount: int) -> None:
+                        nonlocal response_bytes
+                        response_bytes += amount
+
                     await self._copy_until_eof(
-                        upstream_reader, client_writer, budget, allow_eof=True
+                        upstream_reader,
+                        client_writer,
+                        budget,
+                        allow_eof=True,
+                        on_chunk=record_response_chunk,
                     )
+                    self._trace_http("response_eof", byte_count=response_bytes)
             except (
                 TransferLimitError,
                 TimeoutError,
                 ProxyProtocolError,
                 OSError,
                 ConnectionError,
-            ):
+            ) as exc:
                 # Once origin bytes have been forwarded, adding a proxy error
                 # response could corrupt the origin response stream.
+                self._trace_http(
+                    phase,
+                    byte_count=(
+                        request_bytes
+                        if phase == "request_body"
+                        else response_bytes
+                    ),
+                    error_type=type(exc).__name__,
+                )
                 return
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._trace_http(
+                phase,
+                byte_count=(
+                    request_bytes if phase == "request_body" else response_bytes
+                ),
+                error_type=type(exc).__name__,
+            )
+            raise
         finally:
             if upstream_writer is not None:
                 await self._close_writer(upstream_writer)
@@ -487,6 +578,8 @@ class CaptureEgressProxy:
         writer: asyncio.StreamWriter,
         remaining: int,
         budget: _ByteBudget,
+        *,
+        on_chunk: Callable[[int], None] | None = None,
     ) -> None:
         while remaining:
             chunk = await asyncio.wait_for(
@@ -498,6 +591,8 @@ class CaptureEgressProxy:
             budget.charge(len(chunk))
             writer.write(chunk)
             await writer.drain()
+            if on_chunk is not None:
+                on_chunk(len(chunk))
             remaining -= len(chunk)
 
     async def _copy_until_eof(
@@ -507,6 +602,7 @@ class CaptureEgressProxy:
         budget: _ByteBudget,
         *,
         allow_eof: bool,
+        on_chunk: Callable[[int], None] | None = None,
     ) -> None:
         while True:
             chunk = await asyncio.wait_for(
@@ -520,6 +616,8 @@ class CaptureEgressProxy:
             budget.charge(len(chunk))
             writer.write(chunk)
             await writer.drain()
+            if on_chunk is not None:
+                on_chunk(len(chunk))
 
     async def _relay_half_close(
         self,

@@ -17,6 +17,8 @@ def test_required_storage_result_controls_runtime_gate(storage_result):
     )
     gate = workflow["jobs"]["runtime-gate"]
     assert "research-storage" in gate["needs"]
+    assert "protected-flare-profile" in gate["needs"]
+    assert "protected-capture-composition" in gate["needs"]
     result = subprocess.run(
         ["sh", "-c", gate["steps"][0]["run"]],
         env={
@@ -26,6 +28,8 @@ def test_required_storage_result_controls_runtime_gate(storage_result):
             "TWIN_REQUIRED": "true",
             "RUNTIME_RESULT": "success",
             "BROWSER_PROFILE_RESULT": "success",
+            "PROTECTED_FLARE_RESULT": "success",
+            "PROTECTED_CAPTURE_RESULT": "success",
             "TWIN_RESULT": "success",
             "STORAGE_RESULT": storage_result,
         },

@@ -448,6 +448,10 @@ jobs:
           docker cp .github/workflows/docker.yml "$svc":/app/.github/workflows/docker.yml
           docker cp .github/workflows/. "$svc":/app/.github/workflows/
           docker cp docker-compose.ci.yml "$svc":/app/docker-compose.ci.yml
+          # Include the protected-profile inputs read by service contract tests.
+          docker cp compose.experimental-candidate.yml "$svc":/app/compose.experimental-candidate.yml
+          docker cp compose.protected-flare-ci.yml "$svc":/app/compose.protected-flare-ci.yml
+          docker cp compose.protected-capture-ci.yml "$svc":/app/compose.protected-capture-ci.yml
           # Refresh the baked agent package at the path Python imports from /app.
           docker compose exec -T agent-svc mkdir -p /app/agent
           docker cp agent-svc/agent/. "$svc":/app/agent/
@@ -842,7 +846,7 @@ jobs:
           candidate-browser-controller
       - name: Verify renderer network boundary from the controller API
         run: >-
-          docker compose exec -T candidate-browser-controller python -
+          docker compose exec -T --user 10002:20000 candidate-browser-controller python -
           < tests/integration/browser_capture_boundary_probe.py
       - name: Verify renderer firewall and privilege drop in its namespace
         run: >-
@@ -855,9 +859,144 @@ jobs:
           docker compose logs --no-color --tail=100 \
             candidate-capture-egress candidate-browser-renderer \
             candidate-browser-controller candidate-valkey
+          renderer_id="$(docker compose ps -q candidate-browser-renderer)"
+          if [ -n "$renderer_id" ]; then
+            docker inspect --format '{{.Name}} health={{json .State.Health}}' "$renderer_id"
+          fi
       - name: Tear down protected browser profile
         if: always()
-        run: docker compose down --volumes --remove-orphans --timeout 10
+        run: |
+          docker compose down --volumes --remove-orphans --timeout 10
+
+  protected-flare-profile:
+    name: Protected FlareSolverr Egress Profile
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COMPOSE_FILE: compose.experimental-candidate.yml:compose.protected-flare-ci.yml
+      COMPOSE_PROFILES: protected-flare
+      COMPOSE_PROJECT_NAME: protected-flare-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_POSTGRES_PASSWORD_FILE: /tmp/protected-flare-password-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_API_KEY: ci-only-api-key
+      LLM_BASE_URL: http://llm.invalid/v1
+      LLM_API_KEY: ci-only-llm-key
+      CANDIDATE_IMAGE_TAG: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Create isolated Compose secret placeholder
+        run: |
+          umask 077
+          printf 'ci-only-password\n' > "$CANDIDATE_POSTGRES_PASSWORD_FILE"
+          docker compose --profile protected-flare config --quiet
+      - name: Build and start protected Flare and local-origin fixture
+        run: >-
+          docker compose --profile protected-flare up --build --detach --wait
+          candidate-scraper candidate-flare-control candidate-flare-test-origin
+      - name: Exercise upstream Flare GET, POST, session, cookie, redirect and page boundary
+        run: >-
+          docker compose --profile protected-flare exec -T --user 10001:20000 candidate-scraper python -
+          < tests/integration/protected_flare_api_probe.py
+      - name: Verify the Flare network namespace has no TCP API listener
+        run: >-
+          docker compose --profile protected-flare exec -T
+          candidate-flare-renderer python -
+          < tests/integration/protected_flare_renderer_probe.py
+      - name: Collect bounded protected Flare startup diagnostics
+        if: failure()
+        run: |
+          docker compose --profile protected-flare ps -a
+          docker compose --profile protected-flare logs --no-color --tail=100 \
+            candidate-capture-egress candidate-flare-renderer candidate-flare-control \
+            candidate-flare-test-origin candidate-scraper-socket-init \
+            candidate-flare-control-socket-init
+          scraper_id=$(docker compose ps -q candidate-scraper)
+          if [ -n "$scraper_id" ]; then
+            docker inspect --format '{{.Name}} health={{json .State.Health}}' "$scraper_id"
+          fi
+      - name: Tear down protected Flare profile
+        if: always()
+        run: |
+          docker compose --profile protected-flare down --volumes --remove-orphans --timeout 10
+
+  protected-capture-composition:
+    name: Protected Capture Boundary Composition
+    needs: changes
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.requires_full_runtime == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      COMPOSE_FILE: compose.experimental-candidate.yml:compose.protected-flare-ci.yml:compose.protected-capture-ci.yml
+      COMPOSE_PROFILES: protected-flare,protected-capture
+      COMPOSE_PROJECT_NAME: protected-capture-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_POSTGRES_PASSWORD_FILE: /tmp/protected-capture-password-${{ github.run_id }}-${{ github.run_attempt }}
+      CANDIDATE_API_KEY: ci-only-api-key
+      LLM_BASE_URL: http://candidate-llm:8011/v1
+      LLM_API_KEY: ci-only-llm-key
+      CANDIDATE_IMAGE_TAG: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Create isolated Compose secret placeholder and validate topology
+        run: |
+          umask 077
+          printf 'ci-only-password\n' > "$CANDIDATE_POSTGRES_PASSWORD_FILE"
+          docker compose config --quiet
+      - name: Build and start the isolated service composition
+        run: >-
+          docker compose up --build --detach --wait
+          candidate-scraper candidate-private-sentinel candidate-capture-peer-sentinel
+          candidate-host-bridge-sentinel candidate-llm
+          candidate-scraper-ingress candidate-flare-test-origin candidate-flare-control
+      - name: Verify private sentinel response positive control
+        run: |
+          docker compose exec -T candidate-private-sentinel python -c 'import uuid; from urllib.request import urlopen; nonce=uuid.uuid4().hex; r=urlopen(f"http://127.0.0.1:19001/positive-control/{nonce}", timeout=2); body=r.read(128); assert r.status == 200 and r.headers.get("Content-Type") == "text/plain" and r.headers.get("Access-Control-Allow-Origin") == "*" and body == f"PRIVATE_SENTINEL_RESPONSE_V1:{nonce}".encode(); print("private_sentinel_positive_control=pass")'
+      - name: Verify the fixed agent-to-scraper HTTP ingress bridge
+        run: >-
+          docker compose exec -T candidate-private-sentinel
+          python /probe/scraper_ingress_boundary_probe.py
+      - name: Verify unrelated egress services cannot reach the model gateway
+        run: >-
+          docker compose exec -T candidate-capture-egress python -c
+          "import socket; s=socket.socket(); s.settimeout(1); r=s.connect_ex(('172.31.254.34',8080)); s.close(); assert r != 0, 'unexpected model gateway reachability'"
+      - name: Verify direct scraper network denial and fixed model/source brokers
+        run: >-
+          docker compose exec -T --user 10001:20000 candidate-scraper python -
+          < tests/integration/scraper_egress_boundary_probe.py
+      - name: Verify the Flare control API through its permissioned socket
+        run: >-
+          docker compose exec -T --user 10001:20000 candidate-scraper python -
+          < tests/integration/protected_flare_api_probe.py
+      - name: Verify hostile JavaScript did not reach the private sentinel
+        if: always()
+        run: |
+          docker compose exec -T candidate-private-sentinel python -c 'from pathlib import Path; import json; p=Path("/state/events.jsonl"); assert p.is_file() and not p.is_symlink(), "sentinel state unavailable"; f=p.open("rb"); data=f.read(65537); f.close(); assert len(data) <= 65536, "sentinel state exceeds inspection limit"; lines=data.splitlines(); print(f"private_sentinel_hits={len(lines)}", flush=True); [json.loads(line) for line in lines]; assert not lines, "private sentinel received traffic"; q=Path("/state/positive-control.jsonl"); assert q.is_file() and not q.is_symlink(), "positive-control state unavailable"; f=q.open("rb"); positive=f.read(65537); f.close(); assert len(positive) <= 65536, "positive-control state exceeds inspection limit"; positive_lines=positive.splitlines(); [json.loads(line) for line in positive_lines]; print(f"private_sentinel_positive_control_hits={len(positive_lines)}", flush=True); assert len(positive_lines) == 1, "positive-control evidence changed"'
+      - name: Collect bounded composition diagnostics
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=100 candidate-capture-egress candidate-model-egress \
+            candidate-scraper candidate-scraper-ingress candidate-scraper-state-control \
+            candidate-scraper-model-control candidate-browser-renderer \
+            candidate-browser-controller candidate-flare-renderer candidate-flare-control \
+            candidate-scraper-socket-init candidate-flare-control-socket-init \
+            candidate-private-sentinel candidate-llm
+          scraper_id=$(docker compose ps -q candidate-scraper)
+          if [ -n "$scraper_id" ]; then
+            docker inspect --format '{{.Name}} health={{json .State.Health}}' "$scraper_id"
+          fi
+      - name: Tear down protected capture composition
+        if: always()
+        run: |
+          docker compose down --volumes --remove-orphans --timeout 15
 
   research-storage:
     name: PostgreSQL Storage Probes
@@ -1216,6 +1355,8 @@ jobs:
       - integration-tests
       - research-storage
       - protected-browser-profile
+      - protected-flare-profile
+      - protected-capture-composition
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -1227,6 +1368,8 @@ jobs:
           TWIN_REQUIRED: ${{ needs.changes.outputs.requires_twin_contracts }}
           RUNTIME_RESULT: ${{ needs.integration-tests.result }}
           BROWSER_PROFILE_RESULT: ${{ needs.protected-browser-profile.result }}
+          PROTECTED_FLARE_RESULT: ${{ needs.protected-flare-profile.result }}
+          PROTECTED_CAPTURE_RESULT: ${{ needs.protected-capture-composition.result }}
           TWIN_RESULT: ${{ needs.twin-contracts.result }}
           STORAGE_RESULT: ${{ needs.research-storage.result }}
         run: |
@@ -1239,6 +1382,8 @@ jobs:
             test "$RUNTIME_RESULT" = success
             test "$STORAGE_RESULT" = success
             test "$BROWSER_PROFILE_RESULT" = success
+            test "$PROTECTED_FLARE_RESULT" = success
+            test "$PROTECTED_CAPTURE_RESULT" = success
           else
             echo "Runtime integration not required for this documentation-only change."
           fi

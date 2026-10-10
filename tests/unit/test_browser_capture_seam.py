@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import runpy
 import sys
 import uuid
@@ -24,6 +25,20 @@ from browser_svc.app import startup as browser_app_startup
 from browser_svc.controller import create_app
 from browser_svc.cookie_rpc import CookieRPCClient, CookieRPCServer
 
+from tests.outcome_governance import governed_skip
+
+
+def _skip_if_socket_binding_is_restricted(error: OSError) -> None:
+    if error.errno not in {errno.EACCES, errno.EPERM}:
+        raise error
+    governed_skip(
+        "sandbox does not permit local Unix socket binding",
+        owner="repository-maintainer",
+        issue="#436",
+        classification="retained",
+        environment="restricted test sandbox denies AF_UNIX bind",
+    )
+
 
 def test_hostile_navigation_probe_requires_gateway_denial_not_successful_health():
     probe = (
@@ -31,9 +46,7 @@ def test_hostile_navigation_probe_requires_gateway_denial_not_successful_health(
         / "integration"
         / "browser_capture_boundary_probe.py"
     )
-    namespace = runpy.run_path(str(probe))
-    verify = namespace.get("_is_gateway_denial")
-    assert callable(verify)
+    verify = runpy.run_path(str(probe))["_is_gateway_denial"]
     target = "http://127.0.0.1:8012/health"
     assert verify(
         {
@@ -86,6 +99,13 @@ def test_navigation_exposes_only_status_and_media_type():
     assert _navigation_response_fields(OversizedMetadataResponse()) == {}
 
 
+async def _start_unix_server(handler, *, path):
+    try:
+        return await asyncio.start_unix_server(handler, path=path)
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
+
+
 @pytest.mark.asyncio
 async def test_controller_forwards_only_over_fixed_uds_and_preserves_api_response(
     tmp_path: Path,
@@ -123,7 +143,7 @@ async def test_controller_forwards_only_over_fixed_uds_and_preserves_api_respons
         writer.close()
         await writer.wait_closed()
 
-    server = await asyncio.start_unix_server(handle, path=socket_path)
+    server = await _start_unix_server(handle, path=socket_path)
     try:
         client = httpx.AsyncClient(
             transport=httpx.ASGITransport(app=create_app(socket_path)),
@@ -283,7 +303,10 @@ async def test_cookie_rpc_preserves_domain_keys_ttls_and_concurrent_sessions(
     monkeypatch.setattr("browser_svc.cookie_rpc.os.chown", lambda *_args: None)
     redis = FakeRedis()
     server = CookieRPCServer(socket_path, redis)
-    await server.start()
+    try:
+        await server.start()
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
     first = CookieRPCClient(socket_path)
     second = CookieRPCClient(socket_path)
     try:
@@ -306,7 +329,10 @@ async def test_cookie_rpc_rejects_unscoped_keys(monkeypatch: pytest.MonkeyPatch)
     socket_path = f"/tmp/cr-{uuid.uuid4().hex[:10]}.sock"
     monkeypatch.setattr("browser_svc.cookie_rpc.os.chown", lambda *_args: None)
     server = CookieRPCServer(socket_path, None)
-    await server.start()
+    try:
+        await server.start()
+    except OSError as error:
+        _skip_if_socket_binding_is_restricted(error)
     client = CookieRPCClient(socket_path)
     try:
         with pytest.raises(ValueError, match="invalid cookie key"):
@@ -330,7 +356,7 @@ def test_renderer_firewall_installs_default_deny_rules(
 ):
     commands: list[list[str]] = []
     monkeypatch.setenv("BROWSER_PROTECTED_RENDERER", "1")
-    monkeypatch.setenv("BROWSER_CAPTURE_PROXY_URL", "http://172.31.254.2:8080")
+    monkeypatch.setenv("BROWSER_CAPTURE_PROXY_URL", "http://172.31.254.10:8080")
     monkeypatch.setattr(renderer_entrypoint, "_run_firewall_command", commands.append)
 
     renderer_entrypoint._install_firewall()
@@ -344,7 +370,7 @@ def test_renderer_firewall_installs_default_deny_rules(
         "-p",
         "tcp",
         "-d",
-        "172.31.254.2/32",
+        "172.31.254.10/32",
         "--dport",
         "8080",
         "-j",
@@ -416,10 +442,10 @@ def test_renderer_sets_directory_mode_as_unprivileged_owner(monkeypatch):
     renderer_entrypoint._prepare_unprivileged_renderer()
     assert calls == [
         "mkdir",
-        ("chown", 10001, 10001),
+        ("chown", 10001, 20000),
         "drop-caps",
-        ("setgroups", ()),
-        ("setgid", 10001),
+        ("setgroups", (20000,)),
+        ("setgid", 20000),
         "setuid",
         "chmod",
     ]

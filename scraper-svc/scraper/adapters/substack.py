@@ -29,10 +29,9 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 
 from ..source_http import (
-    ProtectedSourceToolUnavailableError,
-    require_unprotected_source_tool,
     source_httpx_client,
     source_httpx_sync_client,
+    trusted_control_base_url,
     trusted_control_httpx_client,
 )
 from .base import AdapterContext, AdapterError, AdapterResult, SiteAdapter, adapter
@@ -243,14 +242,12 @@ async def _fetch_via_readability(url: str) -> str | None:
 
 async def _fetch_via_browser(url: str, ctx: AdapterContext) -> str | None:
     """Last-resort fallback: render the page via browser-svc."""
-    try:
-        require_unprotected_source_tool("substack-browser-service")
-    except ProtectedSourceToolUnavailableError:
-        return None
-    browser_svc_url = ctx.config.get("BROWSER_SVC_URL", "http://browser-svc:8012")
+    browser_svc_url = trusted_control_base_url(
+        ctx.config.get("BROWSER_SVC_URL", "http://browser-svc:8012"), "browser"
+    )
     session_id = None
     try:
-        async with trusted_control_httpx_client(timeout=45) as client:
+        async with trusted_control_httpx_client(service="browser", timeout=45) as client:
             # Create session
             create_resp = await client.post(
                 f"{browser_svc_url}/browsers",
@@ -292,7 +289,7 @@ async def _fetch_via_browser(url: str, ctx: AdapterContext) -> str | None:
     finally:
         if session_id:
             try:
-                async with trusted_control_httpx_client(timeout=5) as c:
+                async with trusted_control_httpx_client(service="browser", timeout=5) as c:
                     await c.delete(f"{browser_svc_url}/browsers/{session_id}")
             except Exception as e:
                 logger.debug("Session cleanup failed for %s: %s", url, e)

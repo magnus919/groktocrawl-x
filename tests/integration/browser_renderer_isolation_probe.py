@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 NET_ADMIN = 1 << 12
-GATEWAY = "172.31.254.2"
+GATEWAY = "172.31.254.10"
 GATEWAY_PORT = "8080"
 
 
