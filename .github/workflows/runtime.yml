@@ -448,6 +448,10 @@ jobs:
           docker cp .github/workflows/docker.yml "$svc":/app/.github/workflows/docker.yml
           docker cp .github/workflows/. "$svc":/app/.github/workflows/
           docker cp docker-compose.ci.yml "$svc":/app/docker-compose.ci.yml
+          # Include the protected-profile inputs read by service contract tests.
+          docker cp compose.experimental-candidate.yml "$svc":/app/compose.experimental-candidate.yml
+          docker cp compose.protected-flare-ci.yml "$svc":/app/compose.protected-flare-ci.yml
+          docker cp compose.protected-capture-ci.yml "$svc":/app/compose.protected-capture-ci.yml
           # Refresh the baked agent package at the path Python imports from /app.
           docker compose exec -T agent-svc mkdir -p /app/agent
           docker cp agent-svc/agent/. "$svc":/app/agent/
