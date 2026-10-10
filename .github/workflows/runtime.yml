@@ -976,7 +976,7 @@ jobs:
         if: failure()
         run: |
           docker compose ps -a
-          docker compose logs --no-color --tail=100 candidate-capture-egress \
+          docker compose logs --no-color --tail=100 candidate-capture-egress candidate-model-egress \
             candidate-scraper candidate-scraper-ingress candidate-scraper-state-control \
             candidate-scraper-model-control candidate-browser-renderer \
             candidate-browser-controller candidate-flare-renderer candidate-flare-control \
