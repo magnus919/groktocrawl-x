@@ -88,8 +88,7 @@ try:
     assert "FLARE_POST_OK:capture=posted" in (posted.get("solution") or {}).get("response", "")
 
     rejected = call({"cmd": "request.get", "url": "file:///etc/passwd"}, expected_http_status=500)
-    assert rejected.get("status") == "error", rejected
-    assert "allowed HTTP destination" in rejected.get("message", ""), rejected
+    assert rejected == {"error": "request URL is not an allowed HTTP destination"}, rejected
 finally:
     destroyed = call({"cmd": "sessions.destroy", "session": session})
     assert destroyed.get("status") == "ok", destroyed
