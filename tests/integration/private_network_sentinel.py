@@ -16,6 +16,9 @@ POSITIVE_EVENTS = Path(
     os.environ.get("SENTINEL_POSITIVE_EVENTS", "/state/positive-control.jsonl")
 )
 POSITIVE_CONTROL_PREFIX = b"PRIVATE_SENTINEL_RESPONSE_V1:"
+BIND_HOST = os.environ.get("SENTINEL_BIND_HOST", "0.0.0.0")
+if BIND_HOST not in {"0.0.0.0", "172.31.254.1"}:
+    raise RuntimeError("sentinel bind host is outside the CI/lab fixture allowlist")
 
 # Keep the negative event file separate and append-only. The independent
 # positive control has its own retained file and can never clear a negative hit.
@@ -61,11 +64,11 @@ class Handler(BaseHTTPRequestHandler):
 
 def udp_sink() -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", 19002))
+    sock.bind((BIND_HOST, 19002))
     while True:
         _data, peer = sock.recvfrom(4096)
         record("udp", peer)
 
 
 threading.Thread(target=udp_sink, daemon=True).start()
-ThreadingHTTPServer(("0.0.0.0", 19001), Handler).serve_forever()
+ThreadingHTTPServer((BIND_HOST, 19001), Handler).serve_forever()

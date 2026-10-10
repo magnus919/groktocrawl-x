@@ -22,8 +22,31 @@ PRIVATE_IP = "172.31.253.250"
 CAPTURE_PEER_IP = "172.31.254.6"
 CAPTURE_HOST_GATEWAY_IP = "172.31.254.1"
 MODEL_GATEWAY_IP = "172.31.254.34"
-FIXTURE_URL = "http://flare-origin.test/get"
+FIXTURE_ORIGIN = os.environ.get("CAPTURE_FIXTURE_ORIGIN", "http://flare-origin.test").rstrip("/")
+FIXTURE_URL = f"{FIXTURE_ORIGIN}/get"
+MODEL_PROBE_NAME = os.environ.get("CAPTURE_PROBE_MODEL_NAME", "fixture-model")
 STATE_SOCKET = "/run/scraper-state/control.sock"
+
+
+def _validate_fixture_origin(origin: str) -> str:
+    parsed = urlsplit(origin)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise RuntimeError("capture fixture origin has an invalid port") from error
+    if (
+        parsed.scheme != "http"
+        or not parsed.hostname
+        or not parsed.hostname.endswith(".test")
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError("capture fixture origin must be a plain HTTP .test origin")
+    return parsed.hostname
 
 
 def _direct_tcp_denied(host: str, port: int) -> None:
@@ -39,14 +62,16 @@ def _direct_tcp_denied(host: str, port: int) -> None:
         sock.close()
 
 
-def _navigation_diagnostics(payload: object) -> tuple[bool, bool, int | None]:
+def _navigation_diagnostics(
+    payload: object, expected_host: str | None
+) -> tuple[bool, bool, int | None]:
     if not isinstance(payload, dict):
         return False, False, None
     result = payload.get("result")
     host_matches = (
         isinstance(result, dict)
         and isinstance(result.get("url"), str)
-        and urlsplit(result["url"]).hostname == "flare-origin.test"
+        and urlsplit(result["url"]).hostname == expected_host
     )
     status = (
         result.get("http_status")
@@ -228,6 +253,9 @@ async def _exercise_valkey_capability() -> None:
 
 
 async def main() -> None:
+    fixture_host = _validate_fixture_origin(FIXTURE_ORIGIN)
+    if not MODEL_PROBE_NAME or len(MODEL_PROBE_NAME) > 256:
+        raise RuntimeError("capture model probe name is invalid")
     _drop_probe_capabilities()
     if (os.getuid(), os.getgid()) != (10001, 20000) or 20000 not in os.getgroups():
         raise RuntimeError("scraper did not run as the designated unprivileged identity")
@@ -275,7 +303,7 @@ async def main() -> None:
             "/recovery/chat/completions",
             headers={"content-type": "application/json"},
             json={
-                "model": "fixture-model",
+                "model": MODEL_PROBE_NAME,
                 "messages": [{"role": "user", "content": "transport probe"}],
             },
         )
@@ -312,7 +340,7 @@ async def main() -> None:
             )
             navigation.raise_for_status()
             navigation_success, fixture_host_matches, navigation_status = (
-                _navigation_diagnostics(navigation.json())
+                _navigation_diagnostics(navigation.json(), fixture_host)
             )
             if (
                 not navigation_success
@@ -336,7 +364,8 @@ async def main() -> None:
                         "await new Promise(resolve => setTimeout(resolve, 50)); "
                         "const marker = document.querySelector('#private-check'); "
                         "const value = marker?.textContent?.trim(); "
-                        "return {fixtureHostMatches: location.hostname === 'flare-origin.test', "
+                        "return {fixtureHostMatches: location.hostname === "
+                        f"{json.dumps(fixture_host)}, "
                         "markerExists: marker !== null, "
                         "markerState: ['pending', 'PRIVATE_TARGET_BLOCKED', "
                         "'PRIVATE_TARGET_REACHABLE'].includes(value) ? value : 'other'}; }"

@@ -56,7 +56,7 @@ def test_browser_failure_diagnostics_are_bounded_and_distinguish_private_hit():
             "http_status": 200,
         },
     }
-    assert probe._navigation_diagnostics(navigation) == (True, True, 200)
+    assert probe._navigation_diagnostics(navigation, "flare-origin.test") == (True, True, 200)
     assert probe._marker_diagnostics(
         {
             "result": {
@@ -77,8 +77,32 @@ def test_browser_failure_diagnostics_are_bounded_and_distinguish_private_hit():
     # Summaries expose only fixed booleans, enum values, and bounded HTTP status;
     # neither response URLs nor page text are returned to CI logs.
     assert probe._navigation_diagnostics(
-        {"success": False, "result": {"url": "http://secret.invalid/path", "http_status": 503}}
+        {"success": False, "result": {"url": "http://secret.invalid/path", "http_status": 503}},
+        "flare-origin.test",
     ) == (False, False, 503)
+
+
+def test_fixture_origin_is_restricted_to_plain_reserved_test_hostnames():
+    probe = _probe()
+    assert probe._validate_fixture_origin("http://capture-origin.example.test") == (
+        "capture-origin.example.test"
+    )
+    for value in (
+        "https://capture-origin.example.test",
+        "http://example.com",
+        "http://user@capture-origin.example.test",
+        "http://capture-origin.example.test:8080",
+        "http://capture-origin.example.test/path",
+    ):
+        with pytest.raises(RuntimeError, match=r"plain HTTP \.test origin"):
+            probe._validate_fixture_origin(value)
+
+
+def test_probe_model_alias_is_parameterized_without_changing_ci_default(monkeypatch):
+    monkeypatch.delenv("CAPTURE_PROBE_MODEL_NAME", raising=False)
+    assert _probe().MODEL_PROBE_NAME == "fixture-model"
+    monkeypatch.setenv("CAPTURE_PROBE_MODEL_NAME", "free")
+    assert _probe().MODEL_PROBE_NAME == "free"
 
 
 def test_control_socket_probe_requires_nonwritable_owner_directories(monkeypatch):

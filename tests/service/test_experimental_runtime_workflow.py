@@ -165,16 +165,25 @@ def test_capture_composition_runs_real_ingress_scrape_meta_and_network_probes():
 def test_fixture_subnet_static_addresses_avoid_gateway_and_collisions():
     assignments: dict[tuple[str, str], str] = {}
     network_subnets: dict[str, ipaddress.IPv4Network] = {}
-    for filename in ("compose.protected-flare-ci.yml", "compose.protected-capture-ci.yml"):
+    for filename in (
+        "compose.experimental-candidate.yml",
+        "compose.protected-flare-ci.yml",
+        "compose.protected-capture-ci.yml",
+        "compose.protected-capture-lab.yml",
+    ):
         document = yaml.safe_load((ROOT / filename).read_text())
         for network_name, network in document.get("networks", {}).items():
+            network = network or {}
             for config in network.get("ipam", {}).get("config", []):
                 if "subnet" in config:
                     subnet = ipaddress.ip_network(config["subnet"])
                     previous = network_subnets.setdefault(network_name, subnet)
                     assert previous == subnet
         for service_name, service in document.get("services", {}).items():
-            for network_name, config in service.get("networks", {}).items():
+            networks = service.get("networks", {})
+            if not isinstance(networks, dict):
+                continue
+            for network_name, config in networks.items():
                 if isinstance(config, dict) and "ipv4_address" in config:
                     key = (service_name, network_name)
                     address = config["ipv4_address"]
@@ -195,6 +204,53 @@ def test_fixture_subnet_static_addresses_avoid_gateway_and_collisions():
         assert address in subnet, f"{service[0]} address is outside fixture subnet"
         assert address != gateway, f"{service[0]} collides with Docker's subnet gateway"
         assert address != subnet.broadcast_address
+
+
+def test_lab_qualification_overlay_keeps_live_model_route_and_bounds_sentinels():
+    base = yaml.safe_load((ROOT / "compose.experimental-candidate.yml").read_text())
+    lab = yaml.safe_load((ROOT / "compose.protected-capture-lab.yml").read_text())
+    services = lab["services"]
+
+    assert all("ports" not in service for service in services.values())
+    assert [
+        name for name, service in services.items() if service.get("network_mode") == "host"
+    ] == ["candidate-host-bridge-sentinel"]
+    assert "candidate-llm" not in services
+    assert "candidate-model-egress" not in services
+    assert "LLM_GATEWAY_PRIVATE_HOSTS" not in repr(services)
+    assert services["candidate-scraper"]["environment"]["CAPTURE_PROBE_MODEL_NAME"] == "${LLM_MODEL:-local}"
+    assert services["candidate-scraper"]["environment"]["CAPTURE_FIXTURE_ORIGIN"] == (
+        "http://${CAPTURE_FIXTURE_HOST:-capture-origin.example.test}"
+    )
+    assert "LLM_BASE_URL" in base["services"]["candidate-model-egress"]["environment"]
+    assert "LLM_API_KEY" in base["services"]["candidate-scraper-model-control"]["environment"]
+    assert "LLM_BASE_URL" in base["services"]["candidate-agent"]["environment"]
+
+    host_sentinel = services["candidate-host-bridge-sentinel"]
+    assert host_sentinel["network_mode"] == "host"
+    assert "ports" not in host_sentinel
+    capture_subnet = ipaddress.ip_network(
+        base["networks"]["candidate_capture"]["ipam"]["config"][0]["subnet"]
+    )
+    assert host_sentinel["environment"]["SENTINEL_BIND_HOST"] == str(
+        next(capture_subnet.hosts())
+    )
+    assert host_sentinel["mem_limit"] == "64m"
+    assert host_sentinel["cpus"] == 0.25
+    assert host_sentinel["pids_limit"] == 32
+
+    fixture_network = lab["networks"]["candidate_flare_fixture"]
+    assert fixture_network["internal"] is True
+    assert fixture_network["ipam"]["config"] == [{"subnet": "93.184.216.32/29"}]
+    assert services["candidate-capture-egress"]["networks"]["candidate_flare_fixture"]["ipv4_address"] == (
+        "93.184.216.38"
+    )
+    assert services["candidate-flare-test-origin"]["networks"]["candidate_flare_fixture"]["ipv4_address"] == (
+        "93.184.216.34"
+    )
+    assert services["candidate-flare-test-origin"]["mem_limit"] == "64m"
+    assert services["candidate-flare-test-origin"]["cpus"] == 0.25
+    assert services["candidate-flare-test-origin"]["pids_limit"] == 32
 
 
 def test_compose_image_digests_are_full_sha256_values():

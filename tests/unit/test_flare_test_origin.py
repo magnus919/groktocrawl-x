@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.client
 import importlib.util
+import io
 import sys
 import threading
 from http.server import ThreadingHTTPServer
@@ -77,6 +78,37 @@ def test_head_preserves_redirect_metadata_without_body(origin_url: str) -> None:
         assert response.read() == b""
     finally:
         connection.close()
+
+
+def test_lab_fixture_host_and_private_peer_are_explicitly_configurable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CAPTURE_FIXTURE_HOST", "capture-origin.example.test")
+    monkeypatch.setenv(
+        "CAPTURE_PRIVATE_SENTINEL_URL", "http://172.31.253.250:19001/probe"
+    )
+    fixture = _load_fixture_module()
+    handler = fixture.FixtureHandler.__new__(fixture.FixtureHandler)
+    headers: dict[str, str] = {}
+    statuses: list[int] = []
+    handler.send_response = statuses.append
+    handler.send_header = headers.__setitem__
+    handler.end_headers = lambda: None
+    handler.path = "/redirect"
+    fixture.FixtureHandler.do_GET(handler)
+    assert statuses == [302]
+    assert headers["Location"] == "http://capture-origin.example.test/get"
+
+    headers.clear()
+    statuses.clear()
+    handler.path = "/get"
+    handler.headers = {}
+    handler.command = "GET"
+    handler.wfile = io.BytesIO()
+    fixture.FixtureHandler.do_GET(handler)
+    body = handler.wfile.getvalue().decode("utf-8")
+    assert statuses == [200]
+    assert "http://172.31.253.250:19001/probe/${privateNonce}" in body
 
 
 def test_private_fetch_fixture_requires_cors_validated_sentinel_response(origin_url: str) -> None:

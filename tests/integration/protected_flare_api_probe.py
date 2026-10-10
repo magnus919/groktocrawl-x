@@ -3,13 +3,40 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
+from urllib.parse import urlsplit
 
 import httpx
 
 BASE_URL = "http://candidate-flare-control:8191"
 CONTROL_SOCKET = "/run/flare-control/control.sock"
-FIXTURE_URL = "http://flare-origin.test/get"
+FIXTURE_ORIGIN = os.environ.get("CAPTURE_FIXTURE_ORIGIN", "http://flare-origin.test").rstrip("/")
+FIXTURE_URL = f"{FIXTURE_ORIGIN}/get"
+
+
+def _fixture_origin_host() -> str:
+    parsed = urlsplit(FIXTURE_ORIGIN)
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise RuntimeError("capture fixture origin has an invalid port") from error
+    if (
+        parsed.scheme != "http"
+        or not parsed.hostname
+        or not parsed.hostname.endswith(".test")
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError("capture fixture origin must be a plain HTTP .test origin")
+    return parsed.hostname
+
+
+FIXTURE_HOST = _fixture_origin_host()
 _client = httpx.Client(
     transport=httpx.HTTPTransport(uds=CONTROL_SOCKET, retries=0),
     base_url=BASE_URL,
@@ -67,7 +94,7 @@ try:
     redirected = call(
         {
             "cmd": "request.get",
-            "url": "http://flare-origin.test/redirect",
+            "url": f"{FIXTURE_ORIGIN}/redirect",
             "session": session,
             "waitInSeconds": 1,
         }
@@ -78,7 +105,7 @@ try:
     posted = call(
         {
             "cmd": "request.post",
-            "url": "http://flare-origin.test/post",
+            "url": f"{FIXTURE_ORIGIN}/post",
             "postData": "capture=posted",
             "session": session,
             "proxy": {"url": "http://127.0.0.1:8191"},
