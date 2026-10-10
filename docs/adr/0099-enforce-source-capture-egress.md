@@ -71,7 +71,16 @@ The first implementation increment adds `common.capture_destination` and 47
 synthetic tests, including the default resolver and numeric dialer paths. Those
 tests pass, as do 67 existing URL tests, Ruff and the primitive's mypy check.
 Independent review found no remaining P1/P2 defect in that primitive scope.
-There is no client or gateway wiring yet; this evidence does not qualify capture.
+That initial increment had no client or gateway wiring and did not qualify capture.
+
+Subsequent [PR #436](https://github.com/magnus919/groktocrawl-x/pull/436) merged
+the opt-in complete composition at
+`fcaabedd94be152eb74c28764bd74a8e7adc5be3`. Required CI passed the protected
+browser, protected Flare and complete capture-composition probes, plus general
+integration and storage checks. This supports the tested CI images/network
+profile; it does not qualify a later rebuild or different deployed configuration.
+The record remains proposed. Exact deployed-profile evidence and fresh study
+admission remain required under issue #429, with no reduction in tools or gates.
 
 Before enabling the profile, exact-image integration tests must exercise adapter,
 metadata, redirect, inline-browser, browser-service, and FlareSolverr traffic.
