@@ -452,6 +452,7 @@ jobs:
           docker cp compose.experimental-candidate.yml "$svc":/app/compose.experimental-candidate.yml
           docker cp compose.protected-flare-ci.yml "$svc":/app/compose.protected-flare-ci.yml
           docker cp compose.protected-capture-ci.yml "$svc":/app/compose.protected-capture-ci.yml
+          docker cp compose.protected-capture-lab.yml "$svc":/app/compose.protected-capture-lab.yml
           # Refresh the baked agent package at the path Python imports from /app.
           docker compose exec -T agent-svc mkdir -p /app/agent
           docker cp agent-svc/agent/. "$svc":/app/agent/

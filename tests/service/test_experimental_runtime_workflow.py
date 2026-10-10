@@ -64,7 +64,12 @@ def test_stack_is_built_locally_with_fixture_search_and_owned_volumes():
     assert "LLM_BASE_URL=http://llm-svc:8011/v1?run_id=" in commands
     assert "docker rm -f" not in commands
     assert "down --volumes --remove-orphans" in commands
-    for filename in ("compose.experimental-candidate.yml", "compose.protected-flare-ci.yml", "compose.protected-capture-ci.yml"):
+    for filename in (
+        "compose.experimental-candidate.yml",
+        "compose.protected-flare-ci.yml",
+        "compose.protected-capture-ci.yml",
+        "compose.protected-capture-lab.yml",
+    ):
         assert f'docker cp {filename} "$svc":/app/{filename}' in commands
 
 
