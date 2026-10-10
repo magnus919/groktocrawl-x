@@ -71,3 +71,12 @@ are rejected, and every other path or method is denied. Then run the complete
 ADR-0099 boundary probes against the exact resolved image digests and full
 recovery profile. A rendered Compose file, unit test, healthy endpoint, or this
 frontend alone is not protected-profile qualification or study admission.
+
+Component-only verification on 2026-10-09 passed the HAProxy parser and a
+loopback TLS integration run under a non-root identity with networking disabled.
+It exercised authenticated health and scrape routes, rejected wrong CA and
+hostname checks, and denied wrong paths, methods, and queries. The first strict
+TLS run exposed a missing Authority Key Identifier in the test CA; the fixture
+was corrected with the required CA and leaf extensions, with certificate
+verification left enabled. This did not exercise Compose frontend startup or
+qualify the complete protected capture profile.
