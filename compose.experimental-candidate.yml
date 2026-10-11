@@ -638,6 +638,7 @@ services:
       dockerfile: agent-svc/Dockerfile
     image: groktocrawl-x-candidate-agent:${CANDIDATE_IMAGE_TAG:-dev}
     restart: unless-stopped
+    group_add: ["20000"]
     entrypoint: [/bin/sh, -c]
     command:
       - |
@@ -658,6 +659,7 @@ services:
       PGPASSFILE: /tmp/postgres.pgpass
       SEARXNG_URL: http://candidate-slopsearx:8080
       SCRAPER_URL: http://candidate-scraper-ingress:8010
+      BROWSER_CONTROL_SOCKET: /run/browser-control/controller.sock
       SEMANTIC_URL: http://candidate-semantic:8003
       SEMANTIC_CLIENT_TIMEOUT_SECONDS: ${SEMANTIC_CLIENT_TIMEOUT_SECONDS:-60}
       QDRANT_URL: http://candidate-qdrant-rollback:6333
@@ -674,6 +676,8 @@ services:
       HOST: 0.0.0.0
       PORT: "8080"
     secrets: [postgres_password]
+    volumes:
+      - candidate_browser_controller_socket:/run/browser-control:ro
     depends_on:
       candidate-valkey:
         condition: service_healthy
@@ -690,6 +694,8 @@ services:
       candidate-parse:
         condition: service_healthy
       candidate-portal:
+        condition: service_healthy
+      candidate-browser-controller:
         condition: service_healthy
     networks: [candidate_egress, candidate_private]
     healthcheck:
