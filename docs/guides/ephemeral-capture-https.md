@@ -50,13 +50,15 @@ layer.
 
 The frontend has no access or request logging configuration, does not rewrite
 the bearer header, and retries no requests. It is attached to
-`candidate_private` for the agent route and to the existing non-internal
-`candidate_egress` bridge because Docker does not publish host ports for a
-container attached only to an internal network. The source capture gateway,
-isolated scraper worker, browser renderer/controller, and Flare recovery path
-remain as configured by
-the selected protected-profile files. Do not use this ingress overlay by itself
-as evidence that those source paths are protected.
+`candidate_private` for the agent route and to a dedicated non-internal bridge,
+`candidate_https_edge` (`172.31.251.0/24`), because Docker does not publish host
+ports for a container attached only to an internal network. Check that this
+subnet does not overlap host routes or another Docker network before starting
+the lab. This bridge allows outbound routing; it does not add an egress block.
+Only the HTTPS frontend joins it. The source capture gateway, isolated scraper
+worker, browser renderer/controller, and Flare recovery path remain as
+configured by the selected protected-profile files. Do not use this ingress
+overlay by itself as evidence that those source paths are protected.
 
 The Compose model and unit contracts can be checked without starting services:
 
