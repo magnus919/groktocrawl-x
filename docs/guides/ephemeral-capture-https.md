@@ -49,9 +49,12 @@ certificate is required. The bearer key is the application authorization
 layer.
 
 The frontend has no access or request logging configuration, does not rewrite
-the bearer header, retries no requests, and is attached only to
-`candidate_private`. The source capture gateway, isolated scraper worker,
-browser renderer/controller, and Flare recovery path remain as configured by
+the bearer header, and retries no requests. It is attached to
+`candidate_private` for the agent route and to the existing non-internal
+`candidate_egress` bridge because Docker does not publish host ports for a
+container attached only to an internal network. The source capture gateway,
+isolated scraper worker, browser renderer/controller, and Flare recovery path
+remain as configured by
 the selected protected-profile files. Do not use this ingress overlay by itself
 as evidence that those source paths are protected.
 

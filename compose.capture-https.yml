@@ -36,7 +36,10 @@ services:
       - capture_bearer_acl
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=1m,mode=0700,uid=${CAPTURE_HTTPS_UID:-1000},gid=${CAPTURE_HTTPS_GID:-1000}
-    networks: [candidate_private]
+    # Docker does not publish host ports for containers attached only to an
+    # internal network. Keep the private agent route and add the existing
+    # non-internal edge network so the explicit host mapping is reachable.
+    networks: [candidate_egress, candidate_private]
     depends_on:
       candidate-agent:
         condition: service_healthy
