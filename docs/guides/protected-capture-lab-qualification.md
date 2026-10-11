@@ -72,7 +72,11 @@ use the existing `flare-origin.test` and `fixture-model` defaults.
 
 The egress probe makes one bounded completion request through the configured
 model broker to verify that the real configured model path is reachable. It
-must be included in the lab's authorized call budget. The other listed probes
+must be included in the lab's authorized call budget. It requests at most eight
+output tokens and uses a 155-second total deadline, covering the existing
+150-second model-proxy connection bound plus local broker overhead. This is a
+transport diagnostic; the research study's answer deadlines and quality gates
+are unchanged. The other listed probes
 exercise ingress, source capture, browser, Flare, and sentinel behavior. The
 CI composition still uses its separate fixture-model overlay and is not a
 substitute for a lab run. A passing configuration or synthetic test does not

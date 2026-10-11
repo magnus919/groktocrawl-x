@@ -25,6 +25,11 @@ MODEL_GATEWAY_IP = "172.31.254.34"
 FIXTURE_ORIGIN = os.environ.get("CAPTURE_FIXTURE_ORIGIN", "http://flare-origin.test").rstrip("/")
 FIXTURE_URL = f"{FIXTURE_ORIGIN}/get"
 MODEL_PROBE_NAME = os.environ.get("CAPTURE_PROBE_MODEL_NAME", "fixture-model")
+# The model proxy permits a 150-second bounded connection; allow five seconds
+# for local broker overhead while keeping this diagnostic call finite.
+MODEL_PROBE_TIMEOUT_SECONDS = 155.0
+MODEL_PROBE_MAX_TOKENS = 8
+MODEL_PROBE_PROMPT = "Reply with OK."
 STATE_SOCKET = "/run/scraper-state/control.sock"
 
 
@@ -252,6 +257,46 @@ async def _exercise_valkey_capability() -> None:
     await client.aclose()
 
 
+async def _exercise_model_broker() -> None:
+    """Make one bounded, output-capped call through the private model broker."""
+    model_transport = httpx.AsyncHTTPTransport(
+        uds="/run/scraper-llm/control.sock", retries=0
+    )
+    async with httpx.AsyncClient(
+        transport=model_transport,
+        base_url="http://llm-control",
+        trust_env=False,
+        timeout=MODEL_PROBE_TIMEOUT_SECONDS,
+    ) as model:
+        completion = await asyncio.wait_for(
+            model.post(
+                "/recovery/chat/completions",
+                headers={"content-type": "application/json"},
+                json={
+                    "model": MODEL_PROBE_NAME,
+                    "messages": [{"role": "user", "content": MODEL_PROBE_PROMPT}],
+                    "max_tokens": MODEL_PROBE_MAX_TOKENS,
+                },
+            ),
+            timeout=MODEL_PROBE_TIMEOUT_SECONDS,
+        )
+        if completion.status_code != 200:
+            payload = completion.json() if completion.headers.get("content-type", "").startswith("application/json") else {}
+            error_code = payload.get("error_code") if isinstance(payload, dict) else None
+            if error_code not in {
+                "configuration_unavailable",
+                "client_unavailable",
+                "upstream_transport_unavailable",
+                "upstream_response_unavailable",
+            }:
+                error_code = "unknown"
+            raise RuntimeError(
+                f"private model broker failed status={completion.status_code} error_code={error_code}"
+            )
+        if not completion.json().get("choices"):
+            raise RuntimeError("private model broker returned no completion")
+
+
 async def main() -> None:
     fixture_host = _validate_fixture_origin(FIXTURE_ORIGIN)
     if not MODEL_PROBE_NAME or len(MODEL_PROBE_NAME) > 256:
@@ -293,35 +338,7 @@ async def main() -> None:
 
     # Exercise the private operator model through its fixed UDS broker. The
     # scraper has no model URL/key and is not attached to candidate_private.
-    model_transport = httpx.AsyncHTTPTransport(
-        uds="/run/scraper-llm/control.sock", retries=0
-    )
-    async with httpx.AsyncClient(
-        transport=model_transport, base_url="http://llm-control", trust_env=False
-    ) as model:
-        completion = await model.post(
-            "/recovery/chat/completions",
-            headers={"content-type": "application/json"},
-            json={
-                "model": MODEL_PROBE_NAME,
-                "messages": [{"role": "user", "content": "transport probe"}],
-            },
-        )
-        if completion.status_code != 200:
-            payload = completion.json() if completion.headers.get("content-type", "").startswith("application/json") else {}
-            error_code = payload.get("error_code") if isinstance(payload, dict) else None
-            if error_code not in {
-                "configuration_unavailable",
-                "client_unavailable",
-                "upstream_transport_unavailable",
-                "upstream_response_unavailable",
-            }:
-                error_code = "unknown"
-            raise RuntimeError(
-                f"private model broker failed status={completion.status_code} error_code={error_code}"
-            )
-        if not completion.json().get("choices"):
-            raise RuntimeError("private model broker returned no completion")
+    await _exercise_model_broker()
 
     api = "http://candidate-browser-controller:8012"
     transport = httpx.AsyncHTTPTransport(
