@@ -862,11 +862,18 @@ and integration jobs. The integration job recorded 2,355 passed, 211 skipped
 and 17 deselected cases; those counts are separate from the passing protected
 boundary probes. This evidence covers the tested CI profile.
 
-The optional HTTPS capture edge is under review in
-[#437](https://github.com/magnus919/groktocrawl-x/pull/437). Its component checks
-do not establish a complete deployed-profile qualification. Before fresh study
-admission, qualify the exact deployed images, network configuration and endpoint,
-then bind that evidence to a newly registered study. Repository delivery does
-not provide research-quality credit or authorize default activation. The fresh
+The optional HTTPS capture edge merged in
+[#437](https://github.com/magnus919/groktocrawl-x/pull/437), with deployment and
+browser-controller fixes in #441 and #442. The
+[2026-10-11 live lab packet](evidence/protected-capture-lab-2026-10-11/README.md)
+records ten passing HTTPS checks, all six passing protected-capture probes,
+zero unwanted sentinel requests, and one deliberate positive control on its
+recorded image/configuration set. One bounded `free` model diagnostic was
+accepted; upstream usage remains unknown. Only the agent was rebuilt, with
+unchanged services and their prior definitions explicitly retained. Earlier
+failures remain evidence. This closes the recorded lab's transport checks;
+fresh study registration and independent admission remain outstanding. A
+materially different runtime needs its own qualification. No research-quality
+credit or default activation follows from these checks. The fresh
 evaluation and shared ranking implementation remain tracked in
 [SlopSearX #516](https://github.com/magnus919/SlopSearX/issues/516).

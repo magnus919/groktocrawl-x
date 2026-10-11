@@ -1,5 +1,7 @@
 # Protected capture lab qualification
 
+The [2026-10-11 live lab packet](../experiments/evidence/protected-capture-lab-2026-10-11/README.md) records ten passing HTTPS checks, six passing capture probes, and one accepted `free` model diagnostic. It is setup evidence for that recorded configuration; it does not admit a research study or establish research quality. Qualify any materially different runtime separately.
+
 `compose.protected-capture-lab.yml` adds deterministic, internal-only origin
 and sentinel fixtures to the candidate profile. It does not replace the
 configured LLM service or its route. The overlay intentionally contains no
