@@ -72,11 +72,22 @@ use the existing `flare-origin.test` and `fixture-model` defaults.
 
 The egress probe makes one bounded completion request through the configured
 model broker to verify that the real configured model path is reachable. It
-must be included in the lab's authorized call budget. The other listed probes
+must be included in the lab's authorized call budget. It requests at most eight
+output tokens and uses a 155-second total deadline, covering the existing
+150-second model-proxy connection bound plus local broker overhead. This is a
+transport diagnostic; the research study's answer deadlines and quality gates
+are unchanged. The other listed probes
 exercise ingress, source capture, browser, Flare, and sentinel behavior. The
 CI composition still uses its separate fixture-model overlay and is not a
 substitute for a lab run. A passing configuration or synthetic test does not
 qualify a deployed lab profile.
+
+After the six probes, generate the separate sentinel positive control once.
+Do not repeat it or clear retained sentinel files when resuming a run:
+
+```bash
+"${compose[@]}" exec -T candidate-private-sentinel python -c 'import uuid; from urllib.request import urlopen; nonce=uuid.uuid4().hex; r=urlopen(f"http://127.0.0.1:19001/positive-control/{nonce}", timeout=2); body=r.read(128); assert r.status == 200 and r.headers.get("Content-Type") == "text/plain" and r.headers.get("Access-Control-Allow-Origin") == "*" and body == f"PRIVATE_SENTINEL_RESPONSE_V1:{nonce}".encode(); print("private_sentinel_positive_control=pass")'
+```
 
 After probes finish, inspect both sentinel files in the private project volume:
 `events.jsonl` must remain empty and `positive-control.jsonl` must contain the

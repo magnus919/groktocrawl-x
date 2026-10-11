@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import io
 import os
@@ -103,6 +104,86 @@ def test_probe_model_alias_is_parameterized_without_changing_ci_default(monkeypa
     assert _probe().MODEL_PROBE_NAME == "fixture-model"
     monkeypatch.setenv("CAPTURE_PROBE_MODEL_NAME", "free")
     assert _probe().MODEL_PROBE_NAME == "free"
+
+
+def test_model_broker_probe_is_bounded_and_output_capped(monkeypatch):
+    probe = _probe()
+    observed = {}
+
+    class Transport:
+        def __init__(self, **kwargs):
+            observed["transport"] = kwargs
+            observed["transport_instance"] = self
+
+    class Response:
+        status_code = 200
+        headers = {"content-type": "application/json"}
+
+        @staticmethod
+        def json():
+            return {"choices": [{"message": {"content": "OK"}}]}
+
+    class Client:
+        def __init__(self, **kwargs):
+            observed["client"] = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, path, **kwargs):
+            observed["path"] = path
+            observed["request"] = kwargs
+            return Response()
+
+    monkeypatch.setattr(probe.httpx, "AsyncHTTPTransport", Transport)
+    monkeypatch.setattr(probe.httpx, "AsyncClient", Client)
+    asyncio.run(probe._exercise_model_broker())
+
+    assert observed["transport"] == {
+        "uds": "/run/scraper-llm/control.sock",
+        "retries": 0,
+    }
+    assert observed["client"] == {
+        "transport": observed["transport_instance"],
+        "base_url": "http://llm-control",
+        "trust_env": False,
+        "timeout": probe.MODEL_PROBE_TIMEOUT_SECONDS,
+    }
+    assert observed["path"] == "/recovery/chat/completions"
+    payload = observed["request"]["json"]
+    assert payload["messages"] == [{"role": "user", "content": "Reply with OK."}]
+    assert payload["max_tokens"] == 8
+    assert observed["request"]["headers"] == {"content-type": "application/json"}
+
+
+def test_model_broker_probe_enforces_total_deadline(monkeypatch):
+    probe = _probe()
+    probe.MODEL_PROBE_TIMEOUT_SECONDS = 0.01
+
+    class Transport:
+        def __init__(self, **_kwargs):
+            pass
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def post(self, *_args, **_kwargs):
+            await asyncio.sleep(1)
+
+    monkeypatch.setattr(probe.httpx, "AsyncHTTPTransport", Transport)
+    monkeypatch.setattr(probe.httpx, "AsyncClient", Client)
+    with pytest.raises(TimeoutError):
+        asyncio.run(probe._exercise_model_broker())
 
 
 def test_control_socket_probe_requires_nonwritable_owner_directories(monkeypatch):

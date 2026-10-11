@@ -36,7 +36,10 @@ services:
       - capture_bearer_acl
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=1m,mode=0700,uid=${CAPTURE_HTTPS_UID:-1000},gid=${CAPTURE_HTTPS_GID:-1000}
-    networks: [candidate_private]
+    # Docker does not publish host ports for containers attached only to an
+    # internal network. This dedicated bridge enables the explicit host
+    # mapping without joining the shared candidate service-egress network.
+    networks: [candidate_https_edge, candidate_private]
     depends_on:
       candidate-agent:
         condition: service_healthy
@@ -55,3 +58,10 @@ secrets:
     file: ${CAPTURE_TLS_KEY_FILE:?Set an absolute path to the operator-provided TLS private key}
   capture_bearer_acl:
     file: ${CAPTURE_BEARER_ACL_FILE:?Set an absolute path to the one-line 'Bearer <fresh API key>' file}
+
+networks:
+  candidate_https_edge:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.251.0/24

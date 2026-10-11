@@ -64,7 +64,19 @@ def test_https_overlay_is_opt_in_and_replaces_plaintext_host_publication() -> No
         assert overlay["services"][name]["ports"] == []
     frontend = overlay["services"]["candidate-capture-https"]
     assert frontend["image"].endswith("@sha256:56b887da77428b7a6621e59e480cdbd330cc805c22d3cedb66ceea76ffdea2c6")
-    assert frontend["networks"] == ["candidate_private"]
+    assert frontend["networks"] == ["candidate_https_edge", "candidate_private"]
+    assert base["networks"]["candidate_private"]["internal"] is True
+    assert "candidate_egress" not in frontend["networks"]
+    edge = overlay["networks"]["candidate_https_edge"]
+    assert edge.get("internal", False) is False
+    assert edge["driver"] == "bridge"
+    edge_subnet = ipaddress.ip_network(edge["ipam"]["config"][0]["subnet"])
+    assert edge_subnet == ipaddress.ip_network("172.31.251.0/24")
+    base_subnets = {
+        name: ipaddress.ip_network(network["ipam"]["config"][0]["subnet"])
+        for name, network in base["networks"].items()
+    }
+    assert all(not edge_subnet.overlaps(subnet) for subnet in base_subnets.values())
     assert frontend["ports"] == [
         "${CAPTURE_HTTPS_BIND_IP:-127.0.0.1}:${CAPTURE_HTTPS_HOST_PORT:-18443}:8443"
     ]
@@ -186,6 +198,20 @@ def test_compose_resolves_overlay_and_resets_plaintext_api_ports() -> None:
             "candidate-capture-https"
         }
         frontend = rendered["services"]["candidate-capture-https"]
+        assert set(frontend["networks"]) == {"candidate_https_edge", "candidate_private"}
+        assert rendered["networks"]["candidate_private"]["internal"] is True
+        assert "candidate_egress" not in frontend["networks"]
+        edge = rendered["networks"]["candidate_https_edge"]
+        assert edge.get("internal", False) is False
+        assert edge["driver"] == "bridge"
+        assert ipaddress.ip_network(edge["ipam"]["config"][0]["subnet"]) == (
+            ipaddress.ip_network("172.31.251.0/24")
+        )
+        assert {
+            name
+            for name, service in rendered["services"].items()
+            if "candidate_https_edge" in service.get("networks", {})
+        } == {"candidate-capture-https"}
         assert frontend["ports"][0]["published"] == "18443"
         assert frontend["ports"][0]["host_ip"] == "127.0.0.1"
         assert frontend["user"] == "1000:1000"
