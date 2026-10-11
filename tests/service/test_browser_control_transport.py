@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
+import json
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -225,6 +228,101 @@ async def test_browser_proxy_uds_failure_does_not_retry_over_tcp(monkeypatch):
     assert observed["transport_kwargs"]["uds"] == (
         "/run/browser-control/controller.sock"
     )
+
+
+@pytest.mark.asyncio
+async def test_real_uds_roundtrip_covers_health_and_browser_methods(monkeypatch):
+    from agent.health import check_browser
+
+    requests: list[tuple[str, str, object]] = []
+    with tempfile.TemporaryDirectory(prefix="browser-uds-", dir="/tmp") as directory:
+        socket_path = f"{directory}/controller.sock"
+
+        async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+            header = await reader.readuntil(b"\r\n\r\n")
+            lines = header.decode("latin-1").split("\r\n")
+            method, path, _version = lines[0].split(" ", 2)
+            headers = {
+                key.lower(): value.strip()
+                for line in lines[1:]
+                if line and ":" in line
+                for key, value in [line.split(":", 1)]
+            }
+            body_bytes = await reader.readexactly(
+                int(headers.get("content-length", "0"))
+            )
+            body = json.loads(body_bytes) if body_bytes else None
+            requests.append((method, path, body))
+            payload = json.dumps({"method": method, "path": path, "body": body})
+            encoded = payload.encode()
+            writer.write(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                + f"Content-Length: {len(encoded)}\r\nConnection: close\r\n\r\n".encode()
+                + encoded
+            )
+            await writer.drain()
+            writer.close()
+            await writer.wait_closed()
+
+        server = await asyncio.start_unix_server(serve, path=socket_path)
+        try:
+            monkeypatch.setenv("BROWSER_CONTROL_SOCKET", socket_path)
+            health = await check_browser(
+                "http://browser-svc:8012", socket_path=socket_path
+            )
+            assert health["status"] == "ok"
+
+            _browser_proxy = _browser_helpers()._browser_proxy
+            get_result = await _browser_proxy("/browsers", method="GET")
+            post_result = await _browser_proxy(
+                "/browsers", method="POST", json_data={"ttl": 30}
+            )
+            delete_result = await _browser_proxy(
+                "/browsers/session-1", method="DELETE"
+            )
+
+            assert get_result == {"method": "GET", "path": "/browsers", "body": None}
+            assert post_result == {
+                "method": "POST",
+                "path": "/browsers",
+                "body": {"ttl": 30},
+            }
+            assert delete_result == {
+                "method": "DELETE",
+                "path": "/browsers/session-1",
+                "body": None,
+            }
+            assert requests == [
+                ("GET", "/health", None),
+                ("GET", "/browsers", None),
+                ("POST", "/browsers", {"ttl": 30}),
+                ("DELETE", "/browsers/session-1", None),
+            ]
+        finally:
+            server.close()
+            await server.wait_closed()
+
+
+@pytest.mark.asyncio
+async def test_missing_configured_socket_does_not_attempt_tcp_or_dns(monkeypatch):
+    import socket
+
+    from agent.health import check_browser
+
+    resolver_calls: list[tuple[object, ...]] = []
+
+    def record_getaddrinfo(*args, **kwargs):
+        resolver_calls.append(args)
+        raise AssertionError("configured UDS request attempted DNS/TCP resolution")
+
+    monkeypatch.setattr(socket, "getaddrinfo", record_getaddrinfo)
+    result = await check_browser(
+        "http://browser-svc:8012",
+        socket_path="/tmp/does-not-exist-browser-controller.sock",
+    )
+
+    assert result["status"] == "down"
+    assert resolver_calls == []
 
 
 def test_candidate_agent_receives_only_the_controller_socket_with_group_access():
