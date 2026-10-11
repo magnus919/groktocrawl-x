@@ -249,6 +249,7 @@ def create_app() -> FastAPI:
             scraper_url=app.state.scraper_url,
             browser_url="http://browser-svc:8012",
             portal_url="http://portal-svc:8081",
+            browser_socket_path=os.environ.get("BROWSER_CONTROL_SOCKET") or None,
         )
         if app.state.slopsearx_provenance is not None:
             try:
