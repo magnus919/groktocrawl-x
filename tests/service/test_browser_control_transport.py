@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import importlib.util
 import json
 import tempfile
@@ -17,7 +18,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _browser_helpers():
-    path = ROOT / "agent-svc/agent/routes/_helpers.py"
+    browser_client = importlib.import_module("agent.browser_client")
+    package_dir = Path(browser_client.__file__).resolve().parent
+    path = package_dir / "routes" / "_helpers.py"
     spec = importlib.util.spec_from_file_location("browser_helpers_under_test", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -194,6 +197,27 @@ async def test_browser_proxy_forwards_all_methods_over_fixed_uds(
     assert observed["requests"] == [
         (method, path, {"json": body or {}} if method == "POST" else {})
     ]
+
+
+@pytest.mark.asyncio
+async def test_browser_proxy_loads_from_active_package_without_checkout_tree(
+    monkeypatch, tmp_path
+):
+    import sys
+
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", tmp_path / "no-checkout-agent-svc")
+    monkeypatch.setenv("BROWSER_CONTROL_SOCKET", "/run/browser-control/controller.sock")
+    observed = _install_browser_httpx(monkeypatch)
+
+    result = await _browser_helpers()._browser_proxy("/browsers", method="GET")
+
+    assert result == {"success": True}
+    assert not (ROOT / "agent-svc").exists()
+    assert observed["transport_kwargs"] == {
+        "uds": "/run/browser-control/controller.sock",
+        "retries": 0,
+    }
+    assert observed["requests"] == [("GET", "/browsers", {})]
 
 
 @pytest.mark.asyncio
