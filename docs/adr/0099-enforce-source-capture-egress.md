@@ -79,8 +79,13 @@ the opt-in complete composition at
 browser, protected Flare and complete capture-composition probes, plus general
 integration and storage checks. This supports the tested CI images/network
 profile; it does not qualify a later rebuild or different deployed configuration.
-The record remains proposed. Exact deployed-profile evidence and fresh study
-admission remain required under issue #429, with no reduction in tools or gates.
+The [2026-10-11 live lab packet](../experiments/evidence/protected-capture-lab-2026-10-11/README.md)
+adds ten passing HTTPS checks and all six passing capture-boundary probes on
+its recorded live image/configuration set, including the sentinel negative and
+positive controls. Only the agent was rebuilt after #442; unchanged services
+retain explicit prior provenance. The record remains proposed. Fresh study
+registration and independent admission remain required, with no reduction in
+tools or gates; other image/configuration sets require their own qualification.
 
 Before enabling the profile, exact-image integration tests must exercise adapter,
 metadata, redirect, inline-browser, browser-service, and FlareSolverr traffic.
