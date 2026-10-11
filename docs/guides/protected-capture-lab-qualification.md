@@ -8,8 +8,11 @@ configured LLM service or its route. The overlay intentionally contains no
 
 Use the same ordered Compose files, project name, env file, fixture hostname,
 and image set for configuration validation, startup, probes, and retained
-receipts. The source profile's fixed `172.31` networks must be checked for
-host/Docker-network overlap before starting the project. The origin subnet is
+receipts. The profile declares its egress network as `172.31.252.0/24`, separate
+from the private `172.31.253.0/24` and fixed `172.31.254.x` capture networks;
+none should be left for Docker's automatic address pool. Check these ranges
+against host routes and existing Docker networks before starting the project.
+The origin subnet is
 internal to this project; the `capture-origin.example.test` name is a fixture
 name, not a real destination. The host sentinel binds only the candidate
 capture bridge gateway (`172.31.254.1`) on its two probe ports; the overlay

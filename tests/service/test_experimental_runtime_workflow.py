@@ -195,6 +195,35 @@ def test_fixture_subnet_static_addresses_avoid_gateway_and_collisions():
                     previous = assignments.setdefault(key, address)
                     assert previous == address
 
+    expected_networks = {
+        "candidate_egress",
+        "candidate_private",
+        "candidate_capture",
+        "candidate_browser_capture",
+        "candidate_flare_capture",
+        "candidate_model_gateway",
+        "candidate_model_upstream",
+        "candidate_flare_fixture",
+    }
+    assert set(network_subnets) == expected_networks
+    assert network_subnets["candidate_egress"] == ipaddress.ip_network(
+        "172.31.252.0/24"
+    )
+    for (left_name, left), (right_name, right) in itertools.combinations(
+        network_subnets.items(), 2
+    ):
+        assert not left.overlaps(right), (
+            f"{left_name} {left} overlaps {right_name} {right}"
+        )
+
+    base_compose = yaml.safe_load(
+        (ROOT / "compose.experimental-candidate.yml").read_text()
+    )
+    for service_name, service in base_compose["services"].items():
+        assert service.get("network_mode") or service.get("networks"), (
+            f"{service_name} would create an implicit default network"
+        )
+
     fixture_network = "candidate_flare_fixture"
     subnet = network_subnets[fixture_network]
     gateway = next(subnet.hosts())
